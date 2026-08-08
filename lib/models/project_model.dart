@@ -82,7 +82,11 @@ class Project {
       endDate: json['end_date'],
       budget: json['budget']?.toString(),
       progress: json['progress'] ?? 0,
-      client: json['client'] is Map ? Client.fromJson(Map<String, dynamic>.from(json['client'])) : null,
+      client: json['client'] is Map 
+          ? Client.fromJson(Map<String, dynamic>.from(json['client'])) 
+          : (json['client_name'] != null 
+              ? Client(id: 0, name: json['client_name'].toString()) 
+              : (json['client'] is String ? Client(id: 0, name: json['client'].toString()) : null)),
       template: json['template'] is Map ? Map<String, dynamic>.from(json['template']) : null,
       selectedTemplates: json['selected_templates'] is List ? json['selected_templates'] : null,
       contractor: json['contractor'] is Map ? Map<String, dynamic>.from(json['contractor']) : null,

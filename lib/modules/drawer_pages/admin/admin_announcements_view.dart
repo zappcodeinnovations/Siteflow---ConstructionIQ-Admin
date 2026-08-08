@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:iconly/iconly.dart';
+import '../../../../models/announcement_model.dart';
+import '../../../../core/widgets/shimmer_loading.dart';
+import '../../../../core/theme/app_theme.dart';
 import 'admin_announcements_controller.dart';
 import 'add_announcement_dialog.dart';
-import '../../../core/widgets/shimmer_loading.dart';
+import 'edit_announcement_dialog.dart';
+import 'announcement_details_dialog.dart';
 
 class AdminAnnouncementsView extends StatefulWidget {
   const AdminAnnouncementsView({super.key});
@@ -11,13 +16,14 @@ class AdminAnnouncementsView extends StatefulWidget {
 }
 
 class _AdminAnnouncementsViewState extends State<AdminAnnouncementsView> {
-  final AdminAnnouncementsController _controller = AdminAnnouncementsController();
+  final AdminAnnouncementsController _controller =
+      AdminAnnouncementsController();
   String _searchQuery = "";
 
   @override
   void initState() {
     super.initState();
-    _controller.fetchNotifications();
+    _controller.fetchAnnouncements();
   }
 
   @override
@@ -33,168 +39,415 @@ class _AdminAnnouncementsViewState extends State<AdminAnnouncementsView> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // Title
-        const Text("Announcements", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF0F2C4A))),
-        const SizedBox(height: 4),
-        Text("Create project announcements for operative users", style: TextStyle(color: Colors.grey.shade600)),
-        const SizedBox(height: 24),
-
-        // Filter Bar
-        Row(
-          children: [
-            SizedBox(
-              width: 250,
-              height: 40,
-              child: TextField(
-                decoration: const InputDecoration(
-                  hintText: "Search announcements",
-                  border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 12),
-                ),
-                onChanged: (val) => setState(() => _searchQuery = val.toLowerCase()),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Container(
-              height: 40,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade400), borderRadius: BorderRadius.circular(4)),
-              child: const Row(
-                children: [
-                  Text("Active Announcements"),
-                  SizedBox(width: 8),
-                  Icon(Icons.keyboard_arrow_down, size: 16),
-                ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0D6EFD), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6))),
-              onPressed: () {},
-              child: const Text("Apply", style: TextStyle(color: Colors.white)),
-            ),
-            const SizedBox(width: 8),
-            Container(
-              height: 40,
-              width: 40,
-              decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(4)),
-              child: IconButton(
-                icon: const Icon(Icons.refresh, size: 18, color: Colors.grey),
-                onPressed: () {
-                  setState(() => _searchQuery = "");
-                  _controller.fetchNotifications();
-                },
-              ),
-            ),
-            const Spacer(),
-            ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0D6EFD), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6))),
-              onPressed: _showAddDialog,
-              icon: const Icon(Icons.add, size: 16, color: Colors.white),
-              label: const Text("Add Announcement", style: TextStyle(color: Colors.white)),
-            ),
-          ],
+  void _deleteAnnouncement(Announcement announcement) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Delete Announcement"),
+        content: Text(
+          "Are you sure you want to remove '${announcement.title}'?",
         ),
-        const SizedBox(height: 24),
-
-        // List View
-        Expanded(
-          child: AnimatedBuilder(
-            animation: _controller,
-            builder: (context, _) {
-              if (_controller.isLoading && _controller.notifications.isEmpty) {
-                return const ShimmerLoadingList();
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () async {
+              Navigator.pop(context);
+              final result = await _controller.deleteAnnouncement(
+                announcement.id,
+              );
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(result['message']),
+                    backgroundColor: result['success'] == true
+                        ? Colors.green
+                        : Colors.red,
+                  ),
+                );
               }
+            },
+            child: const Text("Delete", style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
 
-              if (_controller.errorMessage != null && _controller.notifications.isEmpty) {
-                return Center(child: Text(_controller.errorMessage!, style: const TextStyle(color: Colors.red)));
-              }
+  void _editAnnouncement(Announcement announcement) {
+    showDialog(
+      context: context,
+      builder: (context) => EditAnnouncementDialog(
+        announcement: announcement,
+        controller: _controller,
+      ),
+    );
+  }
 
-              final filtered = _controller.notifications.where((n) =>
-                  n.headline.toLowerCase().contains(_searchQuery) ||
-                  n.notificationText.toLowerCase().contains(_searchQuery)).toList();
+  Color _getIconColor(int id) {
+    final colors = [
+      const Color(0xFF0F2C4A),
+      const Color(0xFF0D6EFD),
+      Colors.purple,
+      Colors.teal,
+      Colors.indigo,
+    ];
+    return colors[id % colors.length];
+  }
 
-              return ListView.separated(
-                itemCount: filtered.length,
-                separatorBuilder: (context, index) => const SizedBox(height: 16),
-                itemBuilder: (context, index) {
-                  final notif = filtered[index];
-                  return Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey.shade200),
-                    ),
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildAnnouncementCard(
+    Announcement announcement, {
+    required Color cardColor,
+    required Color borderColor,
+    required Color textColor,
+    required Color subtitleColor,
+  }) {
+    final iconColor = _getIconColor(announcement.id);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () {
+            showGeneralDialog(
+              context: context,
+              barrierDismissible: true,
+              barrierLabel: "Dismiss",
+              transitionDuration: const Duration(milliseconds: 300),
+              pageBuilder: (context, animation, secondaryAnimation) {
+                return AnnouncementDetailsDialog(
+                  announcementId: announcement.id,
+                  controller: _controller,
+                );
+              },
+              transitionBuilder:
+                  (context, animation, secondaryAnimation, child) {
+                    return ScaleTransition(
+                      scale: CurvedAnimation(
+                        parent: animation,
+                        curve: Curves.easeOutBack,
+                      ),
+                      child: FadeTransition(opacity: animation, child: child),
+                    );
+                  },
+            );
+          },
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Stack(
                       children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(notif.headline, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF0F2C4A))),
-                                  const SizedBox(height: 4),
-                                  Text("Audience: ${notif.audience}", style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
-                                ],
-                              ),
-                            ),
-                            if (notif.isActive)
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                                decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(12)),
-                                child: Text("Active", style: TextStyle(color: Colors.green.shade700, fontSize: 11, fontWeight: FontWeight.bold)),
-                              )
-                            else
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                                decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(12)),
-                                child: Text("Inactive", style: TextStyle(color: Colors.grey.shade700, fontSize: 11, fontWeight: FontWeight.bold)),
-                              ),
-                          ],
+                        Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: iconColor.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          alignment: Alignment.center,
+                          child: Icon(
+                            IconlyLight.notification,
+                            color: iconColor,
+                          ),
                         ),
-                        const SizedBox(height: 16),
-                        const Divider(),
-                        const SizedBox(height: 16),
-                        Text(notif.notificationText, style: TextStyle(color: Colors.grey.shade800)),
-                        const SizedBox(height: 24),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              "${notif.formattedUpdatedAt} • ${notif.updatedByName}",
-                              style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
-                            ),
-                            OutlinedButton.icon(
-                              onPressed: () {},
-                              icon: const Icon(Icons.edit, size: 14, color: Colors.black87),
-                              label: const Text("Edit", style: TextStyle(color: Colors.black87)),
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(horizontal: 16),
-                                side: BorderSide(color: Colors.grey.shade300),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                        if (announcement.isActive)
+                          Positioned(
+                            bottom: -4,
+                            right: -4,
+                            child: Container(
+                              width: 14,
+                              height: 14,
+                              decoration: BoxDecoration(
+                                color: Colors.green,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.white,
+                                  width: 2,
+                                ),
                               ),
                             ),
-                          ],
+                          ),
+                      ],
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            announcement.title,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color: textColor,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            announcement.message,
+                            style: TextStyle(
+                              color: subtitleColor,
+                              fontSize: 11,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    PopupMenuButton<String>(
+                      icon: const Icon(
+                        IconlyLight.more_circle,
+                        color: Colors.grey,
+                      ),
+                      onSelected: (val) {
+                        if (val == 'edit') _editAnnouncement(announcement);
+                        if (val == 'delete') _deleteAnnouncement(announcement);
+                      },
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(
+                          value: 'edit',
+                          child: Text("Edit Announcement"),
+                        ),
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Text(
+                            "Delete Announcement",
+                            style: TextStyle(color: Colors.red),
+                          ),
                         ),
                       ],
                     ),
-                  );
-                },
-              );
-            },
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Wrap(
+                  spacing: 32,
+                  runSpacing: 16,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "PROJECT",
+                          style: TextStyle(
+                            fontSize: 9,
+                            color: Colors.grey,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          announcement.projectName.isNotEmpty
+                              ? announcement.projectName
+                              : "General",
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: textColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "AUTHOR",
+                          style: TextStyle(
+                            fontSize: 9,
+                            color: Colors.grey,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          announcement.createdByName,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: textColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
-      ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
+    final headerBg = isDark ? AppTheme.corporateBlue : Colors.grey.shade50;
+    final headerTitle = isDark ? Colors.white : const Color(0xFF0F2C4A);
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final subtitleColor = isDark ? Colors.white70 : Colors.grey.shade600;
+    final borderColor = isDark ? Colors.white12 : Colors.grey.shade300;
+    final searchFillColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.white;
+
+    return Scaffold(
+      backgroundColor: isDark ? AppTheme.corporateBlue : null,
+      body: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, _) {
+          final filteredAnnouncements = _controller.announcements
+              .where(
+                (a) =>
+                    a.title.toLowerCase().contains(_searchQuery) ||
+                    a.projectName.toLowerCase().contains(_searchQuery) ||
+                    a.message.toLowerCase().contains(_searchQuery),
+              )
+              .toList();
+
+          final totalAnnouncements = _controller.announcements.length;
+
+          return Column(
+            children: [
+              // Header & Search
+              Container(
+                color: headerBg,
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Announcements",
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: headerTitle,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                "$totalAnnouncements Total",
+                                style: TextStyle(
+                                  color: subtitleColor,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        InkWell(
+                          onTap: _showAddDialog,
+                          borderRadius: BorderRadius.circular(10),
+                          child: Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF0D6EFD),
+                              borderRadius: BorderRadius.circular(10),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(
+                                    0xFF0D6EFD,
+                                  ).withValues(alpha: 0.3),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              IconlyLight.plus,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    // Search Bar
+                    TextField(
+                      style: TextStyle(color: textColor),
+                      decoration: InputDecoration(
+                        hintText: "Search announcements...",
+                        hintStyle: TextStyle(color: subtitleColor),
+                        prefixIcon: Icon(
+                          IconlyLight.search,
+                          color: subtitleColor,
+                        ),
+                        filled: true,
+                        fillColor: searchFillColor,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: borderColor),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: borderColor),
+                        ),
+                      ),
+                      onChanged: (val) =>
+                          setState(() => _searchQuery = val.toLowerCase()),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Announcements List
+              Expanded(
+                child:
+                    _controller.isLoading && _controller.announcements.isEmpty
+                    ? const ShimmerLoadingList()
+                    : _controller.errorMessage != null &&
+                          _controller.announcements.isEmpty
+                    ? Center(
+                        child: Text(
+                          _controller.errorMessage!,
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: filteredAnnouncements.length,
+                        itemBuilder: (context, index) {
+                          return _buildAnnouncementCard(
+                            filteredAnnouncements[index],
+                            cardColor: cardColor,
+                            borderColor: borderColor,
+                            textColor: textColor,
+                            subtitleColor: subtitleColor,
+                          );
+                        },
+                      ),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 }

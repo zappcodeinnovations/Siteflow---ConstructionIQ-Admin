@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'manager_attendance_controller.dart';
 import '../../models/manager_attendance_model.dart';
 import '../../core/widgets/shimmer_loading.dart';
+import 'package:iconly/iconly.dart';
+import '../../core/theme/app_theme.dart';
+import '../../core/widgets/background_stripes_painter.dart';
 
 class ManagerAttendanceScreen extends StatefulWidget {
   const ManagerAttendanceScreen({super.key});
@@ -89,7 +92,7 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
                   children: [
                     const Text("Attendance Logs", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF0F2C4A))),
                     IconButton(
-                      icon: const Icon(Icons.close, color: Colors.grey),
+                      icon: const Icon(IconlyLight.close_square, color: Colors.grey),
                       onPressed: () => Navigator.pop(context),
                     ),
                   ],
@@ -194,13 +197,19 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
   }
 
   Widget _buildKpiCard(String title, String value, Color color, IconData icon) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
+    final borderColor = isDark ? Colors.white24 : color.withOpacity(0.3);
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.3), width: 1.5),
+        border: Border.all(color: borderColor, width: 1.5),
         boxShadow: [
-          BoxShadow(color: color.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 2))
+          BoxShadow(color: color.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))
         ]
       ),
       padding: const EdgeInsets.all(16),
@@ -210,12 +219,12 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
         children: [
           Row(
             children: [
-              Icon(icon, size: 16, color: color),
+              Icon(icon, size: 16, color: isDark ? Colors.white : color),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   title.toUpperCase(),
-                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey.shade600, letterSpacing: 0.5),
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: textSecondary, letterSpacing: 0.5),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -227,7 +236,7 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
             alignment: Alignment.centerLeft,
             child: Text(
               value,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
             ),
           ),
         ],
@@ -237,15 +246,25 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? AppTheme.corporateBlue : const Color(0xFFF8FAFC);
+
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: bgColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black87),
-        title: const Text("Manager Attendance", style: TextStyle(color: Color(0xFF0F2C4A), fontSize: 22, fontWeight: FontWeight.bold)),
+        iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black87),
+        backgroundColor: isDark ? AppTheme.corporateBlue : Colors.white,
+        title: Text("Manager Attendance", style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F2C4A), fontSize: 22, fontWeight: FontWeight.bold)),
       ),
-      body: AnimatedBuilder(
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: CustomPaint(
+              painter: BackgroundStripesPainter(isDark: isDark),
+            ),
+          ),
+          AnimatedBuilder(
         animation: _controller,
         builder: (context, _) {
           return SingleChildScrollView(
@@ -259,19 +278,22 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
                     children: [
                       Expanded(
                         child: DropdownButtonFormField<String>(
+                          dropdownColor: isDark ? AppTheme.corporateBlue : Colors.white,
                           decoration: InputDecoration(
                             labelText: "Filter by Manager", 
+                            labelStyle: TextStyle(color: isDark ? Colors.white70 : Colors.grey.shade700),
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
                             filled: true,
-                            fillColor: Colors.white,
+                            fillColor: isDark ? AppTheme.corporateBlue : Colors.white,
                             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                           ),
                           value: _controller.selectedManager,
                           isExpanded: true,
+                          style: TextStyle(color: isDark ? Colors.white : Colors.black87),
                           items: [
-                            const DropdownMenuItem<String>(value: null, child: Text("All Managers")),
+                            DropdownMenuItem<String>(value: null, child: Text("All Managers", style: TextStyle(color: isDark ? Colors.white : Colors.black87))),
                             ..._controller.managersList.map((m) {
-                              return DropdownMenuItem(value: m['id'].toString(), child: Text(m['name'].toString(), overflow: TextOverflow.ellipsis));
+                              return DropdownMenuItem(value: m['id'].toString(), child: Text(m['name'].toString(), style: TextStyle(color: isDark ? Colors.white : Colors.black87), overflow: TextOverflow.ellipsis));
                             }),
                           ],
                           onChanged: (val) {
@@ -296,18 +318,18 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                           decoration: BoxDecoration(
-                            color: Colors.white,
-                            border: Border.all(color: Colors.grey.shade200),
+                            color: isDark ? AppTheme.corporateBlue : Colors.white,
+                            border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade200),
                             borderRadius: BorderRadius.circular(24),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.calendar_today, size: 14, color: Colors.blue.shade700),
+                              Icon(IconlyLight.calendar, size: 14, color: isDark ? Colors.white : Colors.blue.shade700),
                               const SizedBox(width: 8),
-                              Text("${_controller.fromDate ?? 'Select'} - ${_controller.toDate ?? 'Date'}", style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                              Text("${_controller.fromDate ?? 'Select'} - ${_controller.toDate ?? 'Date'}", style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: isDark ? Colors.white : Colors.black87)),
                               const SizedBox(width: 4),
-                              Icon(Icons.keyboard_arrow_down, size: 16, color: Colors.grey.shade600),
+                              Icon(IconlyLight.arrow_down_2, size: 16, color: isDark ? Colors.white70 : Colors.grey.shade600),
                             ],
                           ),
                         ),
@@ -316,7 +338,7 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           IconButton(
-                            icon: const Icon(Icons.refresh, color: Colors.blue),
+                            icon: const Icon(IconlyLight.swap, color: Colors.blue),
                             onPressed: () {
                               _controller.resetFilters();
                               _controller.fetchManagerAttendance();
@@ -335,7 +357,7 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
                                   onPressed: _isClocking ? null : _handleClockAction,
                                   icon: _isClocking 
                                     ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                                    : const Icon(Icons.access_time, color: Colors.white, size: 18),
+                                    : const Icon(IconlyLight.time_circle, color: Colors.white, size: 18),
                                   label: Text(isClockedIn ? "Clock Out" : "Clock In", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                                 );
                               }
@@ -357,10 +379,10 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       children: [
-                        _buildKpiCard("Total Entries", _controller.data!.kpi!.entries.toString(), const Color(0xFF0D6EFD), Icons.list_alt),
-                        _buildKpiCard("Total Hours", _controller.data!.kpi!.completedHours, Colors.black87, Icons.access_time),
-                        _buildKpiCard("Current Status", _controller.data!.kpi!.currentStatus, _controller.data!.kpi!.currentStatus == 'Clocked In' ? Colors.green : Colors.grey.shade600, Icons.info_outline),
-                        _buildKpiCard("Active Since", _controller.data!.kpi!.clockedInSince ?? "N/A", Colors.purple, Icons.history),
+                        _buildKpiCard("Total Entries", _controller.data!.kpi!.entries.toString(), const Color(0xFF0D6EFD), IconlyLight.category),
+                        _buildKpiCard("Total Hours", _controller.data!.kpi!.completedHours, Colors.black87, IconlyLight.time_circle),
+                        _buildKpiCard("Current Status", _controller.data!.kpi!.currentStatus, _controller.data!.kpi!.currentStatus == 'Clocked In' ? Colors.green : Colors.grey.shade600, IconlyLight.info_square),
+                        _buildKpiCard("Active Since", _controller.data!.kpi!.clockedInSince ?? "N/A", Colors.purple, IconlyLight.category),
                       ],
                     ),
                   const SizedBox(height: 24),
@@ -368,8 +390,8 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text("Active Records", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
-                      TextButton(onPressed: () {}, child: const Text("View All", style: TextStyle(color: Colors.blue, fontWeight: FontWeight.w600))),
+                      Text("Active Records", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
+                      TextButton(onPressed: () {}, child: Text("View All", style: TextStyle(color: isDark ? Colors.white : Colors.blue, fontWeight: FontWeight.w600))),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -393,6 +415,8 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
             ),
           );
         },
+      ),
+        ],
       ),
     );
   }
@@ -431,13 +455,19 @@ class _ManagerAttendanceCardState extends State<_ManagerAttendanceCard> {
     final avatarColors = [const Color(0xFF0D6EFD), const Color(0xFF0F172A), const Color(0xFF0D9488)];
     final aColor = avatarColors[widget.index % avatarColors.length];
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
+    final borderColor = isDark ? Colors.white24 : Colors.grey.shade200;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: borderColor),
         boxShadow: [
-          BoxShadow(color: Colors.grey.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 4))
+          BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4))
         ]
       ),
       child: Column(
@@ -460,7 +490,7 @@ class _ManagerAttendanceCardState extends State<_ManagerAttendanceCard> {
                     children: [
                       Row(
                         children: [
-                          Flexible(child: Text(widget.record.managerName, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87), overflow: TextOverflow.ellipsis)),
+                          Flexible(child: Text(widget.record.managerName, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor), overflow: TextOverflow.ellipsis)),
                           const SizedBox(width: 8),
                           if (widget.record.role.isNotEmpty)
                             Container(
@@ -470,20 +500,20 @@ class _ManagerAttendanceCardState extends State<_ManagerAttendanceCard> {
                             ),
                         ],
                       ),
-                      Text(widget.record.managerCode, style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+                      Text(widget.record.managerCode, style: TextStyle(fontSize: 12, color: textSecondary)),
                     ],
                   ),
                 ),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: 0.1),
+                    color: statusColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.circle, size: 8, color: statusColor),
+                      Icon(IconlyLight.category, size: 8, color: statusColor),
                       const SizedBox(width: 4),
                       Text(statusLabel, style: TextStyle(color: statusColor, fontSize: 12, fontWeight: FontWeight.bold)),
                     ],
@@ -492,7 +522,7 @@ class _ManagerAttendanceCardState extends State<_ManagerAttendanceCard> {
               ],
             ),
           ),
-          Divider(height: 1, color: Colors.grey.shade100),
+          Divider(height: 1, color: isDark ? Colors.white12 : Colors.grey.shade100),
           
           // Body
           Padding(
@@ -505,16 +535,16 @@ class _ManagerAttendanceCardState extends State<_ManagerAttendanceCard> {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.calendar_today, size: 14, color: Colors.grey.shade600),
+                        Icon(IconlyLight.calendar, size: 14, color: textSecondary),
                         const SizedBox(width: 6),
-                        Text(widget.record.date.toUpperCase(), style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey.shade600, letterSpacing: 0.5)),
+                        Text(widget.record.date.toUpperCase(), style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textSecondary, letterSpacing: 0.5)),
                       ],
                     ),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Text("${widget.record.hours} hrs", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0D6EFD))),
-                        Text("Total Worked", style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+                        Text("${widget.record.hours} hrs", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF0D6EFD))),
+                        Text("Total Worked", style: TextStyle(fontSize: 10, color: textSecondary)),
                       ],
                     )
                   ],
@@ -522,13 +552,13 @@ class _ManagerAttendanceCardState extends State<_ManagerAttendanceCard> {
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    Icon(Icons.access_time, size: 14, color: Colors.grey.shade600),
+                    Icon(IconlyLight.time_circle, size: 14, color: textSecondary),
                     const SizedBox(width: 6),
-                    Text("${widget.record.summaryFirstLogin} - ${widget.record.summaryLastLogout}", style: TextStyle(fontSize: 13, color: Colors.grey.shade800)),
+                    Text("${widget.record.summaryFirstLogin} - ${widget.record.summaryLastLogout}", style: TextStyle(fontSize: 13, color: textColor)),
                     const SizedBox(width: 16),
-                    Icon(Icons.location_on_outlined, size: 14, color: Colors.grey.shade600),
+                    Icon(IconlyLight.location, size: 14, color: textSecondary),
                     const SizedBox(width: 4),
-                    Expanded(child: Text(widget.record.startLocation, style: const TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis)),
+                    Expanded(child: Text(widget.record.startLocation, style: TextStyle(fontSize: 12, color: textColor), overflow: TextOverflow.ellipsis)),
                   ],
                 ),
               ],
@@ -536,7 +566,7 @@ class _ManagerAttendanceCardState extends State<_ManagerAttendanceCard> {
           ),
 
           if (widget.record.logEntries.isNotEmpty) ...[
-            Divider(height: 1, color: Colors.grey.shade100, thickness: 2),
+            Divider(height: 1, color: isDark ? Colors.white12 : Colors.grey.shade100, thickness: 2),
             InkWell(
               onTap: () => setState(() => _isExpanded = !_isExpanded),
               child: Padding(
@@ -544,8 +574,8 @@ class _ManagerAttendanceCardState extends State<_ManagerAttendanceCard> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text("DAILY ACTIVITY LOGS", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
-                    Icon(_isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down, color: Colors.grey.shade600),
+                    Text("DAILY ACTIVITY LOGS", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textColor, letterSpacing: 0.5)),
+                    Icon(_isExpanded ? IconlyLight.arrow_up_2 : IconlyLight.arrow_down_2, color: textSecondary),
                   ],
                 ),
               ),
@@ -562,8 +592,8 @@ class _ManagerAttendanceCardState extends State<_ManagerAttendanceCard> {
                         children: [
                           Column(
                             children: [
-                              Icon(Icons.circle, size: 10, color: log.isOpen ? Colors.orange : Colors.blue),
-                              Container(width: 2, height: 40, color: Colors.grey.shade200),
+                              Icon(IconlyLight.category, size: 10, color: log.isOpen ? Colors.orange : Colors.blue),
+                              Container(width: 2, height: 40, color: isDark ? Colors.white12 : Colors.grey.shade200),
                             ],
                           ),
                           const SizedBox(width: 12),
@@ -574,22 +604,26 @@ class _ManagerAttendanceCardState extends State<_ManagerAttendanceCard> {
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Text("${log.clockIn} - ${log.clockOut}", style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                                    Text("${log.clockIn} - ${log.clockOut}", style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: textColor)),
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                      decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(4)),
-                                      child: Text("${log.hours}h", style: TextStyle(fontSize: 10, color: Colors.grey.shade700)),
+                                      decoration: BoxDecoration(border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade300), borderRadius: BorderRadius.circular(4)),
+                                      child: Text("${log.hours}h", style: TextStyle(fontSize: 10, color: textSecondary)),
                                     ),
                                   ],
                                 ),
                                 const SizedBox(height: 4),
-                                Text(log.startLocation, style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
+                                Text(log.startLocation, style: TextStyle(fontSize: 12, color: textSecondary)),
                                 if (log.notes.isNotEmpty) ...[
                                   const SizedBox(height: 6),
                                   Container(
                                     padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.grey.shade200)),
-                                    child: Text('"${log.notes}"', style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: Colors.grey.shade600)),
+                                    decoration: BoxDecoration(
+                                      color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade50,
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(color: isDark ? Colors.white10 : Colors.grey.shade200),
+                                    ),
+                                    child: Text('"${log.notes}"', style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: textSecondary)),
                                   ),
                                 ]
                               ],

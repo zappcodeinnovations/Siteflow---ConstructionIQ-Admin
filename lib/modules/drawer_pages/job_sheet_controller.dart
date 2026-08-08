@@ -21,6 +21,21 @@ class JobSheetController extends ChangeNotifier {
   String _selectedStatus = 'Status: All';
   String get selectedStatus => _selectedStatus;
 
+  String? _selectedProject;
+  String? get selectedProject => _selectedProject;
+
+  String? _selectedSheetNo;
+  String? get selectedSheetNo => _selectedSheetNo;
+
+  String? _selectedClient;
+  String? get selectedClient => _selectedClient;
+
+  String? _selectedOperative;
+  String? get selectedOperative => _selectedOperative;
+
+  String? _selectedForm;
+  String? get selectedForm => _selectedForm;
+
   Future<void> fetchJobSheets({String? projectId}) async {
     _isLoading = true;
     _errorMessage = null;
@@ -29,8 +44,34 @@ class JobSheetController extends ChangeNotifier {
     try {
       // Build query parameters
       String url = ApiEndpoints.baseUrl + '/job-sheets/';
+      List<String> queryParams = [];
+
       if (projectId != null && projectId.isNotEmpty) {
-        url += '?project=$projectId';
+        queryParams.add('project=$projectId');
+      } else if (_selectedProject != null && _selectedProject!.isNotEmpty) {
+        queryParams.add('project=${Uri.encodeComponent(_selectedProject!)}');
+      }
+
+      String statusVal = _selectedStatus.replaceAll('Status: ', '').toLowerCase();
+      if (statusVal != 'all') {
+        queryParams.add('status=${Uri.encodeComponent(statusVal)}');
+      }
+
+      if (_selectedSheetNo != null && _selectedSheetNo!.isNotEmpty) {
+        queryParams.add('sheet_no=${Uri.encodeComponent(_selectedSheetNo!)}');
+      }
+      if (_selectedClient != null && _selectedClient!.isNotEmpty) {
+        queryParams.add('client=${Uri.encodeComponent(_selectedClient!)}');
+      }
+      if (_selectedOperative != null && _selectedOperative!.isNotEmpty) {
+        queryParams.add('operative=${Uri.encodeComponent(_selectedOperative!)}');
+      }
+      if (_selectedForm != null && _selectedForm!.isNotEmpty) {
+        queryParams.add('form=${Uri.encodeComponent(_selectedForm!)}');
+      }
+
+      if (queryParams.isNotEmpty) {
+        url += '?' + queryParams.join('&');
       }
 
       final response = await ApiClient.get(url);
@@ -53,7 +94,31 @@ class JobSheetController extends ChangeNotifier {
 
   void setStatusFilter(String status) {
     _selectedStatus = status;
-    notifyListeners();
-    // Would trigger fetchJobSheets with new filter parameters here
+    fetchJobSheets();
+  }
+
+  void setFilter({
+    String? project,
+    String? sheetNo,
+    String? client,
+    String? operative,
+    String? form,
+  }) {
+    _selectedProject = project;
+    _selectedSheetNo = sheetNo;
+    _selectedClient = client;
+    _selectedOperative = operative;
+    _selectedForm = form;
+    fetchJobSheets();
+  }
+
+  void clearFilters() {
+    _selectedStatus = 'Status: All';
+    _selectedProject = null;
+    _selectedSheetNo = null;
+    _selectedClient = null;
+    _selectedOperative = null;
+    _selectedForm = null;
+    fetchJobSheets();
   }
 }

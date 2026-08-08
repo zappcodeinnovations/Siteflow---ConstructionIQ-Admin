@@ -61,3 +61,47 @@ class Announcement {
     };
   }
 }
+
+class AnnouncementResponse {
+  final bool status;
+  final String message;
+  final List<Announcement> data;
+  final int count;
+  final int page;
+  final int pageSize;
+  final int totalPages;
+
+  AnnouncementResponse({
+    required this.status,
+    required this.message,
+    required this.data,
+    this.count = 0,
+    this.page = 1,
+    this.pageSize = 20,
+    this.totalPages = 0,
+  });
+
+  factory AnnouncementResponse.fromJson(Map<String, dynamic> json) {
+    var dataList = json['data'];
+    List<Announcement> announcements = [];
+    if (dataList is List) {
+      announcements = dataList.map((i) => Announcement.fromJson(i)).toList();
+    } else if (dataList is Map<String, dynamic>) {
+      if (dataList.containsKey('results') && dataList['results'] is List) {
+        announcements = (dataList['results'] as List).map((i) => Announcement.fromJson(i)).toList();
+      } else {
+        announcements.add(Announcement.fromJson(dataList));
+      }
+    }
+    
+    return AnnouncementResponse(
+      status: json['status'] ?? false,
+      message: json['message'] ?? '',
+      data: announcements,
+      count: json['count'] ?? 0,
+      page: json['page'] ?? 1,
+      pageSize: json['page_size'] ?? 20,
+      totalPages: json['total_pages'] ?? 0,
+    );
+  }
+}

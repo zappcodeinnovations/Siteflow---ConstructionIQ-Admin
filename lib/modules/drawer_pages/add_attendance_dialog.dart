@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'timesheet_controller.dart';
+import 'package:iconly/iconly.dart';
+import '../../core/theme/app_theme.dart';
 
 class AddAttendanceDialog extends StatefulWidget {
   final TimesheetController controller;
@@ -73,8 +75,8 @@ class _AddAttendanceDialogState extends State<AddAttendanceDialog> {
       "operator": int.parse(_selectedOperatorId!),
       "project": int.parse(_selectedProjectId!),
       "job": int.parse(_selectedJobId!),
-      "clock_in": _clockIn!.toIso8601String(),
-      "clock_out": _clockOut!.toIso8601String(),
+      "clock_in": _clockIn!.toIso8601String().split('.').first,
+      "clock_out": _clockOut!.toIso8601String().split('.').first,
       "location_latitude": "51.5074", // Mock location
       "location_longitude": "-0.1278",
       "notes": _notesController.text,
@@ -106,11 +108,26 @@ class _AddAttendanceDialogState extends State<AddAttendanceDialog> {
     final operators = (options['operators'] as List?) ?? [];
     final projects = (options['projects'] as List?) ?? [];
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? AppTheme.corporateBlue : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
+    final iconBgColor = isDark ? Colors.white24 : Colors.grey.shade100;
+    final iconColor = isDark ? Colors.white : Colors.black54;
+
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      elevation: 0,
+      backgroundColor: Colors.transparent,
       child: Container(
         width: 600,
         padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20, offset: const Offset(0, 10))
+          ],
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -118,15 +135,19 @@ class _AddAttendanceDialogState extends State<AddAttendanceDialog> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text("Add Attendance", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF0F2C4A))),
-                IconButton(
-                  icon: const Icon(Icons.close, color: Colors.grey),
-                  onPressed: () => Navigator.pop(context),
+                Text("Add Attendance", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor)),
+                InkWell(
+                  onTap: () => Navigator.pop(context),
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(color: iconBgColor, shape: BoxShape.circle),
+                    child: Icon(IconlyLight.close_square, size: 18, color: iconColor),
+                  ),
                 ),
               ],
             ),
-            const Divider(),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
             Flexible(
               child: SingleChildScrollView(
                 child: Column(
@@ -135,127 +156,214 @@ class _AddAttendanceDialogState extends State<AddAttendanceDialog> {
                     Row(
                       children: [
                         Expanded(
-                          child: DropdownButtonFormField<String>(
-                            decoration: const InputDecoration(labelText: "Operative *", border: OutlineInputBorder()),
-                            value: _selectedOperatorId,
-                            isExpanded: true,
-                            items: operators.map((o) => DropdownMenuItem(value: o['id'].toString(), child: Text(o['name'].toString(), overflow: TextOverflow.ellipsis))).toList(),
-                            onChanged: (val) => setState(() => _selectedOperatorId = val),
+                          child: _buildPremiumDropdown(
+                            "Operative *", 
+                            _selectedOperatorId, 
+                            operators.map((o) => DropdownMenuItem(value: o['id'].toString(), child: Text(o['name'].toString(), overflow: TextOverflow.ellipsis))).toList(),
+                            (val) => setState(() => _selectedOperatorId = val),
                           ),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
-                          child: DropdownButtonFormField<String>(
-                            decoration: const InputDecoration(labelText: "Project *", border: OutlineInputBorder()),
-                            value: _selectedProjectId,
-                            isExpanded: true,
-                            items: projects.map((p) => DropdownMenuItem(value: p['id'].toString(), child: Text(p['name'].toString(), overflow: TextOverflow.ellipsis))).toList(),
-                            onChanged: (val) => setState(() => _selectedProjectId = val),
+                          child: _buildPremiumDropdown(
+                            "Project *", 
+                            _selectedProjectId, 
+                            projects.map((p) => DropdownMenuItem(value: p['id'].toString(), child: Text(p['name'].toString(), overflow: TextOverflow.ellipsis))).toList(),
+                            (val) => setState(() => _selectedProjectId = val),
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 16),
-                    DropdownButtonFormField<String>(
-                      decoration: const InputDecoration(labelText: "Task Name (Job) *", border: OutlineInputBorder()),
-                      value: _selectedJobId,
-                      isExpanded: true,
-                      items: const [
-                        DropdownMenuItem(value: "22", child: Text("Job 22 (Mocked for API)")),
-                      ],
-                      onChanged: (val) => setState(() => _selectedJobId = val),
+                    _buildPremiumDropdown(
+                      "Task Name (Job) *", 
+                      _selectedJobId, 
+                      const [DropdownMenuItem(value: "22", child: Text("Job 22 (Mocked for API)"))],
+                      (val) => setState(() => _selectedJobId = val),
                     ),
                     const SizedBox(height: 16),
-                    DropdownButtonFormField<String>(
-                      decoration: const InputDecoration(labelText: "Task Sheet *", border: OutlineInputBorder()),
-                      value: _selectedTaskSheet,
-                      isExpanded: true,
-                      items: const [
-                        DropdownMenuItem(value: "drilling", child: Text("Drilling Form")),
-                      ],
-                      onChanged: (val) => setState(() => _selectedTaskSheet = val),
+                    _buildPremiumDropdown(
+                      "Task Sheet *", 
+                      _selectedTaskSheet, 
+                      const [DropdownMenuItem(value: "drilling", child: Text("Drilling Form"))],
+                      (val) => setState(() => _selectedTaskSheet = val),
                     ),
                     const SizedBox(height: 16),
                     Row(
                       children: [
                         Expanded(
-                          child: InkWell(
-                            onTap: () => _selectDateTime(true),
-                            child: InputDecorator(
-                              decoration: const InputDecoration(labelText: "Clocked in *", border: OutlineInputBorder()),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(_clockIn != null ? _formatDateTime(_clockIn!) : 'dd-mm-yyyy hh:mm'),
-                                  const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
-                                ],
-                              ),
-                            ),
-                          ),
+                          child: _buildDateTimeField("Clocked in *", _clockIn, () => _selectDateTime(true)),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
-                          child: InkWell(
-                            onTap: () => _selectDateTime(false),
-                            child: InputDecorator(
-                              decoration: const InputDecoration(labelText: "Clocked out *", border: OutlineInputBorder()),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(_clockOut != null ? _formatDateTime(_clockOut!) : 'dd-mm-yyyy hh:mm'),
-                                  const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
-                                ],
-                              ),
-                            ),
-                          ),
+                          child: _buildDateTimeField("Clocked out *", _clockOut, () => _selectDateTime(false)),
                         ),
                       ],
                     ),
                     const SizedBox(height: 16),
-                    OutlinedButton.icon(
-                      onPressed: () {},
-                      icon: const Icon(Icons.location_on_outlined, size: 16),
-                      label: const Text("Use Current Location"),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: () {},
+                        icon: Icon(IconlyLight.location, size: 16, color: isDark ? Colors.white : Colors.black87),
+                        label: Text("Use Current Location", style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
+                      ),
                     ),
                     const SizedBox(height: 16),
-                    TextField(
-                      controller: _notesController,
-                      decoration: const InputDecoration(labelText: "Notes", border: OutlineInputBorder()),
-                      maxLines: 3,
-                    ),
+                    _buildPremiumTextField("Notes", _notesController, maxLines: 3),
                     const SizedBox(height: 16),
-                    TextField(
-                      controller: _signatureController,
-                      decoration: const InputDecoration(labelText: "Signature Text", border: OutlineInputBorder()),
-                    ),
+                    _buildPremiumTextField("Signature Text", _signatureController),
                   ],
                 ),
               ),
             ),
             const SizedBox(height: 24),
             Row(
-              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text("Cancel"),
-                ),
-                const SizedBox(width: 16),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0D6EFD),
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      side: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
+                    ),
+                    onPressed: () => Navigator.pop(context),
+                    child: Text("Cancel", style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontWeight: FontWeight.w600)),
                   ),
-                  onPressed: _isSubmitting ? null : _submit,
-                  child: _isSubmitting 
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Text("Add Entry", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 2,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      backgroundColor: const Color(0xFF0D6EFD),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: _isSubmitting ? null : _submit,
+                    child: _isSubmitting 
+                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Text("Add Entry", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  ),
                 ),
               ],
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildPremiumDropdown(String label, String? value, List<DropdownMenuItem<String>> items, Function(String?) onChanged) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final boxBgColor = isDark ? const Color(0xFF1F2E40) : Colors.grey.shade50;
+    final borderColor = isDark ? Colors.white24 : Colors.grey.shade200;
+    final labelColor = isDark ? Colors.grey.shade400 : Colors.black54;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final dropdownColor = isDark ? const Color(0xFF1F2E40) : Colors.white;
+    final iconColor = isDark ? Colors.white70 : Colors.grey;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: labelColor)),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          decoration: BoxDecoration(
+            color: boxBgColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: borderColor),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              isExpanded: true,
+              value: value,
+              hint: Text("Select option", style: TextStyle(color: labelColor)),
+              icon: Icon(IconlyLight.arrow_down_2, color: iconColor),
+              dropdownColor: dropdownColor,
+              style: TextStyle(color: textColor, fontSize: 14),
+              items: items,
+              onChanged: onChanged,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDateTimeField(String label, DateTime? value, VoidCallback onTap) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final boxBgColor = isDark ? const Color(0xFF1F2E40) : Colors.grey.shade50;
+    final borderColor = isDark ? Colors.white24 : Colors.grey.shade200;
+    final labelColor = isDark ? Colors.grey.shade400 : Colors.black54;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final iconColor = isDark ? Colors.white70 : Colors.grey;
+    final hintColor = isDark ? Colors.grey.shade600 : Colors.grey.shade500;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: labelColor)),
+        const SizedBox(height: 8),
+        InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            decoration: BoxDecoration(
+              color: boxBgColor,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: borderColor),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  value != null ? _formatDateTime(value) : 'dd-mm-yyyy hh:mm',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: value != null ? textColor : hintColor),
+                ),
+                Icon(IconlyLight.calendar, size: 16, color: iconColor),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPremiumTextField(String label, TextEditingController controller, {int maxLines = 1}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final boxBgColor = isDark ? const Color(0xFF1F2E40) : Colors.grey.shade50;
+    final borderColor = isDark ? Colors.white24 : Colors.grey.shade200;
+    final labelColor = isDark ? Colors.grey.shade400 : Colors.black54;
+    final textColor = isDark ? Colors.white : Colors.black87;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: labelColor)),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller,
+          maxLines: maxLines,
+          style: TextStyle(color: textColor),
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: boxBgColor,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF0D6EFD))),
+          ),
+        ),
+      ],
     );
   }
 }

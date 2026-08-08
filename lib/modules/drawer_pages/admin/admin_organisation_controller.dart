@@ -22,12 +22,25 @@ class AdminOrganisationController extends ChangeNotifier {
 
   Future<void> fetchCurrencies() async {
     try {
-      final url = '${ApiEndpoints.baseUrl}/api/admin/organisation/currency-options/';
+      final url = '${ApiEndpoints.baseUrl}/admin/organisation/currency-options/';
       final response = await ApiClient.get(url);
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
-        if (decoded is Map<String, dynamic> && decoded.containsKey('data')) {
-          _currencies = (decoded['data'] as List).map((c) => c['code'].toString()).toList();
+        List<dynamic> dataList = [];
+        
+        if (decoded is List) {
+          dataList = decoded;
+        } else if (decoded is Map<String, dynamic> && decoded.containsKey('data')) {
+          dataList = decoded['data'];
+        } else if (decoded is Map<String, dynamic> && decoded.containsKey('currencies')) {
+          dataList = decoded['currencies'];
+        }
+
+        if (dataList.isNotEmpty) {
+          _currencies = dataList.map((c) {
+            if (c is Map) return (c['code'] ?? c['name'] ?? c.toString()).toString();
+            return c.toString();
+          }).toList();
         }
       }
     } catch (e) {
@@ -42,7 +55,7 @@ class AdminOrganisationController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final url = '${ApiEndpoints.baseUrl}/api/admin/organisation/';
+      final url = '${ApiEndpoints.baseUrl}/admin/organisation/';
       final response = await ApiClient.get(url);
       
       if (response.statusCode == 200) {
@@ -66,7 +79,7 @@ class AdminOrganisationController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final url = '${ApiEndpoints.baseUrl}/api/admin/organisation/';
+      final url = '${ApiEndpoints.baseUrl}/admin/organisation/';
       final payload = {
         "name": name,
         "currency": currency,

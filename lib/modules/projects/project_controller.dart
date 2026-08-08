@@ -5,6 +5,7 @@ import '../../core/network/api_endpoints.dart';
 import '../../models/project_model.dart';
 import '../../models/project_all_in_one_model.dart';
 import '../../models/announcement_model.dart';
+import '../../models/client_model.dart';
 
 class ProjectController extends ChangeNotifier {
   bool _isLoading = false;
@@ -249,15 +250,34 @@ class ProjectController extends ChangeNotifier {
     }
   }
 
+  Client? _activeClientFilter;
+  String _currentSearchQuery = '';
+
+  void filterByClient(Client client) {
+    _activeClientFilter = client;
+    _applyFilters();
+  }
+
   void searchProjects(String query) {
-    if (query.isEmpty) {
-      _filteredProjects = List.from(_projects);
-    } else {
-      _filteredProjects = _projects.where((project) {
+    _currentSearchQuery = query;
+    _applyFilters();
+  }
+
+  void _applyFilters() {
+    _filteredProjects = _projects.where((project) {
+      bool matchesClient = true;
+      if (_activeClientFilter != null) {
+        matchesClient = project.client?.id == _activeClientFilter!.id || 
+                        project.client?.name.toLowerCase() == _activeClientFilter!.name.toLowerCase();
+      }
+      if (!matchesClient) return false;
+
+      if (_currentSearchQuery.isNotEmpty) {
         final searchStr = '${project.code} ${project.name}'.toLowerCase();
-        return searchStr.contains(query.toLowerCase());
-      }).toList();
-    }
+        return searchStr.contains(_currentSearchQuery.toLowerCase());
+      }
+      return true;
+    }).toList();
     notifyListeners();
   }
 

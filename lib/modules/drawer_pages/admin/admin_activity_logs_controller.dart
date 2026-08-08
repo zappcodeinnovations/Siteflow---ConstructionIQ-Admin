@@ -37,7 +37,7 @@ class AdminActivityLogsController extends ChangeNotifier {
 
   Future<void> fetchKPIs() async {
     try {
-      final url = '${ApiEndpoints.baseUrl}/api/admin/activity-logs/kpis/';
+      final url = '${ApiEndpoints.baseUrl}/admin/activity-logs/kpis/';
       final response = await ApiClient.get(url);
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
@@ -59,7 +59,7 @@ class AdminActivityLogsController extends ChangeNotifier {
 
   Future<void> fetchFilterOptions() async {
     try {
-      final url = '${ApiEndpoints.baseUrl}/api/admin/activity-logs/filter-options/';
+      final url = '${ApiEndpoints.baseUrl}/admin/activity-logs/filter-options/';
       final response = await ApiClient.get(url);
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
@@ -114,7 +114,7 @@ class AdminActivityLogsController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      String url = '${ApiEndpoints.baseUrl}/api/admin/activity-logs/?';
+      String url = '${ApiEndpoints.baseUrl}/admin/activity-logs/?';
       List<String> queryParams = [];
       
       if (selectedManager != null) queryParams.add('user_id=$selectedManager');
@@ -154,7 +154,7 @@ class AdminActivityLogsController extends ChangeNotifier {
 
   Future<void> exportLogs(String format) async {
     try {
-      String url = '${ApiEndpoints.baseUrl}/api/admin/activity-logs/export/?format=$format';
+      String url = '${ApiEndpoints.baseUrl}/admin/activity-logs/export/?format=$format';
       if (selectedManager != null) url += '&user_id=$selectedManager';
       if (selectedModule != null) url += '&module=$selectedModule';
       if (selectedAction != null) url += '&action_type=$selectedAction';
@@ -174,7 +174,7 @@ class AdminActivityLogsController extends ChangeNotifier {
 
   Future<Map<String, dynamic>?> fetchLogDetails(int logId) async {
     try {
-      final url = '${ApiEndpoints.baseUrl}/api/admin/activity-logs/$logId/';
+      final url = '${ApiEndpoints.baseUrl}/admin/activity-logs/$logId/';
       final response = await ApiClient.get(url);
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);

@@ -12,6 +12,7 @@ class ProjectAllInOneModel {
   final List<dynamic> docsFolders;
   final List<dynamic> docsFiles;
   final Map<String, dynamic>? projectSetup;
+  final Map<String, dynamic>? jobSheetsFilterOptions;
 
   ProjectAllInOneModel({
     this.project,
@@ -25,6 +26,7 @@ class ProjectAllInOneModel {
     this.docsFolders = const [],
     this.docsFiles = const [],
     this.projectSetup,
+    this.jobSheetsFilterOptions,
   });
 
   factory ProjectAllInOneModel.fromJson(Map<String, dynamic> json) {
@@ -40,6 +42,7 @@ class ProjectAllInOneModel {
       docsFolders: json['docs_folders'] ?? [],
       docsFiles: json['docs_files'] ?? [],
       projectSetup: json['project_setup'],
+      jobSheetsFilterOptions: json['job_sheets_filter_options'],
     );
   }
 }

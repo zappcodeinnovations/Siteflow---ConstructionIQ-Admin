@@ -3,10 +3,15 @@ import '../../core/widgets/custom_drawer.dart';
 import '../profile/profile_screen.dart';
 import 'admin/admin_members_view.dart';
 import 'admin/admin_announcements_view.dart';
+import 'admin/admin_notifications_view.dart';
 import 'admin/admin_permissions_view.dart';
 import 'admin/admin_activity_logs_view.dart';
-import 'admin/admin_organisation_view.dart';
+// import 'admin/admin_organisation_view.dart';
 import 'admin/admin_support_view.dart';
+import 'admin/admin_guests_view.dart';
+import 'package:iconly/iconly.dart';
+import '../../core/theme/app_theme.dart';
+import '../../core/widgets/background_stripes_painter.dart';
 
 class AdminScreen extends StatefulWidget {
   const AdminScreen({super.key});
@@ -18,17 +23,18 @@ class AdminScreen extends StatefulWidget {
 class _AdminScreenState extends State<AdminScreen> {
   int _currentIndex = 0;
   late PageController _pageController;
+  final ScrollController _mobileScrollController = ScrollController();
 
   final List<Map<String, dynamic>> _sideMenus = [
-    {"title": "Profile", "icon": Icons.person_outline},
-    {"title": "Members", "icon": Icons.group_outlined},
-    {"title": "Guests", "icon": Icons.mail_outline},
-    {"title": "Announcements", "icon": Icons.campaign_outlined},
-    {"title": "Notifications", "icon": Icons.notifications_none},
-    {"title": "Permissions", "icon": Icons.tune},
-    {"title": "Activity Logs", "icon": Icons.show_chart},
-    {"title": "Organisation", "icon": Icons.business},
-    {"title": "Support", "icon": Icons.help_outline},
+    {"title": "Profile", "icon": IconlyLight.profile},
+    {"title": "Members", "icon": IconlyLight.user_1},
+    {"title": "Guests", "icon": IconlyLight.message},
+    {"title": "Announcements", "icon": IconlyLight.category},
+    {"title": "Notifications", "icon": IconlyLight.notification},
+    {"title": "Permissions", "icon": IconlyLight.category},
+    {"title": "Activity Logs", "icon": IconlyLight.category},
+    // {"title": "Organisation", "icon": IconlyLight.work},
+    {"title": "Support", "icon": IconlyLight.category},
   ];
 
   @override
@@ -40,13 +46,28 @@ class _AdminScreenState extends State<AdminScreen> {
   @override
   void dispose() {
     _pageController.dispose();
+    _mobileScrollController.dispose();
     super.dispose();
+  }
+
+  void _scrollToActiveTab(int index) {
+    if (_mobileScrollController.hasClients) {
+      final screenWidth = MediaQuery.of(context).size.width;
+      // Approximate tab width is 120, offset to center it.
+      final scrollOffset = (index * 120.0) - (screenWidth / 2) + 60.0;
+      _mobileScrollController.animateTo(
+        scrollOffset.clamp(0.0, _mobileScrollController.position.maxScrollExtent),
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
   }
 
   void _onMenuTapped(int index) {
     setState(() {
       _currentIndex = index;
     });
+    _scrollToActiveTab(index);
     _pageController.animateToPage(
       index,
       duration: const Duration(milliseconds: 300),
@@ -60,14 +81,18 @@ class _AdminScreenState extends State<AdminScreen> {
         return const ProfileScreen();
       case "Members":
         return const AdminMembersView();
+      case "Guests":
+        return const AdminGuestsView();
       case "Announcements":
         return const AdminAnnouncementsView();
+      case "Notifications":
+        return const AdminNotificationsView();
       case "Permissions":
         return const AdminPermissionsView();
       case "Activity Logs":
         return const AdminActivityLogsView();
-      case "Organisation":
-        return const AdminOrganisationView();
+      // case "Organisation":
+      //   return const AdminOrganisationView();
       case "Support":
         return const AdminSupportView();
       default:
@@ -75,7 +100,7 @@ class _AdminScreenState extends State<AdminScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.construction, size: 64, color: Colors.grey.shade400),
+              Icon(IconlyLight.category, size: 64, color: Colors.grey.shade400),
               const SizedBox(height: 16),
               Text("$menu Content", style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.grey)),
               const Text("This module is under construction.", style: TextStyle(color: Colors.grey)),
@@ -88,23 +113,33 @@ class _AdminScreenState extends State<AdminScreen> {
   @override
   Widget build(BuildContext context) {
     final isDesktop = MediaQuery.of(context).size.width > 800;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? AppTheme.corporateBlue : const Color(0xFFF8FAFC);
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: bgColor,
       drawer: const CustomDrawer(),
       appBar: AppBar(
         title: const Text("ADMIN", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
-        backgroundColor: const Color(0xFF0F2C4A),
+        backgroundColor: isDark ? const Color(0xFF101A26) : const Color(0xFF0F2C4A),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: Column(
+      body: Stack(
         children: [
+          Positioned.fill(
+            child: CustomPaint(
+              painter: BackgroundStripesPainter(isDark: isDark),
+            ),
+          ),
+          Column(
+            children: [
           // Mobile Horizontal Menu
           if (!isDesktop)
             Container(
               height: 56,
               color: const Color(0xFF0F2C4A),
               child: ListView.builder(
+                controller: _mobileScrollController,
                 scrollDirection: Axis.horizontal,
                 itemCount: _sideMenus.length,
                 itemBuilder: (context, index) {
@@ -195,6 +230,9 @@ class _AdminScreenState extends State<AdminScreen> {
                       setState(() {
                         _currentIndex = index;
                       });
+                      if (!isDesktop) {
+                        _scrollToActiveTab(index);
+                      }
                     },
                     itemCount: _sideMenus.length,
                     itemBuilder: (context, index) {
@@ -208,6 +246,8 @@ class _AdminScreenState extends State<AdminScreen> {
               ],
             ),
           ),
+        ],
+      ),
         ],
       ),
     );

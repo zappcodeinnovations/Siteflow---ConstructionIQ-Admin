@@ -73,4 +73,20 @@ class AdminMembersController extends ChangeNotifier {
       return {"success": false, "message": "An error occurred: $e"};
     }
   }
+
+  Future<AdminMember?> fetchMemberDetails(int id) async {
+    try {
+      final url = '${ApiEndpoints.baseUrl}/admin/members/$id/';
+      final response = await ApiClient.get(url);
+      final decodedData = jsonDecode(response.body);
+
+      if (response.statusCode == 200 && decodedData['status'] == true) {
+        return AdminMember.fromJson(decodedData['data']);
+      }
+      return null;
+    } catch (e) {
+      debugPrint("Error fetching member details: $e");
+      return null;
+    }
+  }
 }

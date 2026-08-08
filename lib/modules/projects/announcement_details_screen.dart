@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'project_controller.dart';
 import '../../models/announcement_model.dart';
+import 'package:iconly/iconly.dart';
 
 class AnnouncementDetailsScreen extends StatefulWidget {
   final int announcementId;
@@ -41,7 +42,7 @@ class _AnnouncementDetailsScreenState extends State<AnnouncementDetailsScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                  const Icon(IconlyLight.category, color: Colors.red, size: 48),
                   const SizedBox(height: 16),
                   Text(error ?? 'Could not load announcement details'),
                   const SizedBox(height: 16),
@@ -101,7 +102,7 @@ class _AnnouncementDetailsScreenState extends State<AnnouncementDetailsScreen> {
                 // Meta Info
                 Row(
                   children: [
-                    Icon(Icons.access_time, size: 16, color: Colors.grey.shade600),
+                    Icon(IconlyLight.time_circle, size: 16, color: Colors.grey.shade600),
                     const SizedBox(width: 6),
                     Text(
                       formattedDate,
@@ -112,7 +113,7 @@ class _AnnouncementDetailsScreenState extends State<AnnouncementDetailsScreen> {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    Icon(Icons.person_outline, size: 16, color: Colors.grey.shade600),
+                    Icon(IconlyLight.profile, size: 16, color: Colors.grey.shade600),
                     const SizedBox(width: 6),
                     Text(
                       "Posted by ${announcement.createdByName}",

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'admin_permissions_controller.dart';
+import 'package:iconly/iconly.dart';
 
 class CreateRoleDialog extends StatefulWidget {
   final AdminPermissionsController controller;
@@ -64,7 +65,7 @@ class _CreateRoleDialogState extends State<CreateRoleDialog> {
                 children: [
                   const Text("Create Custom Role", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF0F2C4A))),
                   IconButton(
-                    icon: const Icon(Icons.close, color: Colors.grey),
+                    icon: const Icon(IconlyLight.close_square, color: Colors.grey),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],

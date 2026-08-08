@@ -18,6 +18,8 @@ class JobSheet {
   final String created;
   final String submitted;
   final String lastUpdated;
+  final String formHtmlUrl;
+  final String viewFormInBrowserUrl;
 
   JobSheet({
     required this.id,
@@ -39,6 +41,8 @@ class JobSheet {
     required this.created,
     required this.submitted,
     required this.lastUpdated,
+    required this.formHtmlUrl,
+    required this.viewFormInBrowserUrl,
   });
 
   factory JobSheet.fromJson(Map<String, dynamic> json) {
@@ -62,6 +66,8 @@ class JobSheet {
       created: json['created'] ?? '',
       submitted: json['submitted'] ?? '',
       lastUpdated: json['last_updated'] ?? '',
+      formHtmlUrl: json['form_html_url'] ?? '',
+      viewFormInBrowserUrl: json['view_form_in_browser_url'] ?? '',
     );
   }
 }

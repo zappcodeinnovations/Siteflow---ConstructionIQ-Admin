@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:iconly/iconly.dart';
 
 class LibraryScreen extends StatelessWidget {
   const LibraryScreen({super.key});
@@ -10,22 +11,22 @@ class LibraryScreen extends StatelessWidget {
 
       {
         "title": "Project Requirements",
-        "icon": Icons.description,
+        "icon": IconlyLight.paper,
       },
 
       {
         "title": "Company Policies",
-        "icon": Icons.menu_book,
+        "icon": IconlyLight.category,
       },
 
       {
         "title": "Flutter Documentation",
-        "icon": Icons.code,
+        "icon": IconlyLight.category,
       },
 
       {
         "title": "Design Assets",
-        "icon": Icons.image,
+        "icon": IconlyLight.image,
       },
     ];
 

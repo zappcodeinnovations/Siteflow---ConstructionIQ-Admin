@@ -3,6 +3,7 @@ class ApiEndpoints {
 
   // Auth
   static const String login = '/admin/login/';
+  static const String refresh = '/admin/token/refresh/'; // Please verify if this matches your backend
 
   // Dashboard
   static const String dashboard = '/admin/dashboard/';

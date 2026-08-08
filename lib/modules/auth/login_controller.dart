@@ -29,9 +29,14 @@ class LoginController extends ChangeNotifier {
         },
       );
 
-      final data = jsonDecode(response.body);
+      var data;
+      try {
+        data = jsonDecode(response.body);
+      } catch (e) {
+        // If response is not JSON, it might be a server error page (HTML)
+      }
 
-      if (response.statusCode == 200 && data['status'] == true) {
+      if (response.statusCode == 200 && data != null && data['status'] == true) {
         // Check if payload is wrapped in 'data'
         final payload = data['data'] ?? data;
 
@@ -49,13 +54,23 @@ class LoginController extends ChangeNotifier {
         notifyListeners();
         return true;
       } else {
-        _errorMessage = data['message'] ?? 'Login failed: ${response.body}';
+        if (response.statusCode == 401 || response.statusCode == 400 || response.statusCode == 404) {
+          _errorMessage = (data != null && data['message'] != null) ? data['message'] : 'Invalid email or password.';
+        } else {
+          _errorMessage = (data != null && data['message'] != null) ? data['message'] : 'A server error occurred. Please try again.';
+        }
+        
+        // Prevent showing long HTML or backend stack traces
+        if (_errorMessage != null && (_errorMessage!.length > 100 || _errorMessage!.contains('<html'))) {
+           _errorMessage = 'Invalid credentials or server error. Please try again.';
+        }
+
         _isLoading = false;
         notifyListeners();
         return false;
       }
     } catch (e) {
-      _errorMessage = 'An error occurred: $e';
+      _errorMessage = 'Unable to connect to the server. Please check your internet connection.';
       _isLoading = false;
       notifyListeners();
       return false;

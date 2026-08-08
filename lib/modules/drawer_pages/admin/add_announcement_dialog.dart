@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:iconly/iconly.dart';
 import 'admin_announcements_controller.dart';
 
 class AddAnnouncementDialog extends StatefulWidget {
   final AdminAnnouncementsController controller;
-
   const AddAnnouncementDialog({super.key, required this.controller});
 
   @override
@@ -12,68 +12,59 @@ class AddAnnouncementDialog extends StatefulWidget {
 
 class _AddAnnouncementDialogState extends State<AddAnnouncementDialog> {
   final _formKey = GlobalKey<FormState>();
-
-  final _headlineController = TextEditingController();
-  final _textController = TextEditingController();
-  final _operatorIdsController = TextEditingController();
-
-  String _selectedAudience = 'all_operators';
+  final _titleController = TextEditingController();
+  final _messageController = TextEditingController();
+  final _projectIdController = TextEditingController();
   bool _isActive = true;
-  bool _sendPush = true;
+  bool _isLoading = false;
 
-  bool _isSubmitting = false;
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _messageController.dispose();
+    _projectIdController.dispose();
+    super.dispose();
+  }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() {
-      _isSubmitting = true;
-    });
+    setState(() => _isLoading = true);
 
-    List<int> operatorIds = [];
-    if (_selectedAudience == 'selected_operators') {
-      final parts = _operatorIdsController.text.split(',');
-      for (var p in parts) {
-        final id = int.tryParse(p.trim());
-        if (id != null) operatorIds.add(id);
-      }
+    int? projectId;
+    if (_projectIdController.text.isNotEmpty) {
+      projectId = int.tryParse(_projectIdController.text.trim());
     }
 
     final payload = {
-      "headline": _headlineController.text.trim(),
-      "notification_text": _textController.text.trim(),
-      "audience": _selectedAudience,
-      "operator_ids": operatorIds,
+      "title": _titleController.text.trim(),
+      "message": _messageController.text.trim(),
       "is_active": _isActive,
-      "send_push": _sendPush,
-      "attachment": null,
+      if (projectId != null) "project_id": projectId,
     };
 
-    final result = await widget.controller.createNotification(payload);
+    final result = await widget.controller.createAnnouncement(payload);
 
-    if (!mounted) return;
-    setState(() {
-      _isSubmitting = false;
-    });
-
-    if (result['success'] == true) {
-      Navigator.pop(context);
+    if (mounted) {
+      setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message']), backgroundColor: Colors.green),
+        SnackBar(
+          content: Text(result['message']),
+          backgroundColor: result['success'] == true ? Colors.green : Colors.red,
+        ),
       );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message']), backgroundColor: Colors.red),
-      );
+      if (result['success'] == true) {
+        Navigator.pop(context);
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
-        width: 500,
+        width: 450,
         padding: const EdgeInsets.all(24),
         child: Form(
           key: _formKey,
@@ -87,96 +78,68 @@ class _AddAnnouncementDialogState extends State<AddAnnouncementDialog> {
                   children: [
                     const Text("Add Announcement", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF0F2C4A))),
                     IconButton(
-                      icon: const Icon(Icons.close, color: Colors.grey),
+                      icon: const Icon(IconlyLight.close_square, color: Colors.grey),
                       onPressed: () => Navigator.pop(context),
                     ),
                   ],
                 ),
                 const Divider(),
                 const SizedBox(height: 16),
-
                 TextFormField(
-                  controller: _headlineController,
-                  decoration: const InputDecoration(labelText: "Headline", border: OutlineInputBorder()),
-                  validator: (v) => v!.isEmpty ? 'Required' : null,
+                  controller: _titleController,
+                  decoration: _buildInputDecoration("Announcement Title", IconlyLight.document),
+                  validator: (val) => val == null || val.isEmpty ? "Required" : null,
                 ),
                 const SizedBox(height: 16),
-
                 TextFormField(
-                  controller: _textController,
-                  decoration: const InputDecoration(labelText: "Notification Text", border: OutlineInputBorder()),
-                  maxLines: 3,
-                  validator: (v) => v!.isEmpty ? 'Required' : null,
+                  controller: _projectIdController,
+                  decoration: _buildInputDecoration("Project ID (optional)", IconlyLight.folder),
+                  keyboardType: TextInputType.number,
                 ),
                 const SizedBox(height: 16),
-
-                DropdownButtonFormField<String>(
-                  decoration: const InputDecoration(labelText: "Audience", border: OutlineInputBorder()),
-                  value: _selectedAudience,
-                  items: const [
-                    DropdownMenuItem(value: 'all_operators', child: Text("All Operators")),
-                    DropdownMenuItem(value: 'selected_operators', child: Text("Selected Operators")),
-                  ],
-                  onChanged: (val) {
-                    if (val != null) setState(() => _selectedAudience = val);
-                  },
+                TextFormField(
+                  controller: _messageController,
+                  maxLines: 4,
+                  decoration: _buildInputDecoration("Message", IconlyLight.message),
+                  validator: (val) => val == null || val.isEmpty ? "Required" : null,
                 ),
                 const SizedBox(height: 16),
-
-                if (_selectedAudience == 'selected_operators') ...[
-                  TextFormField(
-                    controller: _operatorIdsController,
-                    decoration: const InputDecoration(
-                      labelText: "Operator IDs (Comma separated)", 
-                      border: OutlineInputBorder(),
-                      hintText: "e.g. 1, 5, 8",
-                    ),
-                    validator: (v) => v!.isEmpty ? 'Required' : null,
-                  ),
-                  const SizedBox(height: 16),
-                ],
-
-                Row(
-                  children: [
-                    Expanded(
-                      child: SwitchListTile(
-                        title: const Text("Is Active", style: TextStyle(fontSize: 14)),
-                        value: _isActive,
-                        onChanged: (val) => setState(() => _isActive = val),
-                        contentPadding: EdgeInsets.zero,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: SwitchListTile(
-                        title: const Text("Send Push", style: TextStyle(fontSize: 14)),
-                        value: _sendPush,
-                        onChanged: (val) => setState(() => _sendPush = val),
-                        contentPadding: EdgeInsets.zero,
-                      ),
-                    ),
-                  ],
+                SwitchListTile(
+                  title: const Text("Is Active", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87)),
+                  subtitle: const Text("Make this announcement visible immediately", style: TextStyle(color: Colors.grey, fontSize: 12)),
+                  value: _isActive,
+                  activeColor: Colors.green,
+                  contentPadding: EdgeInsets.zero,
+                  onChanged: (val) => setState(() => _isActive = val),
                 ),
                 const SizedBox(height: 24),
-
-                SizedBox(
-                  height: 48,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0D6EFD),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                    ),
-                    onPressed: _isSubmitting ? null : _submit,
-                    child: _isSubmitting
-                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                        : const Text("Add Announcement", style: TextStyle(color: Colors.white, fontSize: 16)),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0D6EFD),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
+                  onPressed: _isLoading ? null : _submit,
+                  child: _isLoading
+                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Text("Create Announcement", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
                 ),
               ],
             ),
           ),
         ),
       ),
+    );
+  }
+
+  InputDecoration _buildInputDecoration(String hint, IconData icon) {
+    return InputDecoration(
+      hintText: hint,
+      prefixIcon: Icon(icon, color: Colors.grey),
+      filled: true,
+      fillColor: Colors.grey.shade50,
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
     );
   }
 }

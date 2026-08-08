@@ -1,4 +1,4 @@
-package com.example.euroside_admin
+package com.euroside.siteflow_admin
 
 import io.flutter.embedding.android.FlutterActivity
 

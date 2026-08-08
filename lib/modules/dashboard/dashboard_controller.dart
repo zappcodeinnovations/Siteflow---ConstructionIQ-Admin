@@ -21,6 +21,10 @@ class DashboardController extends ChangeNotifier {
 
     try {
       final response = await ApiClient.get(ApiEndpoints.baseUrl + ApiEndpoints.dashboard);
+      debugPrint("--- Dashboard API Debug ---");
+      debugPrint("Status Code: ${response.statusCode}");
+      debugPrint("Response Body: ${response.body}");
+      debugPrint("---------------------------");
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200 && data['status'] == true) {
