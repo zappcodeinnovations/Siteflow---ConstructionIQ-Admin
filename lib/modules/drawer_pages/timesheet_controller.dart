@@ -69,7 +69,7 @@ class TimesheetController extends ChangeNotifier {
 
   Future<Map<String, dynamic>> addAttendance(Map<String, dynamic> payload) async {
     try {
-      final url = ApiEndpoints.baseUrl + '/timesheets/add/';
+      final url = '${ApiEndpoints.baseUrl}/timesheets/add/';
       final response = await ApiClient.post(url, body: payload);
       final decodedData = jsonDecode(response.body);
 
@@ -77,9 +77,11 @@ class TimesheetController extends ChangeNotifier {
         if (decodedData['status'] == true) {
           // Success, reload data
           await fetchTimesheets();
+          debugPrint("Add Attendance Response /timesheets/add/ : $decodedData");
           return {"success": true, "message": decodedData['message'] ?? "Attendance added successfully."};
         }
       }
+      debugPrint("this is a response and error /timesheets/add/ ${response.body}");
       return {"success": false, "message": decodedData['message'] ?? "Failed to add attendance."};
     } catch (e) {
       return {"success": false, "message": "An error occurred: $e"};

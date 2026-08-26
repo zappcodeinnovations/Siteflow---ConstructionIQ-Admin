@@ -15,8 +15,8 @@ class AddAttendanceDialog extends StatefulWidget {
 class _AddAttendanceDialogState extends State<AddAttendanceDialog> {
   String? _selectedOperatorId;
   String? _selectedProjectId;
-  String? _selectedJobId; // Mocked job
-  String? _selectedTaskSheet; // Dummy
+  String? _selectedJobId;
+  String? _selectedTaskSheet;
 
   DateTime? _clockIn;
   DateTime? _clockOut;
@@ -60,7 +60,7 @@ class _AddAttendanceDialogState extends State<AddAttendanceDialog> {
   }
 
   void _submit() async {
-    if (_selectedOperatorId == null || _selectedProjectId == null || _selectedJobId == null || _clockIn == null || _clockOut == null) {
+    if (_selectedOperatorId == null || _clockIn == null || _clockOut == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Please fill all required fields.")),
       );
@@ -73,8 +73,8 @@ class _AddAttendanceDialogState extends State<AddAttendanceDialog> {
 
     final payload = {
       "operator": int.parse(_selectedOperatorId!),
-      "project": int.parse(_selectedProjectId!),
-      "job": int.parse(_selectedJobId!),
+      "project": _selectedProjectId != null ? int.parse(_selectedProjectId ?? "N/A") : null,
+      "job": _selectedJobId!= null? int.parse(_selectedJobId ?? "N/A") : null,
       "clock_in": _clockIn!.toIso8601String().split('.').first,
       "clock_out": _clockOut!.toIso8601String().split('.').first,
       "location_latitude": "51.5074", // Mock location
@@ -166,7 +166,7 @@ class _AddAttendanceDialogState extends State<AddAttendanceDialog> {
                         const SizedBox(width: 16),
                         Expanded(
                           child: _buildPremiumDropdown(
-                            "Project *", 
+                            "Project",
                             _selectedProjectId, 
                             projects.map((p) => DropdownMenuItem(value: p['id'].toString(), child: Text(p['name'].toString(), overflow: TextOverflow.ellipsis))).toList(),
                             (val) => setState(() => _selectedProjectId = val),
