@@ -107,3 +107,13 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+# iconly 1.0.1 (pub.dev's latest, last published 2021) subclasses IconData,
+# which became a `final class` in newer Dart SDKs and no longer compiles.
+# No newer release exists to bump to, so this points at a locally
+# vendored, patched copy (vendor/iconly) that inlines `const IconData(...)`
+# instead of subclassing it - same icons, same call sites, no other
+# changes.
+dependency_overrides:
+  iconly:
+    path: vendor/iconly
