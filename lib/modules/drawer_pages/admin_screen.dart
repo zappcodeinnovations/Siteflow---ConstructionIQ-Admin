@@ -14,14 +14,16 @@ import '../../core/theme/app_theme.dart';
 import '../../core/widgets/background_stripes_painter.dart';
 
 class AdminScreen extends StatefulWidget {
-  const AdminScreen({super.key});
+  final int initialIndex;
+
+  const AdminScreen({super.key, this.initialIndex = 0});
 
   @override
   State<AdminScreen> createState() => _AdminScreenState();
 }
 
 class _AdminScreenState extends State<AdminScreen> {
-  int _currentIndex = 0;
+  late int _currentIndex;
   late PageController _pageController;
   final ScrollController _mobileScrollController = ScrollController();
 
@@ -40,6 +42,7 @@ class _AdminScreenState extends State<AdminScreen> {
   @override
   void initState() {
     super.initState();
+    _currentIndex = widget.initialIndex;
     _pageController = PageController(initialPage: _currentIndex);
   }
 

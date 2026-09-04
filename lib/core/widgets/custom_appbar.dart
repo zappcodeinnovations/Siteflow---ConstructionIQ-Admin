@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../../models/admin_notification_model.dart';
+import '../../modules/drawer_pages/admin/admin_notifications_controller.dart';
+import '../../modules/drawer_pages/admin_screen.dart';
 
-class CustomAppBar extends StatelessWidget
+class CustomAppBar extends StatefulWidget
     implements PreferredSizeWidget {
 
   final String title;
@@ -14,16 +17,46 @@ class CustomAppBar extends StatelessWidget
   });
 
   @override
+  State<CustomAppBar> createState() => _CustomAppBarState();
+
+  @override
+  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+}
+
+class _CustomAppBarState extends State<CustomAppBar> {
+  final AdminNotificationsController _controller = AdminNotificationsController();
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.fetchNotifications();
+    _controller.addListener(_onChanged);
+  }
+
+  void _onChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _controller.removeListener(_onChanged);
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final appBarColor = isDark ? AppTheme.corporateBlue : Colors.white;
     final foregroundColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
 
+    final recent = _controller.notifications.where((n) => n.isActive).take(5).toList();
+
     return AppBar(
       backgroundColor: appBarColor,
       foregroundColor: foregroundColor,
       elevation: 0,
-      title: Text(title, style: TextStyle(fontWeight: FontWeight.bold, color: foregroundColor)),
+      title: Text(widget.title, style: TextStyle(fontWeight: FontWeight.bold, color: foregroundColor)),
       iconTheme: IconThemeData(color: foregroundColor),
       flexibleSpace: ClipRRect(
         child: Stack(
@@ -56,11 +89,16 @@ class CustomAppBar extends StatelessWidget
         ),
       ),
       actions: [
-        if (actions != null) ...actions!,
+        if (widget.actions != null) ...widget.actions!,
         PopupMenuButton<String>(
-          icon: Icon(Icons.notifications_outlined, color: foregroundColor),
+          icon: Badge(
+            isLabelVisible: recent.isNotEmpty,
+            label: Text('${recent.length}'),
+            child: Icon(Icons.notifications_outlined, color: foregroundColor),
+          ),
           offset: const Offset(0, 50),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          constraints: const BoxConstraints(minWidth: 280, maxWidth: 320),
           itemBuilder: (context) => [
             const PopupMenuItem(
               enabled: false,
@@ -70,13 +108,29 @@ class CustomAppBar extends StatelessWidget
               ),
             ),
             const PopupMenuDivider(),
-            const PopupMenuItem(
-              enabled: false,
-              child: Padding(
-                padding: EdgeInsets.symmetric(vertical: 16.0),
-                child: Text("No new notifications", style: TextStyle(color: Colors.grey)),
+            if (_controller.isLoading)
+              const PopupMenuItem(
+                enabled: false,
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 16.0),
+                  child: Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))),
+                ),
+              )
+            else if (recent.isEmpty)
+              const PopupMenuItem(
+                enabled: false,
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 16.0),
+                  child: Text("No new notifications", style: TextStyle(color: Colors.grey)),
+                ),
+              )
+            else
+              ...recent.map(
+                (n) => PopupMenuItem(
+                  enabled: false,
+                  child: _NotificationRow(notification: n),
+                ),
               ),
-            ),
             const PopupMenuDivider(),
             const PopupMenuItem(
               value: 'view_all',
@@ -90,7 +144,10 @@ class CustomAppBar extends StatelessWidget
           ],
           onSelected: (value) {
             if (value == 'view_all') {
-              Navigator.pushNamed(context, '/admin');
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AdminScreen(initialIndex: 4)),
+              );
             }
           },
         ),
@@ -98,7 +155,35 @@ class CustomAppBar extends StatelessWidget
       ],
     );
   }
+}
+
+class _NotificationRow extends StatelessWidget {
+  final AdminNotification notification;
+
+  const _NotificationRow({required this.notification});
 
   @override
-  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            notification.headline,
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Colors.black87),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 2),
+          Text(
+            notification.notificationText,
+            style: const TextStyle(fontSize: 12, color: Colors.grey),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
 }
