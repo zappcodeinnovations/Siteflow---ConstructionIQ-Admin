@@ -6,7 +6,7 @@ import 'admin/admin_announcements_view.dart';
 import 'admin/admin_notifications_view.dart';
 import 'admin/admin_permissions_view.dart';
 import 'admin/admin_activity_logs_view.dart';
-// import 'admin/admin_organisation_view.dart';
+import 'admin/admin_organisation_view.dart';
 import 'admin/admin_support_view.dart';
 import 'admin/admin_guests_view.dart';
 import 'package:iconly/iconly.dart';
@@ -33,7 +33,7 @@ class _AdminScreenState extends State<AdminScreen> {
     {"title": "Notifications", "icon": IconlyLight.notification},
     {"title": "Permissions", "icon": IconlyLight.category},
     {"title": "Activity Logs", "icon": IconlyLight.category},
-    // {"title": "Organisation", "icon": IconlyLight.work},
+    {"title": "Organisation", "icon": IconlyLight.work},
     {"title": "Support", "icon": IconlyLight.category},
   ];
 
@@ -91,8 +91,8 @@ class _AdminScreenState extends State<AdminScreen> {
         return const AdminPermissionsView();
       case "Activity Logs":
         return const AdminActivityLogsView();
-      // case "Organisation":
-      //   return const AdminOrganisationView();
+      case "Organisation":
+        return const AdminOrganisationView();
       case "Support":
         return const AdminSupportView();
       default:

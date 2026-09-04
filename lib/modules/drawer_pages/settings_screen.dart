@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/background_stripes_painter.dart';
+import '../../models/admin_team_model.dart';
+import 'admin_team_controller.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -12,6 +14,139 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   int _selectedIndex = 0; // 0: Teams, 1: Materials
+  final AdminTeamController _teamController = AdminTeamController();
+
+  @override
+  void initState() {
+    super.initState();
+    _teamController.fetchTeams();
+    _teamController.addListener(_onTeamControllerChanged);
+  }
+
+  void _onTeamControllerChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _teamController.removeListener(_onTeamControllerChanged);
+    _teamController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _showAddTeamDialog() async {
+    final nameController = TextEditingController();
+    TimeOfDay? shiftStart;
+    TimeOfDay? shiftEnd;
+
+    String? formatTime(TimeOfDay? t) {
+      if (t == null) return null;
+      return '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+    }
+
+    await showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Add Team'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(labelText: 'Team name'),
+                ),
+                const SizedBox(height: 16),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(shiftStart == null ? 'Shift start (optional)' : 'Start: ${formatTime(shiftStart)}'),
+                  trailing: const Icon(IconlyLight.time_circle),
+                  onTap: () async {
+                    final picked = await showTimePicker(
+                      context: context,
+                      initialTime: shiftStart ?? const TimeOfDay(hour: 8, minute: 0),
+                    );
+                    if (picked != null) setDialogState(() => shiftStart = picked);
+                  },
+                ),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(shiftEnd == null ? 'Shift end (optional)' : 'End: ${formatTime(shiftEnd)}'),
+                  trailing: const Icon(IconlyLight.time_circle),
+                  onTap: () async {
+                    final picked = await showTimePicker(
+                      context: context,
+                      initialTime: shiftEnd ?? const TimeOfDay(hour: 15, minute: 0),
+                    );
+                    if (picked != null) setDialogState(() => shiftEnd = picked);
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final name = nameController.text.trim();
+                if (name.isEmpty) return;
+                Navigator.pop(dialogContext);
+                final result = await _teamController.createTeam(
+                  name: name,
+                  shiftStartTime: formatTime(shiftStart),
+                  shiftEndTime: formatTime(shiftEnd),
+                );
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(result['message'] as String),
+                    backgroundColor: result['success'] == true ? Colors.green : Colors.red,
+                  ),
+                );
+              },
+              child: const Text('Create'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmForceClockOut(AdminTeam team) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Force Clock Out'),
+        content: Text('Clock out every active session for ${team.displayName}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Clock Out', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    final result = await _teamController.forceClockOut(team.id);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(result['message'] as String),
+        backgroundColor: result['success'] == true ? Colors.green : Colors.red,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -214,12 +349,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          "You have 2 teams in your organisation.",
+                          _teamController.isLoading
+                              ? "Loading teams..."
+                              : _teamController.errorMessage != null
+                                  ? _teamController.errorMessage!
+                                  : "You have ${_teamController.teams.length} team${_teamController.teams.length == 1 ? '' : 's'} in your organisation.",
                           style: TextStyle(fontSize: 15, color: textColor),
                         ),
                         const SizedBox(height: 24),
                         ElevatedButton.icon(
-                          onPressed: () {},
+                          onPressed: _showAddTeamDialog,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF0D6EFD),
                             padding: const EdgeInsets.symmetric(
@@ -243,28 +382,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ],
                     ),
                   ),
-                  _buildTeamItem(
-                    name: "Team A",
-                    createdAt: "23 Jun 2026, 03:15 PM",
-                    lead: "No team lead assigned",
-                    shift: "Not set",
-                    members: "0 Members",
-                    isDesktop: isDesktop,
-                    textColor: textColor,
-                    subtitleColor: subtitleColor,
-                    borderColor: borderColor,
-                  ),
-                  _buildTeamItem(
-                    name: "TEAM LSE",
-                    createdAt: "19 Jun 2026, 03:28 PM",
-                    lead: "George Barrett",
-                    shift: "Not set",
-                    members: "27 Members",
-                    isDesktop: isDesktop,
-                    textColor: textColor,
-                    subtitleColor: subtitleColor,
-                    borderColor: borderColor,
-                  ),
+                  if (_teamController.isLoading)
+                    const Padding(
+                      padding: EdgeInsets.all(24.0),
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  else
+                    for (final team in _teamController.teams)
+                      _buildTeamItem(
+                        team: team,
+                        isDesktop: isDesktop,
+                        textColor: textColor,
+                        subtitleColor: subtitleColor,
+                        borderColor: borderColor,
+                      ),
                 ],
               ),
             ),
@@ -275,16 +406,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildTeamItem({
-    required String name,
-    required String createdAt,
-    required String lead,
-    required String shift,
-    required String members,
+    required AdminTeam team,
     required bool isDesktop,
     required Color textColor,
     required Color subtitleColor,
     required Color borderColor,
   }) {
+    final name = team.displayName;
+    final createdAt = team.createdAt != null
+        ? '${team.createdAt!.day.toString().padLeft(2, '0')}/${team.createdAt!.month.toString().padLeft(2, '0')}/${team.createdAt!.year}'
+        : 'Unknown date';
+    final lead = team.leadName ?? 'No team lead assigned';
+    final shift = (team.shiftStartTime != null && team.shiftEndTime != null)
+        ? '${team.shiftStartTime} - ${team.shiftEndTime}'
+        : 'Not set';
+    final members = '${team.memberCount} Member${team.memberCount == 1 ? '' : 's'}';
+
     return Container(
       decoration: BoxDecoration(
         border: Border(top: BorderSide(color: borderColor)),
@@ -353,7 +490,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
               OutlinedButton.icon(
-                onPressed: () {},
+                onPressed: () => _confirmForceClockOut(team),
                 style: OutlinedButton.styleFrom(
                   side: BorderSide(color: Colors.red.shade200),
                   backgroundColor: Colors.red.shade50,
