@@ -9,6 +9,8 @@ import 'package:euroside_admin/modules/drawer_pages/productivity_screen.dart';
 import 'package:euroside_admin/modules/drawer_pages/settings_screen.dart';
 import 'package:euroside_admin/modules/drawer_pages/timesheet_screen.dart';
 import 'package:euroside_admin/modules/drawer_pages/manager_attendance_screen.dart';
+import 'package:euroside_admin/modules/drawer_pages/weekly_diary_screen.dart';
+import 'package:euroside_admin/modules/drawer_pages/manager_diary_list_screen.dart';
 import 'package:euroside_admin/modules/home/nav_bar.dart';
 import 'package:euroside_admin/modules/profile/profile_screen.dart';
 import 'package:flutter/material.dart';
@@ -22,6 +24,9 @@ class AppRoutes {
     '/home': (context) => const BottomNavScreen(),
     '/profile': (context) => const ProfileScreen(),
     '/jobSheet': (context) => const JobSheetScreen(),
+    '/dailyReports': (context) => const JobSheetScreen(title: "Daily Reports", dailyReportsMode: true),
+    '/weeklyDiary': (context) => const WeeklyDiaryScreen(),
+    '/managerDiary': (context) => const ManagerDiaryListScreen(),
     '/productivity': (context) => const ProductivityScreen(),
     '/timesheet': (context) => const TimesheetScreen(),
     '/managerAttendance': (context) => const ManagerAttendanceScreen(),

@@ -12,7 +12,14 @@ import '../../core/theme/app_theme.dart';
 import '../../core/widgets/background_stripes_painter.dart';
 
 class JobSheetScreen extends StatefulWidget {
-  const JobSheetScreen({super.key});
+  final String title;
+  final bool dailyReportsMode;
+
+  const JobSheetScreen({
+    super.key,
+    this.title = "Job Sheets",
+    this.dailyReportsMode = false,
+  });
 
   @override
   State<JobSheetScreen> createState() => _JobSheetScreenState();
@@ -22,8 +29,9 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
   final JobSheetController _controller = JobSheetController();
 
   @override
-  void initState() { 
+  void initState() {
     super.initState();
+    _controller.dailyReportsMode = widget.dailyReportsMode;
     _controller.fetchJobSheets();
   }
 
@@ -141,7 +149,7 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
 
             return AlertDialog(
               backgroundColor: isDark ? AppTheme.corporateBlue : Colors.white,
-              title: Text("Filter Job Sheets", style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
+              title: Text("Filter ${widget.title}", style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -150,7 +158,8 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
                     buildDropdown("Sheet No", tempSheetNo, getOptions("sheet_nos"), (val) => tempSheetNo = val),
                     buildDropdown("Client", tempClient, getOptions("clients"), (val) => tempClient = val),
                     buildDropdown("Operative", tempOperative, getOptions("operatives"), (val) => tempOperative = val),
-                    buildDropdown("Form", tempForm, getOptions("forms"), (val) => tempForm = val),
+                    if (!widget.dailyReportsMode)
+                      buildDropdown("Form", tempForm, getOptions("forms"), (val) => tempForm = val),
                   ],
                 ),
               ),
@@ -195,7 +204,7 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
         iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black87),
         backgroundColor: isDark ? AppTheme.corporateBlue : Colors.white,
         title: Text(
-          "Job Sheets",
+          widget.title,
           style: TextStyle(
             color: isDark ? Colors.white : const Color(0xFF0F2C4A),
             fontSize: 22,

@@ -23,4 +23,15 @@ class ApiEndpoints {
 
   // Profile
   static const String profile = '/profile/';
+
+  // Job Sheets / Daily Reports
+  static const String jobSheets = '/job-sheets/';
+
+  // Weekly Diary
+  static const String weeklyDiary = '/weekly-diary/';
+
+  // Manager Diary
+  static const String managerDiary = '/manager-diary/';
+  static const String managerDiaryForms = '/manager-diary/forms/';
+  static String userFormHtml(int formId) => '/userform/$formId/html/';
 }

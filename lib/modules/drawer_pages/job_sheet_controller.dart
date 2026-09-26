@@ -36,6 +36,12 @@ class JobSheetController extends ChangeNotifier {
   String? _selectedForm;
   String? get selectedForm => _selectedForm;
 
+  // When true, this controller serves the "Daily Reports" screen instead of
+  // "Job Sheets": Daily Diary submissions are included (the default list
+  // excludes them) and locked as the only form shown, mirroring the web's
+  // separate /daily-reports/ URL which reuses the same job_sheets_list view.
+  bool dailyReportsMode = false;
+
   Future<void> fetchJobSheets({String? projectId}) async {
     _isLoading = true;
     _errorMessage = null;
@@ -66,7 +72,10 @@ class JobSheetController extends ChangeNotifier {
       if (_selectedOperative != null && _selectedOperative!.isNotEmpty) {
         queryParams.add('operative=${Uri.encodeComponent(_selectedOperative!)}');
       }
-      if (_selectedForm != null && _selectedForm!.isNotEmpty) {
+      if (dailyReportsMode) {
+        queryParams.add('daily_reports=true');
+        queryParams.add('form=${Uri.encodeComponent('Daily Diary')}');
+      } else if (_selectedForm != null && _selectedForm!.isNotEmpty) {
         queryParams.add('form=${Uri.encodeComponent(_selectedForm!)}');
       }
 

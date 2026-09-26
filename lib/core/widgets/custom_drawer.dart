@@ -135,6 +135,27 @@ class _CustomDrawerState extends State<CustomDrawer> {
                 ),
                 _buildDrawerItem(
                   context,
+                  IconlyLight.paper,
+                  "Daily Reports",
+                  '/dailyReports',
+                  currentRoute,
+                ),
+                _buildDrawerItem(
+                  context,
+                  IconlyLight.calendar,
+                  "Weekly Diary",
+                  '/weeklyDiary',
+                  currentRoute,
+                ),
+                _buildDrawerItem(
+                  context,
+                  IconlyLight.edit,
+                  "Manager Diary",
+                  '/managerDiary',
+                  currentRoute,
+                ),
+                _buildDrawerItem(
+                  context,
                   IconlyLight.graph,
                   "Productivity",
                   '/productivity',
