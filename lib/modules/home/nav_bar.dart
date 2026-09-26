@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../projects/projects_screen.dart';
 
+import '../../core/services/auth_service.dart';
 import '../../core/widgets/custom_drawer.dart';
 import '../../core/widgets/custom_appbar.dart';
 import 'package:iconly/iconly.dart';
@@ -18,39 +19,70 @@ class BottomNavScreen extends StatefulWidget {
 
 class _BottomNavScreenState extends State<BottomNavScreen> {
   int currentIndex = 0;
+  bool _roleLoaded = false;
   final GlobalKey<ClientsScreenState> clientsScreenKey =
       GlobalKey<ClientsScreenState>();
   final GlobalKey<ProjectsScreenState> projectsScreenKey =
       GlobalKey<ProjectsScreenState>();
 
-  late final List<Widget> pages = [
-    DashboardScreen(
-      onProjectsTap: () => setState(() => currentIndex = 2),
-      onTasksTap: () => setState(() => currentIndex = 3),
-    ),
-    ClientsScreen(key: clientsScreenKey),
-    ProjectsScreen(key: projectsScreenKey),
-    const TasksScreen(),
-  ];
+  // Built once the account's role is known, since "Clients" (an admin-only
+  // area on the web dashboard too, unless an admin grants it) only appears
+  // for admin/superuser logins - everyone else gets Dashboard/Projects/Tasks.
+  late List<Widget> pages;
+  late List<String> titles;
+  late List<IconData> icons;
+  int? _clientsIndex;
+  late int _projectsIndex;
+  late int _tasksIndex;
 
-  final List<String> titles = ["Dashboard", "Clients", "Projects", "Tasks"];
+  @override
+  void initState() {
+    super.initState();
+    _loadRoleAndBuildTabs();
+  }
 
-  final List<IconData> icons = [
-    IconlyLight.home,
-    IconlyLight.user_1,
-    IconlyLight.folder,
-    IconlyLight.document,
-  ];
+  Future<void> _loadRoleAndBuildTabs() async {
+    final isAdmin = await AuthService.isAdminUser();
+
+    _clientsIndex = isAdmin ? 1 : null;
+    _projectsIndex = isAdmin ? 2 : 1;
+    _tasksIndex = isAdmin ? 3 : 2;
+
+    pages = [
+      DashboardScreen(
+        onProjectsTap: () => setState(() => currentIndex = _projectsIndex),
+        onTasksTap: () => setState(() => currentIndex = _tasksIndex),
+      ),
+      if (isAdmin) ClientsScreen(key: clientsScreenKey),
+      ProjectsScreen(key: projectsScreenKey),
+      const TasksScreen(),
+    ];
+    titles = ["Dashboard", if (isAdmin) "Clients", "Projects", "Tasks"];
+    icons = [
+      IconlyLight.home,
+      if (isAdmin) IconlyLight.user_1,
+      IconlyLight.folder,
+      IconlyLight.document,
+    ];
+
+    if (mounted) {
+      setState(() => _roleLoaded = true);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (!_roleLoaded) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
     final width = MediaQuery.of(context).size.width;
     final isDesktop = width > 800;
 
     return Scaffold(
       appBar: CustomAppBar(
         title: titles[currentIndex],
-        actions: currentIndex == 1
+        actions: currentIndex == _clientsIndex
             ? [
                 IconButton(
                   icon: const Icon(IconlyLight.search),
@@ -59,7 +91,7 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
                   },
                 ),
               ]
-            : currentIndex == 2
+            : currentIndex == _projectsIndex
                 ? [
                     IconButton(
                       icon: const Icon(IconlyLight.search),

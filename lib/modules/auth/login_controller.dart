@@ -49,7 +49,15 @@ class LoginController extends ChangeNotifier {
 
         // Parse user
         _currentUser = User.fromJson(payload['user']);
-        
+
+        // Persist the role the backend decided for these credentials
+        // (admin/superuser vs. manager vs. any other role) so the rest of
+        // the app can adjust what it shows without hitting the API again.
+        await AuthService.saveUserRole(
+          effectiveRole: _currentUser!.effectiveRole,
+          roleLabel: _currentUser!.roleLabel,
+        );
+
         _isLoading = false;
         notifyListeners();
         return true;

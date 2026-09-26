@@ -1,10 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
 import '../theme/app_theme.dart';
+import '../services/auth_service.dart';
 import '../../main.dart';
 
-class CustomDrawer extends StatelessWidget {
+class CustomDrawer extends StatefulWidget {
   const CustomDrawer({super.key});
+
+  @override
+  State<CustomDrawer> createState() => _CustomDrawerState();
+}
+
+class _CustomDrawerState extends State<CustomDrawer> {
+  bool _isAdmin = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRole();
+  }
+
+  Future<void> _loadRole() async {
+    final isAdmin = await AuthService.isAdminUser();
+    if (mounted) {
+      setState(() => _isAdmin = isAdmin);
+    }
+  }
 
   Widget _buildDrawerItem(
     BuildContext context,
@@ -159,13 +180,14 @@ class CustomDrawer extends StatelessWidget {
                   '/settings',
                   currentRoute,
                 ),
-                _buildDrawerItem(
-                  context,
-                  IconlyLight.shield_done,
-                  "Admin Control",
-                  '/admin',
-                  currentRoute,
-                ),
+                if (_isAdmin)
+                  _buildDrawerItem(
+                    context,
+                    IconlyLight.shield_done,
+                    "Admin Control",
+                    '/admin',
+                    currentRoute,
+                  ),
 
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
