@@ -82,7 +82,13 @@ class _AdminScreenState extends State<AdminScreen> {
           : widget.initialIndex.clamp(0, _sideMenus.length - 1);
       _permissionsLoaded = true;
     });
-    if (_sideMenus.isNotEmpty) _pageController.jumpToPage(_currentIndex);
+    if (_sideMenus.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _pageController.hasClients) {
+          _pageController.jumpToPage(_currentIndex);
+        }
+      });
+    }
   }
 
   @override
