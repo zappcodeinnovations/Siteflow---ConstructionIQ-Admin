@@ -16,8 +16,9 @@ import '../../core/services/auth_service.dart';
 
 class AdminScreen extends StatefulWidget {
   final int initialIndex;
+  final String? initialMenuKey;
 
-  const AdminScreen({super.key, this.initialIndex = 0});
+  const AdminScreen({super.key, this.initialIndex = 0, this.initialMenuKey});
 
   @override
   State<AdminScreen> createState() => _AdminScreenState();
@@ -77,9 +78,16 @@ class _AdminScreenState extends State<AdminScreen> {
     if (!mounted) return;
     setState(() {
       _sideMenus = allowed;
+      final requestedIndex = widget.initialMenuKey == null
+          ? -1
+          : _sideMenus.indexWhere(
+              (item) => item['key'] == widget.initialMenuKey,
+            );
       _currentIndex = _sideMenus.isEmpty
           ? 0
-          : widget.initialIndex.clamp(0, _sideMenus.length - 1);
+          : (requestedIndex >= 0
+                ? requestedIndex
+                : widget.initialIndex.clamp(0, _sideMenus.length - 1));
       _permissionsLoaded = true;
     });
     if (_sideMenus.isNotEmpty) {
