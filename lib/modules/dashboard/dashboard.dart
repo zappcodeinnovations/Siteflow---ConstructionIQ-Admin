@@ -13,11 +13,7 @@ class DashboardScreen extends StatefulWidget {
   final VoidCallback? onProjectsTap;
   final VoidCallback? onTasksTap;
 
-  const DashboardScreen({
-    super.key,
-    this.onProjectsTap,
-    this.onTasksTap,
-  });
+  const DashboardScreen({super.key, this.onProjectsTap, this.onTasksTap});
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -86,166 +82,190 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       DashboardHero(kpis: kpis),
                       const SizedBox(height: 24),
 
-                  // KPI GRID
-                  GridView(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          crossAxisSpacing: 16,
-                          mainAxisSpacing: 16,
-                          childAspectRatio: 1.3,
-                        ),
-                    children: [
-                      ModernKpiCard(
-                        title: "Active Projects",
-                        value: "${kpis?.projects['active'] ?? 0}",
-                        icon: IconlyLight.category,
-                        bgColor: const Color(0xff185EA5), // Blue
-                        topAction: "+12%",
-                        onTap: widget.onProjectsTap,
+                      // KPI GRID
+                      GridView(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              crossAxisSpacing: 16,
+                              mainAxisSpacing: 16,
+                              childAspectRatio: 1.3,
+                            ),
+                        children: [
+                          ModernKpiCard(
+                            title: "Active Projects",
+                            value: "${kpis?.projects['active'] ?? 0}",
+                            icon: IconlyLight.category,
+                            bgColor: const Color(0xff185EA5), // Blue
+                            topAction: "+12%",
+                            onTap: widget.onProjectsTap,
+                          ),
+                          ModernKpiCard(
+                            title: "Completed Projects",
+                            value: "${kpis?.projects['completed'] ?? 0}",
+                            icon: IconlyLight.category,
+                            bgColor: const Color(0xff16A34A), // Green
+                            topAction: "+8%",
+                            onTap: widget.onProjectsTap,
+                          ),
+                          ModernKpiCard(
+                            title: "Pending Tasks",
+                            value:
+                                "${(kpis?.tasks['total'] ?? 0) - (kpis?.tasks['completed'] ?? 0)}",
+                            icon: IconlyLight.category,
+                            bgColor: const Color(
+                              0xffD97706,
+                            ), // Yellowish/Orange
+                            topAction: "-4%",
+                            onTap: widget.onTasksTap,
+                          ),
+                          ModernKpiCard(
+                            title: "Workforce Attendance",
+                            value:
+                                "${kpis?.attendance['clocked_in_today'] ?? 0}",
+                            icon: IconlyLight.category,
+                            bgColor: const Color(0xff1E3A8A), // Dark blue
+                            topAction: "+6%",
+                            onTap: () => Navigator.pushNamed(
+                              context,
+                              '/managerAttendance',
+                            ),
+                          ),
+                          if (_showAllKpis)
+                            ModernKpiCard(
+                              title: "Clocked In Today",
+                              value:
+                                  "${kpis?.attendance['clocked_in_today'] ?? 0}",
+                              icon: IconlyLight.profile,
+                              bgColor: const Color(0xff2563EB), // Blue
+                              topAction: "Today",
+                              onTap: () => Navigator.pushNamed(
+                                context,
+                                '/managerAttendance',
+                              ),
+                            ),
+                          if (_showAllKpis)
+                            ModernKpiCard(
+                              title: "Clocked Out Pending",
+                              value:
+                                  "${kpis?.attendance['not_clocked_out'] ?? 0}",
+                              icon: IconlyLight.category,
+                              bgColor: const Color(0xffDC2626), // Red
+                              topAction: "Action",
+                              onTap: () => Navigator.pushNamed(
+                                context,
+                                '/managerAttendance',
+                              ),
+                            ),
+                        ],
                       ),
-                      ModernKpiCard(
-                        title: "Completed Projects",
-                        value: "${kpis?.projects['completed'] ?? 0}",
-                        icon: IconlyLight.category,
-                        bgColor: const Color(0xff16A34A), // Green
-                        topAction: "+8%",
-                        onTap: widget.onProjectsTap,
-                      ),
-                      ModernKpiCard(
-                        title: "Pending Tasks",
-                        value:
-                            "${(kpis?.tasks['total'] ?? 0) - (kpis?.tasks['completed'] ?? 0)}",
-                        icon: IconlyLight.category,
-                        bgColor: const Color(0xffD97706), // Yellowish/Orange
-                        topAction: "-4%",
-                        onTap: widget.onTasksTap,
-                      ),
-                      ModernKpiCard(
-                        title: "Workforce Attendance",
-                        value: "${kpis?.attendance['clocked_in_today'] ?? 0}",
-                        icon: IconlyLight.category,
-                        bgColor: const Color(0xff1E3A8A), // Dark blue
-                        topAction: "+6%",
-                        onTap: () => Navigator.pushNamed(context, '/managerAttendance'),
-                      ),
-                      if (_showAllKpis)
-                        ModernKpiCard(
-                          title: "Clocked In Today",
-                          value: "${kpis?.attendance['clocked_in_today'] ?? 0}",
-                          icon: IconlyLight.profile,
-                          bgColor: const Color(0xff2563EB), // Blue
-                          topAction: "Today",
-                          onTap: () => Navigator.pushNamed(context, '/managerAttendance'),
-                        ),
-                      if (_showAllKpis)
-                        ModernKpiCard(
-                          title: "Clocked Out Pending",
-                          value: "${kpis?.attendance['not_clocked_out'] ?? 0}",
-                          icon: IconlyLight.category,
-                          bgColor: const Color(0xffDC2626), // Red
-                          topAction: "Action",
-                          onTap: () => Navigator.pushNamed(context, '/managerAttendance'),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Center(
-                    child: TextButton.icon(
-                      onPressed: () {
-                        setState(() {
-                          _showAllKpis = !_showAllKpis;
-                        });
-                      },
-                      icon: Icon(
-                        _showAllKpis
-                            ? IconlyLight.category
-                            : IconlyLight.category,
-                      ),
-                      label: Text(_showAllKpis ? "See less" : "See more"),
-                      style: TextButton.styleFrom(
-                        foregroundColor: const Color(0xff185EA5),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 12,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        backgroundColor: Colors.white,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // LISTS
-                  Text(
-                    "Recent Activity",
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : Colors.black,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  if (width > 1200)
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: RecentProjectsList(projects: recentProjects, onViewAll: widget.onProjectsTap),
-                        ),
-                        const SizedBox(width: 20),
-                        Expanded(child: RecentTasksList(tasks: recentTasks)),
-                        const SizedBox(width: 20),
-                        Expanded(
-                          child: RecentJobSheetsList(
-                            jobSheets: recentJobSheets,
+                      const SizedBox(height: 12),
+                      Center(
+                        child: TextButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              _showAllKpis = !_showAllKpis;
+                            });
+                          },
+                          icon: Icon(
+                            _showAllKpis
+                                ? IconlyLight.category
+                                : IconlyLight.category,
+                          ),
+                          label: Text(_showAllKpis ? "See less" : "See more"),
+                          style: TextButton.styleFrom(
+                            foregroundColor: const Color(0xff185EA5),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 12,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            backgroundColor: Colors.white,
                           ),
                         ),
-                      ],
-                    )
-                  else
-                    Column(
-                      children: [
-                        RecentProjectsList(projects: recentProjects, onViewAll: widget.onProjectsTap),
-                        const SizedBox(height: 20),
-                        RecentTasksList(tasks: recentTasks),
-                        const SizedBox(height: 20),
-                        RecentJobSheetsList(jobSheets: recentJobSheets),
-                      ],
-                    ),
-                  const SizedBox(height: 32),
+                      ),
+                      const SizedBox(height: 24),
 
-                  // CHARTS ROW
-                  width > 900
-                      ? Row(
+                      // LISTS
+                      Text(
+                        "Recent Activity",
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : Colors.black,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      if (width > 1200)
+                        Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(child: ProjectProgressChart(kpis: kpis)),
-                            const SizedBox(width: 24),
-                            Expanded(child: AttendanceTrendChart()),
+                            Expanded(
+                              child: RecentProjectsList(
+                                projects: recentProjects,
+                                onViewAll: widget.onProjectsTap,
+                              ),
+                            ),
+                            const SizedBox(width: 20),
+                            Expanded(
+                              child: RecentTasksList(tasks: recentTasks),
+                            ),
+                            const SizedBox(width: 20),
+                            Expanded(
+                              child: RecentJobSheetsList(
+                                jobSheets: recentJobSheets,
+                              ),
+                            ),
                           ],
                         )
-                      : Column(
+                      else
+                        Column(
                           children: [
-                            ProjectProgressChart(kpis: kpis),
-                            const SizedBox(height: 24),
-                            AttendanceTrendChart(),
+                            RecentProjectsList(
+                              projects: recentProjects,
+                              onViewAll: widget.onProjectsTap,
+                            ),
+                            const SizedBox(height: 20),
+                            RecentTasksList(tasks: recentTasks),
+                            const SizedBox(height: 20),
+                            RecentJobSheetsList(jobSheets: recentJobSheets),
                           ],
                         ),
-                ],
-              ),
-            );
-          },
+                      const SizedBox(height: 32),
+
+                      // CHARTS ROW
+                      width > 900
+                          ? Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: ProjectProgressChart(kpis: kpis),
+                                ),
+                                const SizedBox(width: 24),
+                                Expanded(child: AttendanceTrendChart()),
+                              ],
+                            )
+                          : Column(
+                              children: [
+                                ProjectProgressChart(kpis: kpis),
+                                const SizedBox(height: 24),
+                                AttendanceTrendChart(),
+                              ],
+                            ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ],
         ),
-      ],
-    ),
-  ),
-);
+      ),
+    );
   }
 }
 
@@ -377,83 +397,83 @@ class ModernKpiCard extends StatelessWidget {
             ),
           ],
         ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(icon, color: Colors.white, size: 16),
                 ),
-                child: Icon(icon, color: Colors.white, size: 16),
-              ),
-              Flexible(
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (topAction.contains('%'))
-                      const Icon(
-                        IconlyLight.category,
-                        color: Colors.white,
-                        size: 12,
-                      ),
-                    const SizedBox(width: 4),
-                    Flexible(
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text(
-                          topAction,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
+                Flexible(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (topAction.contains('%'))
+                        const Icon(
+                          IconlyLight.category,
+                          color: Colors.white,
+                          size: 12,
+                        ),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            topAction,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    title.toUpperCase(),
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.9),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.5,
                     ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  title.toUpperCase(),
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.5,
                   ),
                 ),
-              ),
-              const SizedBox(height: 2),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  value,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.w900,
+                const SizedBox(height: 2),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    value,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
-        ],
-      ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -465,6 +485,13 @@ class ProjectProgressChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark ? const Color(0xFF0B3A63) : Colors.white;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final mutedTextColor = isDark ? Colors.white70 : Colors.grey;
+    final chartLineColor = isDark
+        ? Colors.white24
+        : Colors.grey.withOpacity(0.1);
     final active = (kpis?.projects['active'] ?? 0).toDouble();
     final completed = (kpis?.projects['completed'] ?? 0).toDouble();
     final pendingTasks =
@@ -475,9 +502,9 @@ class ProjectProgressChart extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.withOpacity(0.1)),
+        border: Border.all(color: chartLineColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -488,15 +515,19 @@ class ProjectProgressChart extends StatelessWidget {
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
+                  children: [
                     Text(
                       "Project Progress",
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: textColor,
+                      ),
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Text(
                       "Portfolio completion statistics and task movement",
-                      style: TextStyle(color: Colors.grey, fontSize: 13),
+                      style: TextStyle(color: mutedTextColor, fontSize: 13),
                     ),
                   ],
                 ),
@@ -513,7 +544,11 @@ class ProjectProgressChart extends StatelessWidget {
                     vertical: 8,
                   ),
                 ),
-                icon: const Icon(IconlyLight.video, color: Colors.blue, size: 16),
+                icon: const Icon(
+                  IconlyLight.video,
+                  color: Colors.blue,
+                  size: 16,
+                ),
                 label: const Text(
                   "Live Session",
                   style: TextStyle(
@@ -553,29 +588,49 @@ class ProjectProgressChart extends StatelessWidget {
                     sideTitles: SideTitles(
                       showTitles: true,
                       getTitlesWidget: (double value, TitleMeta meta) {
-                        const style = TextStyle(
-                          color: Colors.grey,
+                        final style = TextStyle(
+                          color: mutedTextColor,
                           fontSize: 10,
                         );
                         Widget text;
                         switch (value.toInt()) {
                           case 0:
-                            text = const Text('Active', style: style, textAlign: TextAlign.center);
+                            text = Text(
+                              'Active',
+                              style: style,
+                              textAlign: TextAlign.center,
+                            );
                             break;
                           case 1:
-                            text = const Text('Completed', style: style, textAlign: TextAlign.center);
+                            text = Text(
+                              'Completed',
+                              style: style,
+                              textAlign: TextAlign.center,
+                            );
                             break;
                           case 2:
-                            text = const Text('Pending\nTasks', style: style, textAlign: TextAlign.center);
+                            text = Text(
+                              'Pending\nTasks',
+                              style: style,
+                              textAlign: TextAlign.center,
+                            );
                             break;
                           case 3:
-                            text = const Text('In\nProgress', style: style, textAlign: TextAlign.center);
+                            text = Text(
+                              'In\nProgress',
+                              style: style,
+                              textAlign: TextAlign.center,
+                            );
                             break;
                           case 4:
-                            text = const Text('Done', style: style, textAlign: TextAlign.center);
+                            text = Text(
+                              'Done',
+                              style: style,
+                              textAlign: TextAlign.center,
+                            );
                             break;
                           default:
-                            text = const Text('', style: style);
+                            text = Text('', style: style);
                             break;
                         }
                         return Padding(
@@ -591,10 +646,7 @@ class ProjectProgressChart extends StatelessWidget {
                       reservedSize: 28,
                       getTitlesWidget: (value, meta) => Text(
                         value.toInt().toString(),
-                        style: const TextStyle(
-                          color: Colors.grey,
-                          fontSize: 12,
-                        ),
+                        style: TextStyle(color: mutedTextColor, fontSize: 12),
                       ),
                     ),
                   ),
@@ -609,10 +661,8 @@ class ProjectProgressChart extends StatelessWidget {
                   show: true,
                   drawVerticalLine: false,
                   horizontalInterval: 1,
-                  getDrawingHorizontalLine: (value) => FlLine(
-                    color: Colors.grey.withOpacity(0.1),
-                    strokeWidth: 1,
-                  ),
+                  getDrawingHorizontalLine: (value) =>
+                      FlLine(color: chartLineColor, strokeWidth: 1),
                 ),
                 borderData: FlBorderData(show: false),
                 barGroups: [
@@ -686,24 +736,35 @@ class AttendanceTrendChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark ? const Color(0xFF0B3A63) : Colors.white;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final mutedTextColor = isDark ? Colors.white70 : Colors.grey;
+    final chartLineColor = isDark
+        ? Colors.white24
+        : Colors.grey.withOpacity(0.1);
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.withOpacity(0.1)),
+        border: Border.all(color: chartLineColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             "Attendance Trend",
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: textColor,
+            ),
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             "Clock-in coverage for current operations",
-            style: TextStyle(color: Colors.grey, fontSize: 13),
+            style: TextStyle(color: mutedTextColor, fontSize: 13),
           ),
           const SizedBox(height: 30),
           SizedBox(
@@ -730,10 +791,8 @@ class AttendanceTrendChart extends StatelessWidget {
                 gridData: FlGridData(
                   show: true,
                   drawVerticalLine: false,
-                  getDrawingHorizontalLine: (value) => FlLine(
-                    color: Colors.grey.withOpacity(0.1),
-                    strokeWidth: 1,
-                  ),
+                  getDrawingHorizontalLine: (value) =>
+                      FlLine(color: chartLineColor, strokeWidth: 1),
                 ),
                 titlesData: FlTitlesData(
                   show: true,
@@ -741,32 +800,32 @@ class AttendanceTrendChart extends StatelessWidget {
                     sideTitles: SideTitles(
                       showTitles: true,
                       getTitlesWidget: (value, meta) {
-                        const style = TextStyle(
-                          color: Colors.grey,
+                        final style = TextStyle(
+                          color: mutedTextColor,
                           fontSize: 12,
                         );
                         Widget text;
                         switch (value.toInt()) {
                           case 0:
-                            text = const Text('Mon', style: style);
+                            text = Text('Mon', style: style);
                             break;
                           case 1:
-                            text = const Text('Tue', style: style);
+                            text = Text('Tue', style: style);
                             break;
                           case 2:
-                            text = const Text('Wed', style: style);
+                            text = Text('Wed', style: style);
                             break;
                           case 3:
-                            text = const Text('Thu', style: style);
+                            text = Text('Thu', style: style);
                             break;
                           case 4:
-                            text = const Text('Fri', style: style);
+                            text = Text('Fri', style: style);
                             break;
                           case 5:
-                            text = const Text('Today', style: style);
+                            text = Text('Today', style: style);
                             break;
                           default:
-                            text = const Text('', style: style);
+                            text = Text('', style: style);
                             break;
                         }
                         return Padding(
@@ -782,10 +841,7 @@ class AttendanceTrendChart extends StatelessWidget {
                       reservedSize: 28,
                       getTitlesWidget: (value, meta) => Text(
                         value.toInt().toString(),
-                        style: const TextStyle(
-                          color: Colors.grey,
-                          fontSize: 12,
-                        ),
+                        style: TextStyle(color: mutedTextColor, fontSize: 12),
                       ),
                     ),
                   ),
@@ -850,9 +906,9 @@ class AttendanceTrendChart extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 6),
-              const Text(
+              Text(
                 "Clocked In",
-                style: TextStyle(fontSize: 12, color: Colors.grey),
+                style: TextStyle(fontSize: 12, color: mutedTextColor),
               ),
               const SizedBox(width: 16),
               Container(
@@ -864,9 +920,9 @@ class AttendanceTrendChart extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 6),
-              const Text(
+              Text(
                 "Exceptions",
-                style: TextStyle(fontSize: 12, color: Colors.grey),
+                style: TextStyle(fontSize: 12, color: mutedTextColor),
               ),
             ],
           ),
@@ -903,17 +959,31 @@ class RecentProjectsList extends StatelessWidget {
             children: [
               Text(
                 "Recent Projects",
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor),
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: textColor,
+                ),
               ),
               if (onViewAll != null)
                 TextButton(
                   onPressed: onViewAll,
                   style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     minimumSize: Size.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
-                  child: const Text("View Projects", style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 13)),
+                  child: const Text(
+                    "View Projects",
+                    style: TextStyle(
+                      color: Colors.blue,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
                 ),
             ],
           ),
@@ -939,7 +1009,8 @@ class RecentProjectsList extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => ProjectDetailsScreen(project: project),
+                        builder: (context) =>
+                            ProjectDetailsScreen(project: project),
                       ),
                     );
                   },
@@ -1019,7 +1090,11 @@ class RecentTasksList extends StatelessWidget {
         children: [
           Text(
             "Recent Tasks",
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: textColor,
+            ),
           ),
           const SizedBox(height: 16),
           if (tasks.isEmpty)
@@ -1103,7 +1178,11 @@ class RecentJobSheetsList extends StatelessWidget {
         children: [
           Text(
             "Recent Job Sheets",
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: textColor,
+            ),
           ),
           const SizedBox(height: 16),
           if (jobSheets.isEmpty)
