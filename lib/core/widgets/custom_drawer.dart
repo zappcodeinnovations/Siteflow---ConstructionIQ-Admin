@@ -12,7 +12,7 @@ class CustomDrawer extends StatefulWidget {
 }
 
 class _CustomDrawerState extends State<CustomDrawer> {
-  bool _isAdmin = false;
+  Set<String> _allowedMenus = {};
 
   @override
   void initState() {
@@ -21,10 +21,43 @@ class _CustomDrawerState extends State<CustomDrawer> {
   }
 
   Future<void> _loadRole() async {
-    final isAdmin = await AuthService.isAdminUser();
-    if (mounted) {
-      setState(() => _isAdmin = isAdmin);
+    const keys = [
+      'job_sheets',
+      'daily_reports',
+      'weekly_diary',
+      'manager_diary',
+      'approvals',
+      'productivity',
+      'workforce_planner',
+      'timesheets',
+      'manager_attendance',
+      'library',
+      'settings',
+      'settings_teams',
+      'settings_materials',
+      'admin_members',
+      'admin_guests',
+      'admin_announcements',
+      'admin_notifications',
+      'admin_permissions',
+      'admin_activity_logs',
+      'admin_organisation',
+      'admin_support',
+    ];
+    final values = await Future.wait(keys.map(AuthService.can));
+    final allowed = <String>{};
+    for (var i = 0; i < keys.length; i++) {
+      if (values[i]) allowed.add(keys[i]);
     }
+    if (mounted) {
+      setState(() => _allowedMenus = allowed);
+    }
+  }
+
+  Future<void> _logout() async {
+    await AuthService.clearTokens();
+    if (!mounted) return;
+    Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
   }
 
   Widget _buildDrawerItem(
@@ -41,7 +74,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
     final iconColor = isActive ? Colors.white : Colors.white70;
     final textColor = isActive ? Colors.white : Colors.white70;
     final bgColor = isActive
-        ? AppTheme.corporateLightBlue.withOpacity(0.3)
+        ? AppTheme.corporateLightBlue.withValues(alpha: 0.3)
         : Colors.transparent;
 
     return Padding(
@@ -126,55 +159,78 @@ class _CustomDrawerState extends State<CustomDrawer> {
             child: ListView(
               padding: EdgeInsets.zero,
               children: [
-                _buildDrawerItem(
-                  context,
-                  IconlyLight.document,
-                  "Job Sheet",
-                  '/jobSheet',
-                  currentRoute,
-                ),
-                _buildDrawerItem(
-                  context,
-                  IconlyLight.paper,
-                  "Daily Reports",
-                  '/dailyReports',
-                  currentRoute,
-                ),
-                _buildDrawerItem(
-                  context,
-                  IconlyLight.calendar,
-                  "Weekly Diary",
-                  '/weeklyDiary',
-                  currentRoute,
-                ),
-                _buildDrawerItem(
-                  context,
-                  IconlyLight.edit,
-                  "Manager Diary",
-                  '/managerDiary',
-                  currentRoute,
-                ),
-                _buildDrawerItem(
-                  context,
-                  IconlyLight.graph,
-                  "Productivity",
-                  '/productivity',
-                  currentRoute,
-                ),
-                _buildDrawerItem(
-                  context,
-                  IconlyLight.time_circle,
-                  "Timesheet",
-                  '/timesheet',
-                  currentRoute,
-                ),
-                _buildDrawerItem(
-                  context,
-                  IconlyLight.user_1,
-                  "Authority Attendance",
-                  '/managerAttendance',
-                  currentRoute,
-                ),
+                if (_allowedMenus.contains('job_sheets'))
+                  _buildDrawerItem(
+                    context,
+                    IconlyLight.document,
+                    "Job Sheet",
+                    '/jobSheet',
+                    currentRoute,
+                  ),
+                if (_allowedMenus.contains('daily_reports'))
+                  _buildDrawerItem(
+                    context,
+                    IconlyLight.paper,
+                    "Daily Reports",
+                    '/dailyReports',
+                    currentRoute,
+                  ),
+                if (_allowedMenus.contains('weekly_diary'))
+                  _buildDrawerItem(
+                    context,
+                    IconlyLight.calendar,
+                    "Weekly Diary",
+                    '/weeklyDiary',
+                    currentRoute,
+                  ),
+                if (_allowedMenus.contains('manager_diary'))
+                  _buildDrawerItem(
+                    context,
+                    IconlyLight.edit,
+                    "Manager Diary",
+                    '/managerDiary',
+                    currentRoute,
+                  ),
+                if (_allowedMenus.contains('approvals'))
+                  _buildDrawerItem(
+                    context,
+                    IconlyLight.tick_square,
+                    "My Approvals",
+                    '/myApprovals',
+                    currentRoute,
+                  ),
+                if (_allowedMenus.contains('productivity'))
+                  _buildDrawerItem(
+                    context,
+                    IconlyLight.graph,
+                    "Productivity",
+                    '/productivity',
+                    currentRoute,
+                  ),
+                if (_allowedMenus.contains('workforce_planner'))
+                  _buildDrawerItem(
+                    context,
+                    IconlyLight.calendar,
+                    "Workforce Planner",
+                    '/workforcePlanner',
+                    currentRoute,
+                  ),
+                if (_allowedMenus.contains('timesheets'))
+                  _buildDrawerItem(
+                    context,
+                    IconlyLight.time_circle,
+                    "Timesheet",
+                    '/timesheet',
+                    currentRoute,
+                  ),
+                if (_allowedMenus.contains('manager_attendance'))
+                  _buildDrawerItem(
+                    context,
+                    IconlyLight.user_1,
+                    "Authority Attendance",
+                    '/managerAttendance',
+                    currentRoute,
+                  ),
 
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -194,14 +250,26 @@ class _CustomDrawerState extends State<CustomDrawer> {
                   ),
                 ),
 
-                _buildDrawerItem(
-                  context,
-                  IconlyLight.setting,
-                  "Settings",
-                  '/settings',
-                  currentRoute,
-                ),
-                if (_isAdmin)
+                if (_allowedMenus.contains('library'))
+                  _buildDrawerItem(
+                    context,
+                    IconlyLight.bookmark,
+                    "Library",
+                    '/library',
+                    currentRoute,
+                  ),
+
+                if (_allowedMenus.contains('settings') ||
+                    _allowedMenus.contains('settings_teams') ||
+                    _allowedMenus.contains('settings_materials'))
+                  _buildDrawerItem(
+                    context,
+                    IconlyLight.setting,
+                    "Settings",
+                    '/settings',
+                    currentRoute,
+                  ),
+                if (_allowedMenus.any((key) => key.startsWith('admin_')))
                   _buildDrawerItem(
                     context,
                     IconlyLight.shield_done,
@@ -261,6 +329,32 @@ class _CustomDrawerState extends State<CustomDrawer> {
                 ),
                 const SizedBox(height: 20),
               ],
+            ),
+          ),
+          const Divider(height: 1, color: Colors.white24),
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+              child: ListTile(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                leading: const Icon(
+                  IconlyLight.logout,
+                  color: Colors.white,
+                  size: 22,
+                ),
+                title: const Text(
+                  'Logout',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+                onTap: _logout,
+              ),
             ),
           ),
         ],

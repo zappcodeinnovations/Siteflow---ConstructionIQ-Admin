@@ -25,15 +25,12 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
   final GlobalKey<ProjectsScreenState> projectsScreenKey =
       GlobalKey<ProjectsScreenState>();
 
-  // Built once the account's role is known, since "Clients" (an admin-only
-  // area on the web dashboard too, unless an admin grants it) only appears
-  // for admin/superuser logins - everyone else gets Dashboard/Projects/Tasks.
   late List<Widget> pages;
   late List<String> titles;
   late List<IconData> icons;
   int? _clientsIndex;
-  late int _projectsIndex;
-  late int _tasksIndex;
+  int? _projectsIndex;
+  int? _tasksIndex;
 
   @override
   void initState() {
@@ -42,32 +39,80 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
   }
 
   Future<void> _loadRoleAndBuildTabs() async {
-    final isAdmin = await AuthService.isAdminUser();
+    final allowed = await Future.wait([
+      AuthService.can('dashboard'),
+      AuthService.can('clients'),
+      AuthService.can('projects'),
+      AuthService.can('tasks'),
+    ]);
 
-    _clientsIndex = isAdmin ? 1 : null;
-    _projectsIndex = isAdmin ? 2 : 1;
-    _tasksIndex = isAdmin ? 3 : 2;
+    pages = [];
+    titles = [];
+    icons = [];
 
-    pages = [
-      DashboardScreen(
-        onProjectsTap: () => setState(() => currentIndex = _projectsIndex),
-        onTasksTap: () => setState(() => currentIndex = _tasksIndex),
-      ),
-      if (isAdmin) ClientsScreen(key: clientsScreenKey),
-      ProjectsScreen(key: projectsScreenKey),
-      const TasksScreen(),
-    ];
-    titles = ["Dashboard", if (isAdmin) "Clients", "Projects", "Tasks"];
-    icons = [
-      IconlyLight.home,
-      if (isAdmin) IconlyLight.user_1,
-      IconlyLight.folder,
-      IconlyLight.document,
-    ];
+    void addTab(String title, IconData icon, Widget page) {
+      titles.add(title);
+      icons.add(icon);
+      pages.add(page);
+    }
+
+    if (allowed[0]) {
+      addTab(
+        'Dashboard',
+        IconlyLight.home,
+        DashboardScreen(
+          onProjectsTap: () {
+            if (_projectsIndex != null) {
+              setState(() => currentIndex = _projectsIndex!);
+            }
+          },
+          onTasksTap: () {
+            if (_tasksIndex != null) {
+              setState(() => currentIndex = _tasksIndex!);
+            }
+          },
+        ),
+      );
+    }
+    if (allowed[1]) {
+      _clientsIndex = pages.length;
+      addTab(
+        'Clients',
+        IconlyLight.user_1,
+        ClientsScreen(key: clientsScreenKey),
+      );
+    }
+    if (allowed[2]) {
+      _projectsIndex = pages.length;
+      addTab(
+        'Projects',
+        IconlyLight.folder,
+        ProjectsScreen(key: projectsScreenKey),
+      );
+    }
+    if (allowed[3]) {
+      _tasksIndex = pages.length;
+      addTab('Tasks', IconlyLight.document, const TasksScreen());
+    }
+    if (pages.isEmpty) {
+      addTab(
+        'Access denied',
+        IconlyLight.shield_done,
+        const Center(
+          child: Text('No modules have been assigned to this account.'),
+        ),
+      );
+    }
 
     if (mounted) {
       setState(() => _roleLoaded = true);
     }
+  }
+
+  Future<void> _logout() async {
+    await AuthService.clearTokens();
+    if (!mounted) return;
+    Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
   }
 
   @override
@@ -92,15 +137,15 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
                 ),
               ]
             : currentIndex == _projectsIndex
-                ? [
-                    IconButton(
-                      icon: const Icon(IconlyLight.search),
-                      onPressed: () {
-                        projectsScreenKey.currentState?.toggleSearch();
-                      },
-                    ),
-                  ]
-                : null,
+            ? [
+                IconButton(
+                  icon: const Icon(IconlyLight.search),
+                  onPressed: () {
+                    projectsScreenKey.currentState?.toggleSearch();
+                  },
+                ),
+              ]
+            : null,
       ),
       drawer: isDesktop ? null : const CustomDrawer(),
       body: Row(
@@ -119,6 +164,19 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
               selectedLabelTextStyle: TextStyle(
                 color: Theme.of(context).primaryColor,
                 fontWeight: FontWeight.bold,
+              ),
+              trailing: Expanded(
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: IconButton(
+                      tooltip: 'Logout',
+                      onPressed: _logout,
+                      icon: const Icon(IconlyLight.logout),
+                    ),
+                  ),
+                ),
               ),
               destinations: [
                 for (int i = 0; i < titles.length; i++)

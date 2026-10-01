@@ -12,6 +12,7 @@ import 'admin/admin_guests_view.dart';
 import 'package:iconly/iconly.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/background_stripes_painter.dart';
+import '../../core/services/auth_service.dart';
 
 class AdminScreen extends StatefulWidget {
   final int initialIndex;
@@ -27,23 +28,61 @@ class _AdminScreenState extends State<AdminScreen> {
   late PageController _pageController;
   final ScrollController _mobileScrollController = ScrollController();
 
-  final List<Map<String, dynamic>> _sideMenus = [
-    {"title": "Profile", "icon": IconlyLight.profile},
-    {"title": "Members", "icon": IconlyLight.user_1},
-    {"title": "Guests", "icon": IconlyLight.message},
-    {"title": "Announcements", "icon": IconlyLight.category},
-    {"title": "Notifications", "icon": IconlyLight.notification},
-    {"title": "Permissions", "icon": IconlyLight.category},
-    {"title": "Activity Logs", "icon": IconlyLight.category},
-    {"title": "Organisation", "icon": IconlyLight.work},
-    {"title": "Support", "icon": IconlyLight.category},
+  final List<Map<String, dynamic>> _allSideMenus = [
+    {"title": "Members", "icon": IconlyLight.user_1, "key": "admin_members"},
+    {"title": "Guests", "icon": IconlyLight.message, "key": "admin_guests"},
+    {
+      "title": "Announcements",
+      "icon": IconlyLight.category,
+      "key": "admin_announcements",
+    },
+    {
+      "title": "Notifications",
+      "icon": IconlyLight.notification,
+      "key": "admin_notifications",
+    },
+    {
+      "title": "Permissions",
+      "icon": IconlyLight.category,
+      "key": "admin_permissions",
+    },
+    {
+      "title": "Activity Logs",
+      "icon": IconlyLight.category,
+      "key": "admin_activity_logs",
+    },
+    {
+      "title": "Organisation",
+      "icon": IconlyLight.work,
+      "key": "admin_organisation",
+    },
+    {"title": "Support", "icon": IconlyLight.category, "key": "admin_support"},
   ];
+  List<Map<String, dynamic>> _sideMenus = [];
+  bool _permissionsLoaded = false;
 
   @override
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
     _pageController = PageController(initialPage: _currentIndex);
+    _loadPermissions();
+  }
+
+  Future<void> _loadPermissions() async {
+    final allowed = <Map<String, dynamic>>[];
+    for (final item in _allSideMenus) {
+      if (await AuthService.can(item['key'] as String)) allowed.add(item);
+    }
+    if (!mounted) return;
+    setState(() {
+      _sideMenus = allowed;
+      _currentIndex = _sideMenus.isEmpty
+          ? 0
+          : widget.initialIndex.clamp(0, _sideMenus.length - 1);
+      _permissionsLoaded = true;
+    });
+    if (_sideMenus.isNotEmpty) _pageController.jumpToPage(_currentIndex);
   }
 
   @override
@@ -59,7 +98,10 @@ class _AdminScreenState extends State<AdminScreen> {
       // Approximate tab width is 120, offset to center it.
       final scrollOffset = (index * 120.0) - (screenWidth / 2) + 60.0;
       _mobileScrollController.animateTo(
-        scrollOffset.clamp(0.0, _mobileScrollController.position.maxScrollExtent),
+        scrollOffset.clamp(
+          0.0,
+          _mobileScrollController.position.maxScrollExtent,
+        ),
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
       );
@@ -105,8 +147,18 @@ class _AdminScreenState extends State<AdminScreen> {
             children: [
               Icon(IconlyLight.category, size: 64, color: Colors.grey.shade400),
               const SizedBox(height: 16),
-              Text("$menu Content", style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.grey)),
-              const Text("This module is under construction.", style: TextStyle(color: Colors.grey)),
+              Text(
+                "$menu Content",
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey,
+                ),
+              ),
+              const Text(
+                "This module is under construction.",
+                style: TextStyle(color: Colors.grey),
+              ),
             ],
           ),
         );
@@ -115,6 +167,17 @@ class _AdminScreenState extends State<AdminScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_permissionsLoaded) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    if (_sideMenus.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('ADMIN')),
+        body: const Center(
+          child: Text('You do not have permission to view this section.'),
+        ),
+      );
+    }
     final isDesktop = MediaQuery.of(context).size.width > 800;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isDark ? AppTheme.corporateBlue : const Color(0xFFF8FAFC);
@@ -123,8 +186,18 @@ class _AdminScreenState extends State<AdminScreen> {
       backgroundColor: bgColor,
       drawer: const CustomDrawer(),
       appBar: AppBar(
-        title: const Text("ADMIN", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
-        backgroundColor: isDark ? const Color(0xFF101A26) : const Color(0xFF0F2C4A),
+        title: const Text(
+          "ADMIN",
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1.0,
+          ),
+        ),
+        backgroundColor: isDark
+            ? const Color(0xFF101A26)
+            : const Color(0xFF0F2C4A),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: Stack(
@@ -136,121 +209,147 @@ class _AdminScreenState extends State<AdminScreen> {
           ),
           Column(
             children: [
-          // Mobile Horizontal Menu
-          if (!isDesktop)
-            Container(
-              height: 56,
-              color: const Color(0xFF0F2C4A),
-              child: ListView.builder(
-                controller: _mobileScrollController,
-                scrollDirection: Axis.horizontal,
-                itemCount: _sideMenus.length,
-                itemBuilder: (context, index) {
-                  final item = _sideMenus[index];
-                  final isSelected = _currentIndex == index;
-                  return InkWell(
-                    onTap: () => _onMenuTapped(index),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      decoration: BoxDecoration(
-                        border: Border(
-                          bottom: BorderSide(
-                            color: isSelected ? const Color(0xFF0D6EFD) : Colors.transparent,
-                            width: 3,
-                          ),
-                        ),
-                      ),
-                      alignment: Alignment.center,
-                      child: Row(
-                        children: [
-                          Icon(item["icon"], color: isSelected ? Colors.white : Colors.white70, size: 18),
-                          const SizedBox(width: 8),
-                          Text(
-                            item["title"],
-                            style: TextStyle(
-                              color: isSelected ? Colors.white : Colors.white70,
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-            
-          Expanded(
-            child: Row(
-              children: [
-                // Desktop Left Sidebar Pane
-                if (isDesktop)
-                  Container(
-                    width: 250,
-                    color: const Color(0xFF0F2C4A),
-                    child: ListView.builder(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      itemCount: _sideMenus.length,
-                      itemBuilder: (context, index) {
-                        final item = _sideMenus[index];
-                        final isSelected = _currentIndex == index;
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                          child: InkWell(
-                            onTap: () => _onMenuTapped(index),
-                            borderRadius: BorderRadius.circular(8),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: isSelected ? const Color(0xFF0D6EFD) : Colors.transparent,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                              child: Row(
-                                children: [
-                                  Icon(item["icon"], color: Colors.white, size: 20),
-                                  const SizedBox(width: 16),
-                                  Text(
-                                    item["title"],
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                
-                // Right Content Pane with Swipe PageView
-                Expanded(
-                  child: PageView.builder(
-                    controller: _pageController,
-                    onPageChanged: (index) {
-                      setState(() {
-                        _currentIndex = index;
-                      });
-                      if (!isDesktop) {
-                        _scrollToActiveTab(index);
-                      }
-                    },
+              // Mobile Horizontal Menu
+              if (!isDesktop)
+                Container(
+                  height: 56,
+                  color: const Color(0xFF0F2C4A),
+                  child: ListView.builder(
+                    controller: _mobileScrollController,
+                    scrollDirection: Axis.horizontal,
                     itemCount: _sideMenus.length,
                     itemBuilder: (context, index) {
-                      return Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: _buildContent(_sideMenus[index]["title"]),
+                      final item = _sideMenus[index];
+                      final isSelected = _currentIndex == index;
+                      return InkWell(
+                        onTap: () => _onMenuTapped(index),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          decoration: BoxDecoration(
+                            border: Border(
+                              bottom: BorderSide(
+                                color: isSelected
+                                    ? const Color(0xFF0D6EFD)
+                                    : Colors.transparent,
+                                width: 3,
+                              ),
+                            ),
+                          ),
+                          alignment: Alignment.center,
+                          child: Row(
+                            children: [
+                              Icon(
+                                item["icon"],
+                                color: isSelected
+                                    ? Colors.white
+                                    : Colors.white70,
+                                size: 18,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                item["title"],
+                                style: TextStyle(
+                                  color: isSelected
+                                      ? Colors.white
+                                      : Colors.white70,
+                                  fontWeight: isSelected
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       );
                     },
                   ),
                 ),
-              ],
-            ),
+
+              Expanded(
+                child: Row(
+                  children: [
+                    // Desktop Left Sidebar Pane
+                    if (isDesktop)
+                      Container(
+                        width: 250,
+                        color: const Color(0xFF0F2C4A),
+                        child: ListView.builder(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          itemCount: _sideMenus.length,
+                          itemBuilder: (context, index) {
+                            final item = _sideMenus[index];
+                            final isSelected = _currentIndex == index;
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 4,
+                              ),
+                              child: InkWell(
+                                onTap: () => _onMenuTapped(index),
+                                borderRadius: BorderRadius.circular(8),
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: isSelected
+                                        ? const Color(0xFF0D6EFD)
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 12,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        item["icon"],
+                                        color: Colors.white,
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: 16),
+                                      Text(
+                                        item["title"],
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: isSelected
+                                              ? FontWeight.bold
+                                              : FontWeight.normal,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+
+                    // Right Content Pane with Swipe PageView
+                    Expanded(
+                      child: PageView.builder(
+                        controller: _pageController,
+                        onPageChanged: (index) {
+                          setState(() {
+                            _currentIndex = index;
+                          });
+                          if (!isDesktop) {
+                            _scrollToActiveTab(index);
+                          }
+                        },
+                        itemCount: _sideMenus.length,
+                        itemBuilder: (context, index) {
+                          return Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: _buildContent(_sideMenus[index]["title"]),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
         ],
       ),
     );
