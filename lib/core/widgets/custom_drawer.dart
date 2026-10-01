@@ -22,6 +22,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
 
   Future<void> _loadRole() async {
     const keys = [
+      'dashboard',
       'job_sheets',
       'daily_reports',
       'weekly_diary',
@@ -159,6 +160,14 @@ class _CustomDrawerState extends State<CustomDrawer> {
             child: ListView(
               padding: EdgeInsets.zero,
               children: [
+                if (_allowedMenus.contains('dashboard'))
+                  _buildDrawerItem(
+                    context,
+                    IconlyLight.home,
+                    "Dashboard",
+                    '/home',
+                    currentRoute,
+                  ),
                 if (_allowedMenus.contains('job_sheets'))
                   _buildDrawerItem(
                     context,
