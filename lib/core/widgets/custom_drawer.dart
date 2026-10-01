@@ -292,6 +292,14 @@ class _CustomDrawerState extends State<CustomDrawer> {
                   child: Divider(height: 1, color: Colors.white24),
                 ),
 
+                _buildDrawerItem(
+                  context,
+                  IconlyLight.profile,
+                  "Profile",
+                  '/profile',
+                  currentRoute,
+                ),
+
                 ValueListenableBuilder<ThemeMode>(
                   valueListenable: themeNotifier,
                   builder: (context, currentMode, _) {
