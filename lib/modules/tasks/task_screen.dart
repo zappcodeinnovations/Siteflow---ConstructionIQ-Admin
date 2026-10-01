@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/background_stripes_painter.dart';
+import '../../core/services/auth_service.dart';
 
 class TasksScreen extends StatefulWidget {
   const TasksScreen({super.key});
@@ -15,12 +16,122 @@ class _TasksScreenState extends State<TasksScreen> {
   bool _isSearchVisible = false;
   String _searchQuery = "";
   String _selectedStatus = "Status: All";
+  bool _canCreate = false;
+  bool _canEdit = false;
+  bool _canDelete = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPermissions();
+  }
+
+  Future<void> _loadPermissions() async {
+    final access = await Future.wait([
+      AuthService.can('tasks', action: 'create'),
+      AuthService.can('tasks', action: 'edit'),
+      AuthService.can('tasks', action: 'delete'),
+    ]);
+    if (!mounted) return;
+    setState(() {
+      _canCreate = access[0];
+      _canEdit = access[1];
+      _canDelete = access[2];
+    });
+  }
+
+  Future<void> _viewDetails(Map<String, String> task) async {
+    if (!await AuthService.can('tasks')) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Access denied: You do not have permission to view task details.',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    if (!mounted) return;
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 8, 24, 28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                task['taskNo'] ?? 'Task Details',
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 20),
+              _detailRow('Project', task['project'] ?? '-'),
+              _detailRow('Client', task['client'] ?? '-'),
+              _detailRow('Status', task['status'] ?? '-'),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _detailRow(String label, String value) => Padding(
+    padding: const EdgeInsets.only(bottom: 14),
+    child: Row(
+      children: [
+        SizedBox(
+          width: 90,
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: Colors.grey,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+        ),
+      ],
+    ),
+  );
 
   final List<Map<String, String>> _dummyTasks = [
-    {"taskNo": "JOB 29", "status": "Pending", "project": "Asobu Client", "client": "Asobu"},
-    {"taskNo": "JOB 30", "status": "Completed", "project": "Euroside Office", "client": "Euroside"},
-    {"taskNo": "JOB 31", "status": "In Progress", "project": "Central Park Reno", "client": "City Council"},
-    {"taskNo": "JOB 32", "status": "Draft", "project": "Highway A1", "client": "Gov Roads"},
+    {
+      "taskNo": "JOB 29",
+      "status": "Pending",
+      "project": "Asobu Client",
+      "client": "Asobu",
+    },
+    {
+      "taskNo": "JOB 30",
+      "status": "Completed",
+      "project": "Euroside Office",
+      "client": "Euroside",
+    },
+    {
+      "taskNo": "JOB 31",
+      "status": "In Progress",
+      "project": "Central Park Reno",
+      "client": "City Council",
+    },
+    {
+      "taskNo": "JOB 32",
+      "status": "Draft",
+      "project": "Highway A1",
+      "client": "Gov Roads",
+    },
   ];
 
   Widget _buildStatusPill(String status) {
@@ -54,7 +165,14 @@ class _TasksScreenState extends State<TasksScreen> {
         children: [
           Icon(icon, color: text, size: 14),
           const SizedBox(width: 4),
-          Text(status, style: TextStyle(color: text, fontSize: 11, fontWeight: FontWeight.bold)),
+          Text(
+            status,
+            style: TextStyle(
+              color: text,
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
         ],
       ),
     );
@@ -69,10 +187,13 @@ class _TasksScreenState extends State<TasksScreen> {
   @override
   Widget build(BuildContext context) {
     final filteredTasks = _dummyTasks.where((t) {
-      final matchesSearch = t['taskNo']!.toLowerCase().contains(_searchQuery) ||
+      final matchesSearch =
+          t['taskNo']!.toLowerCase().contains(_searchQuery) ||
           t['project']!.toLowerCase().contains(_searchQuery) ||
           t['client']!.toLowerCase().contains(_searchQuery);
-      final matchesStatus = _selectedStatus == 'Status: All' || 'Status: ${t['status']}' == _selectedStatus;
+      final matchesStatus =
+          _selectedStatus == 'Status: All' ||
+          'Status: ${t['status']}' == _selectedStatus;
       return matchesSearch && matchesStatus;
     }).toList();
 
@@ -107,20 +228,44 @@ class _TasksScreenState extends State<TasksScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         IconButton(
-                          onPressed: () => setState(() => _isSearchVisible = !_isSearchVisible),
-                          icon: Icon(_isSearchVisible ? IconlyLight.search : IconlyLight.search, color: isDark ? Colors.white : Colors.black87),
+                          onPressed: () => setState(
+                            () => _isSearchVisible = !_isSearchVisible,
+                          ),
+                          icon: Icon(
+                            _isSearchVisible
+                                ? IconlyLight.search
+                                : IconlyLight.search,
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
                           tooltip: "Toggle Search",
                         ),
-                        ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF0D6EFD),
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        if (_canCreate)
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF0D6EFD),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 14,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            onPressed: () {},
+                            icon: const Icon(
+                              IconlyLight.plus,
+                              size: 18,
+                              color: Colors.white,
+                            ),
+                            label: const Text(
+                              "Create Task",
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ),
-                          onPressed: () {},
-                          icon: const Icon(IconlyLight.plus, size: 18, color: Colors.white),
-                          label: const Text("Create Task", style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w600)),
-                        )
                       ],
                     ),
                     const SizedBox(height: 24),
@@ -134,7 +279,11 @@ class _TasksScreenState extends State<TasksScreen> {
                           color: cardColor,
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [
-                            BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4)),
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.02),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
                           ],
                           border: Border.all(color: borderColor),
                         ),
@@ -156,49 +305,97 @@ class _TasksScreenState extends State<TasksScreen> {
                                   child: TextField(
                                     decoration: InputDecoration(
                                       hintText: "Search tasks...",
-                                      hintStyle: TextStyle(color: textSecondary, fontSize: 14),
-                                      prefixIcon: Icon(IconlyLight.search, size: 20, color: textSecondary),
-                                      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                                      hintStyle: TextStyle(
+                                        color: textSecondary,
+                                        fontSize: 14,
+                                      ),
+                                      prefixIcon: Icon(
+                                        IconlyLight.search,
+                                        size: 20,
+                                        color: textSecondary,
+                                      ),
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                            horizontal: 16,
+                                          ),
                                       border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(6),
-                                        borderSide: BorderSide(color: borderColor),
+                                        borderSide: BorderSide(
+                                          color: borderColor,
+                                        ),
                                       ),
                                       enabledBorder: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(6),
-                                        borderSide: BorderSide(color: borderColor),
+                                        borderSide: BorderSide(
+                                          color: borderColor,
+                                        ),
                                       ),
                                       focusedBorder: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(6),
-                                        borderSide: const BorderSide(color: Color(0xFF0D6EFD)),
+                                        borderSide: const BorderSide(
+                                          color: Color(0xFF0D6EFD),
+                                        ),
                                       ),
                                     ),
-                                    onChanged: (val) => setState(() => _searchQuery = val.toLowerCase()),
+                                    onChanged: (val) => setState(
+                                      () => _searchQuery = val.toLowerCase(),
+                                    ),
                                   ),
                                 ),
 
                                 // Status Dropdown
                                 Container(
                                   height: 40,
-                                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                                  decoration: BoxDecoration(border: Border.all(color: borderColor), borderRadius: BorderRadius.circular(6)),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: borderColor),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
                                   child: DropdownButtonHideUnderline(
                                     child: DropdownButton<String>(
                                       value: _selectedStatus,
                                       dropdownColor: cardColor,
-                                      items: ['Status: All', 'Status: Pending', 'Status: In Progress', 'Status: Completed', 'Status: Draft']
-                                          .map((e) => DropdownMenuItem(value: e, child: Text(e, style: TextStyle(fontSize: 14, color: textColor))))
-                                          .toList(),
+                                      items:
+                                          [
+                                                'Status: All',
+                                                'Status: Pending',
+                                                'Status: In Progress',
+                                                'Status: Completed',
+                                                'Status: Draft',
+                                              ]
+                                              .map(
+                                                (e) => DropdownMenuItem(
+                                                  value: e,
+                                                  child: Text(
+                                                    e,
+                                                    style: TextStyle(
+                                                      fontSize: 14,
+                                                      color: textColor,
+                                                    ),
+                                                  ),
+                                                ),
+                                              )
+                                              .toList(),
                                       onChanged: (val) {
-                                        if (val != null) setState(() => _selectedStatus = val);
+                                        if (val != null)
+                                          setState(() => _selectedStatus = val);
                                       },
-                                      icon: Icon(IconlyLight.arrow_down_2, color: textSecondary),
+                                      icon: Icon(
+                                        IconlyLight.arrow_down_2,
+                                        color: textSecondary,
+                                      ),
                                     ),
                                   ),
                                 ),
 
                                 // Refresh Icon
                                 IconButton(
-                                  icon: Icon(IconlyLight.swap, color: textColor),
+                                  icon: Icon(
+                                    IconlyLight.swap,
+                                    color: textColor,
+                                  ),
                                   onPressed: () => setState(() {
                                     _searchQuery = "";
                                     _selectedStatus = "Status: All";
@@ -215,11 +412,16 @@ class _TasksScreenState extends State<TasksScreen> {
                               crossAxisAlignment: WrapCrossAlignment.center,
                               children: [
                                 Text(
-                                  filteredTasks.isNotEmpty ? "1 - ${filteredTasks.length} of ${filteredTasks.length}" : "0 of 0",
-                                  style: TextStyle(color: textSecondary, fontSize: 14),
+                                  filteredTasks.isNotEmpty
+                                      ? "1 - ${filteredTasks.length} of ${filteredTasks.length}"
+                                      : "0 of 0",
+                                  style: TextStyle(
+                                    color: textSecondary,
+                                    fontSize: 14,
+                                  ),
                                 ),
                               ],
-                            )
+                            ),
                           ],
                         ),
                       ),
@@ -229,14 +431,20 @@ class _TasksScreenState extends State<TasksScreen> {
                     if (filteredTasks.isEmpty)
                       Padding(
                         padding: const EdgeInsets.all(40.0),
-                        child: Center(child: Text("No tasks found.", style: TextStyle(color: textSecondary))),
+                        child: Center(
+                          child: Text(
+                            "No tasks found.",
+                            style: TextStyle(color: textSecondary),
+                          ),
+                        ),
                       )
                     else
                       ListView.separated(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
                         itemCount: filteredTasks.length,
-                        separatorBuilder: (context, index) => const SizedBox(height: 16),
+                        separatorBuilder: (context, index) =>
+                            const SizedBox(height: 16),
                         itemBuilder: (context, index) {
                           final task = filteredTasks[index];
                           return Container(
@@ -260,29 +468,47 @@ class _TasksScreenState extends State<TasksScreen> {
                                 children: [
                                   // Top Row: Task No, Project, Status, Actions
                                   Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       CircleAvatar(
                                         radius: 20,
-                                        backgroundColor: const Color(0xFFE8F2FF),
+                                        backgroundColor: const Color(
+                                          0xFFE8F2FF,
+                                        ),
                                         child: Text(
-                                          task['taskNo']!.replaceAll("JOB ", ""),
-                                          style: const TextStyle(color: Color(0xFF0D6EFD), fontWeight: FontWeight.bold, fontSize: 12),
+                                          task['taskNo']!.replaceAll(
+                                            "JOB ",
+                                            "",
+                                          ),
+                                          style: const TextStyle(
+                                            color: Color(0xFF0D6EFD),
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 12,
+                                          ),
                                         ),
                                       ),
                                       const SizedBox(width: 12),
                                       Expanded(
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             Text(
                                               task['taskNo']!,
-                                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: textColor),
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16,
+                                                color: textColor,
+                                              ),
                                             ),
                                             const SizedBox(height: 4),
                                             Text(
                                               task['project']!,
-                                              style: TextStyle(fontSize: 14, color: textSecondary),
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                color: textSecondary,
+                                              ),
                                             ),
                                           ],
                                         ),
@@ -292,74 +518,124 @@ class _TasksScreenState extends State<TasksScreen> {
                                         children: [
                                           _buildStatusPill(task['status']!),
                                           const SizedBox(width: 4),
-                                          PopupMenuButton<String>(
-                                            icon: Icon(IconlyLight.more_circle, color: textSecondary),
-                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                            onSelected: (val) {},
-                                            itemBuilder: (context) => [
-                                              const PopupMenuItem(
-                                                value: 'edit',
-                                                child: Row(
-                                                  children: [
-                                                    Icon(IconlyLight.edit, size: 18, color: Color(0xFF0D6EFD)),
-                                                    SizedBox(width: 12),
-                                                    Text("Edit Task"),
-                                                  ],
-                                                ),
+                                          if (_canEdit || _canDelete)
+                                            PopupMenuButton<String>(
+                                              icon: Icon(
+                                                IconlyLight.more_circle,
+                                                color: textSecondary,
                                               ),
-                                              const PopupMenuItem(
-                                                value: 'delete',
-                                                child: Row(
-                                                  children: [
-                                                    Icon(IconlyLight.delete, size: 18, color: Colors.red),
-                                                    SizedBox(width: 12),
-                                                    Text("Delete", style: TextStyle(color: Colors.red)),
-                                                  ],
-                                                ),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
                                               ),
-                                            ],
-                                          ),
+                                              onSelected: (val) {},
+                                              itemBuilder: (context) => [
+                                                if (_canEdit)
+                                                  const PopupMenuItem(
+                                                    value: 'edit',
+                                                    child: Row(
+                                                      children: [
+                                                        Icon(
+                                                          IconlyLight.edit,
+                                                          size: 18,
+                                                          color: Color(
+                                                            0xFF0D6EFD,
+                                                          ),
+                                                        ),
+                                                        SizedBox(width: 12),
+                                                        Text("Edit Task"),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                if (_canDelete)
+                                                  const PopupMenuItem(
+                                                    value: 'delete',
+                                                    child: Row(
+                                                      children: [
+                                                        Icon(
+                                                          IconlyLight.delete,
+                                                          size: 18,
+                                                          color: Colors.red,
+                                                        ),
+                                                        SizedBox(width: 12),
+                                                        Text(
+                                                          "Delete",
+                                                          style: TextStyle(
+                                                            color: Colors.red,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                              ],
+                                            ),
                                         ],
                                       ),
                                     ],
                                   ),
                                   const SizedBox(height: 16),
-                                  
+
                                   // Middle Row: Client info
                                   Row(
                                     children: [
-                                      Icon(IconlyLight.work, size: 16, color: textSecondary),
+                                      Icon(
+                                        IconlyLight.work,
+                                        size: 16,
+                                        color: textSecondary,
+                                      ),
                                       const SizedBox(width: 6),
                                       Text(
                                         "Client: ",
-                                        style: TextStyle(fontSize: 13, color: textSecondary),
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          color: textSecondary,
+                                        ),
                                       ),
                                       Text(
                                         task['client']!,
-                                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: textColor),
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.bold,
+                                          color: textColor,
+                                        ),
                                       ),
                                     ],
                                   ),
-                                  
+
                                   const SizedBox(height: 20),
-                                  Divider(height: 1, color: isDark ? const Color(0xFF1F2E40) : Colors.grey.shade100),
+                                  Divider(
+                                    height: 1,
+                                    color: isDark
+                                        ? const Color(0xFF1F2E40)
+                                        : Colors.grey.shade100,
+                                  ),
                                   const SizedBox(height: 16),
-                                  
+
                                   // Bottom Row: Full-width View Details button
                                   SizedBox(
                                     width: double.infinity,
                                     child: OutlinedButton(
                                       style: OutlinedButton.styleFrom(
-                                        foregroundColor: isDark ? Colors.white : const Color(0xFF0D6EFD),
+                                        foregroundColor: isDark
+                                            ? Colors.white
+                                            : const Color(0xFF0D6EFD),
                                         side: BorderSide(
-                                          color: isDark ? Colors.white.withOpacity(0.5) : const Color(0xFF0D6EFD).withOpacity(0.4),
+                                          color: isDark
+                                              ? Colors.white.withOpacity(0.5)
+                                              : const Color(
+                                                  0xFF0D6EFD,
+                                                ).withOpacity(0.4),
                                         ),
                                         shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(8),
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
                                         ),
-                                        padding: const EdgeInsets.symmetric(vertical: 12),
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 12,
+                                        ),
                                       ),
-                                      onPressed: () {},
+                                      onPressed: () => _viewDetails(task),
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
@@ -368,14 +644,18 @@ class _TasksScreenState extends State<TasksScreen> {
                                             style: TextStyle(
                                               fontSize: 12,
                                               fontWeight: FontWeight.bold,
-                                              color: isDark ? Colors.white : const Color(0xFF0D6EFD),
+                                              color: isDark
+                                                  ? Colors.white
+                                                  : const Color(0xFF0D6EFD),
                                             ),
                                           ),
                                           const SizedBox(width: 6),
                                           Icon(
                                             Icons.arrow_forward_ios,
                                             size: 11,
-                                            color: isDark ? Colors.white70 : const Color(0xFF0D6EFD),
+                                            color: isDark
+                                                ? Colors.white70
+                                                : const Color(0xFF0D6EFD),
                                           ),
                                         ],
                                       ),

@@ -106,6 +106,7 @@ class _CustomAppBarState extends State<CustomAppBar> {
         if (widget.actions != null) ...widget.actions!,
         if (_canViewNotifications)
           PopupMenuButton<String>(
+            color: isDark ? const Color(0xFF172433) : Colors.white,
             icon: Badge(
               isLabelVisible: recent.isNotEmpty,
               label: Text('${recent.length}'),
@@ -117,13 +118,13 @@ class _CustomAppBarState extends State<CustomAppBar> {
             ),
             constraints: const BoxConstraints(minWidth: 280, maxWidth: 320),
             itemBuilder: (context) => [
-              const PopupMenuItem(
+              PopupMenuItem(
                 enabled: false,
                 child: Text(
                   "Notifications",
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: Colors.black,
+                    color: foregroundColor,
                   ),
                 ),
               ),
@@ -157,7 +158,7 @@ class _CustomAppBarState extends State<CustomAppBar> {
                 ...recent.map(
                   (n) => PopupMenuItem(
                     enabled: false,
-                    child: _NotificationRow(notification: n),
+                    child: _NotificationRow(notification: n, isDark: isDark),
                   ),
                 ),
               const PopupMenuDivider(),
@@ -195,8 +196,9 @@ class _CustomAppBarState extends State<CustomAppBar> {
 
 class _NotificationRow extends StatelessWidget {
   final AdminNotification notification;
+  final bool isDark;
 
-  const _NotificationRow({required this.notification});
+  const _NotificationRow({required this.notification, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
@@ -207,10 +209,10 @@ class _NotificationRow extends StatelessWidget {
         children: [
           Text(
             notification.headline,
-            style: const TextStyle(
+            style: TextStyle(
               fontWeight: FontWeight.w600,
               fontSize: 13,
-              color: Colors.black87,
+              color: isDark ? Colors.white : Colors.black87,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -218,7 +220,10 @@ class _NotificationRow extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             notification.notificationText,
-            style: const TextStyle(fontSize: 12, color: Colors.grey),
+            style: TextStyle(
+              fontSize: 12,
+              color: isDark ? Colors.white70 : Colors.grey,
+            ),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
