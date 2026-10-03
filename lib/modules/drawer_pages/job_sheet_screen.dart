@@ -164,75 +164,172 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
     }
   }
 
-  void _showSelectProjectsDialog(BuildContext context) {
+  void _showSearchablePickerModal({
+    required BuildContext context,
+    required String title,
+    required String searchHint,
+    required String? currentValue,
+    required List<String> options,
+    required Function(String?) onSelected,
+  }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final projectList = _controller.projectOptions;
+    final bgColor = isDark ? const Color(0xFF162A42) : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
+    final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+    final borderColor = isDark ? Colors.white24 : Colors.grey.shade300;
+    final searchBg = isDark ? Colors.white.withOpacity(0.08) : Colors.grey.shade100;
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: bgColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (ctx) {
-        String? chosenProject = _controller.selectedProject;
+        String searchQuery = '';
         return StatefulBuilder(
-          builder: (context, setStateDialog) {
-            return AlertDialog(
-              backgroundColor: isDark ? AppTheme.corporateBlue : Colors.white,
-              title: Row(
-                children: [
-                  Icon(IconlyLight.folder, color: isDark ? Colors.white : const Color(0xFF0F2C4A)),
-                  const SizedBox(width: 8),
-                  Text("Select Project", style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 18, fontWeight: FontWeight.bold)),
-                ],
-              ),
-              content: SizedBox(
-                width: double.maxFinite,
-                child: projectList.isEmpty
-                    ? Text("No projects available", style: TextStyle(color: isDark ? Colors.white70 : Colors.black54))
-                    : ListView.builder(
-                        shrinkWrap: true,
-                        itemCount: projectList.length + 1,
-                        itemBuilder: (context, index) {
-                          if (index == 0) {
-                            final isSelected = chosenProject == null;
+          builder: (context, setStateModal) {
+            final filteredList = options.where((item) {
+              if (searchQuery.isEmpty) return true;
+              return item.toLowerCase().contains(searchQuery.toLowerCase());
+            }).toList();
+
+            return DraggableScrollableSheet(
+              initialChildSize: 0.75,
+              minChildSize: 0.45,
+              maxChildSize: 0.94,
+              expand: false,
+              builder: (context, scrollController) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Handle bar
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          margin: const EdgeInsets.only(bottom: 16),
+                          decoration: BoxDecoration(
+                            color: isDark ? Colors.white24 : Colors.grey.shade300,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+
+                      // Header
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            title,
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: textColor,
+                            ),
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.close, color: textSecondary, size: 20),
+                            onPressed: () => Navigator.pop(ctx),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Search Box
+                      Container(
+                        decoration: BoxDecoration(
+                          color: searchBg,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: borderColor),
+                        ),
+                        child: TextField(
+                          autofocus: false,
+                          style: TextStyle(color: textColor, fontSize: 14),
+                          onChanged: (val) {
+                            setStateModal(() {
+                              searchQuery = val.trim();
+                            });
+                          },
+                          decoration: InputDecoration(
+                            hintText: searchHint,
+                            hintStyle: TextStyle(color: textSecondary, fontSize: 14),
+                            prefixIcon: Icon(IconlyLight.search, color: textSecondary, size: 18),
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Options List
+                      Expanded(
+                        child: ListView.separated(
+                          controller: scrollController,
+                          itemCount: filteredList.length + 1,
+                          separatorBuilder: (_, __) => Divider(
+                            height: 1,
+                            color: isDark ? Colors.white10 : Colors.grey.shade200,
+                          ),
+                          itemBuilder: (context, index) {
+                            if (index == 0) {
+                              final isSelected = currentValue == null;
+                              final entityName = title.replaceAll('Find ', '').replaceAll('Filter by ', '').replaceAll('Select ', '');
+                              return ListTile(
+                                dense: true,
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                                title: Text(
+                                  "All ($entityName)",
+                                  style: TextStyle(
+                                    color: isSelected ? const Color(0xFF0D6EFD) : textColor,
+                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                trailing: isSelected
+                                    ? const Icon(Icons.check_circle, color: Color(0xFF0D6EFD), size: 18)
+                                    : null,
+                                onTap: () {
+                                  onSelected(null);
+                                  Navigator.pop(ctx);
+                                },
+                              );
+                            }
+
+                            final item = filteredList[index - 1];
+                            final isSelected = currentValue == item;
+
                             return ListTile(
-                              leading: Icon(
-                                isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-                                color: const Color(0xFF0D6EFD),
+                              dense: true,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                              title: Text(
+                                item,
+                                style: TextStyle(
+                                  color: isSelected ? const Color(0xFF0D6EFD) : textColor,
+                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                  fontSize: 14,
+                                ),
                               ),
-                              title: Text("All Projects", style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+                              trailing: isSelected
+                                  ? const Icon(Icons.check_circle, color: Color(0xFF0D6EFD), size: 18)
+                                  : null,
                               onTap: () {
-                                setStateDialog(() => chosenProject = null);
+                                onSelected(item);
+                                Navigator.pop(ctx);
                               },
                             );
-                          }
-                          final proj = projectList[index - 1];
-                          final isSelected = chosenProject == proj;
-                          return ListTile(
-                            leading: Icon(
-                              isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-                              color: const Color(0xFF0D6EFD),
-                            ),
-                            title: Text(proj, style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
-                            onTap: () {
-                              setStateDialog(() => chosenProject = proj);
-                            },
-                          );
-                        },
+                          },
+                        ),
                       ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: const Text("Cancel"),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0D6EFD)),
-                  onPressed: () {
-                    _controller.setFilter(project: chosenProject);
-                    Navigator.pop(ctx);
-                  },
-                  child: const Text("Apply", style: TextStyle(color: Colors.white)),
-                ),
-              ],
+                    ],
+                  ),
+                );
+              },
             );
           },
         );
@@ -240,100 +337,218 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
     );
   }
 
-  void _showFilterDialog(BuildContext context) {
+  void _showAddFilterMenu(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
-    // Create local state for dialog
-    String? tempProject = _controller.selectedProject;
-    String? tempSheetNo = _controller.selectedSheetNo;
-    String? tempClient = _controller.selectedClient;
-    String? tempOperative = _controller.selectedOperative;
-    String? tempForm = _controller.selectedForm;
+    final bgColor = isDark ? const Color(0xFF162A42) : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
+    final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
+      backgroundColor: bgColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (ctx) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            Widget buildDropdown(String label, String? value, List<String> items, Function(String?) onChanged) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(label, style: TextStyle(fontSize: 12, color: isDark ? Colors.white70 : Colors.black54)),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 16),
                     decoration: BoxDecoration(
-                      color: isDark ? Colors.white10 : Colors.white,
-                      border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade300),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        isExpanded: true,
-                        dropdownColor: isDark ? AppTheme.corporateBlue : Colors.white,
-                        value: value,
-                        hint: Text("Select $label", style: TextStyle(color: isDark ? Colors.white54 : Colors.black38)),
-                        style: TextStyle(color: isDark ? Colors.white : Colors.black87),
-                        items: [
-                          const DropdownMenuItem<String>(value: null, child: Text("All")),
-                          ...items.map((e) => DropdownMenuItem(value: e, child: Text(e))),
-                        ],
-                        onChanged: (val) {
-                          setState(() {
-                            onChanged(val);
-                          });
-                        },
-                      ),
+                      color: isDark ? Colors.white24 : Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                  const SizedBox(height: 16),
-                ],
-              );
-            }
-
-            return AlertDialog(
-              backgroundColor: isDark ? AppTheme.corporateBlue : Colors.white,
-              title: Text("Filter ${widget.title}", style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    buildDropdown("Project", tempProject, _controller.projectOptions, (val) => tempProject = val),
-                    buildDropdown("Sheet No", tempSheetNo, _controller.sheetNoOptions, (val) => tempSheetNo = val),
-                    buildDropdown("Client", tempClient, _controller.clientOptions, (val) => tempClient = val),
-                    buildDropdown("Operative", tempOperative, _controller.operativeOptions, (val) => tempOperative = val),
-                    if (!widget.dailyReportsMode)
-                      buildDropdown("Form", tempForm, _controller.formOptions, (val) => tempForm = val),
-                  ],
                 ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    _controller.clearFilters();
+                Text(
+                  "Filter by",
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: textColor,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ListTile(
+                  leading: const Icon(IconlyLight.folder, color: Color(0xFF0D6EFD)),
+                  title: Text("Project", style: TextStyle(color: textColor, fontWeight: FontWeight.w600)),
+                  subtitle: Text(_controller.selectedProject ?? "All projects", style: TextStyle(color: textSecondary, fontSize: 12)),
+                  trailing: const Icon(Icons.chevron_right, size: 20),
+                  onTap: () {
                     Navigator.pop(ctx);
-                  },
-                  child: const Text("Clear All"),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    _controller.setFilter(
-                      project: tempProject,
-                      sheetNo: tempSheetNo,
-                      client: tempClient,
-                      operative: tempOperative,
-                      form: tempForm,
+                    _showSearchablePickerModal(
+                      context: context,
+                      title: "Filter by Project",
+                      searchHint: "Find project...",
+                      currentValue: _controller.selectedProject,
+                      options: _controller.projectOptions,
+                      onSelected: (val) => _controller.setFilter(
+                        project: val,
+                        sheetNo: _controller.selectedSheetNo,
+                        client: _controller.selectedClient,
+                        operative: _controller.selectedOperative,
+                        form: _controller.selectedForm,
+                      ),
                     );
-                    Navigator.pop(ctx);
                   },
-                  child: const Text("Apply"),
+                ),
+                ListTile(
+                  leading: const Icon(IconlyLight.category, color: Color(0xFF0D6EFD)),
+                  title: Text("Client", style: TextStyle(color: textColor, fontWeight: FontWeight.w600)),
+                  subtitle: Text(_controller.selectedClient ?? "All clients", style: TextStyle(color: textSecondary, fontSize: 12)),
+                  trailing: const Icon(Icons.chevron_right, size: 20),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _showSearchablePickerModal(
+                      context: context,
+                      title: "Filter by Client",
+                      searchHint: "Find client...",
+                      currentValue: _controller.selectedClient,
+                      options: _controller.clientOptions,
+                      onSelected: (val) => _controller.setFilter(
+                        project: _controller.selectedProject,
+                        sheetNo: _controller.selectedSheetNo,
+                        client: val,
+                        operative: _controller.selectedOperative,
+                        form: _controller.selectedForm,
+                      ),
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(IconlyLight.profile, color: Color(0xFF0D6EFD)),
+                  title: Text("Operative", style: TextStyle(color: textColor, fontWeight: FontWeight.w600)),
+                  subtitle: Text(_controller.selectedOperative ?? "All operatives", style: TextStyle(color: textSecondary, fontSize: 12)),
+                  trailing: const Icon(Icons.chevron_right, size: 20),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _showSearchablePickerModal(
+                      context: context,
+                      title: "Filter by Operative",
+                      searchHint: "Find operative...",
+                      currentValue: _controller.selectedOperative,
+                      options: _controller.operativeOptions,
+                      onSelected: (val) => _controller.setFilter(
+                        project: _controller.selectedProject,
+                        sheetNo: _controller.selectedSheetNo,
+                        client: _controller.selectedClient,
+                        operative: val,
+                        form: _controller.selectedForm,
+                      ),
+                    );
+                  },
+                ),
+                if (!widget.dailyReportsMode)
+                  ListTile(
+                    leading: const Icon(IconlyLight.document, color: Color(0xFF0D6EFD)),
+                    title: Text("Form", style: TextStyle(color: textColor, fontWeight: FontWeight.w600)),
+                    subtitle: Text(_controller.selectedForm ?? "All forms", style: TextStyle(color: textSecondary, fontSize: 12)),
+                    trailing: const Icon(Icons.chevron_right, size: 20),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _showSearchablePickerModal(
+                        context: context,
+                        title: "Filter by Form",
+                        searchHint: "Find form...",
+                        currentValue: _controller.selectedForm,
+                        options: _controller.formOptions,
+                        onSelected: (val) => _controller.setFilter(
+                          project: _controller.selectedProject,
+                          sheetNo: _controller.selectedSheetNo,
+                          client: _controller.selectedClient,
+                          operative: _controller.selectedOperative,
+                          form: val,
+                        ),
+                      );
+                    },
+                  ),
+                ListTile(
+                  leading: const Icon(IconlyLight.paper, color: Color(0xFF0D6EFD)),
+                  title: Text("Sheet No.", style: TextStyle(color: textColor, fontWeight: FontWeight.w600)),
+                  subtitle: Text(_controller.selectedSheetNo ?? "All sheets", style: TextStyle(color: textSecondary, fontSize: 12)),
+                  trailing: const Icon(Icons.chevron_right, size: 20),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _showSearchablePickerModal(
+                      context: context,
+                      title: "Filter by Sheet No.",
+                      searchHint: "Find sheet no...",
+                      currentValue: _controller.selectedSheetNo,
+                      options: _controller.sheetNoOptions,
+                      onSelected: (val) => _controller.setFilter(
+                        project: _controller.selectedProject,
+                        sheetNo: val,
+                        client: _controller.selectedClient,
+                        operative: _controller.selectedOperative,
+                        form: _controller.selectedForm,
+                      ),
+                    );
+                  },
                 ),
               ],
-            );
-          },
+            ),
+          ),
         );
       },
+    );
+  }
+
+  void _showSelectProjectsDialog(BuildContext context) {
+    _showSearchablePickerModal(
+      context: context,
+      title: "Select Project",
+      searchHint: "Find project...",
+      currentValue: _controller.selectedProject,
+      options: _controller.projectOptions,
+      onSelected: (val) => _controller.setFilter(
+        project: val,
+        sheetNo: _controller.selectedSheetNo,
+        client: _controller.selectedClient,
+        operative: _controller.selectedOperative,
+        form: _controller.selectedForm,
+      ),
+    );
+  }
+
+  Widget _buildFilterChip(BuildContext context, {required String label, required String value, required VoidCallback onRemove, required VoidCallback onTap}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      margin: const EdgeInsets.only(right: 8, bottom: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF0D6EFD).withOpacity(0.2) : const Color(0xFFEBF5FF),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF0D6EFD).withOpacity(0.4)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          GestureDetector(
+            onTap: onTap,
+            child: Text(
+              "$label: $value",
+              style: TextStyle(
+                color: isDark ? Colors.white : const Color(0xFF0D6EFD),
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+          GestureDetector(
+            onTap: onRemove,
+            child: Icon(Icons.close, size: 14, color: isDark ? Colors.white70 : const Color(0xFF0D6EFD)),
+          ),
+        ],
+      ),
     );
   }
 
@@ -365,7 +580,7 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(24.0),
+            padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
             // Filter & Action Bar
@@ -387,9 +602,26 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Row 1: Filters (Status dropdown, Filter dialog button, Refresh)
+                  // Row 1: Filters (+ Add Filter, Status dropdown, Reset button)
                   Row(
                     children: [
+                      // + Add Filter Button
+                      SizedBox(
+                        height: 38,
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 10),
+                            foregroundColor: isDark ? Colors.white : const Color(0xFF0F2C4A),
+                            side: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                          ),
+                          onPressed: () => _showAddFilterMenu(context),
+                          icon: const Icon(Icons.add, size: 16),
+                          label: const Text("Add Filter", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+
                       // Status Dropdown
                       Expanded(
                         child: Container(
@@ -423,42 +655,189 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      // Add Filter Button
+
+                      // Reset Button
                       SizedBox(
                         height: 38,
                         child: OutlinedButton.icon(
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(horizontal: 10),
-                            foregroundColor: isDark ? Colors.white : const Color(0xFF0F2C4A),
+                            foregroundColor: isDark ? Colors.white70 : Colors.grey.shade700,
                             side: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                           ),
-                          onPressed: () => _showFilterDialog(context),
-                          icon: const Icon(IconlyLight.filter, size: 16),
-                          label: const Text("Filters", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      // Refresh Button
-                      Container(
-                        height: 38,
-                        width: 38,
-                        decoration: BoxDecoration(
-                          color: isDark ? Colors.white10 : Colors.grey.shade100,
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade300),
-                        ),
-                        child: IconButton(
-                          icon: Icon(IconlyLight.swap, size: 16, color: isDark ? Colors.white : Colors.black87),
-                          onPressed: () => _controller.fetchJobSheets(),
-                          tooltip: 'Refresh',
-                          padding: EdgeInsets.zero,
+                          onPressed: () => _controller.clearFilters(),
+                          icon: const Icon(Icons.refresh, size: 15),
+                          label: const Text("Reset", style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                         ),
                       ),
                     ],
                   ),
+
+                  // Active Filter Pills
+                  AnimatedBuilder(
+                    animation: _controller,
+                    builder: (context, _) {
+                      final hasProject = _controller.selectedProject != null && _controller.selectedProject!.isNotEmpty;
+                      final hasClient = _controller.selectedClient != null && _controller.selectedClient!.isNotEmpty;
+                      final hasOperative = _controller.selectedOperative != null && _controller.selectedOperative!.isNotEmpty;
+                      final hasForm = _controller.selectedForm != null && _controller.selectedForm!.isNotEmpty;
+                      final hasSheetNo = _controller.selectedSheetNo != null && _controller.selectedSheetNo!.isNotEmpty;
+
+                      if (!hasProject && !hasClient && !hasOperative && !hasForm && !hasSheetNo) {
+                        return const SizedBox.shrink();
+                      }
+
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 10),
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              if (hasProject)
+                                _buildFilterChip(
+                                  context,
+                                  label: "Project",
+                                  value: _controller.selectedProject!,
+                                  onRemove: () => _controller.setFilter(
+                                    project: null,
+                                    sheetNo: _controller.selectedSheetNo,
+                                    client: _controller.selectedClient,
+                                    operative: _controller.selectedOperative,
+                                    form: _controller.selectedForm,
+                                  ),
+                                  onTap: () => _showSearchablePickerModal(
+                                    context: context,
+                                    title: "Filter by Project",
+                                    searchHint: "Find project...",
+                                    currentValue: _controller.selectedProject,
+                                    options: _controller.projectOptions,
+                                    onSelected: (val) => _controller.setFilter(
+                                      project: val,
+                                      sheetNo: _controller.selectedSheetNo,
+                                      client: _controller.selectedClient,
+                                      operative: _controller.selectedOperative,
+                                      form: _controller.selectedForm,
+                                    ),
+                                  ),
+                                ),
+                              if (hasClient)
+                                _buildFilterChip(
+                                  context,
+                                  label: "Client",
+                                  value: _controller.selectedClient!,
+                                  onRemove: () => _controller.setFilter(
+                                    project: _controller.selectedProject,
+                                    sheetNo: _controller.selectedSheetNo,
+                                    client: null,
+                                    operative: _controller.selectedOperative,
+                                    form: _controller.selectedForm,
+                                  ),
+                                  onTap: () => _showSearchablePickerModal(
+                                    context: context,
+                                    title: "Filter by Client",
+                                    searchHint: "Find client...",
+                                    currentValue: _controller.selectedClient,
+                                    options: _controller.clientOptions,
+                                    onSelected: (val) => _controller.setFilter(
+                                      project: _controller.selectedProject,
+                                      sheetNo: _controller.selectedSheetNo,
+                                      client: val,
+                                      operative: _controller.selectedOperative,
+                                      form: _controller.selectedForm,
+                                    ),
+                                  ),
+                                ),
+                              if (hasOperative)
+                                _buildFilterChip(
+                                  context,
+                                  label: "Operative",
+                                  value: _controller.selectedOperative!,
+                                  onRemove: () => _controller.setFilter(
+                                    project: _controller.selectedProject,
+                                    sheetNo: _controller.selectedSheetNo,
+                                    client: _controller.selectedClient,
+                                    operative: null,
+                                    form: _controller.selectedForm,
+                                  ),
+                                  onTap: () => _showSearchablePickerModal(
+                                    context: context,
+                                    title: "Filter by Operative",
+                                    searchHint: "Find operative...",
+                                    currentValue: _controller.selectedOperative,
+                                    options: _controller.operativeOptions,
+                                    onSelected: (val) => _controller.setFilter(
+                                      project: _controller.selectedProject,
+                                      sheetNo: _controller.selectedSheetNo,
+                                      client: _controller.selectedClient,
+                                      operative: val,
+                                      form: _controller.selectedForm,
+                                    ),
+                                  ),
+                                ),
+                              if (hasForm)
+                                _buildFilterChip(
+                                  context,
+                                  label: "Form",
+                                  value: _controller.selectedForm!,
+                                  onRemove: () => _controller.setFilter(
+                                    project: _controller.selectedProject,
+                                    sheetNo: _controller.selectedSheetNo,
+                                    client: _controller.selectedClient,
+                                    operative: _controller.selectedOperative,
+                                    form: null,
+                                  ),
+                                  onTap: () => _showSearchablePickerModal(
+                                    context: context,
+                                    title: "Filter by Form",
+                                    searchHint: "Find form...",
+                                    currentValue: _controller.selectedForm,
+                                    options: _controller.formOptions,
+                                    onSelected: (val) => _controller.setFilter(
+                                      project: _controller.selectedProject,
+                                      sheetNo: _controller.selectedSheetNo,
+                                      client: _controller.selectedClient,
+                                      operative: _controller.selectedOperative,
+                                      form: val,
+                                    ),
+                                  ),
+                                ),
+                              if (hasSheetNo)
+                                _buildFilterChip(
+                                  context,
+                                  label: "Sheet No",
+                                  value: _controller.selectedSheetNo!,
+                                  onRemove: () => _controller.setFilter(
+                                    project: _controller.selectedProject,
+                                    sheetNo: null,
+                                    client: _controller.selectedClient,
+                                    operative: _controller.selectedOperative,
+                                    form: _controller.selectedForm,
+                                  ),
+                                  onTap: () => _showSearchablePickerModal(
+                                    context: context,
+                                    title: "Filter by Sheet No.",
+                                    searchHint: "Find sheet no...",
+                                    currentValue: _controller.selectedSheetNo,
+                                    options: _controller.sheetNoOptions,
+                                    onSelected: (val) => _controller.setFilter(
+                                      project: _controller.selectedProject,
+                                      sheetNo: val,
+                                      client: _controller.selectedClient,
+                                      operative: _controller.selectedOperative,
+                                      form: _controller.selectedForm,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
                   const SizedBox(height: 10),
-                  // Row 2: Action Buttons (Select Projects, Project PDF, Get Report)
+
+                  // Row 3: Action Buttons (Select Projects, Project PDF, Get Report)
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: Row(
