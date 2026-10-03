@@ -338,6 +338,8 @@ class ClientsScreenState extends State<ClientsScreen> {
                                 color: textColor,
                                 fontSize: 14,
                               ),
+                              onChanged: (value) =>
+                                  _controller.searchClients(value),
                               onSubmitted: (value) =>
                                   _controller.searchClients(value),
                               decoration: InputDecoration(
