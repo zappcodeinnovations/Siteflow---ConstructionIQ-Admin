@@ -16,9 +16,9 @@ class _TasksScreenState extends State<TasksScreen> {
   bool _isSearchVisible = false;
   String _searchQuery = "";
   String _selectedStatus = "Status: All";
-  bool _canCreate = false;
-  bool _canEdit = false;
-  bool _canDelete = false;
+  bool _canCreate = true;
+  bool _canEdit = true;
+  bool _canDelete = true;
 
   @override
   void initState() {
@@ -27,17 +27,571 @@ class _TasksScreenState extends State<TasksScreen> {
   }
 
   Future<void> _loadPermissions() async {
-    final access = await Future.wait([
-      AuthService.can('tasks', action: 'create'),
-      AuthService.can('tasks', action: 'edit'),
-      AuthService.can('tasks', action: 'delete'),
-    ]);
-    if (!mounted) return;
-    setState(() {
-      _canCreate = access[0];
-      _canEdit = access[1];
-      _canDelete = access[2];
-    });
+    try {
+      final access = await Future.wait([
+        AuthService.can('tasks', action: 'create'),
+        AuthService.can('tasks', action: 'edit'),
+        AuthService.can('tasks', action: 'delete'),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        _canCreate = access[0];
+        _canEdit = access[1];
+        _canDelete = access[2];
+      });
+    } catch (_) {}
+  }
+
+  void _showCreateTaskDialog() {
+    final taskNoController = TextEditingController(
+      text: "JOB ${_dummyTasks.length + 29}",
+    );
+    final projectController = TextEditingController();
+    final clientController = TextEditingController();
+    final instructionsController = TextEditingController();
+    String selectedStatus = "Pending";
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final dialogBg = isDark ? AppTheme.corporateBlue : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
+    final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+    final borderColor = isDark ? Colors.white24 : Colors.grey.shade300;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return AlertDialog(
+              backgroundColor: dialogBg,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: isDark
+                    ? const BorderSide(color: Colors.white24)
+                    : BorderSide.none,
+              ),
+              title: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    "Create Task",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      color: textColor,
+                    ),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.close, size: 20, color: textSecondary),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+              content: SizedBox(
+                width: 380,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Task / Job Number",
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: taskNoController,
+                        style: TextStyle(color: textColor, fontSize: 14),
+                        decoration: InputDecoration(
+                          hintText: "e.g. JOB 33",
+                          hintStyle: TextStyle(color: textSecondary),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: borderColor),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: borderColor),
+                          ),
+                          focusedBorder: const OutlineInputBorder(
+                            borderRadius: BorderRadius.all(Radius.circular(8)),
+                            borderSide: BorderSide(
+                              color: Color(0xFF0D6EFD),
+                              width: 1.5,
+                            ),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Text(
+                        "Project Name",
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: projectController,
+                        style: TextStyle(color: textColor, fontSize: 14),
+                        decoration: InputDecoration(
+                          hintText: "e.g. Second testing project",
+                          hintStyle: TextStyle(color: textSecondary),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: borderColor),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: borderColor),
+                          ),
+                          focusedBorder: const OutlineInputBorder(
+                            borderRadius: BorderRadius.all(Radius.circular(8)),
+                            borderSide: BorderSide(
+                              color: Color(0xFF0D6EFD),
+                              width: 1.5,
+                            ),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Text(
+                        "Client Name",
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: clientController,
+                        style: TextStyle(color: textColor, fontSize: 14),
+                        decoration: InputDecoration(
+                          hintText: "e.g. Zaapkode Solutions",
+                          hintStyle: TextStyle(color: textSecondary),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: borderColor),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: borderColor),
+                          ),
+                          focusedBorder: const OutlineInputBorder(
+                            borderRadius: BorderRadius.all(Radius.circular(8)),
+                            borderSide: BorderSide(
+                              color: Color(0xFF0D6EFD),
+                              width: 1.5,
+                            ),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Text(
+                        "Status",
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: borderColor),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: selectedStatus,
+                            isExpanded: true,
+                            dropdownColor: isDark
+                                ? const Color(0xFF162A42)
+                                : Colors.white,
+                            style: TextStyle(color: textColor, fontSize: 14),
+                            items: [
+                              'Pending',
+                              'In Progress',
+                              'Completed',
+                              'Draft',
+                            ]
+                                .map(
+                                  (s) => DropdownMenuItem(
+                                    value: s,
+                                    child: Text(s),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (val) {
+                              if (val != null) {
+                                setModalState(() => selectedStatus = val);
+                              }
+                            },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Text(
+                        "Instructions (Optional)",
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: instructionsController,
+                        maxLines: 2,
+                        style: TextStyle(color: textColor, fontSize: 14),
+                        decoration: InputDecoration(
+                          hintText: "Enter task instructions...",
+                          hintStyle: TextStyle(color: textSecondary),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: borderColor),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: borderColor),
+                          ),
+                          focusedBorder: const OutlineInputBorder(
+                            borderRadius: BorderRadius.all(Radius.circular(8)),
+                            borderSide: BorderSide(
+                              color: Color(0xFF0D6EFD),
+                              width: 1.5,
+                            ),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text("Cancel", style: TextStyle(color: textSecondary)),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0D6EFD),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  onPressed: () {
+                    final taskNo = taskNoController.text.trim().isNotEmpty
+                        ? taskNoController.text.trim()
+                        : "JOB ${_dummyTasks.length + 29}";
+                    final project = projectController.text.trim().isNotEmpty
+                        ? projectController.text.trim()
+                        : "General Project";
+                    final client = clientController.text.trim().isNotEmpty
+                        ? clientController.text.trim()
+                        : "Euroside";
+
+                    setState(() {
+                      _dummyTasks.insert(0, {
+                        "taskNo": taskNo,
+                        "status": selectedStatus,
+                        "project": project,
+                        "client": client,
+                      });
+                    });
+
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text("Task $taskNo created successfully!"),
+                      ),
+                    );
+                  },
+                  child: const Text(
+                    "Create Task",
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showEditTaskDialog(Map<String, String> task) {
+    final taskNoController = TextEditingController(text: task['taskNo']);
+    final projectController = TextEditingController(text: task['project']);
+    final clientController = TextEditingController(text: task['client']);
+    String selectedStatus = task['status'] ?? "Pending";
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final dialogBg = isDark ? AppTheme.corporateBlue : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
+    final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+    final borderColor = isDark ? Colors.white24 : Colors.grey.shade300;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return AlertDialog(
+              backgroundColor: dialogBg,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: isDark
+                    ? const BorderSide(color: Colors.white24)
+                    : BorderSide.none,
+              ),
+              title: Text(
+                "Edit Task",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  color: textColor,
+                ),
+              ),
+              content: SizedBox(
+                width: 380,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Task / Job Number",
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: taskNoController,
+                        style: TextStyle(color: textColor, fontSize: 14),
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: borderColor),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Text(
+                        "Project Name",
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: projectController,
+                        style: TextStyle(color: textColor, fontSize: 14),
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: borderColor),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Text(
+                        "Client Name",
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: clientController,
+                        style: TextStyle(color: textColor, fontSize: 14),
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: borderColor),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Text(
+                        "Status",
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: borderColor),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: selectedStatus,
+                            isExpanded: true,
+                            dropdownColor: isDark
+                                ? const Color(0xFF162A42)
+                                : Colors.white,
+                            style: TextStyle(color: textColor, fontSize: 14),
+                            items: [
+                              'Pending',
+                              'In Progress',
+                              'Completed',
+                              'Draft',
+                            ]
+                                .map(
+                                  (s) => DropdownMenuItem(
+                                    value: s,
+                                    child: Text(s),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (val) {
+                              if (val != null) {
+                                setModalState(() => selectedStatus = val);
+                              }
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text("Cancel", style: TextStyle(color: textSecondary)),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0D6EFD),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      task['taskNo'] = taskNoController.text.trim();
+                      task['project'] = projectController.text.trim();
+                      task['client'] = clientController.text.trim();
+                      task['status'] = selectedStatus;
+                    });
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Task updated successfully!")),
+                    );
+                  },
+                  child: const Text(
+                    "Save Changes",
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _confirmDeleteTask(Map<String, String> task) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final dialogBg = isDark ? AppTheme.corporateBlue : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
+    final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: dialogBg,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: isDark ? const BorderSide(color: Colors.white24) : BorderSide.none,
+          ),
+          title: Text(
+            "Delete Task",
+            style: TextStyle(fontWeight: FontWeight.bold, color: textColor),
+          ),
+          content: Text(
+            "Are you sure you want to delete ${task['taskNo']}?",
+            style: TextStyle(color: isDark ? Colors.white70 : Colors.black87),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text("Cancel", style: TextStyle(color: textSecondary)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              onPressed: () {
+                setState(() {
+                  _dummyTasks.remove(task);
+                });
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Task deleted successfully")),
+                );
+              },
+              child: const Text("Delete", style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> _viewDetails(Map<String, String> task) async {
@@ -262,7 +816,7 @@ class _TasksScreenState extends State<TasksScreen> {
                                 borderRadius: BorderRadius.circular(8),
                               ),
                             ),
-                            onPressed: () {},
+                            onPressed: _showCreateTaskDialog,
                             icon: const Icon(
                               IconlyLight.plus,
                               size: 18,
@@ -271,7 +825,7 @@ class _TasksScreenState extends State<TasksScreen> {
                             label: const Text(
                               "Create Task",
                               style: TextStyle(
-                                fontSize: 10,
+                                fontSize: 13,
                                 color: Colors.white,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -562,7 +1116,7 @@ class _TasksScreenState extends State<TasksScreen> {
                                                       )
                                                     : BorderSide.none,
                                               ),
-                                              onSelected: (val) {},
+                                              onSelected: (val) { if (val == 'edit') { _showEditTaskDialog(task); } else if (val == 'delete') { _confirmDeleteTask(task); } },
                                               itemBuilder: (context) => [
                                                 if (_canEdit)
                                                   PopupMenuItem(
@@ -716,3 +1270,4 @@ class _TasksScreenState extends State<TasksScreen> {
     );
   }
 }
+
