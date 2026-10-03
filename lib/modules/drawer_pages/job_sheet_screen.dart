@@ -166,11 +166,7 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
 
   void _showSelectProjectsDialog(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final options = _controller.filterOptions;
-    List<String> projectList = [];
-    if (options['projects'] is List) {
-      projectList = (options['projects'] as List).map((e) => e.toString()).toList();
-    }
+    final projectList = _controller.projectOptions;
 
     showDialog(
       context: context,
@@ -246,7 +242,6 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
 
   void _showFilterDialog(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final options = _controller.filterOptions;
     
     // Create local state for dialog
     String? tempProject = _controller.selectedProject;
@@ -254,13 +249,6 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
     String? tempClient = _controller.selectedClient;
     String? tempOperative = _controller.selectedOperative;
     String? tempForm = _controller.selectedForm;
-
-    List<String> getOptions(String key) {
-      if (options[key] is List) {
-        return (options[key] as List).map((e) => e.toString()).toList();
-      }
-      return [];
-    }
 
     showDialog(
       context: context,
@@ -311,12 +299,12 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    buildDropdown("Project", tempProject, getOptions("projects"), (val) => tempProject = val),
-                    buildDropdown("Sheet No", tempSheetNo, getOptions("sheet_nos"), (val) => tempSheetNo = val),
-                    buildDropdown("Client", tempClient, getOptions("clients"), (val) => tempClient = val),
-                    buildDropdown("Operative", tempOperative, getOptions("operatives"), (val) => tempOperative = val),
+                    buildDropdown("Project", tempProject, _controller.projectOptions, (val) => tempProject = val),
+                    buildDropdown("Sheet No", tempSheetNo, _controller.sheetNoOptions, (val) => tempSheetNo = val),
+                    buildDropdown("Client", tempClient, _controller.clientOptions, (val) => tempClient = val),
+                    buildDropdown("Operative", tempOperative, _controller.operativeOptions, (val) => tempOperative = val),
                     if (!widget.dailyReportsMode)
-                      buildDropdown("Form", tempForm, getOptions("forms"), (val) => tempForm = val),
+                      buildDropdown("Form", tempForm, _controller.formOptions, (val) => tempForm = val),
                   ],
                 ),
               ),
