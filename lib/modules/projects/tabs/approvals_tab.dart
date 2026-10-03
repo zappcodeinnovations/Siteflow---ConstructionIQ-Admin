@@ -2,9 +2,31 @@ import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
 import '../approval_stages_screen.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../models/approval_request_model.dart';
+import '../project_approvals_controller.dart';
 
-class ApprovalsTab extends StatelessWidget {
-  const ApprovalsTab({Key? key}) : super(key: key);
+class ApprovalsTab extends StatefulWidget {
+  final int projectId;
+  const ApprovalsTab({Key? key, required this.projectId}) : super(key: key);
+
+  @override
+  State<ApprovalsTab> createState() => _ApprovalsTabState();
+}
+
+class _ApprovalsTabState extends State<ApprovalsTab> {
+  late final ProjectApprovalsController _controller = ProjectApprovalsController(widget.projectId);
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.fetchApprovals();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -14,12 +36,20 @@ class ApprovalsTab extends StatelessWidget {
     final textColor = isDark ? Colors.white : Colors.black87;
     final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Main center card
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        return RefreshIndicator(
+          onRefresh: _controller.fetchApprovals,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildPendingApprovalsSection(cardColor, borderColor, textColor, textSecondary),
+                const SizedBox(height: 24),
+                // Main center card
           Container(
             padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
             decoration: BoxDecoration(
@@ -118,6 +148,96 @@ class ApprovalsTab extends StatelessWidget {
               );
             },
           ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPendingApprovalsSection(Color cardColor, Color borderColor, Color textColor, Color textSecondary) {
+    if (_controller.isLoading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 24),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (_controller.error != null) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        child: Column(
+          children: [
+            Text(_controller.error!, style: TextStyle(color: textSecondary)),
+            const SizedBox(height: 8),
+            TextButton(onPressed: _controller.fetchApprovals, child: const Text("Retry")),
+          ],
+        ),
+      );
+    }
+    if (_controller.approvals.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+        decoration: BoxDecoration(
+          color: cardColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: borderColor),
+        ),
+        child: Row(
+          children: [
+            Icon(IconlyBold.tick_square, color: const Color(0xFF16A34A), size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text("No submissions on this project are waiting for approval.",
+                  style: TextStyle(color: textSecondary, fontSize: 13)),
+            ),
+          ],
+        ),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text("Pending Approvals (${_controller.approvals.length})",
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: textColor)),
+        const SizedBox(height: 12),
+        ..._controller.approvals.map((a) => _buildApprovalRow(a, cardColor, borderColor, textColor, textSecondary)),
+      ],
+    );
+  }
+
+  Widget _buildApprovalRow(ApprovalRequestModel approval, Color cardColor, Color borderColor, Color textColor, Color textSecondary) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: approval.isRead ? borderColor : const Color(0xFF0D6EFD)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(approval.formName, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: textColor)),
+                const SizedBox(height: 4),
+                Text(
+                  approval.resubmissionCount > 0
+                      ? "${approval.operativeName} · Resubmission #${approval.resubmissionCount}"
+                      : approval.operativeName,
+                  style: TextStyle(fontSize: 12, color: textSecondary),
+                ),
+              ],
+            ),
+          ),
+          if (!approval.isRead)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(color: const Color(0xFF0D6EFD).withOpacity(0.12), borderRadius: BorderRadius.circular(6)),
+              child: const Text("New", style: TextStyle(color: Color(0xFF0D6EFD), fontSize: 11, fontWeight: FontWeight.bold)),
+            ),
         ],
       ),
     );

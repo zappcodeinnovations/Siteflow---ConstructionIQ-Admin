@@ -22,6 +22,9 @@ class ApiEndpoints {
   static String inspectionComplete(int inspectionId) => '/inspections/$inspectionId/complete/';
   static String projectTemplateDetail(int projectId) => '/projects/$projectId/template/';
   static String projectMaterials(int projectId) => '/projects/$projectId/materials/';
+  static String myApprovals({int? projectId}) =>
+      projectId == null ? '/my-approvals/' : '/my-approvals/?project_id=$projectId';
+  static String projectJobCreate(int projectId) => '/operative/projects/$projectId/jobs/create/';
 
   // Announcements
   static const String announcements = '/admin/announcements/';

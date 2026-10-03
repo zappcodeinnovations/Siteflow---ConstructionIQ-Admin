@@ -13,6 +13,7 @@ import 'tabs/inspections_tab.dart';
 import 'tabs/site_manager_tab.dart';
 import 'tabs/project_template_tab.dart';
 import 'tabs/materials_tab.dart';
+import 'widgets/create_task_dialog.dart';
 import '../../models/project_model.dart';
 import '../../models/project_all_in_one_model.dart';
 import 'project_controller.dart';
@@ -67,6 +68,16 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
     await _fetchData();
   }
 
+  Future<void> _showCreateTaskDialog() async {
+    final created = await showDialog<bool>(
+      context: context,
+      builder: (_) => CreateTaskDialog(projectId: widget.project.id),
+    );
+    if (created == true) {
+      await _fetchData();
+    }
+  }
+
   Future<void> _fetchData() async {
     final data = await _controller.fetchAllInOneProjectDetails(
       widget.project.id,
@@ -118,7 +129,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
           jobSheets: _allInOneData?.jobSheets ?? [],
           filterOptions: _allInOneData?.jobSheetsFilterOptions ?? {},
         ),
-      if (_canViewApprovals) const ApprovalsTab(),
+      if (_canViewApprovals) ApprovalsTab(projectId: widget.project.id),
       const HseTab(),
       IncidentsTab(projectId: widget.project.id),
       SnagsTab(projectId: widget.project.id),
@@ -213,7 +224,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      onPressed: () {},
+                      onPressed: _showCreateTaskDialog,
                       label: const Text(
                         "Create Task",
                         style: TextStyle(
@@ -232,7 +243,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                 ] else ...[
                   IconButton(
                     icon: const Icon(IconlyLight.plus),
-                    onPressed: () {},
+                    onPressed: _showCreateTaskDialog,
                     color: const Color(0xFF0D6EFD),
                   ),
                 ],
