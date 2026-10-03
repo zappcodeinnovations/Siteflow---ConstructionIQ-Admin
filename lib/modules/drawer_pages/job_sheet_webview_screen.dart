@@ -135,44 +135,74 @@ class _JobSheetWebviewScreenState extends State<JobSheetWebviewScreen> {
               ''');
             }
 
-            if (url.contains('submitted=1')) {
-              _controller.runJavaScript("""
+            // Inject dynamic responsive auto-fit script
+            await _controller.runJavaScript('''
+              (function() {
                 var meta = document.querySelector('meta[name="viewport"]');
                 if (!meta) {
                   meta = document.createElement('meta');
                   meta.name = 'viewport';
                   document.head.appendChild(meta);
                 }
-                meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=3.0, user-scalable=yes';
+                meta.content = 'width=device-width, initial-scale=1.0, minimum-scale=0.2, maximum-scale=5.0, user-scalable=yes';
 
-                var style = document.createElement('style');
-                style.innerHTML = `
-                  body {
-                    zoom: 100% !important;
+                function autoFitToScreen() {
+                  try {
+                    document.body.style.zoom = '100%';
+                    document.documentElement.style.overflowX = 'hidden';
+
+                    var body = document.body;
+                    var html = document.documentElement;
+                    if (!body) return;
+
+                    var naturalWidth = Math.max(
+                      body.scrollWidth,
+                      body.offsetWidth,
+                      html.scrollWidth,
+                      html.offsetWidth
+                    );
+
+                    var elements = document.querySelectorAll('table, .container, .form-container, #form-container, .main-content, form');
+                    for (var i = 0; i < elements.length; i++) {
+                      var el = elements[i];
+                      var w = Math.max(el.scrollWidth || 0, el.offsetWidth || 0);
+                      if (w > naturalWidth) {
+                        naturalWidth = w;
+                      }
+                    }
+
+                    var clientWidth = window.innerWidth || html.clientWidth || screen.width;
+
+                    if (naturalWidth > clientWidth && clientWidth > 0) {
+                      var availableWidth = clientWidth - 8;
+                      var scale = availableWidth / naturalWidth;
+                      
+                      document.body.style.zoom = (scale * 100).toFixed(2) + '%';
+                      document.body.style.margin = '0 auto';
+                      document.body.style.paddingBottom = '100px';
+                      document.body.style.boxSizing = 'border-box';
+                    } else {
+                      document.body.style.zoom = '100%';
+                      document.body.style.paddingBottom = '100px';
+                    }
+                  } catch(e) {
+                    console.error('AutoFit error:', e);
                   }
-                `;
-                document.head.appendChild(style);
-              """);
-            } else {
-              _controller.runJavaScript("""
-                var meta = document.querySelector('meta[name="viewport"]');
-                if (!meta) {
-                  meta = document.createElement('meta');
-                  meta.name = 'viewport';
-                  document.head.appendChild(meta);
                 }
-                meta.content = 'width=device-width, initial-scale=0.38, maximum-scale=3.0, user-scalable=yes';
 
-                var style = document.createElement('style');
-                style.innerHTML = `
-                  body {
-                    zoom: 38%;
-                    padding-bottom: 140px !important;
-                  }
-                `;
-                document.head.appendChild(style);
-              """);
-            }
+                autoFitToScreen();
+                setTimeout(autoFitToScreen, 100);
+                setTimeout(autoFitToScreen, 300);
+                setTimeout(autoFitToScreen, 700);
+                setTimeout(autoFitToScreen, 1500);
+
+                window.removeEventListener('resize', autoFitToScreen);
+                window.addEventListener('resize', autoFitToScreen);
+                window.addEventListener('orientationchange', function() {
+                  setTimeout(autoFitToScreen, 200);
+                });
+              })();
+            ''');
           },
           onWebResourceError: (WebResourceError error) {
             debugPrint('''
