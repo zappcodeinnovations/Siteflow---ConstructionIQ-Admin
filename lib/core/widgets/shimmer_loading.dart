@@ -8,30 +8,27 @@ class ShimmerLoadingCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    // Dynamic brand-themed shimmer colors
-    final baseColor = isDark
-        ? const Color(0xFF00529B).withOpacity(0.5) // Light corporate blue base
-        : Colors.grey.shade200;
-    final highlightColor = isDark
-        ? const Color(0xFF64B5F6).withOpacity(
-            0.3,
-          ) // Bright light-blue highlight reflection
-        : Colors.grey.shade100;
-    final blockColor = isDark
-        ? Colors.white.withOpacity(
-            0.15,
-          ) // Semi-transparent white block to stand out
-        : Colors.grey.shade300;
+    // Harmonious card-matching shimmer colors
+    final cardBg = isDark ? const Color(0xFF162A42) : Colors.white;
+    final baseColor = isDark ? const Color(0xFF1E3552) : Colors.grey.shade200;
+    final highlightColor = isDark ? const Color(0xFF2B476C) : Colors.grey.shade50;
+    final blockColor = isDark ? const Color(0xFF223C5E) : Colors.grey.shade200;
+    final borderColor = isDark ? Colors.white12 : Colors.grey.shade200;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF00529B) : Colors.white,
+        color: cardBg,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark ? Colors.white12 : Colors.grey.shade200,
-        ),
+        border: Border.all(color: borderColor),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.2 : 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Shimmer.fromColors(
         baseColor: baseColor,
@@ -39,45 +36,21 @@ class ShimmerLoadingCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Top Row: Avatar icon box, text placeholders, and status tag
+            // Top Row: Code and Status Tag
             Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Container(
-                  width: 44,
-                  height: 44,
+                  width: 90,
+                  height: 12,
                   decoration: BoxDecoration(
                     color: blockColor,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 70,
-                        height: 9,
-                        decoration: BoxDecoration(
-                          color: blockColor,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Container(
-                        width: 150,
-                        height: 13,
-                        decoration: BoxDecoration(
-                          color: blockColor,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ),
-                    ],
+                    borderRadius: BorderRadius.circular(4),
                   ),
                 ),
                 Container(
                   width: 80,
-                  height: 24,
+                  height: 22,
                   decoration: BoxDecoration(
                     color: blockColor,
                     borderRadius: BorderRadius.circular(12),
@@ -85,9 +58,22 @@ class ShimmerLoadingCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 12),
 
-            // Grid Columns (Client, Budget, Priority)
+            // Project Title Placeholder
+            Container(
+              width: 180,
+              height: 16,
+              decoration: BoxDecoration(
+                color: blockColor,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Divider(height: 1, color: isDark ? Colors.white10 : Colors.grey.shade100),
+            const SizedBox(height: 14),
+
+            // Detail Grid Columns
             Row(
               children: [
                 Expanded(
@@ -95,17 +81,17 @@ class ShimmerLoadingCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Container(
-                        width: 40,
+                        width: 50,
                         height: 9,
                         decoration: BoxDecoration(
                           color: blockColor,
                           borderRadius: BorderRadius.circular(3),
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       Container(
-                        width: 75,
-                        height: 11,
+                        width: 100,
+                        height: 12,
                         decoration: BoxDecoration(
                           color: blockColor,
                           borderRadius: BorderRadius.circular(3),
@@ -114,61 +100,26 @@ class ShimmerLoadingCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                Container(
-                  width: 1,
-                  height: 32,
-                  color: blockColor.withOpacity(0.3),
-                ),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Container(
-                        width: 40,
+                        width: 50,
                         height: 9,
                         decoration: BoxDecoration(
                           color: blockColor,
                           borderRadius: BorderRadius.circular(3),
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       Container(
-                        width: 65,
-                        height: 11,
+                        width: 90,
+                        height: 12,
                         decoration: BoxDecoration(
                           color: blockColor,
                           borderRadius: BorderRadius.circular(3),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  width: 1,
-                  height: 32,
-                  color: blockColor.withOpacity(0.3),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 45,
-                        height: 9,
-                        decoration: BoxDecoration(
-                          color: blockColor,
-                          borderRadius: BorderRadius.circular(3),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Container(
-                        width: 60,
-                        height: 22,
-                        decoration: BoxDecoration(
-                          color: blockColor,
-                          borderRadius: BorderRadius.circular(10),
                         ),
                       ),
                     ],
@@ -176,38 +127,23 @@ class ShimmerLoadingCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 20),
-            Divider(height: 1, color: blockColor.withOpacity(0.2)),
             const SizedBox(height: 16),
 
-            // Bottom Row: Created Date and View Details button placeholder
+            // Bottom Row: Action button placeholder
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 14,
-                      height: 14,
-                      decoration: BoxDecoration(
-                        color: blockColor,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Container(
-                      width: 110,
-                      height: 11,
-                      decoration: BoxDecoration(
-                        color: blockColor,
-                        borderRadius: BorderRadius.circular(3),
-                      ),
-                    ),
-                  ],
-                ),
                 Container(
                   width: 100,
-                  height: 32,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: blockColor,
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
+                Container(
+                  width: 110,
+                  height: 30,
                   decoration: BoxDecoration(
                     color: blockColor,
                     borderRadius: BorderRadius.circular(8),
@@ -234,16 +170,14 @@ class ShimmerLoadingList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(20.0),
-      child: ListView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: itemCount,
-        itemBuilder: (context, index) {
-          return const ShimmerLoadingCard();
-        },
-      ),
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: itemCount,
+      padding: EdgeInsets.zero,
+      itemBuilder: (context, index) {
+        return const ShimmerLoadingCard();
+      },
     );
   }
 }
@@ -255,20 +189,12 @@ class ShimmerLoadingDashboard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    // Dynamic brand-themed colors
-    final baseColor = isDark
-        ? const Color(0xFF00529B).withOpacity(0.5)
-        : Colors.grey.shade200;
-    final highlightColor = isDark
-        ? const Color(0xFF64B5F6).withOpacity(0.3)
-        : Colors.grey.shade100;
-    final containerColor = isDark ? const Color(0xFF00529B) : Colors.white;
-    final blockColor = isDark
-        ? Colors.white.withOpacity(0.15)
-        : Colors.grey.shade300;
+    final baseColor = isDark ? const Color(0xFF1E3552) : Colors.grey.shade200;
+    final highlightColor = isDark ? const Color(0xFF2B476C) : Colors.grey.shade50;
+    final containerColor = isDark ? const Color(0xFF162A42) : Colors.white;
 
     return Padding(
-      padding: const EdgeInsets.all(24.0),
+      padding: const EdgeInsets.all(20.0),
       child: Shimmer.fromColors(
         baseColor: baseColor,
         highlightColor: highlightColor,
@@ -277,40 +203,30 @@ class ShimmerLoadingDashboard extends StatelessWidget {
           children: [
             // Simulating header
             Container(
-              width: 250,
-              height: 30,
+              width: 200,
+              height: 24,
               decoration: BoxDecoration(
                 color: containerColor,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(6),
               ),
             ),
-            const SizedBox(height: 24),
-            // Simulating cards
+            const SizedBox(height: 20),
+            // Simulating metric cards
             Row(
               children: [
                 Expanded(
                   child: Container(
-                    height: 120,
+                    height: 100,
                     decoration: BoxDecoration(
                       color: containerColor,
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Container(
-                    height: 120,
-                    decoration: BoxDecoration(
-                      color: containerColor,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Container(
-                    height: 120,
+                    height: 100,
                     decoration: BoxDecoration(
                       color: containerColor,
                       borderRadius: BorderRadius.circular(12),
@@ -319,10 +235,10 @@ class ShimmerLoadingDashboard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
             // Simulating a chart or large list
             Container(
-              height: 300,
+              height: 240,
               decoration: BoxDecoration(
                 color: containerColor,
                 borderRadius: BorderRadius.circular(12),

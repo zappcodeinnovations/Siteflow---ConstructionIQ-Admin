@@ -323,29 +323,32 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
               child: AnimatedBuilder(
                 animation: _controller,
                 builder: (context, child) {
+                  Widget content;
                   if (_controller.isLoading && _controller.jobSheets.isEmpty) {
-                    return const ShimmerLoadingList();
-                  }
-
-                  if (_controller.errorMessage != null && _controller.jobSheets.isEmpty) {
-                    return Center(child: Text(_controller.errorMessage!, style: const TextStyle(color: Colors.red)));
-                  }
-
-                  if (_controller.jobSheets.isEmpty) {
-                    return const Center(child: Text("No job sheets found.", style: TextStyle(color: Colors.grey)));
-                  }
-
-                  return ListView.builder(
-                    itemCount: _controller.jobSheets.length,
-                    itemBuilder: (context, index) {
-                      final sheet = _controller.jobSheets[index];
-                      final isCompleted = sheet.statusLabel.toLowerCase().contains("completed") || sheet.status.toLowerCase().contains("completed");
-                      
-                      final isDark = Theme.of(context).brightness == Brightness.dark;
-                      final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
-                      final borderColor = isDark ? Colors.white24 : Colors.grey.shade200;
-                      final textColor = isDark ? Colors.white : Colors.black87;
-                      final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+                    content = const ShimmerLoadingList(key: ValueKey('loading'));
+                  } else if (_controller.errorMessage != null && _controller.jobSheets.isEmpty) {
+                    content = Center(
+                      key: const ValueKey('error'),
+                      child: Text(_controller.errorMessage!, style: const TextStyle(color: Colors.red)),
+                    );
+                  } else if (_controller.jobSheets.isEmpty) {
+                    content = const Center(
+                      key: ValueKey('empty'),
+                      child: Text("No job sheets found.", style: TextStyle(color: Colors.grey)),
+                    );
+                  } else {
+                    content = ListView.builder(
+                      key: const ValueKey('list'),
+                      itemCount: _controller.jobSheets.length,
+                      itemBuilder: (context, index) {
+                        final sheet = _controller.jobSheets[index];
+                        final isCompleted = sheet.statusLabel.toLowerCase().contains("completed") || sheet.status.toLowerCase().contains("completed");
+                        
+                        final isDark = Theme.of(context).brightness == Brightness.dark;
+                        final cardColor = isDark ? const Color(0xFF162A42) : Colors.white;
+                        final borderColor = isDark ? Colors.white12 : Colors.grey.shade200;
+                        final textColor = isDark ? Colors.white : Colors.black87;
+                        final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
 
                       return Container(
                         margin: const EdgeInsets.only(bottom: 16),
@@ -527,8 +530,13 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
                       );
                     },
                   );
-                },
-              ),
+                }
+                return AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 250),
+                  child: content,
+                );
+              },
+            ),
             ),
               ],
             ),
