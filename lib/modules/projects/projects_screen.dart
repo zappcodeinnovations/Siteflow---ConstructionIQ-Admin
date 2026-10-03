@@ -746,9 +746,11 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                 // Details Grid (Client, Budget, Priority) with vertical divider lines
                 IntrinsicHeight(
                   child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Client
                       Expanded(
+                        flex: 3,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -764,19 +766,24 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                             ),
                             const SizedBox(height: 6),
                             Text(
-                              clientName,
-                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: primaryTextColor),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                              clientName.isEmpty ? 'N/A' : clientName,
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: primaryTextColor,
+                              ),
+                              softWrap: true,
                             ),
                           ],
                         ),
                       ),
+                      const SizedBox(width: 8),
                       VerticalDivider(width: 1, color: isDark ? const Color(0xFF1F2E40) : Colors.grey.shade100, thickness: 1),
-                      const SizedBox(width: 16),
+                      const SizedBox(width: 12),
                       
                       // Budget
                       Expanded(
+                        flex: 2,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -792,19 +799,19 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                             ),
                             const SizedBox(height: 6),
                             Text(
-                              budget,
+                              budget.isEmpty ? '—' : budget,
                               style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: primaryTextColor),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
                             ),
                           ],
                         ),
                       ),
+                      const SizedBox(width: 8),
                       VerticalDivider(width: 1, color: isDark ? const Color(0xFF1F2E40) : Colors.grey.shade100, thickness: 1),
-                      const SizedBox(width: 16),
+                      const SizedBox(width: 12),
 
                       // Priority
                       Expanded(
+                        flex: 2,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -820,7 +827,7 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
-                                priority,
+                                priority.isEmpty ? 'normal' : priority,
                                 style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: priorityColor),
                               ),
                             ),
