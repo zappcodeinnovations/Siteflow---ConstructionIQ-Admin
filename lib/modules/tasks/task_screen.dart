@@ -371,34 +371,47 @@ class _TasksScreenState extends State<TasksScreen> {
                                   child: DropdownButtonHideUnderline(
                                     child: DropdownButton<String>(
                                       value: _selectedStatus,
-                                      dropdownColor: cardColor,
-                                      items:
-                                          [
-                                                'Status: All',
-                                                'Status: Pending',
-                                                'Status: In Progress',
-                                                'Status: Completed',
-                                                'Status: Draft',
-                                              ]
-                                              .map(
-                                                (e) => DropdownMenuItem(
-                                                  value: e,
-                                                  child: Text(
-                                                    e,
-                                                    style: TextStyle(
-                                                      fontSize: 14,
-                                                      color: textColor,
-                                                    ),
-                                                  ),
+                                      dropdownColor: isDark
+                                          ? const Color(0xFF162A42)
+                                          : Colors.white,
+                                      borderRadius: BorderRadius.circular(8),
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: textColor,
+                                      ),
+                                      items: [
+                                        'Status: All',
+                                        'Status: Pending',
+                                        'Status: In Progress',
+                                        'Status: Completed',
+                                        'Status: Draft',
+                                      ]
+                                          .map(
+                                            (e) => DropdownMenuItem(
+                                              value: e,
+                                              child: Text(
+                                                e,
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  fontWeight: e == _selectedStatus
+                                                      ? FontWeight.w600
+                                                      : FontWeight.normal,
+                                                  color: isDark
+                                                      ? Colors.white
+                                                      : const Color(0xFF0F2C4A),
                                                 ),
-                                              )
-                                              .toList(),
+                                              ),
+                                            ),
+                                          )
+                                          .toList(),
                                       onChanged: (val) {
-                                        if (val != null)
+                                        if (val != null) {
                                           setState(() => _selectedStatus = val);
+                                        }
                                       },
                                       icon: Icon(
                                         IconlyLight.arrow_down_2,
+                                        size: 16,
                                         color: textSecondary,
                                       ),
                                     ),

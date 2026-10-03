@@ -23,6 +23,7 @@ class ClientsScreenState extends State<ClientsScreen> {
   final ScrollController _verticalScrollController = ScrollController();
   final ScrollController _horizontalScrollController = ScrollController();
   bool _isSearchVisible = false;
+  String _selectedStatus = 'Active Clients';
 
   void toggleSearch() {
     setState(() {
@@ -376,19 +377,37 @@ class ClientsScreenState extends State<ClientsScreen> {
                               ),
                             ),
                           ),
-                          // Active Clients Dropdown (Visual only for now since API doesn't have status)
+                          // Active Clients Dropdown
                           Container(
                             height: 40,
                             padding: const EdgeInsets.symmetric(horizontal: 12),
                             decoration: BoxDecoration(
+                              color: cardColor,
                               border: Border.all(color: borderColor),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: DropdownButtonHideUnderline(
                               child: DropdownButton<String>(
-                                dropdownColor: cardColor,
-                                value: 'Active Clients',
-                                items: ['Active Clients', 'All Clients']
+                                dropdownColor: isDark
+                                    ? const Color(0xFF162A42)
+                                    : Colors.white,
+                                borderRadius: BorderRadius.circular(8),
+                                value: _selectedStatus,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: textColor,
+                                ),
+                                icon: Icon(
+                                  IconlyLight.arrow_down_2,
+                                  size: 16,
+                                  color: textSecondary,
+                                ),
+                                items: [
+                                  'Active Clients',
+                                  'Inactive Clients',
+                                  'Archived Clients',
+                                  'All Clients',
+                                ]
                                     .map(
                                       (e) => DropdownMenuItem(
                                         value: e,
@@ -396,17 +415,22 @@ class ClientsScreenState extends State<ClientsScreen> {
                                           e,
                                           style: TextStyle(
                                             fontSize: 14,
-                                            color: textColor,
+                                            fontWeight: e == _selectedStatus
+                                                ? FontWeight.w600
+                                                : FontWeight.normal,
+                                            color: isDark
+                                                ? Colors.white
+                                                : const Color(0xFF0F2C4A),
                                           ),
                                         ),
                                       ),
                                     )
                                     .toList(),
-                                onChanged: (val) {},
-                                icon: Icon(
-                                  IconlyLight.arrow_down_2,
-                                  color: textSecondary,
-                                ),
+                                onChanged: (val) {
+                                  if (val != null) {
+                                    setState(() => _selectedStatus = val);
+                                  }
+                                },
                               ),
                             ),
                           ),
@@ -432,6 +456,9 @@ class ClientsScreenState extends State<ClientsScreen> {
                           IconButton(
                             onPressed: () {
                               _searchController.clear();
+                              setState(() {
+                                _selectedStatus = 'Active Clients';
+                              });
                               _controller.fetchClients();
                             },
                             icon: Icon(
