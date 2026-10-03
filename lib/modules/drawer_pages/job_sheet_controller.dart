@@ -79,6 +79,8 @@ class JobSheetController extends ChangeNotifier {
         queryParams.add('form=${Uri.encodeComponent(_selectedForm!)}');
       }
 
+      queryParams.add('page_size=100');
+
       if (queryParams.isNotEmpty) {
         url += '?' + queryParams.join('&');
       }

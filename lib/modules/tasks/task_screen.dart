@@ -3,6 +3,9 @@ import 'package:iconly/iconly.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/background_stripes_painter.dart';
 import '../../core/services/auth_service.dart';
+import '../../models/job_sheet_model.dart';
+import '../drawer_pages/job_sheet_controller.dart';
+import '../drawer_pages/job_sheet_details_screen.dart';
 
 class TasksScreen extends StatefulWidget {
   const TasksScreen({super.key});
@@ -12,18 +15,45 @@ class TasksScreen extends StatefulWidget {
 }
 
 class _TasksScreenState extends State<TasksScreen> {
+  final JobSheetController _controller = JobSheetController();
   final ScrollController _verticalScrollController = ScrollController();
-  bool _isSearchVisible = false;
-  String _searchQuery = "";
+  final TextEditingController _searchController = TextEditingController();
+
+  bool _isSearchVisible = true;
   String _selectedStatus = "Status: All";
+  String _selectedProject = "All Projects";
   bool _canCreate = true;
   bool _canEdit = true;
   bool _canDelete = true;
 
+  final List<String> _statusOptions = [
+    'Status: All',
+    'Completed',
+    'Awaiting',
+    'In Progress',
+    'Pending',
+    'Draft',
+  ];
+
   @override
   void initState() {
     super.initState();
+    _controller.addListener(_onControllerUpdate);
+    _controller.fetchJobSheets();
     _loadPermissions();
+  }
+
+  void _onControllerUpdate() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _controller.removeListener(_onControllerUpdate);
+    _controller.dispose();
+    _verticalScrollController.dispose();
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadPermissions() async {
@@ -42,13 +72,94 @@ class _TasksScreenState extends State<TasksScreen> {
     } catch (_) {}
   }
 
+  List<String> get _projectOptions {
+    final projects = <String>{'All Projects'};
+    if (_controller.filterOptions['projects'] is List) {
+      for (final p in _controller.filterOptions['projects']) {
+        if (p != null && p.toString().trim().isNotEmpty) {
+          projects.add(p.toString().trim());
+        }
+      }
+    }
+    for (final task in _controller.jobSheets) {
+      if (task.projectName.trim().isNotEmpty) {
+        projects.add(task.projectName.trim());
+      }
+    }
+    return projects.toList();
+  }
+
+  List<JobSheet> get _filteredTasks {
+    final query = _searchController.text.trim().toLowerCase();
+
+    return _controller.jobSheets.where((task) {
+      // 1. Status Filter
+      if (_selectedStatus != 'Status: All') {
+        final targetStatus = _selectedStatus.replaceAll('Status: ', '').toLowerCase().replaceAll(' ', '_');
+        final taskStatus = task.status.toLowerCase().replaceAll(' ', '_');
+        final taskStatusLabel = task.statusLabel.toLowerCase().replaceAll(' ', '_');
+
+        final matchesStatus = taskStatus == targetStatus ||
+            taskStatusLabel == targetStatus ||
+            (targetStatus == 'awaiting' && (taskStatus.contains('await') || taskStatusLabel.contains('await'))) ||
+            (targetStatus == 'in_progress' && (taskStatus.contains('progress') || taskStatusLabel.contains('progress'))) ||
+            (targetStatus == 'completed' && (taskStatus.contains('complete') || taskStatusLabel.contains('complete'))) ||
+            (targetStatus == 'pending' && (taskStatus.contains('pend') || taskStatusLabel.contains('pend')));
+
+        if (!matchesStatus) return false;
+      }
+
+      // 2. Project Filter
+      if (_selectedProject != 'All Projects') {
+        if (task.projectName.trim().toLowerCase() != _selectedProject.trim().toLowerCase()) {
+          return false;
+        }
+      }
+
+      // 3. Search Query Filter
+      if (query.isNotEmpty) {
+        final taskNo = (task.jobNo.isNotEmpty ? task.jobNo : task.sheetNo).toLowerCase();
+        final sheetNo = task.sheetNo.toLowerCase();
+        final project = task.projectName.toLowerCase();
+        final client = task.clientName.toLowerCase();
+        final operative = task.operative.toLowerCase();
+        final form = task.form.toLowerCase();
+
+        final matches = taskNo.contains(query) ||
+            sheetNo.contains(query) ||
+            project.contains(query) ||
+            client.contains(query) ||
+            operative.contains(query) ||
+            form.contains(query);
+
+        if (!matches) return false;
+      }
+
+      return true;
+    }).toList();
+  }
+
+  void _resetFilters() {
+    setState(() {
+      _searchController.clear();
+      _selectedStatus = 'Status: All';
+      _selectedProject = 'All Projects';
+    });
+    _controller.clearFilters();
+  }
+
+  void _applyFilter() {
+    setState(() {});
+  }
+
   void _showCreateTaskDialog() {
     final taskNoController = TextEditingController(
-      text: "JOB ${_dummyTasks.length + 29}",
+      text: "JOB ${_controller.jobSheets.length + 100}",
     );
     final projectController = TextEditingController();
     final clientController = TextEditingController();
-    final instructionsController = TextEditingController();
+    final operativeController = TextEditingController();
+    final formController = TextEditingController();
     String selectedStatus = "Pending";
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -66,9 +177,7 @@ class _TasksScreenState extends State<TasksScreen> {
               backgroundColor: dialogBg,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
-                side: isDark
-                    ? const BorderSide(color: Colors.white24)
-                    : BorderSide.none,
+                side: isDark ? const BorderSide(color: Colors.white24) : BorderSide.none,
               ),
               title: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -98,18 +207,14 @@ class _TasksScreenState extends State<TasksScreen> {
                     children: [
                       Text(
                         "Task / Job Number",
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: textSecondary,
-                        ),
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textSecondary),
                       ),
                       const SizedBox(height: 6),
                       TextField(
                         controller: taskNoController,
                         style: TextStyle(color: textColor, fontSize: 14),
                         decoration: InputDecoration(
-                          hintText: "e.g. JOB 33",
+                          hintText: "e.g. JOB 14242326",
                           hintStyle: TextStyle(color: textSecondary),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
@@ -121,32 +226,22 @@ class _TasksScreenState extends State<TasksScreen> {
                           ),
                           focusedBorder: const OutlineInputBorder(
                             borderRadius: BorderRadius.all(Radius.circular(8)),
-                            borderSide: BorderSide(
-                              color: Color(0xFF0D6EFD),
-                              width: 1.5,
-                            ),
+                            borderSide: BorderSide(color: Color(0xFF0D6EFD), width: 1.5),
                           ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
-                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                         ),
                       ),
                       const SizedBox(height: 14),
                       Text(
                         "Project Name",
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: textSecondary,
-                        ),
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textSecondary),
                       ),
                       const SizedBox(height: 6),
                       TextField(
                         controller: projectController,
                         style: TextStyle(color: textColor, fontSize: 14),
                         decoration: InputDecoration(
-                          hintText: "e.g. Second testing project",
+                          hintText: "e.g. Second testing project (Euro009)",
                           hintStyle: TextStyle(color: textSecondary),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
@@ -158,25 +253,15 @@ class _TasksScreenState extends State<TasksScreen> {
                           ),
                           focusedBorder: const OutlineInputBorder(
                             borderRadius: BorderRadius.all(Radius.circular(8)),
-                            borderSide: BorderSide(
-                              color: Color(0xFF0D6EFD),
-                              width: 1.5,
-                            ),
+                            borderSide: BorderSide(color: Color(0xFF0D6EFD), width: 1.5),
                           ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
-                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                         ),
                       ),
                       const SizedBox(height: 14),
                       Text(
                         "Client Name",
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: textSecondary,
-                        ),
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textSecondary),
                       ),
                       const SizedBox(height: 6),
                       TextField(
@@ -195,25 +280,69 @@ class _TasksScreenState extends State<TasksScreen> {
                           ),
                           focusedBorder: const OutlineInputBorder(
                             borderRadius: BorderRadius.all(Radius.circular(8)),
-                            borderSide: BorderSide(
-                              color: Color(0xFF0D6EFD),
-                              width: 1.5,
-                            ),
+                            borderSide: BorderSide(color: Color(0xFF0D6EFD), width: 1.5),
                           ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Text(
+                        "Operative",
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textSecondary),
+                      ),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: operativeController,
+                        style: TextStyle(color: textColor, fontSize: 14),
+                        decoration: InputDecoration(
+                          hintText: "e.g. Haemanpreet Tester",
+                          hintStyle: TextStyle(color: textSecondary),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: borderColor),
                           ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: borderColor),
+                          ),
+                          focusedBorder: const OutlineInputBorder(
+                            borderRadius: BorderRadius.all(Radius.circular(8)),
+                            borderSide: BorderSide(color: Color(0xFF0D6EFD), width: 1.5),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Text(
+                        "Form Type",
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textSecondary),
+                      ),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: formController,
+                        style: TextStyle(color: textColor, fontSize: 14),
+                        decoration: InputDecoration(
+                          hintText: "e.g. Diamond Drilling / Daywork",
+                          hintStyle: TextStyle(color: textSecondary),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: borderColor),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: borderColor),
+                          ),
+                          focusedBorder: const OutlineInputBorder(
+                            borderRadius: BorderRadius.all(Radius.circular(8)),
+                            borderSide: BorderSide(color: Color(0xFF0D6EFD), width: 1.5),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                         ),
                       ),
                       const SizedBox(height: 14),
                       Text(
                         "Status",
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: textSecondary,
-                        ),
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textSecondary),
                       ),
                       const SizedBox(height: 6),
                       Container(
@@ -226,16 +355,9 @@ class _TasksScreenState extends State<TasksScreen> {
                           child: DropdownButton<String>(
                             value: selectedStatus,
                             isExpanded: true,
-                            dropdownColor: isDark
-                                ? const Color(0xFF162A42)
-                                : Colors.white,
+                            dropdownColor: isDark ? const Color(0xFF162A42) : Colors.white,
                             style: TextStyle(color: textColor, fontSize: 14),
-                            items: [
-                              'Pending',
-                              'In Progress',
-                              'Completed',
-                              'Draft',
-                            ]
+                            items: ['Pending', 'In Progress', 'Completed', 'Awaiting', 'Draft']
                                 .map(
                                   (s) => DropdownMenuItem(
                                     value: s,
@@ -248,44 +370,6 @@ class _TasksScreenState extends State<TasksScreen> {
                                 setModalState(() => selectedStatus = val);
                               }
                             },
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      Text(
-                        "Instructions (Optional)",
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: textSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      TextField(
-                        controller: instructionsController,
-                        maxLines: 2,
-                        style: TextStyle(color: textColor, fontSize: 14),
-                        decoration: InputDecoration(
-                          hintText: "Enter task instructions...",
-                          hintStyle: TextStyle(color: textSecondary),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide(color: borderColor),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide(color: borderColor),
-                          ),
-                          focusedBorder: const OutlineInputBorder(
-                            borderRadius: BorderRadius.all(Radius.circular(8)),
-                            borderSide: BorderSide(
-                              color: Color(0xFF0D6EFD),
-                              width: 1.5,
-                            ),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
                           ),
                         ),
                       ),
@@ -308,34 +392,50 @@ class _TasksScreenState extends State<TasksScreen> {
                   onPressed: () {
                     final taskNo = taskNoController.text.trim().isNotEmpty
                         ? taskNoController.text.trim()
-                        : "JOB ${_dummyTasks.length + 29}";
+                        : "JOB ${_controller.jobSheets.length + 100}";
                     final project = projectController.text.trim().isNotEmpty
                         ? projectController.text.trim()
                         : "General Project";
                     final client = clientController.text.trim().isNotEmpty
                         ? clientController.text.trim()
                         : "Euroside";
+                    final operative = operativeController.text.trim();
+                    final form = formController.text.trim();
+
+                    final newJobSheet = JobSheet(
+                      id: DateTime.now().millisecondsSinceEpoch,
+                      sheetNo: taskNo,
+                      status: selectedStatus.toLowerCase(),
+                      statusLabel: selectedStatus,
+                      jobNo: taskNo,
+                      jobReference: taskNo,
+                      projectName: project,
+                      clientName: client,
+                      operative: operative,
+                      operativeCode: '',
+                      form: form,
+                      location: '',
+                      comments: '',
+                      materialCost: '',
+                      charge: '',
+                      globalDetailApiUrl: '',
+                      created: DateTime.now().toString().split(' ')[0],
+                      submitted: '',
+                      lastUpdated: '',
+                      formHtmlUrl: '',
+                      viewFormInBrowserUrl: '',
+                    );
 
                     setState(() {
-                      _dummyTasks.insert(0, {
-                        "taskNo": taskNo,
-                        "status": selectedStatus,
-                        "project": project,
-                        "client": client,
-                      });
+                      _controller.jobSheets.insert(0, newJobSheet);
                     });
 
                     Navigator.pop(context);
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text("Task $taskNo created successfully!"),
-                      ),
+                      SnackBar(content: Text("Task $taskNo created successfully!")),
                     );
                   },
-                  child: const Text(
-                    "Create Task",
-                    style: TextStyle(color: Colors.white),
-                  ),
+                  child: const Text("Create Task", style: TextStyle(color: Colors.white)),
                 ),
               ],
             );
@@ -345,11 +445,11 @@ class _TasksScreenState extends State<TasksScreen> {
     );
   }
 
-  void _showEditTaskDialog(Map<String, String> task) {
-    final taskNoController = TextEditingController(text: task['taskNo']);
-    final projectController = TextEditingController(text: task['project']);
-    final clientController = TextEditingController(text: task['client']);
-    String selectedStatus = task['status'] ?? "Pending";
+  void _showEditTaskDialog(JobSheet task) {
+    final taskNoController = TextEditingController(text: task.jobNo.isNotEmpty ? task.jobNo : task.sheetNo);
+    final projectController = TextEditingController(text: task.projectName);
+    final clientController = TextEditingController(text: task.clientName);
+    String selectedStatus = task.statusLabel.isNotEmpty ? task.statusLabel : "Pending";
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final dialogBg = isDark ? AppTheme.corporateBlue : Colors.white;
@@ -366,17 +466,11 @@ class _TasksScreenState extends State<TasksScreen> {
               backgroundColor: dialogBg,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
-                side: isDark
-                    ? const BorderSide(color: Colors.white24)
-                    : BorderSide.none,
+                side: isDark ? const BorderSide(color: Colors.white24) : BorderSide.none,
               ),
               title: Text(
                 "Edit Task",
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                  color: textColor,
-                ),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: textColor),
               ),
               content: SizedBox(
                 width: 380,
@@ -387,11 +481,7 @@ class _TasksScreenState extends State<TasksScreen> {
                     children: [
                       Text(
                         "Task / Job Number",
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: textSecondary,
-                        ),
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textSecondary),
                       ),
                       const SizedBox(height: 6),
                       TextField(
@@ -402,20 +492,13 @@ class _TasksScreenState extends State<TasksScreen> {
                             borderRadius: BorderRadius.circular(8),
                             borderSide: BorderSide(color: borderColor),
                           ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
-                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                         ),
                       ),
                       const SizedBox(height: 14),
                       Text(
                         "Project Name",
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: textSecondary,
-                        ),
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textSecondary),
                       ),
                       const SizedBox(height: 6),
                       TextField(
@@ -426,44 +509,13 @@ class _TasksScreenState extends State<TasksScreen> {
                             borderRadius: BorderRadius.circular(8),
                             borderSide: BorderSide(color: borderColor),
                           ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      Text(
-                        "Client Name",
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: textSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      TextField(
-                        controller: clientController,
-                        style: TextStyle(color: textColor, fontSize: 14),
-                        decoration: InputDecoration(
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide(color: borderColor),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
-                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                         ),
                       ),
                       const SizedBox(height: 14),
                       Text(
                         "Status",
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: textSecondary,
-                        ),
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textSecondary),
                       ),
                       const SizedBox(height: 6),
                       Container(
@@ -474,18 +526,13 @@ class _TasksScreenState extends State<TasksScreen> {
                         ),
                         child: DropdownButtonHideUnderline(
                           child: DropdownButton<String>(
-                            value: selectedStatus,
+                            value: ['Pending', 'In Progress', 'Completed', 'Awaiting', 'Draft'].contains(selectedStatus)
+                                ? selectedStatus
+                                : 'Pending',
                             isExpanded: true,
-                            dropdownColor: isDark
-                                ? const Color(0xFF162A42)
-                                : Colors.white,
+                            dropdownColor: isDark ? const Color(0xFF162A42) : Colors.white,
                             style: TextStyle(color: textColor, fontSize: 14),
-                            items: [
-                              'Pending',
-                              'In Progress',
-                              'Completed',
-                              'Draft',
-                            ]
+                            items: ['Pending', 'In Progress', 'Completed', 'Awaiting', 'Draft']
                                 .map(
                                   (s) => DropdownMenuItem(
                                     value: s,
@@ -518,21 +565,41 @@ class _TasksScreenState extends State<TasksScreen> {
                     ),
                   ),
                   onPressed: () {
-                    setState(() {
-                      task['taskNo'] = taskNoController.text.trim();
-                      task['project'] = projectController.text.trim();
-                      task['client'] = clientController.text.trim();
-                      task['status'] = selectedStatus;
-                    });
+                    final index = _controller.jobSheets.indexOf(task);
+                    if (index != -1) {
+                      final updated = JobSheet(
+                        id: task.id,
+                        sheetNo: taskNoController.text.trim().isNotEmpty ? taskNoController.text.trim() : task.sheetNo,
+                        status: selectedStatus.toLowerCase(),
+                        statusLabel: selectedStatus,
+                        jobNo: taskNoController.text.trim().isNotEmpty ? taskNoController.text.trim() : task.jobNo,
+                        jobReference: task.jobReference,
+                        projectName: projectController.text.trim().isNotEmpty ? projectController.text.trim() : task.projectName,
+                        clientName: clientController.text.trim().isNotEmpty ? clientController.text.trim() : task.clientName,
+                        operative: task.operative,
+                        operativeCode: task.operativeCode,
+                        form: task.form,
+                        location: task.location,
+                        comments: task.comments,
+                        materialCost: task.materialCost,
+                        charge: task.charge,
+                        globalDetailApiUrl: task.globalDetailApiUrl,
+                        created: task.created,
+                        submitted: task.submitted,
+                        lastUpdated: task.lastUpdated,
+                        formHtmlUrl: task.formHtmlUrl,
+                        viewFormInBrowserUrl: task.viewFormInBrowserUrl,
+                      );
+                      setState(() {
+                        _controller.jobSheets[index] = updated;
+                      });
+                    }
                     Navigator.pop(context);
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text("Task updated successfully!")),
                     );
                   },
-                  child: const Text(
-                    "Save Changes",
-                    style: TextStyle(color: Colors.white),
-                  ),
+                  child: const Text("Save Changes", style: TextStyle(color: Colors.white)),
                 ),
               ],
             );
@@ -542,11 +609,13 @@ class _TasksScreenState extends State<TasksScreen> {
     );
   }
 
-  void _confirmDeleteTask(Map<String, String> task) {
+  void _confirmDeleteTask(JobSheet task) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final dialogBg = isDark ? AppTheme.corporateBlue : Colors.white;
     final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
     final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+
+    final taskNo = task.jobNo.isNotEmpty ? task.jobNo : task.sheetNo;
 
     showDialog(
       context: context,
@@ -557,12 +626,9 @@ class _TasksScreenState extends State<TasksScreen> {
             borderRadius: BorderRadius.circular(12),
             side: isDark ? const BorderSide(color: Colors.white24) : BorderSide.none,
           ),
-          title: Text(
-            "Delete Task",
-            style: TextStyle(fontWeight: FontWeight.bold, color: textColor),
-          ),
+          title: Text("Delete Task", style: TextStyle(fontWeight: FontWeight.bold, color: textColor)),
           content: Text(
-            "Are you sure you want to delete ${task['taskNo']}?",
+            "Are you sure you want to delete $taskNo?",
             style: TextStyle(color: isDark ? Colors.white70 : Colors.black87),
           ),
           actions: [
@@ -579,7 +645,7 @@ class _TasksScreenState extends State<TasksScreen> {
               ),
               onPressed: () {
                 setState(() {
-                  _dummyTasks.remove(task);
+                  _controller.jobSheets.remove(task);
                 });
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -594,148 +660,64 @@ class _TasksScreenState extends State<TasksScreen> {
     );
   }
 
-  Future<void> _viewDetails(Map<String, String> task) async {
-    if (!await AuthService.can('tasks')) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Access denied: You do not have permission to view task details.',
-          ),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-    if (!mounted) return;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
-    final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
-    final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey;
-
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: cardColor,
-      shape: RoundedRectangleBorder(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        side: isDark ? const BorderSide(color: Colors.white24) : BorderSide.none,
-      ),
-      showDragHandle: true,
-      isScrollControlled: true,
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 8, 24, 28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                task['taskNo'] ?? 'Task Details',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  color: textColor,
-                ),
-              ),
-              const SizedBox(height: 20),
-              _detailRow('Project', task['project'] ?? '-', textColor, textSecondary),
-              _detailRow('Client', task['client'] ?? '-', textColor, textSecondary),
-              _detailRow('Status', task['status'] ?? '-', textColor, textSecondary),
-            ],
-          ),
-        ),
+  void _viewDetails(JobSheet task) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => JobSheetDetailsScreen(jobSheet: task),
       ),
     );
   }
 
-  Widget _detailRow(String label, String value, Color textColor, Color labelColor) => Padding(
-    padding: const EdgeInsets.only(bottom: 14),
-    child: Row(
-      children: [
-        SizedBox(
-          width: 90,
-          child: Text(
-            label,
-            style: TextStyle(
-              color: labelColor,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-        Expanded(
-          child: Text(
-            value,
-            style: TextStyle(fontWeight: FontWeight.w600, color: textColor),
-          ),
-        ),
-      ],
-    ),
-  );
+  Widget _buildStatusBadge(String status, String statusLabel) {
+    final label = statusLabel.isNotEmpty ? statusLabel : status;
+    final lower = label.toLowerCase();
 
-  final List<Map<String, String>> _dummyTasks = [
-    {
-      "taskNo": "JOB 29",
-      "status": "Pending",
-      "project": "Asobu Client",
-      "client": "Asobu",
-    },
-    {
-      "taskNo": "JOB 30",
-      "status": "Completed",
-      "project": "Euroside Office",
-      "client": "Euroside",
-    },
-    {
-      "taskNo": "JOB 31",
-      "status": "In Progress",
-      "project": "Central Park Reno",
-      "client": "City Council",
-    },
-    {
-      "taskNo": "JOB 32",
-      "status": "Draft",
-      "project": "Highway A1",
-      "client": "Gov Roads",
-    },
-  ];
+    Color bgColor = const Color(0xFFF1F5F9);
+    Color textColor = const Color(0xFF475569);
+    Color dotColor = const Color(0xFF64748B);
+    IconData icon = Icons.circle;
 
-  Widget _buildStatusPill(String status) {
-    Color bg = Colors.grey.shade100;
-    Color text = Colors.grey.shade700;
-    IconData icon = IconlyLight.info_square;
-
-    if (status == 'Completed') {
-      bg = Colors.green.shade50;
-      text = Colors.green.shade700;
-      icon = IconlyLight.tick_square;
-    } else if (status == 'Pending') {
-      bg = Colors.orange.shade50;
-      text = Colors.orange.shade700;
-      icon = IconlyLight.time_circle;
-    } else if (status == 'In Progress') {
-      bg = Colors.blue.shade50;
-      text = Colors.blue.shade700;
-      icon = IconlyLight.swap;
+    if (lower.contains('complete') || lower == 'completed') {
+      bgColor = const Color(0xFFECFDF5);
+      textColor = const Color(0xFF047857);
+      dotColor = const Color(0xFF10B981);
+      icon = Icons.check_circle_outline;
+    } else if (lower.contains('await') || lower == 'awaiting') {
+      bgColor = const Color(0xFFFFF7ED);
+      textColor = const Color(0xFFC2410C);
+      dotColor = const Color(0xFFF97316);
+      icon = Icons.access_time_rounded;
+    } else if (lower.contains('progress') || lower == 'in progress') {
+      bgColor = const Color(0xFFEFF6FF);
+      textColor = const Color(0xFF1D4ED8);
+      dotColor = const Color(0xFF3B82F6);
+      icon = Icons.sync_alt;
+    } else if (lower.contains('pend') || lower == 'pending') {
+      bgColor = const Color(0xFFFFFBEB);
+      textColor = const Color(0xFFB45309);
+      dotColor = const Color(0xFFF59E0B);
+      icon = Icons.schedule;
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: text.withOpacity(0.3)),
+        color: bgColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: dotColor.withOpacity(0.25)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: text, size: 14),
-          const SizedBox(width: 4),
+          Icon(icon, color: textColor, size: 13),
+          const SizedBox(width: 5),
           Text(
-            status,
+            label,
             style: TextStyle(
-              color: text,
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
+              color: textColor,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
@@ -744,29 +726,13 @@ class _TasksScreenState extends State<TasksScreen> {
   }
 
   @override
-  void dispose() {
-    _verticalScrollController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final filteredTasks = _dummyTasks.where((t) {
-      final matchesSearch =
-          t['taskNo']!.toLowerCase().contains(_searchQuery) ||
-          t['project']!.toLowerCase().contains(_searchQuery) ||
-          t['client']!.toLowerCase().contains(_searchQuery);
-      final matchesStatus =
-          _selectedStatus == 'Status: All' ||
-          'Status: ${t['status']}' == _selectedStatus;
-      return matchesSearch && matchesStatus;
-    }).toList();
-
+    final filteredTasks = _filteredTasks;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isDark ? AppTheme.corporateBlue : const Color(0xFFF8FAFC);
-    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
-    final borderColor = isDark ? Colors.white24 : Colors.grey.shade200;
-    final textColor = isDark ? Colors.white : Colors.black87;
+    final cardColor = isDark ? const Color(0xFF162A42) : Colors.white;
+    final borderColor = isDark ? Colors.white12 : Colors.grey.shade200;
+    final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
     final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
 
     return Container(
@@ -778,489 +744,613 @@ class _TasksScreenState extends State<TasksScreen> {
               painter: BackgroundStripesPainter(isDark: isDark),
             ),
           ),
-          Scrollbar(
-            controller: _verticalScrollController,
-            thumbVisibility: true,
-            child: SingleChildScrollView(
+          RefreshIndicator(
+            onRefresh: () async {
+              await _controller.fetchJobSheets();
+            },
+            child: Scrollbar(
               controller: _verticalScrollController,
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Header & Export
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        IconButton(
-                          onPressed: () => setState(
-                            () => _isSearchVisible = !_isSearchVisible,
-                          ),
-                          icon: Icon(
-                            _isSearchVisible
-                                ? IconlyLight.search
-                                : IconlyLight.search,
-                            color: isDark ? Colors.white : Colors.black87,
-                          ),
-                          tooltip: "Toggle Search",
-                        ),
-                        if (_canCreate)
-                          ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF0D6EFD),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 20,
-                                vertical: 14,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                            onPressed: _showCreateTaskDialog,
-                            icon: const Icon(
-                              IconlyLight.plus,
-                              size: 18,
-                              color: Colors.white,
-                            ),
-                            label: const Text(
-                              "Create Task",
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Filter Bar
-                    if (_isSearchVisible)
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: cardColor,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.02),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                          border: Border.all(color: borderColor),
-                        ),
-                        child: Wrap(
-                          spacing: 12,
-                          runSpacing: 12,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          alignment: WrapAlignment.spaceBetween,
-                          children: [
-                            Wrap(
-                              spacing: 12,
-                              runSpacing: 12,
-                              crossAxisAlignment: WrapCrossAlignment.center,
-                              children: [
-                                // Search Field
-                                SizedBox(
-                                  width: 200,
-                                  height: 40,
-                                  child: TextField(
-                                    style: TextStyle(
-                                      color: textColor,
-                                      fontSize: 14,
-                                    ),
-                                    decoration: InputDecoration(
-                                      hintText: "Search tasks...",
-                                      hintStyle: TextStyle(
-                                        color: textSecondary,
-                                        fontSize: 14,
-                                      ),
-                                      prefixIcon: Icon(
-                                        IconlyLight.search,
-                                        size: 20,
-                                        color: textSecondary,
-                                      ),
-                                      contentPadding:
-                                          const EdgeInsets.symmetric(
-                                            horizontal: 16,
-                                          ),
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(6),
-                                        borderSide: BorderSide(
-                                          color: borderColor,
-                                        ),
-                                      ),
-                                      enabledBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(6),
-                                        borderSide: BorderSide(
-                                          color: borderColor,
-                                        ),
-                                      ),
-                                      focusedBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(6),
-                                        borderSide: const BorderSide(
-                                          color: Color(0xFF0D6EFD),
-                                        ),
-                                      ),
-                                    ),
-                                    onChanged: (val) => setState(
-                                      () => _searchQuery = val.toLowerCase(),
-                                    ),
-                                  ),
+              thumbVisibility: true,
+              child: SingleChildScrollView(
+                controller: _verticalScrollController,
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header & Create Button
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              IconButton(
+                                onPressed: () => setState(
+                                  () => _isSearchVisible = !_isSearchVisible,
                                 ),
+                                icon: Icon(
+                                  IconlyLight.search,
+                                  color: isDark ? Colors.white : const Color(0xFF0F2C4A),
+                                ),
+                                tooltip: "Toggle Search & Filters",
+                              ),
+                              Text(
+                                "Tasks",
+                                style: TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  color: textColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (_canCreate)
+                            ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF0D6EFD),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 10,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                elevation: 0,
+                              ),
+                              onPressed: _showCreateTaskDialog,
+                              icon: const Icon(IconlyLight.plus, size: 16, color: Colors.white),
+                              label: const Text(
+                                "Create Task",
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
 
-                                // Status Dropdown
-                                Container(
-                                  height: 40,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    border: Border.all(color: borderColor),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: DropdownButtonHideUnderline(
-                                    child: DropdownButton<String>(
-                                      value: _selectedStatus,
-                                      dropdownColor: isDark
-                                          ? const Color(0xFF162A42)
-                                          : Colors.white,
-                                      borderRadius: BorderRadius.circular(8),
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: textColor,
-                                      ),
-                                      items: [
-                                        'Status: All',
-                                        'Status: Pending',
-                                        'Status: In Progress',
-                                        'Status: Completed',
-                                        'Status: Draft',
-                                      ]
-                                          .map(
-                                            (e) => DropdownMenuItem(
-                                              value: e,
-                                              child: Text(
-                                                e,
-                                                style: TextStyle(
-                                                  fontSize: 14,
-                                                  fontWeight: e == _selectedStatus
-                                                      ? FontWeight.w600
-                                                      : FontWeight.normal,
-                                                  color: isDark
-                                                      ? Colors.white
-                                                      : const Color(0xFF0F2C4A),
+                      // Filter Bar (Matching Web Interface)
+                      if (_isSearchVisible)
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: cardColor,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(isDark ? 0.2 : 0.04),
+                                blurRadius: 10,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                            border: Border.all(color: borderColor),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Top Controls: Status Dropdown, Project Dropdown, Filter & Reset buttons
+                              Wrap(
+                                spacing: 10,
+                                runSpacing: 10,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  // Status Dropdown
+                                  Container(
+                                    height: 38,
+                                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                                    decoration: BoxDecoration(
+                                      border: Border.all(color: borderColor),
+                                      borderRadius: BorderRadius.circular(6),
+                                      color: isDark ? Colors.white.withOpacity(0.04) : Colors.grey.shade50,
+                                    ),
+                                    child: DropdownButtonHideUnderline(
+                                      child: DropdownButton<String>(
+                                        value: _selectedStatus,
+                                        dropdownColor: isDark ? const Color(0xFF162A42) : Colors.white,
+                                        borderRadius: BorderRadius.circular(8),
+                                        style: TextStyle(fontSize: 13, color: textColor),
+                                        items: _statusOptions
+                                            .map(
+                                              (e) => DropdownMenuItem(
+                                                value: e,
+                                                child: Text(
+                                                  e,
+                                                  style: TextStyle(
+                                                    fontSize: 13,
+                                                    fontWeight: e == _selectedStatus ? FontWeight.w600 : FontWeight.normal,
+                                                    color: textColor,
+                                                  ),
                                                 ),
                                               ),
-                                            ),
-                                          )
-                                          .toList(),
-                                      onChanged: (val) {
-                                        if (val != null) {
-                                          setState(() => _selectedStatus = val);
-                                        }
-                                      },
-                                      icon: Icon(
-                                        IconlyLight.arrow_down_2,
-                                        size: 16,
-                                        color: textSecondary,
+                                            )
+                                            .toList(),
+                                        onChanged: (val) {
+                                          if (val != null) {
+                                            setState(() => _selectedStatus = val);
+                                          }
+                                        },
+                                        icon: Icon(IconlyLight.arrow_down_2, size: 14, color: textSecondary),
                                       ),
                                     ),
                                   ),
-                                ),
 
-                                // Refresh Icon
-                                IconButton(
-                                  icon: Icon(
-                                    IconlyLight.swap,
-                                    color: textColor,
-                                  ),
-                                  onPressed: () => setState(() {
-                                    _searchQuery = "";
-                                    _selectedStatus = "Status: All";
-                                  }),
-                                  tooltip: 'Refresh',
-                                ),
-                              ],
-                            ),
-
-                            // Right Actions
-                            Wrap(
-                              spacing: 12,
-                              runSpacing: 12,
-                              crossAxisAlignment: WrapCrossAlignment.center,
-                              children: [
-                                Text(
-                                  filteredTasks.isNotEmpty
-                                      ? "1 - ${filteredTasks.length} of ${filteredTasks.length}"
-                                      : "0 of 0",
-                                  style: TextStyle(
-                                    color: textSecondary,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    const SizedBox(height: 24),
-
-                    // Task Card List
-                    if (filteredTasks.isEmpty)
-                      Padding(
-                        padding: const EdgeInsets.all(40.0),
-                        child: Center(
-                          child: Text(
-                            "No tasks found.",
-                            style: TextStyle(color: textSecondary),
-                          ),
-                        ),
-                      )
-                    else
-                      ListView.separated(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: filteredTasks.length,
-                        separatorBuilder: (context, index) =>
-                            const SizedBox(height: 16),
-                        itemBuilder: (context, index) {
-                          final task = filteredTasks[index];
-                          return Container(
-                            margin: EdgeInsets.zero,
-                            decoration: BoxDecoration(
-                              color: cardColor,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: borderColor),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.02),
-                                  blurRadius: 15,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(20.0),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  // Top Row: Task No, Project, Status, Actions
-                                  Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      CircleAvatar(
-                                        radius: 20,
-                                        backgroundColor: const Color(
-                                          0xFFE8F2FF,
-                                        ),
-                                        child: Text(
-                                          task['taskNo']!.replaceAll(
-                                            "JOB ",
-                                            "",
-                                          ),
-                                          style: const TextStyle(
-                                            color: Color(0xFF0D6EFD),
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              task['taskNo']!,
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 16,
-                                                color: textColor,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              task['project']!,
-                                              style: TextStyle(
-                                                fontSize: 14,
-                                                color: textSecondary,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          _buildStatusPill(task['status']!),
-                                          const SizedBox(width: 4),
-                                          if (_canEdit || _canDelete)
-                                            PopupMenuButton<String>(
-                                              icon: Icon(
-                                                IconlyLight.more_circle,
-                                                color: textSecondary,
-                                              ),
-                                              color: cardColor,
-                                              shape: RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(12),
-                                                side: isDark
-                                                    ? const BorderSide(
-                                                        color: Colors.white24,
-                                                      )
-                                                    : BorderSide.none,
-                                              ),
-                                              onSelected: (val) { if (val == 'edit') { _showEditTaskDialog(task); } else if (val == 'delete') { _confirmDeleteTask(task); } },
-                                              itemBuilder: (context) => [
-                                                if (_canEdit)
-                                                  PopupMenuItem(
-                                                    value: 'edit',
-                                                    child: Row(
-                                                      children: [
-                                                        const Icon(
-                                                          IconlyLight.edit,
-                                                          size: 18,
-                                                          color: Color(
-                                                            0xFF0D6EFD,
-                                                          ),
-                                                        ),
-                                                        const SizedBox(width: 12),
-                                                        Text(
-                                                          "Edit Task",
-                                                          style: TextStyle(
-                                                            color: textColor,
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
+                                  // Project Dropdown
+                                  Container(
+                                    height: 38,
+                                    constraints: const BoxConstraints(maxWidth: 180),
+                                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                                    decoration: BoxDecoration(
+                                      border: Border.all(color: borderColor),
+                                      borderRadius: BorderRadius.circular(6),
+                                      color: isDark ? Colors.white.withOpacity(0.04) : Colors.grey.shade50,
+                                    ),
+                                    child: DropdownButtonHideUnderline(
+                                      child: DropdownButton<String>(
+                                        value: _projectOptions.contains(_selectedProject) ? _selectedProject : 'All Projects',
+                                        isExpanded: true,
+                                        dropdownColor: isDark ? const Color(0xFF162A42) : Colors.white,
+                                        borderRadius: BorderRadius.circular(8),
+                                        style: TextStyle(fontSize: 13, color: textColor),
+                                        items: _projectOptions
+                                            .map(
+                                              (e) => DropdownMenuItem(
+                                                value: e,
+                                                child: Text(
+                                                  e,
+                                                  overflow: TextOverflow.ellipsis,
+                                                  style: TextStyle(
+                                                    fontSize: 13,
+                                                    fontWeight: e == _selectedProject ? FontWeight.w600 : FontWeight.normal,
+                                                    color: textColor,
                                                   ),
-                                                if (_canDelete)
-                                                  const PopupMenuItem(
-                                                    value: 'delete',
-                                                    child: Row(
-                                                      children: [
-                                                        Icon(
-                                                          IconlyLight.delete,
-                                                          size: 18,
-                                                          color: Colors.red,
-                                                        ),
-                                                        SizedBox(width: 12),
-                                                        Text(
-                                                          "Delete",
-                                                          style: TextStyle(
-                                                            color: Colors.red,
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ),
-                                              ],
-                                            ),
-                                        ],
+                                                ),
+                                              ),
+                                            )
+                                            .toList(),
+                                        onChanged: (val) {
+                                          if (val != null) {
+                                            setState(() => _selectedProject = val);
+                                          }
+                                        },
+                                        icon: Icon(IconlyLight.arrow_down_2, size: 14, color: textSecondary),
                                       ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 16),
-
-                                  // Middle Row: Client info
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        IconlyLight.work,
-                                        size: 16,
-                                        color: textSecondary,
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        "Client: ",
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          color: textSecondary,
-                                        ),
-                                      ),
-                                      Text(
-                                        task['client']!,
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.bold,
-                                          color: textColor,
-                                        ),
-                                      ),
-                                    ],
+                                    ),
                                   ),
 
-                                  const SizedBox(height: 20),
-                                  Divider(
-                                    height: 1,
-                                    color: isDark
-                                        ? const Color(0xFF1F2E40)
-                                        : Colors.grey.shade100,
+                                  // Filter Button (Blue)
+                                  ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF0D6EFD),
+                                      foregroundColor: Colors.white,
+                                      elevation: 0,
+                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                    ),
+                                    onPressed: _applyFilter,
+                                    child: const Text(
+                                      "Filter",
+                                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                                    ),
                                   ),
-                                  const SizedBox(height: 16),
 
-                                  // Bottom Row: Full-width View Details button
-                                  SizedBox(
-                                    width: double.infinity,
-                                    child: OutlinedButton(
-                                      style: OutlinedButton.styleFrom(
-                                        foregroundColor: isDark
-                                            ? Colors.white
-                                            : const Color(0xFF0D6EFD),
-                                        side: BorderSide(
-                                          color: isDark
-                                              ? Colors.white.withOpacity(0.5)
-                                              : const Color(
-                                                  0xFF0D6EFD,
-                                                ).withOpacity(0.4),
-                                        ),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
-                                        ),
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 12,
-                                        ),
-                                      ),
-                                      onPressed: () => _viewDetails(task),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            "View Details",
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.bold,
-                                              color: isDark
-                                                  ? Colors.white
-                                                  : const Color(0xFF0D6EFD),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 6),
-                                          Icon(
-                                            Icons.arrow_forward_ios,
-                                            size: 11,
-                                            color: isDark
-                                                ? Colors.white70
-                                                : const Color(0xFF0D6EFD),
-                                          ),
-                                        ],
-                                      ),
+                                  // Reset Button
+                                  TextButton(
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: const Color(0xFF0D6EFD),
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    ),
+                                    onPressed: _resetFilters,
+                                    child: const Text(
+                                      "Reset",
+                                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                                     ),
                                   ),
                                 ],
                               ),
+                              const SizedBox(height: 10),
+
+                              // Bottom Row: Search Box & Count Indicator
+                              Row(
+                                children: [
+                                  // Search Field
+                                  Expanded(
+                                    child: SizedBox(
+                                      height: 38,
+                                      child: TextField(
+                                        controller: _searchController,
+                                        style: TextStyle(color: textColor, fontSize: 13),
+                                        decoration: InputDecoration(
+                                          hintText: "Search tasks, clients, projects...",
+                                          hintStyle: TextStyle(color: textSecondary, fontSize: 13),
+                                          prefixIcon: Icon(IconlyLight.search, size: 16, color: textSecondary),
+                                          suffixIcon: _searchController.text.isNotEmpty
+                                              ? IconButton(
+                                                  icon: const Icon(Icons.clear, size: 16),
+                                                  onPressed: () {
+                                                    setState(() {
+                                                      _searchController.clear();
+                                                    });
+                                                  },
+                                                )
+                                              : null,
+                                          contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                                          border: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(6),
+                                            borderSide: BorderSide(color: borderColor),
+                                          ),
+                                          enabledBorder: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(6),
+                                            borderSide: BorderSide(color: borderColor),
+                                          ),
+                                          focusedBorder: const OutlineInputBorder(
+                                            borderRadius: BorderRadius.all(Radius.circular(6)),
+                                            borderSide: BorderSide(color: Color(0xFF0D6EFD)),
+                                          ),
+                                        ),
+                                        onChanged: (val) => setState(() {}),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+
+                                  // Count Indicator (e.g. 1 - 37 of 37)
+                                  Text(
+                                    filteredTasks.isNotEmpty
+                                        ? "1 - ${filteredTasks.length} of ${_controller.jobSheets.length}"
+                                        : "0 of ${_controller.jobSheets.length}",
+                                    style: TextStyle(
+                                      color: textSecondary,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      const SizedBox(height: 20),
+
+                      // Loading State
+                      if (_controller.isLoading && _controller.jobSheets.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 60.0),
+                          child: Center(
+                            child: Column(
+                              children: [
+                                const CircularProgressIndicator(color: Color(0xFF0D6EFD)),
+                                const SizedBox(height: 16),
+                                Text("Loading tasks...", style: TextStyle(color: textSecondary)),
+                              ],
                             ),
-                          );
-                        },
-                      ),
-                  ],
+                          ),
+                        )
+                      // Error State
+                      else if (_controller.errorMessage != null && _controller.jobSheets.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 60.0),
+                          child: Center(
+                            child: Column(
+                              children: [
+                                const Icon(Icons.error_outline, size: 40, color: Colors.redAccent),
+                                const SizedBox(height: 12),
+                                Text(
+                                  _controller.errorMessage!,
+                                  style: const TextStyle(color: Colors.redAccent),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 16),
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF0D6EFD),
+                                  ),
+                                  onPressed: () => _controller.fetchJobSheets(),
+                                  child: const Text("Retry", style: TextStyle(color: Colors.white)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      // Empty State
+                      else if (filteredTasks.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 60.0),
+                          child: Center(
+                            child: Column(
+                              children: [
+                                Icon(IconlyLight.document, size: 48, color: textSecondary.withOpacity(0.5)),
+                                const SizedBox(height: 16),
+                                Text(
+                                  "No tasks found.",
+                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: textColor),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  "Try adjusting your filters or search query.",
+                                  style: TextStyle(color: textSecondary, fontSize: 13),
+                                ),
+                                const SizedBox(height: 16),
+                                TextButton(
+                                  onPressed: _resetFilters,
+                                  child: const Text("Reset Filters"),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      // Task List
+                      else
+                        ListView.separated(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: filteredTasks.length,
+                          separatorBuilder: (context, index) => const SizedBox(height: 14),
+                          itemBuilder: (context, index) {
+                            final task = filteredTasks[index];
+                            final taskNo = task.jobNo.isNotEmpty ? task.jobNo : task.sheetNo;
+
+                            return Container(
+                              decoration: BoxDecoration(
+                                color: cardColor,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: borderColor),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(isDark ? 0.2 : 0.03),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ],
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.all(18.0),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Top Row: Avatar badge, Task No, Status Badge, Menu
+                                    Row(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        CircleAvatar(
+                                          radius: 18,
+                                          backgroundColor: const Color(0xFFE8F2FF),
+                                          child: Text(
+                                            "${index + 1}",
+                                            style: const TextStyle(
+                                              color: Color(0xFF0D6EFD),
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                taskNo,
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 15,
+                                                  color: textColor,
+                                                ),
+                                              ),
+                                              if (task.projectName.isNotEmpty) ...[
+                                                const SizedBox(height: 2),
+                                                Text(
+                                                  task.projectName,
+                                                  style: TextStyle(
+                                                    fontSize: 13,
+                                                    color: textSecondary,
+                                                  ),
+                                                ),
+                                              ],
+                                            ],
+                                          ),
+                                        ),
+                                        _buildStatusBadge(task.status, task.statusLabel),
+                                        if (_canEdit || _canDelete)
+                                          PopupMenuButton<String>(
+                                            icon: Icon(
+                                              IconlyLight.more_circle,
+                                              color: textSecondary,
+                                              size: 20,
+                                            ),
+                                            color: cardColor,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(12),
+                                              side: isDark
+                                                  ? const BorderSide(color: Colors.white24)
+                                                  : BorderSide.none,
+                                            ),
+                                            onSelected: (val) {
+                                              if (val == 'edit') {
+                                                _showEditTaskDialog(task);
+                                              } else if (val == 'delete') {
+                                                _confirmDeleteTask(task);
+                                              }
+                                            },
+                                            itemBuilder: (context) => [
+                                              if (_canEdit)
+                                                PopupMenuItem(
+                                                  value: 'edit',
+                                                  child: Row(
+                                                    children: [
+                                                      const Icon(
+                                                        IconlyLight.edit,
+                                                        size: 16,
+                                                        color: Color(0xFF0D6EFD),
+                                                      ),
+                                                      const SizedBox(width: 10),
+                                                      Text("Edit Task", style: TextStyle(color: textColor, fontSize: 13)),
+                                                    ],
+                                                  ),
+                                                ),
+                                              if (_canDelete)
+                                                const PopupMenuItem(
+                                                  value: 'delete',
+                                                  child: Row(
+                                                    children: [
+                                                      Icon(
+                                                        IconlyLight.delete,
+                                                        size: 16,
+                                                        color: Colors.red,
+                                                      ),
+                                                      SizedBox(width: 10),
+                                                      Text("Delete", style: TextStyle(color: Colors.red, fontSize: 13)),
+                                                    ],
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 14),
+
+                                    // Attributes Grid / Info rows
+                                    Container(
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: isDark ? Colors.white.withOpacity(0.03) : const Color(0xFFF8FAFC),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Column(
+                                        children: [
+                                          // Client
+                                          if (task.clientName.isNotEmpty)
+                                            Padding(
+                                              padding: const EdgeInsets.only(bottom: 6.0),
+                                              child: Row(
+                                                children: [
+                                                  Icon(IconlyLight.work, size: 14, color: textSecondary),
+                                                  const SizedBox(width: 8),
+                                                  Text(
+                                                    "Client: ",
+                                                    style: TextStyle(fontSize: 12, color: textSecondary),
+                                                  ),
+                                                  Expanded(
+                                                    child: Text(
+                                                      task.clientName,
+                                                      style: TextStyle(
+                                                        fontSize: 12,
+                                                        fontWeight: FontWeight.w600,
+                                                        color: textColor,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+
+                                          // Operative
+                                          if (task.operative.isNotEmpty)
+                                            Padding(
+                                              padding: const EdgeInsets.only(bottom: 6.0),
+                                              child: Row(
+                                                children: [
+                                                  Icon(IconlyLight.profile, size: 14, color: textSecondary),
+                                                  const SizedBox(width: 8),
+                                                  Text(
+                                                    "Operative: ",
+                                                    style: TextStyle(fontSize: 12, color: textSecondary),
+                                                  ),
+                                                  Expanded(
+                                                    child: Text(
+                                                      task.operative,
+                                                      style: TextStyle(
+                                                        fontSize: 12,
+                                                        fontWeight: FontWeight.w600,
+                                                        color: textColor,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+
+                                          // Form Type
+                                          if (task.form.isNotEmpty)
+                                            Row(
+                                              children: [
+                                                Icon(IconlyLight.paper, size: 14, color: textSecondary),
+                                                const SizedBox(width: 8),
+                                                Text(
+                                                  "Form: ",
+                                                  style: TextStyle(fontSize: 12, color: textSecondary),
+                                                ),
+                                                Expanded(
+                                                  child: Text(
+                                                    task.form,
+                                                    style: TextStyle(
+                                                      fontSize: 12,
+                                                      fontWeight: FontWeight.w600,
+                                                      color: const Color(0xFF0D6EFD),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+
+                                    const SizedBox(height: 14),
+
+                                    // View Details Button
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: OutlinedButton(
+                                        style: OutlinedButton.styleFrom(
+                                          foregroundColor: isDark ? Colors.white : const Color(0xFF0D6EFD),
+                                          side: BorderSide(
+                                            color: isDark
+                                                ? Colors.white.withOpacity(0.3)
+                                                : const Color(0xFF0D6EFD).withOpacity(0.3),
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          padding: const EdgeInsets.symmetric(vertical: 10),
+                                        ),
+                                        onPressed: () => _viewDetails(task),
+                                        child: Row(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Text(
+                                              "View Details",
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.bold,
+                                                color: isDark ? Colors.white : const Color(0xFF0D6EFD),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Icon(
+                                              Icons.arrow_forward_ios,
+                                              size: 11,
+                                              color: isDark ? Colors.white70 : const Color(0xFF0D6EFD),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -1270,4 +1360,3 @@ class _TasksScreenState extends State<TasksScreen> {
     );
   }
 }
-
