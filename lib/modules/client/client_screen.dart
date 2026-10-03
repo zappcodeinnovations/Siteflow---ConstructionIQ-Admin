@@ -222,83 +222,78 @@ class ClientsScreenState extends State<ClientsScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      IconButton(
-                        onPressed: () async {
-                          final urlStr = '${ApiEndpoints.baseUrl}${ApiEndpoints.clients}?export=csv';
-                          try {
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text("Downloading report...")),
-                              );
-                            }
-                            
-                            final response = await ApiClient.get(urlStr);
-                            
-                            if (response.statusCode == 200) {
-                              final directory = await getTemporaryDirectory();
-                              final file = File('${directory.path}/clients_report.csv');
-                              await file.writeAsBytes(response.bodyBytes);
-                              
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                              }
-                              
-                              // Trigger the system share/save sheet so the user can save to downloads
-                              await Share.shareXFiles([XFile(file.path)], text: 'Clients Report CSV');
-                            } else {
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text("Download failed. Status: ${response.statusCode}")),
-                                );
-                              }
-                            }
-                          } catch (e) {
-                            print("DEBUG EXPORT ERROR: $e");
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text("Error: $e")),
-                              );
-                            }
+                  IconButton(
+                    onPressed: () async {
+                      final urlStr = '${ApiEndpoints.baseUrl}${ApiEndpoints.clients}?export=csv';
+                      try {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("Downloading report...")),
+                          );
+                        }
+                        
+                        final response = await ApiClient.get(urlStr);
+                        
+                        if (response.statusCode == 200) {
+                          final directory = await getTemporaryDirectory();
+                          final file = File('${directory.path}/clients_report.csv');
+                          await file.writeAsBytes(response.bodyBytes);
+                          
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).hideCurrentSnackBar();
                           }
-                        },
-                        icon: Icon(
-                          IconlyLight.download,
-                          color: isDark ? Colors.white : Colors.black87,
-                        ),
-                        tooltip: "Download Excel Report",
+                          
+                          // Trigger the system share/save sheet so the user can save to downloads
+                          await Share.shareXFiles([XFile(file.path)], text: 'Clients Report CSV');
+                        } else {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text("Download failed. Status: ${response.statusCode}")),
+                            );
+                          }
+                        }
+                      } catch (e) {
+                        print("DEBUG EXPORT ERROR: $e");
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text("Error: $e")),
+                          );
+                        }
+                      }
+                    },
+                    icon: Icon(
+                      IconlyLight.download,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                    tooltip: "Download Excel Report",
+                  ),
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(
+                        0xFF0D6EFD,
                       ),
-                      const SizedBox(width: 30),
-                      ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(
-                            0xFF0D6EFD,
-                          ), // Bootstrap blue matching the image
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 14,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        onPressed: _showAddEditClientDialog,
-                        icon: const Icon(
-                          IconlyLight.plus,
-                          color: Colors.white,
-                          size: 18,
-                        ),
-                        label: const Text(
-                          "Add Client",
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
                       ),
-                    ],
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    onPressed: _showAddEditClientDialog,
+                    icon: const Icon(
+                      IconlyLight.plus,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                    label: const Text(
+                      "Add Client",
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
                 ],
               ),
