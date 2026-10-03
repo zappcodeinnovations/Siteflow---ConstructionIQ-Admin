@@ -286,7 +286,7 @@ class _NotificationDetailsDialogState extends State<NotificationDetailsDialog> {
                 )
               ]
             ),
-            child: const Icon(icon, color: Color(0xFF0D6EFD), size: 18),
+            child: Icon(icon, color: const Color(0xFF0D6EFD), size: 18),
           ),
           const SizedBox(width: 16),
           Expanded(
