@@ -16,6 +16,10 @@ class ApiEndpoints {
   static String projectDetails(int id) => '/projects/$id/';
   static String projectAllInOneDetails(int id) => '/projects/all-in-one/$id/';
   static String projectAssignments(int id) => '/projects/$id/assignments/';
+  static String projectIncidents(int projectId) => '/projects/$projectId/incidents/';
+  static String projectSnags(int projectId) => '/projects/$projectId/snags/';
+  static String projectInspections(int projectId) => '/projects/$projectId/inspections/';
+  static String inspectionComplete(int inspectionId) => '/inspections/$inspectionId/complete/';
 
   // Announcements
   static const String announcements = '/admin/announcements/';

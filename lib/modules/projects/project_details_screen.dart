@@ -7,6 +7,9 @@ import 'tabs/job_sheets_tab.dart';
 import 'tabs/drawings_tab.dart';
 import 'tabs/approvals_tab.dart';
 import 'tabs/hse_tab.dart';
+import 'tabs/incidents_tab.dart';
+import 'tabs/snags_tab.dart';
+import 'tabs/inspections_tab.dart';
 import '../../models/project_model.dart';
 import '../../models/project_all_in_one_model.dart';
 import 'project_controller.dart';
@@ -93,6 +96,9 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
       if (_canViewJobSheets) 'Job Sheets',
       if (_canViewApprovals) 'Approvals',
       'HS&E',
+      'Incidents',
+      'Snags',
+      'Inspections',
       'Drawings',
       'Locations',
       'Specifications',
@@ -108,6 +114,9 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
         ),
       if (_canViewApprovals) const ApprovalsTab(),
       const HseTab(),
+      IncidentsTab(projectId: widget.project.id),
+      SnagsTab(projectId: widget.project.id),
+      InspectionsTab(projectId: widget.project.id),
       DrawingsTab(
         rawBlocks:
             _allInOneData
