@@ -1254,7 +1254,9 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
             fontSize: 13,
             fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
             color: valueColor,
+            height: 1.25,
           ),
+          softWrap: true,
         ),
       ],
     );
@@ -1279,11 +1281,12 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
         ),
         const SizedBox(height: 4),
         Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             CircleAvatar(
-              radius: 10,
+              radius: 11,
               backgroundColor: isDark ? Colors.white10 : Colors.blue.shade50,
-              child: Icon(IconlyLight.profile, size: 12, color: isDark ? Colors.white : const Color(0xFF0D6EFD)),
+              child: Icon(IconlyLight.profile, size: 13, color: isDark ? Colors.white : const Color(0xFF0D6EFD)),
             ),
             const SizedBox(width: 6),
             Expanded(
@@ -1293,8 +1296,9 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                   color: valueColor,
+                  height: 1.25,
                 ),
-                overflow: TextOverflow.ellipsis,
+                softWrap: true,
               ),
             ),
           ],
@@ -1321,7 +1325,7 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
         ),
         const SizedBox(height: 4),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
             color: isDark ? Colors.white.withOpacity(0.06) : Colors.blue.shade50,
             borderRadius: BorderRadius.circular(6),
@@ -1339,8 +1343,9 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                     color: Color(0xFF0D6EFD),
+                    height: 1.2,
                   ),
-                  overflow: TextOverflow.ellipsis,
+                  softWrap: true,
                 ),
               ),
             ],
