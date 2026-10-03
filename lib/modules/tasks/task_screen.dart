@@ -216,8 +216,9 @@ class _TasksScreenState extends State<TasksScreen> {
   }
 
   void _resetFilters() {
+    FocusScope.of(context).unfocus();
+    _searchController.clear();
     setState(() {
-      _searchController.clear();
       _selectedStatus = 'Status: All';
       _selectedProject = 'All Projects';
       _selectedClient = 'All Clients';
