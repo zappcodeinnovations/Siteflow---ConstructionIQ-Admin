@@ -6,6 +6,8 @@ import '../../core/network/api_client.dart';
 import '../../core/network/api_endpoints.dart';
 import 'job_sheet_controller.dart';
 import 'job_sheet_details_screen.dart';
+import 'job_sheet_webview_screen.dart';
+import '../../models/job_sheet_model.dart';
 import '../../core/widgets/shimmer_loading.dart';
 import 'package:iconly/iconly.dart';
 import '../../core/theme/app_theme.dart';
@@ -347,7 +349,7 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
                         final isDark = Theme.of(context).brightness == Brightness.dark;
                         final cardColor = isDark ? const Color(0xFF162A42) : Colors.white;
                         final borderColor = isDark ? Colors.white12 : Colors.grey.shade200;
-                        final textColor = isDark ? Colors.white : Colors.black87;
+                        final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
                         final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
 
                       return Container(
@@ -358,9 +360,9 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
                           border: Border.all(color: borderColor),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.02),
-                              blurRadius: 15,
-                              offset: const Offset(0, 4),
+                              color: Colors.black.withOpacity(isDark ? 0.2 : 0.03),
+                              blurRadius: 10,
+                              offset: const Offset(0, 3),
                             ),
                           ],
                         ),
@@ -369,38 +371,45 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Top Row: Sheet No and Status
+                              // Top Row: Sheet No and Status Pill
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
                                     sheet.sheetNo,
                                     style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
                                       color: textSecondary,
-                                      letterSpacing: 1.0,
+                                      letterSpacing: 0.5,
                                     ),
                                   ),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                                     decoration: BoxDecoration(
-                                      color: isCompleted ? Colors.green.shade50 : Colors.orange.shade50,
-                                      borderRadius: BorderRadius.circular(12),
+                                      color: isCompleted
+                                          ? const Color(0xFFECFDF5)
+                                          : const Color(0xFFFFF7ED),
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(
+                                        color: isCompleted
+                                            ? Colors.green.withOpacity(0.3)
+                                            : Colors.orange.withOpacity(0.3),
+                                      ),
                                     ),
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Icon(
-                                          IconlyLight.category,
-                                          size: 8,
-                                          color: isCompleted ? Colors.green : Colors.orange,
+                                          isCompleted ? Icons.check_circle_outline : Icons.access_time_rounded,
+                                          size: 13,
+                                          color: isCompleted ? const Color(0xFF047857) : const Color(0xFFC2410C),
                                         ),
-                                        const SizedBox(width: 4),
+                                        const SizedBox(width: 5),
                                         Text(
                                           sheet.statusLabel.isNotEmpty ? sheet.statusLabel : sheet.status,
                                           style: TextStyle(
-                                            color: isCompleted ? Colors.green : Colors.orange,
+                                            color: isCompleted ? const Color(0xFF047857) : const Color(0xFFC2410C),
                                             fontSize: 12,
                                             fontWeight: FontWeight.bold,
                                           ),
@@ -414,112 +423,155 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
                               
                               // Project Name
                               Text(
-                                sheet.projectName,
+                                sheet.projectName.isNotEmpty ? sheet.projectName : "General Project",
                                 style: TextStyle(
-                                  fontSize: 18,
+                                  fontSize: 17,
                                   fontWeight: FontWeight.bold,
                                   color: textColor,
                                 ),
                               ),
-                              const SizedBox(height: 16),
-                              Divider(height: 1, color: isDark ? Colors.white12 : Colors.grey.shade200),
-                              const SizedBox(height: 16),
+                              const SizedBox(height: 14),
+                              Divider(height: 1, color: isDark ? Colors.white10 : Colors.grey.shade100),
+                              const SizedBox(height: 14),
                               
-                              // Details Grid
+                              // Details Grid: Client, Operative, Operative Code, Form
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  // Column 1
+                                  // Column 1: Client & Operative Code
                                   Expanded(
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        _buildDetailItem("CLIENT", sheet.clientName),
-                                        const SizedBox(height: 16),
-                                        _buildOperativeItem(sheet.operative),
-                                        const SizedBox(height: 16),
-                                        _buildDetailItem("MATERIAL COST", sheet.materialCost.isNotEmpty ? "\$${sheet.materialCost}" : "\$0.00", isBold: true),
+                                        _buildDetailItem("CLIENT", sheet.clientName.isNotEmpty ? sheet.clientName : "-"),
+                                        const SizedBox(height: 14),
+                                        _buildDetailItem("OPERATIVE CODE", sheet.operativeCode.isNotEmpty ? sheet.operativeCode : "-"),
                                       ],
                                     ),
                                   ),
                                   const SizedBox(width: 16),
-                                  // Column 2
+                                  // Column 2: Operative & Form
                                   Expanded(
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        _buildDetailItem("JOB NO/REF", "${sheet.jobNo} / ${sheet.jobReference}"),
-                                        const SizedBox(height: 16),
-                                        _buildDetailItem("LOCATION", sheet.location),
-                                        const SizedBox(height: 16),
-                                        _buildDetailItem("CHARGE", sheet.charge.isNotEmpty ? "\$${sheet.charge}" : "\$0.00", isBold: true, color: isDark ? Colors.white : const Color(0xFF0D6EFD)),
+                                        _buildOperativeItem(sheet.operative.isNotEmpty ? sheet.operative : "-"),
+                                        const SizedBox(height: 14),
+                                        _buildFormItem(sheet.form.isNotEmpty ? sheet.form : "-"),
                                       ],
                                     ),
                                   ),
                                 ],
                               ),
                               
-                              const SizedBox(height: 20),
-                              Divider(height: 1, color: isDark ? Colors.white12 : Colors.grey.shade200),
                               const SizedBox(height: 16),
+                              Divider(height: 1, color: isDark ? Colors.white10 : Colors.grey.shade100),
+                              const SizedBox(height: 14),
                               
-                              // Bottom Section: Dates & Action
+                              // Timestamps Section: Created, Submitted, Last Updated
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    "Created: ${sheet.created}",
-                                    style: TextStyle(fontSize: 12, color: textSecondary),
-                                  ),
-                                  const SizedBox(height: 4),
                                   Row(
                                     children: [
-                                      Icon(IconlyLight.time_circle, size: 12, color: textSecondary),
-                                      const SizedBox(width: 4),
+                                      Icon(IconlyLight.calendar, size: 13, color: textSecondary),
+                                      const SizedBox(width: 6),
                                       Text(
-                                        "Updated: ${sheet.lastUpdated}",
-                                        style: TextStyle(fontSize: 12, color: textSecondary),
+                                        "Created: ",
+                                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: textSecondary),
+                                      ),
+                                      Expanded(
+                                        child: Text(
+                                          sheet.created.isNotEmpty ? sheet.created : "-",
+                                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textColor),
+                                        ),
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 16),
-                                  Align(
-                                    alignment: Alignment.centerRight,
-                                    child: InkWell(
-                                      onTap: () {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) => JobSheetDetailsScreen(jobSheet: sheet),
-                                          ),
-                                        );
-                                      },
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                        decoration: BoxDecoration(
-                                          color: isDark ? Colors.white.withOpacity(0.05) : const Color(0xFF0D6EFD).withOpacity(0.1),
-                                          borderRadius: BorderRadius.circular(20),
+                                  if (sheet.submitted.isNotEmpty && sheet.submitted != '-') ...[
+                                    const SizedBox(height: 5),
+                                    Row(
+                                      children: [
+                                        Icon(IconlyLight.send, size: 13, color: textSecondary),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          "Submitted: ",
+                                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: textSecondary),
                                         ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Text(
-                                              "View Details",
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                color: isDark ? Colors.white : const Color(0xFF0D6EFD),
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                            const SizedBox(width: 6),
-                                            Icon(
-                                              IconlyLight.arrow_right,
-                                              size: 14,
-                                              color: isDark ? Colors.white : const Color(0xFF0D6EFD),
-                                            ),
-                                          ],
+                                        Expanded(
+                                          child: Text(
+                                            sheet.submitted,
+                                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textColor),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                  const SizedBox(height: 5),
+                                  Row(
+                                    children: [
+                                      Icon(IconlyLight.time_circle, size: 13, color: textSecondary),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        "Last Updated: ",
+                                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: textSecondary),
+                                      ),
+                                      Expanded(
+                                        child: Text(
+                                          sheet.lastUpdated.isNotEmpty ? sheet.lastUpdated : "-",
+                                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textColor),
                                         ),
                                       ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+
+                              // Actions Row: PDF and View Details
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  // PDF Action Button
+                                  OutlinedButton.icon(
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: isDark ? Colors.white : const Color(0xFF0D6EFD),
+                                      side: BorderSide(
+                                        color: isDark ? Colors.white24 : const Color(0xFF0D6EFD).withOpacity(0.3),
+                                      ),
+                                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                    ),
+                                    onPressed: () => _openPdfOrForm(context, sheet),
+                                    icon: const Icon(IconlyLight.document, size: 14),
+                                    label: const Text(
+                                      "PDF",
+                                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+
+                                  // View Details Button
+                                  ElevatedButton.icon(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF0D6EFD),
+                                      foregroundColor: Colors.white,
+                                      elevation: 0,
+                                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                    ),
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => JobSheetDetailsScreen(jobSheet: sheet),
+                                        ),
+                                      );
+                                    },
+                                    icon: const Icon(IconlyLight.show, size: 14, color: Colors.white),
+                                    label: const Text(
+                                      "View Details",
+                                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                                     ),
                                   ),
                                 ],
@@ -546,10 +598,40 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
     );
   }
 
+  void _openPdfOrForm(BuildContext context, JobSheet sheet) {
+    String path = sheet.viewFormInBrowserUrl.isNotEmpty
+        ? sheet.viewFormInBrowserUrl
+        : (sheet.formHtmlUrl.isNotEmpty ? sheet.formHtmlUrl : sheet.globalDetailApiUrl);
+
+    if (path.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("PDF/Form not available for this job sheet")),
+      );
+      return;
+    }
+
+    String base = ApiEndpoints.baseUrl;
+    if (path.startsWith('/api/') && base.endsWith('/api')) {
+      base = base.substring(0, base.length - 4);
+    }
+
+    final urlStr = path.startsWith('http') ? path : base + path;
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => JobSheetWebviewScreen(
+          url: urlStr,
+          title: "PDF / Form: ${sheet.sheetNo}",
+        ),
+      ),
+    );
+  }
+
   Widget _buildDetailItem(String label, String value, {bool isBold = false, Color? color}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final labelColor = isDark ? Colors.grey.shade400 : Colors.black54;
-    final valueColor = color ?? (isDark ? Colors.white : Colors.black87);
+    final valueColor = color ?? (isDark ? Colors.white : const Color(0xFF0F2C4A));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -567,8 +649,8 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
         Text(
           value,
           style: TextStyle(
-            fontSize: 14,
-            fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
+            fontSize: 13,
+            fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
             color: valueColor,
           ),
         ),
@@ -579,7 +661,7 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
   Widget _buildOperativeItem(String operative) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final labelColor = isDark ? Colors.grey.shade400 : Colors.black54;
-    final valueColor = isDark ? Colors.white : Colors.black87;
+    final valueColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -599,21 +681,68 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
             CircleAvatar(
               radius: 10,
               backgroundColor: isDark ? Colors.white10 : Colors.blue.shade50,
-              child: Icon(IconlyLight.profile, size: 14, color: isDark ? Colors.white : Colors.blue),
+              child: Icon(IconlyLight.profile, size: 12, color: isDark ? Colors.white : const Color(0xFF0D6EFD)),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
             Expanded(
               child: Text(
                 operative,
                 style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
                   color: valueColor,
                 ),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFormItem(String form) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final labelColor = isDark ? Colors.grey.shade400 : Colors.black54;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          "FORM",
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+            color: labelColor,
+            letterSpacing: 0.5,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: isDark ? Colors.white.withOpacity(0.06) : Colors.blue.shade50,
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: const Color(0xFF0D6EFD).withOpacity(0.25)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(IconlyLight.paper, size: 12, color: Color(0xFF0D6EFD)),
+              const SizedBox(width: 4),
+              Flexible(
+                child: Text(
+                  form,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF0D6EFD),
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     );
