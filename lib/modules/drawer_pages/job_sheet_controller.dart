@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../core/network/api_client.dart';
 import '../../core/network/api_endpoints.dart';
+import '../../core/utils/date_helper.dart';
 import '../../models/job_sheet_model.dart';
 
 class JobSheetController extends ChangeNotifier {
@@ -48,9 +49,15 @@ class JobSheetController extends ChangeNotifier {
     notifyListeners();
 
     try {
+      final tz = await DateHelper.getDeviceTimezone();
+
       // Build query parameters
-      String url = ApiEndpoints.baseUrl + '/job-sheets/';
+      String url = '${ApiEndpoints.baseUrl}/job-sheets/';
       List<String> queryParams = [];
+
+      if (tz.isNotEmpty) {
+        queryParams.add('tz=${Uri.encodeComponent(tz)}');
+      }
 
       if (projectId != null && projectId.isNotEmpty) {
         queryParams.add('project=$projectId');
@@ -82,7 +89,7 @@ class JobSheetController extends ChangeNotifier {
       queryParams.add('page_size=100');
 
       if (queryParams.isNotEmpty) {
-        url += '?' + queryParams.join('&');
+        url = '$url?${queryParams.join('&')}';
       }
 
       final response = await ApiClient.get(url);
