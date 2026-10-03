@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
 import '../../../../models/admin_notification_model.dart';
+import '../../../core/theme/app_theme.dart';
 import 'admin_notifications_controller.dart';
 
 class NotificationDetailsDialog extends StatefulWidget {
@@ -44,14 +45,22 @@ class _NotificationDetailsDialogState extends State<NotificationDetailsDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final dialogBg = isDark ? AppTheme.corporateBlue : Colors.white;
+    final cardBg = isDark ? const Color(0xFF1F2E40) : Colors.grey.shade50;
+    final borderColor = isDark ? Colors.white24 : Colors.grey.shade200;
+    final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
+    final secondaryTextColor = isDark ? Colors.grey.shade400 : Colors.grey;
+
     return Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.all(20),
       child: Container(
         width: 400,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: dialogBg,
           borderRadius: BorderRadius.circular(24),
+          border: isDark ? Border.all(color: Colors.white24) : null,
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.1),
@@ -73,14 +82,14 @@ class _NotificationDetailsDialogState extends State<NotificationDetailsDialog> {
                       children: [
                         const Icon(IconlyLight.danger, color: Colors.red, size: 56),
                         const SizedBox(height: 16),
-                        const Text("Oops!", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87)),
+                        Text("Oops!", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: textColor)),
                         const SizedBox(height: 8),
-                        const Text("Failed to load notification details.", style: TextStyle(color: Colors.grey)),
+                        Text("Failed to load notification details.", style: TextStyle(color: secondaryTextColor)),
                         const SizedBox(height: 24),
                         ElevatedButton(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.grey.shade200,
-                            foregroundColor: Colors.black87,
+                            backgroundColor: isDark ? const Color(0xFF1F2E40) : Colors.grey.shade200,
+                            foregroundColor: textColor,
                             elevation: 0,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -102,9 +111,9 @@ class _NotificationDetailsDialogState extends State<NotificationDetailsDialog> {
                           children: [
                             Container(
                               height: 100,
-                              decoration: const BoxDecoration(
-                                color: Color(0xFF0F2C4A), // Deep navy
-                                borderRadius: BorderRadius.only(
+                              decoration: BoxDecoration(
+                                color: isDark ? const Color(0xFF162536) : const Color(0xFF0F2C4A), // Deep navy
+                                borderRadius: const BorderRadius.only(
                                   topLeft: Radius.circular(24),
                                   topRight: Radius.circular(24),
                                 ),
@@ -121,9 +130,9 @@ class _NotificationDetailsDialogState extends State<NotificationDetailsDialog> {
                             Container(
                               margin: const EdgeInsets.only(top: 50),
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: dialogBg,
                                 shape: BoxShape.circle,
-                                border: Border.all(color: Colors.white, width: 4),
+                                border: Border.all(color: dialogBg, width: 4),
                                 boxShadow: [
                                   BoxShadow(
                                     color: Colors.black.withValues(alpha: 0.1),
@@ -149,16 +158,16 @@ class _NotificationDetailsDialogState extends State<NotificationDetailsDialog> {
                           child: Text(
                             notification!.headline,
                             textAlign: TextAlign.center,
-                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F2C4A)),
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
                           ),
                         ),
                         const SizedBox(height: 12),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
-                            color: notification!.isActive ? Colors.green.shade50 : Colors.red.shade50,
+                            color: notification!.isActive ? Colors.green.shade50.withOpacity(isDark ? 0.2 : 1) : Colors.red.shade50.withOpacity(isDark ? 0.2 : 1),
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: notification!.isActive ? Colors.green.shade200 : Colors.red.shade200),
+                            border: Border.all(color: notification!.isActive ? Colors.green.shade400 : Colors.red.shade400),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -177,7 +186,7 @@ class _NotificationDetailsDialogState extends State<NotificationDetailsDialog> {
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
-                                  color: notification!.isActive ? Colors.green.shade700 : Colors.red.shade700,
+                                  color: notification!.isActive ? (isDark ? Colors.greenAccent : Colors.green.shade700) : (isDark ? Colors.redAccent : Colors.red.shade700),
                                 ),
                               ),
                             ],
@@ -192,37 +201,37 @@ class _NotificationDetailsDialogState extends State<NotificationDetailsDialog> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _buildSectionTitle("Message"),
+                              _buildSectionTitle("Message", secondaryTextColor),
                               Container(
                                 width: double.infinity,
                                 padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
-                                  color: Colors.grey.shade50,
+                                  color: cardBg,
                                   borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: Colors.grey.shade200),
+                                  border: Border.all(color: borderColor),
                                 ),
                                 child: Text(
                                   notification!.notificationText,
-                                  style: const TextStyle(fontSize: 13, color: Colors.black87, height: 1.5),
+                                  style: TextStyle(fontSize: 13, color: textColor, height: 1.5),
                                 ),
                               ),
                               
                               const SizedBox(height: 20),
                               
-                              _buildSectionTitle("Audience & Push"),
-                              _buildInfoCard([
-                                _buildInfoRow(IconlyLight.user_1, "Audience", notification!.audience),
-                                _buildInfoRow(IconlyLight.category, "Operator IDs", notification!.operatorIds.isEmpty ? "None" : notification!.operatorIds.join(', ')),
-                                _buildInfoRow(IconlyLight.send, "Push Success", "${notification!.fcmSuccessCount} / ${notification!.fcmSuccessCount + notification!.fcmFailureCount}"),
+                              _buildSectionTitle("Audience & Push", secondaryTextColor),
+                              _buildInfoCard(cardBg, borderColor, [
+                                _buildInfoRow(IconlyLight.user_1, "Audience", notification!.audience, isDark, textColor, secondaryTextColor),
+                                _buildInfoRow(IconlyLight.category, "Operator IDs", notification!.operatorIds.isEmpty ? "None" : notification!.operatorIds.join(', '), isDark, textColor, secondaryTextColor),
+                                _buildInfoRow(IconlyLight.send, "Push Success", "${notification!.fcmSuccessCount} / ${notification!.fcmSuccessCount + notification!.fcmFailureCount}", isDark, textColor, secondaryTextColor),
                               ]),
                               
                               const SizedBox(height: 20),
                               
-                              _buildSectionTitle("Details"),
-                              _buildInfoCard([
-                                _buildInfoRow(IconlyLight.profile, "Author", notification!.createdByName),
+                              _buildSectionTitle("Details", secondaryTextColor),
+                              _buildInfoCard(cardBg, borderColor, [
+                                _buildInfoRow(IconlyLight.profile, "Author", notification!.createdByName, isDark, textColor, secondaryTextColor),
                                 if (notification!.formattedUpdatedAt.isNotEmpty)
-                                  _buildInfoRow(IconlyLight.calendar, "Updated At", notification!.formattedUpdatedAt),
+                                  _buildInfoRow(IconlyLight.calendar, "Updated At", notification!.formattedUpdatedAt, isDark, textColor, secondaryTextColor),
                               ]),
                               
                               const SizedBox(height: 24),
@@ -236,22 +245,22 @@ class _NotificationDetailsDialogState extends State<NotificationDetailsDialog> {
     );
   }
 
-  Widget _buildSectionTitle(String title) {
+  Widget _buildSectionTitle(String title, Color color) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12, left: 4),
       child: Text(
         title,
-        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 0.5),
+        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: color, letterSpacing: 0.5),
       ),
     );
   }
 
-  Widget _buildInfoCard(List<Widget> children) {
+  Widget _buildInfoCard(Color cardBg, Color borderColor, List<Widget> children) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: cardBg,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: borderColor),
       ),
       child: Column(
         children: children,
@@ -259,7 +268,7 @@ class _NotificationDetailsDialogState extends State<NotificationDetailsDialog> {
     );
   }
 
-  Widget _buildInfoRow(IconData icon, String label, String value) {
+  Widget _buildInfoRow(IconData icon, String label, String value, bool isDark, Color textColor, Color secondaryTextColor) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Row(
@@ -267,7 +276,7 @@ class _NotificationDetailsDialogState extends State<NotificationDetailsDialog> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: isDark ? const Color(0xFF162536) : Colors.white,
               borderRadius: BorderRadius.circular(10),
               boxShadow: [
                 BoxShadow(
@@ -277,16 +286,16 @@ class _NotificationDetailsDialogState extends State<NotificationDetailsDialog> {
                 )
               ]
             ),
-            child: Icon(icon, color: const Color(0xFF0D6EFD), size: 18),
+            child: const Icon(icon, color: Color(0xFF0D6EFD), size: 18),
           ),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w600)),
+                Text(label, style: TextStyle(fontSize: 11, color: secondaryTextColor, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 2),
-                Text(value, style: const TextStyle(fontSize: 13, color: Colors.black87, fontWeight: FontWeight.w500)),
+                Text(value, style: TextStyle(fontSize: 13, color: textColor, fontWeight: FontWeight.w500)),
               ],
             ),
           ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
 import '../../../../models/announcement_model.dart';
+import '../../../core/theme/app_theme.dart';
 import 'admin_announcements_controller.dart';
 
 class EditAnnouncementDialog extends StatefulWidget {
@@ -64,8 +65,19 @@ class _EditAnnouncementDialogState extends State<EditAnnouncementDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final dialogBg = isDark ? AppTheme.corporateBlue : Colors.white;
+    final inputBg = isDark ? const Color(0xFF1F2E40) : Colors.grey.shade50;
+    final borderColor = isDark ? Colors.white24 : Colors.grey.shade300;
+    final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
+    final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey;
+
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      backgroundColor: dialogBg,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: isDark ? const BorderSide(color: Colors.white24) : BorderSide.none,
+      ),
       child: Container(
         width: 450,
         padding: const EdgeInsets.all(24),
@@ -78,31 +90,33 @@ class _EditAnnouncementDialogState extends State<EditAnnouncementDialog> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text("Edit Announcement", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF0F2C4A))),
+                  Text("Edit Announcement", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor)),
                   IconButton(
-                    icon: const Icon(IconlyLight.close_square, color: Colors.grey),
+                    icon: Icon(IconlyLight.close_square, color: textSecondary),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
               ),
-              const Divider(),
+              Divider(color: borderColor),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _titleController,
-                decoration: _buildInputDecoration("Announcement Title", IconlyLight.document),
+                style: TextStyle(color: textColor),
+                decoration: _buildInputDecoration("Announcement Title", IconlyLight.document, inputBg, borderColor, textSecondary),
                 validator: (val) => val == null || val.isEmpty ? "Required" : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _messageController,
                 maxLines: 4,
-                decoration: _buildInputDecoration("Message", IconlyLight.message),
+                style: TextStyle(color: textColor),
+                decoration: _buildInputDecoration("Message", IconlyLight.message, inputBg, borderColor, textSecondary),
                 validator: (val) => val == null || val.isEmpty ? "Required" : null,
               ),
               const SizedBox(height: 16),
               SwitchListTile(
-                title: const Text("Is Active", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87)),
-                subtitle: const Text("Make this announcement visible immediately", style: TextStyle(color: Colors.grey, fontSize: 12)),
+                title: Text("Is Active", style: TextStyle(fontWeight: FontWeight.bold, color: textColor)),
+                subtitle: Text("Make this announcement visible immediately", style: TextStyle(color: textSecondary, fontSize: 12)),
                 value: _isActive,
                 activeColor: Colors.green,
                 contentPadding: EdgeInsets.zero,
@@ -127,14 +141,16 @@ class _EditAnnouncementDialogState extends State<EditAnnouncementDialog> {
     );
   }
 
-  InputDecoration _buildInputDecoration(String hint, IconData icon) {
+  InputDecoration _buildInputDecoration(String hint, IconData icon, Color inputBg, Color borderColor, Color textSecondary) {
     return InputDecoration(
       hintText: hint,
-      prefixIcon: Icon(icon, color: Colors.grey),
+      hintStyle: TextStyle(color: textSecondary),
+      prefixIcon: Icon(icon, color: textSecondary),
       filled: true,
-      fillColor: Colors.grey.shade50,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
+      fillColor: inputBg,
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF0D6EFD))),
     );
   }
 }

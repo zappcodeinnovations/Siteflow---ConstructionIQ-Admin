@@ -10,16 +10,21 @@ class ClientProjectsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? const Color(0xFF0F2C4A) : const Color(0xffF5F7FB);
+    final appBarBg = isDark ? const Color(0xFF0F2C4A) : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
+
     return Scaffold(
-      backgroundColor: const Color(0xffF5F7FB),
+      backgroundColor: bgColor,
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: Colors.white,
-        iconTheme: const IconThemeData(color: Colors.black87),
+        backgroundColor: appBarBg,
+        iconTheme: IconThemeData(color: textColor),
         title: Text(
           '${client.name} Projects',
-          style: const TextStyle(
-            color: Color(0xFF0F2C4A),
+          style: TextStyle(
+            color: textColor,
             fontWeight: FontWeight.bold,
           ),
         ),

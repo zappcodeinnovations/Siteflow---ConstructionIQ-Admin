@@ -54,8 +54,18 @@ class _TasksScreenState extends State<TasksScreen> {
       return;
     }
     if (!mounted) return;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
+    final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey;
+
     showModalBottomSheet<void>(
       context: context,
+      backgroundColor: cardColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        side: isDark ? const BorderSide(color: Colors.white24) : BorderSide.none,
+      ),
       showDragHandle: true,
       isScrollControlled: true,
       builder: (context) => SafeArea(
@@ -67,15 +77,16 @@ class _TasksScreenState extends State<TasksScreen> {
             children: [
               Text(
                 task['taskNo'] ?? 'Task Details',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w700,
+                  color: textColor,
                 ),
               ),
               const SizedBox(height: 20),
-              _detailRow('Project', task['project'] ?? '-'),
-              _detailRow('Client', task['client'] ?? '-'),
-              _detailRow('Status', task['status'] ?? '-'),
+              _detailRow('Project', task['project'] ?? '-', textColor, textSecondary),
+              _detailRow('Client', task['client'] ?? '-', textColor, textSecondary),
+              _detailRow('Status', task['status'] ?? '-', textColor, textSecondary),
             ],
           ),
         ),
@@ -83,7 +94,7 @@ class _TasksScreenState extends State<TasksScreen> {
     );
   }
 
-  Widget _detailRow(String label, String value) => Padding(
+  Widget _detailRow(String label, String value, Color textColor, Color labelColor) => Padding(
     padding: const EdgeInsets.only(bottom: 14),
     child: Row(
       children: [
@@ -91,8 +102,8 @@ class _TasksScreenState extends State<TasksScreen> {
           width: 90,
           child: Text(
             label,
-            style: const TextStyle(
-              color: Colors.grey,
+            style: TextStyle(
+              color: labelColor,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -100,7 +111,7 @@ class _TasksScreenState extends State<TasksScreen> {
         Expanded(
           child: Text(
             value,
-            style: const TextStyle(fontWeight: FontWeight.w600),
+            style: TextStyle(fontWeight: FontWeight.w600, color: textColor),
           ),
         ),
       ],
@@ -303,6 +314,10 @@ class _TasksScreenState extends State<TasksScreen> {
                                   width: 200,
                                   height: 40,
                                   child: TextField(
+                                    style: TextStyle(
+                                      color: textColor,
+                                      fontSize: 14,
+                                    ),
                                     decoration: InputDecoration(
                                       hintText: "Search tasks...",
                                       hintStyle: TextStyle(
@@ -524,26 +539,37 @@ class _TasksScreenState extends State<TasksScreen> {
                                                 IconlyLight.more_circle,
                                                 color: textSecondary,
                                               ),
+                                              color: cardColor,
                                               shape: RoundedRectangleBorder(
                                                 borderRadius:
                                                     BorderRadius.circular(12),
+                                                side: isDark
+                                                    ? const BorderSide(
+                                                        color: Colors.white24,
+                                                      )
+                                                    : BorderSide.none,
                                               ),
                                               onSelected: (val) {},
                                               itemBuilder: (context) => [
                                                 if (_canEdit)
-                                                  const PopupMenuItem(
+                                                  PopupMenuItem(
                                                     value: 'edit',
                                                     child: Row(
                                                       children: [
-                                                        Icon(
+                                                        const Icon(
                                                           IconlyLight.edit,
                                                           size: 18,
                                                           color: Color(
                                                             0xFF0D6EFD,
                                                           ),
                                                         ),
-                                                        SizedBox(width: 12),
-                                                        Text("Edit Task"),
+                                                        const SizedBox(width: 12),
+                                                        Text(
+                                                          "Edit Task",
+                                                          style: TextStyle(
+                                                            color: textColor,
+                                                          ),
+                                                        ),
                                                       ],
                                                     ),
                                                   ),

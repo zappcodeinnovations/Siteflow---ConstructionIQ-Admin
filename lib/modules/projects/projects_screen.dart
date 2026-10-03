@@ -56,28 +56,40 @@ class ProjectsScreenState extends State<ProjectsScreen> {
 
   void _showCreateProjectDialog() {
     final nameController = TextEditingController(); 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final dialogBg = isDark ? AppTheme.corporateBlue : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
+    final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey;
+
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          backgroundColor: Colors.white,
+          backgroundColor: dialogBg,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
+            side: isDark ? const BorderSide(color: Colors.white24) : BorderSide.none,
           ),
-          title: const Text(
+          title: Text(
             "Create Project",
             style: TextStyle(
               fontWeight: FontWeight.bold,
-              color: Color(0xFF0F2C4A),
+              color: textColor,
             ),
           ),
           content: TextField(
             controller: nameController,
+            style: TextStyle(color: textColor),
             decoration: InputDecoration(
               hintText: "Project Name",
+              hintStyle: TextStyle(color: textSecondary),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: Colors.grey),
+                borderSide: BorderSide(color: isDark ? Colors.white24 : Colors.grey),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
@@ -88,7 +100,7 @@ class ProjectsScreenState extends State<ProjectsScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
+              child: Text("Cancel", style: TextStyle(color: textSecondary)),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -127,25 +139,32 @@ class ProjectsScreenState extends State<ProjectsScreen> {
   }
 
   void _confirmDeleteSelected() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final dialogBg = isDark ? AppTheme.corporateBlue : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
+    final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey;
+
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          backgroundColor: Colors.white,
+          backgroundColor: dialogBg,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
+            side: isDark ? const BorderSide(color: Colors.white24) : BorderSide.none,
           ),
-          title: const Text(
+          title: Text(
             "Delete Projects",
-            style: TextStyle(fontWeight: FontWeight.bold),
+            style: TextStyle(fontWeight: FontWeight.bold, color: textColor),
           ),
           content: Text(
             "Are you sure you want to delete ${_controller.selectedProjectIds.length} selected project(s)?",
+            style: TextStyle(color: isDark ? Colors.white70 : Colors.black87),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
+              child: Text("Cancel", style: TextStyle(color: textSecondary)),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(

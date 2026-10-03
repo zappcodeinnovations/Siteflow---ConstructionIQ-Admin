@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
+import '../../core/theme/app_theme.dart';
 
 class ApprovalStagesScreen extends StatefulWidget {
   const ApprovalStagesScreen({Key? key}) : super(key: key);
@@ -35,23 +36,31 @@ class _ApprovalStagesScreenState extends State<ApprovalStagesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? AppTheme.corporateBlue : const Color(0xFFF8FAFC);
+    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
+    final appBarBg = isDark ? AppTheme.corporateBlue : Colors.white;
+    final borderColor = isDark ? Colors.white24 : Colors.grey.shade200;
+    final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
+    final secondaryTextColor = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: bgColor,
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: Colors.white,
-        iconTheme: const IconThemeData(color: Colors.black87),
-        title: const Text(
+        backgroundColor: appBarBg,
+        iconTheme: IconThemeData(color: textColor),
+        title: Text(
           "Approval Stages",
           style: TextStyle(
-            color: Color(0xFF0F2C4A),
+            color: textColor,
             fontSize: 20,
             fontWeight: FontWeight.bold,
           ),
         ),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
-          child: Container(color: Colors.grey.shade200, height: 1),
+          child: Container(color: borderColor, height: 1),
         ),
         actions: [
           Padding(
@@ -78,7 +87,7 @@ class _ApprovalStagesScreenState extends State<ApprovalStagesScreen> {
           children: [
             Text(
               "Configure declaration stages and signer access for this template.",
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+              style: TextStyle(color: secondaryTextColor, fontSize: 14),
             ),
             const SizedBox(height: 16),
             if (_stages.isEmpty)
@@ -87,9 +96,9 @@ class _ApprovalStagesScreenState extends State<ApprovalStagesScreen> {
                   padding: const EdgeInsets.all(32.0),
                   child: Column(
                     children: [
-                      Icon(IconlyLight.document, size: 48, color: Colors.grey.shade300),
+                      Icon(IconlyLight.document, size: 48, color: secondaryTextColor),
                       const SizedBox(height: 16),
-                      Text("No approval stages found.", style: TextStyle(color: Colors.grey.shade600)),
+                      Text("No approval stages found.", style: TextStyle(color: secondaryTextColor)),
                     ],
                   ),
                 ),
@@ -100,9 +109,9 @@ class _ApprovalStagesScreenState extends State<ApprovalStagesScreen> {
                   margin: const EdgeInsets.only(bottom: 12),
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: cardColor,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade200),
+                    border: Border.all(color: borderColor),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withOpacity(0.02),
@@ -120,17 +129,17 @@ class _ApprovalStagesScreenState extends State<ApprovalStagesScreen> {
                           children: [
                             Text(
                               stage['title'] ?? '',
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF0F2C4A)),
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: textColor),
                             ),
                             const SizedBox(height: 4),
                             Text(
                               stage['declaration'] ?? '',
-                              style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                              style: TextStyle(color: secondaryTextColor, fontSize: 14),
                             ),
                             const SizedBox(height: 12),
                             Text(
                               "Users: ${(stage['users'] as List).join(', ')}",
-                              style: TextStyle(color: Colors.grey.shade500, fontSize: 12, fontWeight: FontWeight.w600),
+                              style: TextStyle(color: secondaryTextColor, fontSize: 12, fontWeight: FontWeight.w600),
                             ),
                           ],
                         ),
@@ -139,8 +148,8 @@ class _ApprovalStagesScreenState extends State<ApprovalStagesScreen> {
                         children: [
                           OutlinedButton(
                             style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.black87,
-                              side: BorderSide(color: Colors.grey.shade300),
+                              foregroundColor: textColor,
+                              side: BorderSide(color: borderColor),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                             ),
                             onPressed: () {},
@@ -149,8 +158,8 @@ class _ApprovalStagesScreenState extends State<ApprovalStagesScreen> {
                           const SizedBox(width: 8),
                           OutlinedButton(
                             style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.black87,
-                              side: BorderSide(color: Colors.grey.shade300),
+                              foregroundColor: Colors.red,
+                              side: BorderSide(color: isDark ? Colors.red.withOpacity(0.4) : Colors.red.shade200),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                             ),
                             onPressed: () {
@@ -241,10 +250,20 @@ class _AddApprovalStageDialogState extends State<AddApprovalStageDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final dialogBg = isDark ? AppTheme.corporateBlue : Colors.white;
+    final inputBg = isDark ? const Color(0xFF1F2E40) : Colors.grey.shade50;
+    final borderColor = isDark ? Colors.white24 : Colors.grey.shade200;
+    final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
+    final secondaryTextColor = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+
     return Dialog(
-      backgroundColor: Colors.white,
+      backgroundColor: dialogBg,
       surfaceTintColor: Colors.transparent,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: isDark ? const BorderSide(color: Colors.white24) : BorderSide.none,
+      ),
       child: Container(
         width: 500,
         padding: const EdgeInsets.all(24),
@@ -255,17 +274,17 @@ class _AddApprovalStageDialogState extends State<AddApprovalStageDialog> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+                Text(
                   "Add Approval Stage",
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF0F2C4A),
+                    color: textColor,
                     fontFamily: 'Inter',
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.close, color: Colors.black54),
+                  icon: Icon(Icons.close, color: secondaryTextColor),
                   onPressed: () => Navigator.of(context).pop(),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
@@ -273,7 +292,7 @@ class _AddApprovalStageDialogState extends State<AddApprovalStageDialog> {
               ],
             ),
             const SizedBox(height: 16),
-            Divider(height: 1, color: Colors.grey.shade100),
+            Divider(height: 1, color: borderColor),
             const SizedBox(height: 20),
             
             Flexible(
@@ -285,7 +304,7 @@ class _AddApprovalStageDialogState extends State<AddApprovalStageDialog> {
                       TextSpan(
                         text: "Title ",
                         style: TextStyle(
-                          color: Colors.grey.shade700,
+                          color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
                           fontWeight: FontWeight.bold,
                           fontSize: 13,
                           fontFamily: 'Inter',
@@ -298,21 +317,21 @@ class _AddApprovalStageDialogState extends State<AddApprovalStageDialog> {
                     const SizedBox(height: 8),
                     TextField(
                       controller: _titleController,
-                      style: const TextStyle(color: Colors.black87, fontSize: 14),
+                      style: TextStyle(color: textColor, fontSize: 14),
                       decoration: InputDecoration(
                         isDense: true,
                         filled: true,
-                        fillColor: Colors.grey.shade50,
+                        fillColor: inputBg,
                         hintText: "Enter approval stage title",
-                        hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+                        hintStyle: TextStyle(color: isDark ? Colors.white38 : Colors.grey.shade400, fontSize: 14),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(color: Colors.grey.shade200),
+                          borderSide: BorderSide(color: borderColor),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(color: Colors.grey.shade200),
+                          borderSide: BorderSide(color: borderColor),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
@@ -326,7 +345,7 @@ class _AddApprovalStageDialogState extends State<AddApprovalStageDialog> {
                       TextSpan(
                         text: "Declaration ",
                         style: TextStyle(
-                          color: Colors.grey.shade700,
+                          color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
                           fontWeight: FontWeight.bold,
                           fontSize: 13,
                           fontFamily: 'Inter',
@@ -340,20 +359,20 @@ class _AddApprovalStageDialogState extends State<AddApprovalStageDialog> {
                     TextField(
                       controller: _declarationController,
                       maxLines: 4,
-                      style: const TextStyle(color: Colors.black87, fontSize: 14),
+                      style: TextStyle(color: textColor, fontSize: 14),
                       decoration: InputDecoration(
                         filled: true,
-                        fillColor: Colors.grey.shade50,
+                        fillColor: inputBg,
                         hintText: "Enter the declaration text...",
-                        hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+                        hintStyle: TextStyle(color: isDark ? Colors.white38 : Colors.grey.shade400, fontSize: 14),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(color: Colors.grey.shade200),
+                          borderSide: BorderSide(color: borderColor),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(color: Colors.grey.shade200),
+                          borderSide: BorderSide(color: borderColor),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
@@ -367,7 +386,7 @@ class _AddApprovalStageDialogState extends State<AddApprovalStageDialog> {
                       TextSpan(
                         text: "Users That Can Sign ",
                         style: TextStyle(
-                          color: Colors.grey.shade700,
+                          color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
                           fontWeight: FontWeight.bold,
                           fontSize: 13,
                           fontFamily: 'Inter',
@@ -381,17 +400,17 @@ class _AddApprovalStageDialogState extends State<AddApprovalStageDialog> {
                     Container(
                       height: 200,
                       decoration: BoxDecoration(
-                        color: Colors.grey.shade50,
-                        border: Border.all(color: Colors.grey.shade200),
+                        color: inputBg,
+                        border: Border.all(color: borderColor),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: _isLoadingUsers
                           ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
                           : _allUsers.isEmpty
-                              ? const Center(child: Text("No users found.", style: TextStyle(color: Colors.grey)))
+                              ? Center(child: Text("No users found.", style: TextStyle(color: secondaryTextColor)))
                               : ListView.separated(
                                   itemCount: _allUsers.length,
-                                  separatorBuilder: (context, index) => Divider(height: 1, color: Colors.grey.shade100),
+                                  separatorBuilder: (context, index) => Divider(height: 1, color: borderColor),
                                   itemBuilder: (context, index) {
                                     final user = _allUsers[index];
                                     final isSelected = _selectedUsers.contains(user);
@@ -407,12 +426,12 @@ class _AddApprovalStageDialogState extends State<AddApprovalStageDialog> {
                                       },
                                       child: Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                        color: isSelected ? Colors.blue.withOpacity(0.05) : Colors.transparent,
+                                        color: isSelected ? const Color(0xFF0D6EFD).withOpacity(0.1) : Colors.transparent,
                                         child: Row(
                                           children: [
                                             Icon(
                                               isSelected ? Icons.check_box : Icons.check_box_outline_blank,
-                                              color: isSelected ? const Color(0xFF0D6EFD) : Colors.grey.shade400,
+                                              color: isSelected ? const Color(0xFF0D6EFD) : secondaryTextColor,
                                               size: 20,
                                             ),
                                             const SizedBox(width: 12),
@@ -420,7 +439,7 @@ class _AddApprovalStageDialogState extends State<AddApprovalStageDialog> {
                                               child: Text(
                                                 user,
                                                 style: TextStyle(
-                                                  color: isSelected ? const Color(0xFF0D6EFD) : Colors.black87,
+                                                  color: isSelected ? const Color(0xFF0D6EFD) : textColor,
                                                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                                                   fontSize: 13.5,
                                                   fontFamily: 'Inter',
@@ -446,7 +465,7 @@ class _AddApprovalStageDialogState extends State<AddApprovalStageDialog> {
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
                   style: TextButton.styleFrom(
-                    foregroundColor: Colors.grey.shade600,
+                    foregroundColor: secondaryTextColor,
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   ),
                   child: const Text("Cancel", style: TextStyle(fontWeight: FontWeight.w600, fontFamily: 'Inter')),

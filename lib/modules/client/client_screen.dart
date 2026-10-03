@@ -1,14 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'dart:io';
 import '../../core/network/api_client.dart';
 import '../../core/network/api_endpoints.dart';
 import '../../core/widgets/shimmer_loading.dart';
-import '../../models/client_model.dart';
 import 'client_controller.dart';
-import 'client_projects_screen.dart';
 import 'package:iconly/iconly.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/background_stripes_painter.dart';
@@ -44,30 +41,41 @@ class ClientsScreenState extends State<ClientsScreen> {
       text: initialName ?? '',
     );
     final isEdit = id != null;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final dialogBg = isDark ? AppTheme.corporateBlue : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
+    final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey;
 
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          backgroundColor: Colors.white,
+          backgroundColor: dialogBg,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
+            side: isDark ? const BorderSide(color: Colors.white24) : BorderSide.none,
           ),
           title: Text(
             isEdit ? "Edit Client" : "Add Client",
-            style: const TextStyle(
+            style: TextStyle(
               fontWeight: FontWeight.bold,
-              fontSize: 14,
-              color: Color(0xFF0F2C4A),
+              fontSize: 16,
+              color: textColor,
             ),
           ),
           content: TextField(
             controller: nameController,
+            style: TextStyle(color: textColor),
             decoration: InputDecoration(
               hintText: "Client Name",
+              hintStyle: TextStyle(color: textSecondary),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: Colors.grey),
+                borderSide: BorderSide(color: isDark ? Colors.white24 : Colors.grey),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
@@ -78,7 +86,7 @@ class ClientsScreenState extends State<ClientsScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
+              child: Text("Cancel", style: TextStyle(color: textSecondary)),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -122,23 +130,32 @@ class ClientsScreenState extends State<ClientsScreen> {
   }
 
   void _confirmDelete(int id, String name) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final dialogBg = isDark ? AppTheme.corporateBlue : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
+    final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey;
+
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          backgroundColor: Colors.white,
+          backgroundColor: dialogBg,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
+            side: isDark ? const BorderSide(color: Colors.white24) : BorderSide.none,
           ),
-          title: const Text(
+          title: Text(
             "Delete Client",
-            style: TextStyle(fontWeight: FontWeight.bold),
+            style: TextStyle(fontWeight: FontWeight.bold, color: textColor),
           ),
-          content: Text("Are you sure you want to delete $name?"),
+          content: Text(
+            "Are you sure you want to delete $name?",
+            style: TextStyle(color: isDark ? Colors.white70 : Colors.black87),
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
+              child: Text("Cancel", style: TextStyle(color: textSecondary)),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -245,9 +262,9 @@ class ClientsScreenState extends State<ClientsScreen> {
                             }
                           }
                         },
-                        icon: const Icon(
+                        icon: Icon(
                           IconlyLight.download,
-                          color: Colors.black87,
+                          color: isDark ? Colors.white : Colors.black87,
                         ),
                         tooltip: "Download Excel Report",
                       ),
@@ -291,16 +308,18 @@ class ClientsScreenState extends State<ClientsScreen> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: cardColor,
                     borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.grey.withOpacity(0.1),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                    border: Border.all(color: Colors.grey.shade200),
+                    boxShadow: isDark
+                        ? []
+                        : [
+                            BoxShadow(
+                              color: Colors.grey.withOpacity(0.1),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                    border: Border.all(color: borderColor),
                   ),
                   child: Wrap(
                     spacing: 12,
@@ -319,12 +338,18 @@ class ClientsScreenState extends State<ClientsScreen> {
                             height: 40,
                             child: TextField(
                               controller: _searchController,
+                              style: TextStyle(
+                                color: textColor,
+                                fontSize: 14,
+                              ),
                               onSubmitted: (value) =>
                                   _controller.searchClients(value),
                               decoration: InputDecoration(
                                 hintText: "Search clients",
                                 hintStyle: TextStyle(
-                                  color: Colors.grey.shade400,
+                                  color: isDark
+                                      ? Colors.white38
+                                      : Colors.grey.shade400,
                                   fontSize: 14,
                                 ),
                                 contentPadding: const EdgeInsets.symmetric(
@@ -333,13 +358,13 @@ class ClientsScreenState extends State<ClientsScreen> {
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(6),
                                   borderSide: BorderSide(
-                                    color: Colors.grey.shade300,
+                                    color: borderColor,
                                   ),
                                 ),
                                 enabledBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(6),
                                   borderSide: BorderSide(
-                                    color: Colors.grey.shade300,
+                                    color: borderColor,
                                   ),
                                 ),
                                 focusedBorder: OutlineInputBorder(
@@ -356,11 +381,12 @@ class ClientsScreenState extends State<ClientsScreen> {
                             height: 40,
                             padding: const EdgeInsets.symmetric(horizontal: 12),
                             decoration: BoxDecoration(
-                              border: Border.all(color: Colors.grey.shade300),
+                              border: Border.all(color: borderColor),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: DropdownButtonHideUnderline(
                               child: DropdownButton<String>(
+                                dropdownColor: cardColor,
                                 value: 'Active Clients',
                                 items: ['Active Clients', 'All Clients']
                                     .map(
@@ -368,15 +394,18 @@ class ClientsScreenState extends State<ClientsScreen> {
                                         value: e,
                                         child: Text(
                                           e,
-                                          style: const TextStyle(fontSize: 14),
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            color: textColor,
+                                          ),
                                         ),
                                       ),
                                     )
                                     .toList(),
                                 onChanged: (val) {},
-                                icon: const Icon(
+                                icon: Icon(
                                   IconlyLight.arrow_down_2,
-                                  color: Colors.grey,
+                                  color: textSecondary,
                                 ),
                               ),
                             ),
@@ -405,7 +434,10 @@ class ClientsScreenState extends State<ClientsScreen> {
                               _searchController.clear();
                               _controller.fetchClients();
                             },
-                            icon: const Icon(IconlyLight.swap, color: Colors.black87),
+                            icon: Icon(
+                              IconlyLight.swap,
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
                             tooltip: "Refresh List",
                           ),
                         ],
@@ -418,7 +450,7 @@ class ClientsScreenState extends State<ClientsScreen> {
                           return Text(
                             count > 0 ? "1 - $count of $count" : "0 of 0",
                             style: TextStyle(
-                              color: Colors.grey.shade600,
+                              color: textSecondary,
                               fontSize: 14,
                             ),
                           );
@@ -483,218 +515,158 @@ class ClientsScreenState extends State<ClientsScreen> {
                             ),
                           ],
                         ),
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(16),
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => ClientProjectsScreen(client: client),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Row(
+                            children: [
+                              // Avatar
+                              CircleAvatar(
+                                radius: 24,
+                                backgroundColor: const Color(0xFFE8F2FF),
+                                child: Text(
+                                  client.name.isNotEmpty
+                                      ? client.name.substring(0, 1).toUpperCase()
+                                      : 'C',
+                                  style: const TextStyle(
+                                    color: Color(0xFF0D6EFD),
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 20,
+                                  ),
+                                ),
                               ),
-                            );
-                          },
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
+                              const SizedBox(width: 16),
+                              
+                              // Name & Pills
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    // Avatar
-                                    CircleAvatar(
-                                      radius: 24,
-                                      backgroundColor: const Color(0xFFE8F2FF),
-                                      child: Text(
-                                        client.name.isNotEmpty
-                                            ? client.name.substring(0, 1).toUpperCase()
-                                            : 'C',
-                                        style: const TextStyle(
-                                          color: Color(0xFF0D6EFD),
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 20,
-                                        ),
+                                    Text(
+                                      client.name,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                        color: textColor,
                                       ),
                                     ),
-                                    const SizedBox(width: 16),
-                                    
-                                    // Name & Pills
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            client.name,
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 16,
-                                              color: textColor,
-                                            ),
+                                    const SizedBox(height: 8),
+                                    Wrap(
+                                      spacing: 8,
+                                      runSpacing: 8,
+                                      children: [
+                                        // Projects Pill
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 6,
                                           ),
-                                          const SizedBox(height: 8),
-                                          Wrap(
-                                            spacing: 8,
-                                            runSpacing: 8,
-                                            children: [
-                                              // Projects Pill
-                                              Container(
-                                                padding: const EdgeInsets.symmetric(
-                                                  horizontal: 10,
-                                                  vertical: 6,
-                                                ),
-                                                decoration: BoxDecoration(
-                                                  color: const Color(0xFFE8F2FF),
-                                                  borderRadius: BorderRadius.circular(12),
-                                                ),
-                                                child: Row(
-                                                  mainAxisSize: MainAxisSize.min,
-                                                  children: [
-                                                    const Icon(
-                                                      IconlyLight.document,
-                                                      size: 14,
-                                                      color: Color(0xFF0D6EFD),
-                                                    ),
-                                                    const SizedBox(width: 4),
-                                                    Text(
-                                                      "${client.projectsCount} PROJECT${client.projectsCount == 1 ? '' : 'S'}",
-                                                      style: const TextStyle(
-                                                        fontSize: 11,
-                                                        fontWeight: FontWeight.w600,
-                                                        color: Color(0xFF0D6EFD),
-                                                        letterSpacing: 0.5,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                              // Status Pill
-                                              Container(
-                                                padding: const EdgeInsets.symmetric(
-                                                  horizontal: 10,
-                                                  vertical: 6,
-                                                ),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.green.shade50,
-                                                  borderRadius: BorderRadius.circular(12),
-                                                ),
-                                                child: const Text(
-                                                  "ACTIVE",
-                                                  style: TextStyle(
-                                                    fontSize: 11,
-                                                    fontWeight: FontWeight.w600,
-                                                    color: Colors.green,
-                                                    letterSpacing: 0.5,
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFE8F2FF),
+                                            borderRadius: BorderRadius.circular(12),
                                           ),
-                                        ],
-                                      ),
-                                    ),
-                                    
-                                    // Actions
-                                    PopupMenuButton<String>(
-                                      icon: const Icon(IconlyLight.more_circle, color: Colors.grey),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      onSelected: (value) {
-                                        if (value == 'edit') {
-                                          _showAddEditClientDialog(
-                                            id: client.id,
-                                            initialName: client.name,
-                                          );
-                                        } else if (value == 'delete') {
-                                          _confirmDelete(client.id, client.name);
-                                        }
-                                      },
-                                      itemBuilder: (context) => [
-                                        const PopupMenuItem(
-                                          value: 'edit',
                                           child: Row(
+                                            mainAxisSize: MainAxisSize.min,
                                             children: [
-                                              Icon(
-                                                IconlyLight.edit,
-                                                size: 18,
+                                              const Icon(
+                                                IconlyLight.document,
+                                                size: 14,
                                                 color: Color(0xFF0D6EFD),
                                               ),
-                                              SizedBox(width: 12),
+                                              const SizedBox(width: 4),
                                               Text(
-                                                "Edit",
-                                                style: TextStyle(color: Colors.black87),
+                                                "${client.projectsCount} PROJECT${client.projectsCount == 1 ? '' : 'S'}",
+                                                style: const TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: Color(0xFF0D6EFD),
+                                                  letterSpacing: 0.5,
+                                                ),
                                               ),
                                             ],
                                           ),
                                         ),
-                                        const PopupMenuItem(
-                                          value: 'delete',
-                                          child: Row(
-                                            children: [
-                                              Icon(
-                                                IconlyLight.delete,
-                                                size: 18,
-                                                color: Colors.red,
-                                              ),
-                                              SizedBox(width: 12),
-                                              Text(
-                                                "Delete",
-                                                style: TextStyle(color: Colors.red),
-                                              ),
-                                            ],
+                                        // Status Pill
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 6,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.green.shade50,
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                          child: const Text(
+                                            "ACTIVE",
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.green,
+                                              letterSpacing: 0.5,
+                                            ),
                                           ),
                                         ),
                                       ],
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 16),
-                                Divider(height: 1, color: isDark ? const Color(0xFF1F2E40) : Colors.grey.shade100),
-                                const SizedBox(height: 16),
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: OutlinedButton(
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor: isDark ? Colors.white : const Color(0xFF0D6EFD),
-                                      side: BorderSide(
-                                        color: isDark ? Colors.white.withOpacity(0.5) : const Color(0xFF0D6EFD).withOpacity(0.4),
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      padding: const EdgeInsets.symmetric(vertical: 12),
-                                    ),
-                                    onPressed: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) => ClientProjectsScreen(client: client),
-                                        ),
-                                      );
-                                    },
+                              ),
+                              
+                              // Actions
+                              PopupMenuButton<String>(
+                                icon: const Icon(IconlyLight.more_circle, color: Colors.grey),
+                                color: cardColor,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  side: isDark ? const BorderSide(color: Colors.white24) : BorderSide.none,
+                                ),
+                                onSelected: (value) {
+                                  if (value == 'edit') {
+                                    _showAddEditClientDialog(
+                                      id: client.id,
+                                      initialName: client.name,
+                                    );
+                                  } else if (value == 'delete') {
+                                    _confirmDelete(client.id, client.name);
+                                  }
+                                },
+                                itemBuilder: (context) => [
+                                  PopupMenuItem(
+                                    value: 'edit',
                                     child: Row(
-                                      mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        Text(
-                                          "View Details",
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.bold,
-                                            color: isDark ? Colors.white : const Color(0xFF0D6EFD),
-                                            fontFamily: 'Inter',
-                                          ),
+                                        const Icon(
+                                          IconlyLight.edit,
+                                          size: 18,
+                                          color: Color(0xFF0D6EFD),
                                         ),
-                                        const SizedBox(width: 6),
-                                        Icon(
-                                          Icons.arrow_forward_ios,
-                                          size: 11,
-                                          color: isDark ? Colors.white70 : const Color(0xFF0D6EFD),
+                                        const SizedBox(width: 12),
+                                        Text(
+                                          "Edit",
+                                          style: TextStyle(color: textColor),
                                         ),
                                       ],
                                     ),
                                   ),
-                                ),
-                              ],
-                            ),
+                                  const PopupMenuItem(
+                                    value: 'delete',
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          IconlyLight.delete,
+                                          size: 18,
+                                          color: Colors.red,
+                                        ),
+                                        SizedBox(width: 12),
+                                        Text(
+                                          "Delete",
+                                          style: TextStyle(color: Colors.red),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
                       );

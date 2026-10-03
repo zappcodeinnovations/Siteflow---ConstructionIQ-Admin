@@ -301,17 +301,28 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
         String? tempMember = _controller.selectedMember;
         String? tempProject = _controller.selectedProject;
 
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final dialogBg = isDark ? AppTheme.corporateBlue : Colors.white;
+        final inputBg = isDark ? const Color(0xFF1F2E40) : Colors.grey.shade50;
+        final borderColor = isDark ? Colors.white24 : Colors.grey.shade200;
+        final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
+        final secondaryTextColor = isDark ? Colors.grey.shade400 : Colors.grey;
+
         return StatefulBuilder(
           builder: (context, setState) {
             return Dialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+                side: isDark ? const BorderSide(color: Colors.white24) : BorderSide.none,
+              ),
               elevation: 0,
               backgroundColor: Colors.transparent,
               child: Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: dialogBg,
                   borderRadius: BorderRadius.circular(24),
+                  border: isDark ? Border.all(color: Colors.white24) : null,
                   boxShadow: [
                     BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20, offset: const Offset(0, 10))
                   ],
@@ -324,17 +335,17 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
+                          Text(
                             "Filter Results",
-                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF0F2C4A)),
+                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor),
                           ),
                           InkWell(
                             onTap: () => Navigator.pop(context),
                             borderRadius: BorderRadius.circular(20),
                             child: Container(
                               padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(color: Colors.grey.shade100, shape: BoxShape.circle),
-                              child: const Icon(IconlyLight.close_square, size: 18, color: Colors.black54),
+                              decoration: BoxDecoration(color: isDark ? const Color(0xFF1F2E40) : Colors.grey.shade100, shape: BoxShape.circle),
+                              child: Icon(IconlyLight.close_square, size: 18, color: secondaryTextColor),
                             ),
                           ),
                         ],
@@ -342,15 +353,15 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
                       const SizedBox(height: 24),
                       _buildPremiumDropdown("Team", tempTeam, ["All Teams", ...teams], (val) {
                         setState(() => tempTeam = val == "All Teams" ? null : val);
-                      }),
+                      }, isDark, inputBg, borderColor, textColor, secondaryTextColor),
                       const SizedBox(height: 16),
                       _buildPremiumDropdown("Member", tempMember, ["All Members", ...members], (val) {
                         setState(() => tempMember = val == "All Members" ? null : val);
-                      }),
+                      }, isDark, inputBg, borderColor, textColor, secondaryTextColor),
                       const SizedBox(height: 16),
                       _buildPremiumDropdown("Project", tempProject, ["All Projects", ...projects], (val) {
                         setState(() => tempProject = val == "All Projects" ? null : val);
-                      }),
+                      }, isDark, inputBg, borderColor, textColor, secondaryTextColor),
                       const SizedBox(height: 32),
                       Row(
                         children: [
@@ -359,7 +370,7 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
                               style: OutlinedButton.styleFrom(
                                 padding: const EdgeInsets.symmetric(vertical: 14),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                side: BorderSide(color: Colors.grey.shade300),
+                                side: BorderSide(color: borderColor),
                               ),
                               onPressed: () {
                                 setState(() {
@@ -368,7 +379,7 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
                                   tempProject = null;
                                 });
                               },
-                              child: const Text("Clear All", style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w600)),
+                              child: Text("Clear All", style: TextStyle(color: isDark ? Colors.white70 : Colors.black87, fontWeight: FontWeight.w600)),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -405,28 +416,39 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
     );
   }
 
-  Widget _buildPremiumDropdown(String label, String? currentValue, List<String> items, Function(String?) onChanged) {
+  Widget _buildPremiumDropdown(
+    String label,
+    String? currentValue,
+    List<String> items,
+    Function(String?) onChanged,
+    bool isDark,
+    Color inputBg,
+    Color borderColor,
+    Color textColor,
+    Color secondaryTextColor,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black54)),
+        Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: secondaryTextColor)),
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           decoration: BoxDecoration(
-            color: Colors.grey.shade50,
+            color: inputBg,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey.shade200),
+            border: Border.all(color: borderColor),
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               isExpanded: true,
               value: currentValue ?? items.first,
-              icon: const Icon(IconlyLight.arrow_down_2, color: Colors.grey),
+              dropdownColor: inputBg,
+              icon: Icon(IconlyLight.arrow_down_2, color: secondaryTextColor),
               items: items.map((String value) {
                 return DropdownMenuItem<String>(
                   value: value,
-                  child: Text(value, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Colors.black87)),
+                  child: Text(value, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: textColor)),
                 );
               }).toList(),
               onChanged: onChanged,
