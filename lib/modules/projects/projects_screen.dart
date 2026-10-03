@@ -1,18 +1,17 @@
 import 'dart:convert';
-import 'package:euroside_admin/core/widgets/shimmer_loading.dart';
-import 'package:euroside_admin/models/project_model.dart';
+import 'dart:io';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import '../../core/widgets/status_chip.dart';
-import 'project_controller.dart';
-import 'project_details_screen.dart';
-import 'package:url_launcher/url_launcher.dart';
-import '../../core/network/api_endpoints.dart';
-
-import '../../core/theme/app_colors.dart';
+import 'package:share_plus/share_plus.dart';
+import '../../core/widgets/shimmer_loading.dart';
+import '../../models/client_model.dart';
+import '../../models/project_model.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/background_stripes_painter.dart';
-import '../../models/client_model.dart';
+import 'project_controller.dart';
+import 'project_details_screen.dart';
 
 class ProjectsScreen extends StatefulWidget {
   final Client? filterClient;
@@ -542,13 +541,48 @@ class ProjectsScreenState extends State<ProjectsScreen> {
     );
   }
 
+  Future<void> _downloadQrCode(
+    BuildContext context,
+    String qrData,
+    String projectName,
+    String projectCode,
+  ) async {
+    try {
+      final painter = QrPainter(
+        data: qrData,
+        version: QrVersions.auto,
+        gapless: true,
+        color: const Color(0xFF000000),
+        emptyColor: const Color(0xFFFFFFFF),
+      );
+      final picData = await painter.toImageData(600, format: ui.ImageByteFormat.png);
+      if (picData != null) {
+        final bytes = picData.buffer.asUint8List();
+        final tempDir = await getTemporaryDirectory();
+        final safeCode = projectCode.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+        final file = File('${tempDir.path}/qr_$safeCode.png');
+        await file.writeAsBytes(bytes);
+
+        await Share.shareXFiles(
+          [XFile(file.path)],
+          text: '$projectName QR Code ($projectCode)',
+          subject: '$projectName QR Code',
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to export QR code: $e')),
+        );
+      }
+    }
+  }
+
   void _showQrCode(BuildContext context, Project project) {
     if (project.qrPayload == null && project.qrToken == null) return;
-    
-    // Use the exact payload from the backend. 
-    // We generate the image locally because the backend provides data (JSON), not an image file.
-    final qrData = project.qrPayload != null 
-        ? jsonEncode(project.qrPayload) 
+
+    final qrData = project.qrPayload != null
+        ? jsonEncode(project.qrPayload)
         : project.qrToken!;
 
     showDialog(
@@ -557,18 +591,59 @@ class ProjectsScreenState extends State<ProjectsScreen> {
         final isDark = Theme.of(context).brightness == Brightness.dark;
         final bgColor = isDark ? const Color(0xFF1F2E40) : Colors.white;
         final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
-        final secondaryTextColor = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
-        final borderColor = isDark ? const Color(0xFF2C3E50) : Colors.grey.shade200;
+        final secondaryTextColor =
+            isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+        final borderColor =
+            isDark ? const Color(0xFF2C3E50) : Colors.grey.shade200;
+
+        final clientName = project.client?.name ?? '';
+        final subtitle = clientName.isNotEmpty
+            ? '${project.code} - $clientName'
+            : project.code;
 
         return AlertDialog(
           backgroundColor: bgColor,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
+            side: isDark ? const BorderSide(color: Colors.white24) : BorderSide.none,
           ),
-          title: Text(
-            "Project QR Code",
-            textAlign: TextAlign.center,
-            style: TextStyle(fontWeight: FontWeight.bold, color: textColor),
+          titlePadding: const EdgeInsets.fromLTRB(20, 16, 12, 0),
+          contentPadding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+          actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.qr_code_2,
+                    size: 22,
+                    color: textColor,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    "Project QR Code",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 17,
+                      color: textColor,
+                    ),
+                  ),
+                ],
+              ),
+              IconButton(
+                icon: Icon(
+                  Icons.close,
+                  size: 20,
+                  color: secondaryTextColor,
+                ),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                tooltip: "Close",
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -579,6 +654,13 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                   color: Colors.white, // Keep QR code background white for scannability
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: borderColor),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
                 child: QrImageView(
                   data: qrData,
@@ -589,18 +671,82 @@ class ProjectsScreenState extends State<ProjectsScreen> {
               const SizedBox(height: 16),
               Text(
                 project.name,
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: textColor),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: textColor,
+                ),
               ),
+              const SizedBox(height: 4),
               Text(
-                project.code,
-                style: TextStyle(color: secondaryTextColor, fontSize: 14),
+                subtitle,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: secondaryTextColor,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                "The operative scan will be performed, and then the standard 500m location and assignment rules will apply.",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                  fontSize: 11,
+                  height: 1.4,
+                ),
               ),
             ],
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text("Close", style: TextStyle(color: secondaryTextColor)),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(
+                    "Close",
+                    style: TextStyle(
+                      color: secondaryTextColor,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0D6EFD),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  icon: const Icon(
+                    Icons.download,
+                    color: Colors.white,
+                    size: 16,
+                  ),
+                  label: const Text(
+                    "Download QR",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                  ),
+                  onPressed: () => _downloadQrCode(
+                    context,
+                    qrData,
+                    project.name,
+                    project.code,
+                  ),
+                ),
+              ],
             ),
           ],
         );
