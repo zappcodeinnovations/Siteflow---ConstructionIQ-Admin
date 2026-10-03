@@ -130,7 +130,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
           filterOptions: _allInOneData?.jobSheetsFilterOptions ?? {},
         ),
       if (_canViewApprovals) ApprovalsTab(projectId: widget.project.id),
-      const HseTab(),
+      HseTab(projectId: widget.project.id),
       IncidentsTab(projectId: widget.project.id),
       SnagsTab(projectId: widget.project.id),
       InspectionsTab(projectId: widget.project.id),
