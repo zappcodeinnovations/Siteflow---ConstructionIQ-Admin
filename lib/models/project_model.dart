@@ -30,6 +30,7 @@ class Project {
   final Map<String, dynamic>? qrPayload;
   final String? createdAt;
   final String? updatedAt;
+  final String? ecgManager;
 
   Project({
     required this.id,
@@ -61,6 +62,7 @@ class Project {
     this.qrPayload,
     this.createdAt,
     this.updatedAt,
+    this.ecgManager,
   });
 
   factory Project.fromJson(Map<String, dynamic> json) {
@@ -98,6 +100,19 @@ class Project {
       qrPayload: json['qr_payload'] is Map ? Map<String, dynamic>.from(json['qr_payload']) : null,
       createdAt: json['created_at'],
       updatedAt: json['updated_at'],
+      ecgManager: () {
+        final val = json['ecg_manager'] ?? json['manager'] ?? json['managers'];
+        if (val == null) return null;
+        if (val is List) {
+          final names = val.map((e) {
+            if (e is Map) return e['name'] ?? e['display_name'] ?? e.toString();
+            return e.toString();
+          }).where((e) => e.isNotEmpty).join(', ');
+          return names.isEmpty ? null : names;
+        }
+        final str = val.toString().trim();
+        return str.isEmpty ? null : str;
+      }(),
     );
   }
 }

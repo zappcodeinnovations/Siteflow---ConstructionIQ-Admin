@@ -1,5 +1,6 @@
 import 'package:euroside_admin/modules/client/client_screen.dart';
 import 'package:euroside_admin/modules/dashboard/dashboard.dart';
+import 'package:euroside_admin/modules/dashboard/dashboard_controller.dart';
 import 'package:euroside_admin/modules/tasks/task_screen.dart';
 import 'package:flutter/material.dart';
 
@@ -70,6 +71,13 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
     }
   }
 
+  void _onTabSelected(int index) {
+    if (index == 0) {
+      DashboardController.triggerGlobalRefresh();
+    }
+    setState(() => currentIndex = index);
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!_roleLoaded) {
@@ -110,8 +118,7 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
             NavigationRail(
               backgroundColor: Colors.white,
               selectedIndex: currentIndex,
-              onDestinationSelected: (value) =>
-                  setState(() => currentIndex = value),
+              onDestinationSelected: _onTabSelected,
               labelType: NavigationRailLabelType.all,
               selectedIconTheme: IconThemeData(
                 color: Theme.of(context).primaryColor,
@@ -131,7 +138,12 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
             ),
           if (isDesktop) const VerticalDivider(thickness: 1, width: 1),
           // Main Content
-          Expanded(child: pages[currentIndex]),
+          Expanded(
+            child: IndexedStack(
+              index: currentIndex,
+              children: pages,
+            ),
+          ),
         ],
       ),
 
@@ -139,7 +151,7 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
           ? null
           : BottomNavigationBar(
               currentIndex: currentIndex,
-              onTap: (index) => setState(() => currentIndex = index),
+              onTap: _onTabSelected,
               type: BottomNavigationBarType.fixed,
               items: List.generate(titles.length, (index) {
                 return BottomNavigationBarItem(

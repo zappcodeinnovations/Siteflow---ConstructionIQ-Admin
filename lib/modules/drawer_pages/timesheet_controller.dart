@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/network/api_client.dart';
 import '../../core/network/api_endpoints.dart';
 import '../../models/timesheet_model.dart';
+import '../dashboard/dashboard_controller.dart';
 
 class TimesheetController extends ChangeNotifier {
   bool _isLoading = false;
@@ -77,6 +78,7 @@ class TimesheetController extends ChangeNotifier {
         if (decodedData['status'] == true) {
           // Success, reload data
           await fetchTimesheets();
+          DashboardController.triggerGlobalRefresh();
           debugPrint("Add Attendance Response /timesheets/add/ : $decodedData");
           return {"success": true, "message": decodedData['message'] ?? "Attendance added successfully."};
         }

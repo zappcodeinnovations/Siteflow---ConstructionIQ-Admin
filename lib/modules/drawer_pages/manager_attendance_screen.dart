@@ -212,31 +212,31 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
           BoxShadow(color: color.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))
         ]
       ),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Row(
             children: [
-              Icon(icon, size: 16, color: isDark ? Colors.white : color),
-              const SizedBox(width: 8),
+              Icon(icon, size: 14, color: isDark ? Colors.white : color),
+              const SizedBox(width: 6),
               Expanded(
                 child: Text(
                   title.toUpperCase(),
-                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: textSecondary, letterSpacing: 0.5),
+                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: textSecondary, letterSpacing: 0.5),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 6),
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
             child: Text(
               value,
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor),
             ),
           ),
         ],
@@ -273,6 +273,25 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  // KPI Grid (Placed right under the header)
+                  if (_controller.data?.kpi != null)
+                    GridView.count(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 16,
+                      mainAxisSpacing: 16,
+                      childAspectRatio: 2.3,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      children: [
+                        _buildKpiCard("Total Entries", _controller.data!.kpi!.entries.toString(), const Color(0xFF0D6EFD), IconlyLight.category),
+                        _buildKpiCard("Total Hours", _controller.data!.kpi!.completedHours, Colors.black87, IconlyLight.time_circle),
+                        _buildKpiCard("Current Status", _controller.data!.kpi!.currentStatus, _controller.data!.kpi!.currentStatus == 'Clocked In' ? Colors.green : Colors.grey.shade600, IconlyLight.info_square),
+                        _buildKpiCard("Active Since", _controller.data!.kpi!.clockedInSince ?? "N/A", Colors.purple, IconlyLight.category),
+                      ],
+                    ),
+                  if (_controller.data?.kpi != null)
+                    const SizedBox(height: 24),
+
                   // Manager Filter
                   Row(
                     children: [
@@ -367,24 +386,6 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
                       )
                     ],
                   ),
-                  const SizedBox(height: 24),
-                  
-                  // KPI Grid
-                  if (_controller.data?.kpi != null)
-                    GridView.count(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 16,
-                      mainAxisSpacing: 16,
-                      childAspectRatio: 2.0,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      children: [
-                        _buildKpiCard("Total Entries", _controller.data!.kpi!.entries.toString(), const Color(0xFF0D6EFD), IconlyLight.category),
-                        _buildKpiCard("Total Hours", _controller.data!.kpi!.completedHours, Colors.black87, IconlyLight.time_circle),
-                        _buildKpiCard("Current Status", _controller.data!.kpi!.currentStatus, _controller.data!.kpi!.currentStatus == 'Clocked In' ? Colors.green : Colors.grey.shade600, IconlyLight.info_square),
-                        _buildKpiCard("Active Since", _controller.data!.kpi!.clockedInSince ?? "N/A", Colors.purple, IconlyLight.category),
-                      ],
-                    ),
                   const SizedBox(height: 24),
 
                   Row(

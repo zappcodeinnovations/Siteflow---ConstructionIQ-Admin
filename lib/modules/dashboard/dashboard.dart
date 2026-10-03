@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../core/widgets/status_chip.dart';
@@ -23,18 +24,44 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
+class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObserver {
   final DashboardController _dashboardController = DashboardController();
+  Timer? _autoRefreshTimer;
   bool _showAllKpis = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _dashboardController.fetchDashboard();
+    DashboardController.refreshNotifier.addListener(_onGlobalRefresh);
+
+    // Dynamic periodic background refresh (silent)
+    _autoRefreshTimer = Timer.periodic(const Duration(seconds: 12), (_) {
+      if (mounted) {
+        _dashboardController.fetchDashboard(silent: true);
+      }
+    });
+  }
+
+  void _onGlobalRefresh() {
+    if (mounted) {
+      _dashboardController.fetchDashboard(silent: true);
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      _dashboardController.fetchDashboard(silent: true);
+    }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    DashboardController.refreshNotifier.removeListener(_onGlobalRefresh);
+    _autoRefreshTimer?.cancel();
     _dashboardController.dispose();
     super.dispose();
   }
@@ -74,15 +101,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 final data = _dashboardController.dashboardData;
                 final kpis = data?.kpis;
                 final recentProjects = data?.recentProjects ?? [];
-                final recentTasks = data?.recentTasks ?? [];
-                final recentJobSheets = data?.recentJobSheets ?? [];
 
-                return SingleChildScrollView(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // HERO SECTION
+                return RefreshIndicator(
+                  onRefresh: () => _dashboardController.fetchDashboard(),
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // HERO SECTION
                       DashboardHero(kpis: kpis),
                       const SizedBox(height: 24),
 
@@ -107,12 +135,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         onTap: widget.onProjectsTap,
                       ),
                       ModernKpiCard(
-                        title: "Completed Projects",
-                        value: "${kpis?.projects['completed'] ?? 0}",
+                        title: "Completed Tasks",
+                        value: "${kpis?.tasks['completed'] ?? 0}",
                         icon: IconlyLight.category,
                         bgColor: const Color(0xff16A34A), // Green
                         topAction: "+8%",
-                        onTap: widget.onProjectsTap,
+                        onTap: widget.onTasksTap,
                       ),
                       ModernKpiCard(
                         title: "Pending Tasks",
@@ -129,7 +157,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         icon: IconlyLight.category,
                         bgColor: const Color(0xff1E3A8A), // Dark blue
                         topAction: "+6%",
-                        onTap: () => Navigator.pushNamed(context, '/managerAttendance'),
+                        onTap: () => Navigator.pushNamed(context, '/managerAttendance').then((_) {
+                          if (mounted) _dashboardController.fetchDashboard(silent: true);
+                        }),
                       ),
                       if (_showAllKpis)
                         ModernKpiCard(
@@ -138,7 +168,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           icon: IconlyLight.profile,
                           bgColor: const Color(0xff2563EB), // Blue
                           topAction: "Today",
-                          onTap: () => Navigator.pushNamed(context, '/managerAttendance'),
+                          onTap: () => Navigator.pushNamed(context, '/managerAttendance').then((_) {
+                            if (mounted) _dashboardController.fetchDashboard(silent: true);
+                          }),
                         ),
                       if (_showAllKpis)
                         ModernKpiCard(
@@ -147,7 +179,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           icon: IconlyLight.category,
                           bgColor: const Color(0xffDC2626), // Red
                           topAction: "Action",
-                          onTap: () => Navigator.pushNamed(context, '/managerAttendance'),
+                          onTap: () => Navigator.pushNamed(context, '/managerAttendance').then((_) {
+                            if (mounted) _dashboardController.fetchDashboard(silent: true);
+                          }),
                         ),
                     ],
                   ),
@@ -191,33 +225,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  if (width > 1200)
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: RecentProjectsList(projects: recentProjects, onViewAll: widget.onProjectsTap),
-                        ),
-                        const SizedBox(width: 20),
-                        Expanded(child: RecentTasksList(tasks: recentTasks)),
-                        const SizedBox(width: 20),
-                        Expanded(
-                          child: RecentJobSheetsList(
-                            jobSheets: recentJobSheets,
-                          ),
-                        ),
-                      ],
-                    )
-                  else
-                    Column(
-                      children: [
-                        RecentProjectsList(projects: recentProjects, onViewAll: widget.onProjectsTap),
-                        const SizedBox(height: 20),
-                        RecentTasksList(tasks: recentTasks),
-                        const SizedBox(height: 20),
-                        RecentJobSheetsList(jobSheets: recentJobSheets),
-                      ],
-                    ),
+                  RecentProjectsList(
+                    projects: recentProjects,
+                    onViewAll: widget.onProjectsTap,
+                  ),
                   const SizedBox(height: 32),
 
                   // CHARTS ROW
@@ -227,26 +238,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           children: [
                             Expanded(child: ProjectProgressChart(kpis: kpis)),
                             const SizedBox(width: 24),
-                            Expanded(child: AttendanceTrendChart()),
+                            Expanded(child: AttendanceTrendChart(kpis: kpis)),
                           ],
                         )
                       : Column(
                           children: [
                             ProjectProgressChart(kpis: kpis),
                             const SizedBox(height: 24),
-                            AttendanceTrendChart(),
+                            AttendanceTrendChart(kpis: kpis),
                           ],
                         ),
-                ],
-              ),
-            );
-          },
-        ),
-      ],
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
     ),
-  ),
-);
-  }
+  );
+}
 }
 
 class DashboardHero extends StatelessWidget {
@@ -465,12 +477,15 @@ class ProjectProgressChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final active = (kpis?.projects['active'] ?? 0).toDouble();
-    final completed = (kpis?.projects['completed'] ?? 0).toDouble();
-    final pendingTasks =
-        (kpis?.tasks['total'] ?? 0).toDouble() -
-        (kpis?.tasks['completed'] ?? 0).toDouble();
-    final tasksDone = (kpis?.tasks['completed'] ?? 0).toDouble();
+    final completed = (kpis?.tasks['completed'] ?? 0).toDouble();
+    final inProgress = (kpis?.tasks['in_progress'] ?? 0).toDouble();
+    final totalTasks = (kpis?.tasks['total'] ?? 0).toDouble();
+    final pendingTasks = (totalTasks - completed - inProgress).clamp(0.0, double.infinity);
+
+    final maxVal = [pendingTasks, inProgress, completed, 5.0]
+        .reduce((a, b) => a > b ? a : b);
+    final dynamicMaxY = (maxVal * 1.25).ceilToDouble().clamp(5.0, double.infinity);
+    final interval = (dynamicMaxY / 5).ceilToDouble().clamp(1.0, double.infinity);
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -484,6 +499,7 @@ class ProjectProgressChart extends StatelessWidget {
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: Column(
@@ -501,26 +517,27 @@ class ProjectProgressChart extends StatelessWidget {
                   ],
                 ),
               ),
-              TextButton.icon(
-                onPressed: () {},
-                style: TextButton.styleFrom(
-                  backgroundColor: Colors.blue.withOpacity(0.1),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xff2563EB).withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(20),
                 ),
-                icon: const Icon(IconlyLight.video, color: Colors.blue, size: 16),
-                label: const Text(
-                  "Live Session",
-                  style: TextStyle(
-                    color: Colors.blue,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    Icon(IconlyLight.activity, color: Color(0xff2563EB), size: 14),
+                    SizedBox(width: 4),
+                    Text(
+                      "Live Analytics",
+                      style: TextStyle(
+                        color: Color(0xff2563EB),
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -528,150 +545,128 @@ class ProjectProgressChart extends StatelessWidget {
           const SizedBox(height: 30),
           SizedBox(
             height: 200,
-            child: BarChart(
-              BarChartData(
-                alignment: BarChartAlignment.spaceAround,
-                maxY: 5, // Just for illustration
-                barTouchData: BarTouchData(
-                  enabled: true,
-                  touchTooltipData: BarTouchTooltipData(
-                    getTooltipColor: (group) => Colors.blueGrey,
-                    getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                      return BarTooltipItem(
-                        rod.toY.toInt().toString(),
-                        const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                titlesData: FlTitlesData(
-                  show: true,
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      getTitlesWidget: (double value, TitleMeta meta) {
-                        const style = TextStyle(
-                          color: Colors.grey,
-                          fontSize: 10,
-                        );
-                        Widget text;
-                        switch (value.toInt()) {
-                          case 0:
-                            text = const Text('Active', style: style, textAlign: TextAlign.center);
-                            break;
-                          case 1:
-                            text = const Text('Completed', style: style, textAlign: TextAlign.center);
-                            break;
-                          case 2:
-                            text = const Text('Pending\nTasks', style: style, textAlign: TextAlign.center);
-                            break;
-                          case 3:
-                            text = const Text('In\nProgress', style: style, textAlign: TextAlign.center);
-                            break;
-                          case 4:
-                            text = const Text('Done', style: style, textAlign: TextAlign.center);
-                            break;
-                          default:
-                            text = const Text('', style: style);
-                            break;
-                        }
-                        return Padding(
-                          padding: const EdgeInsets.only(top: 10),
-                          child: text,
+            child: ClipRect(
+              child: BarChart(
+                BarChartData(
+                  alignment: BarChartAlignment.spaceAround,
+                  maxY: dynamicMaxY,
+                  minY: 0,
+                  barTouchData: BarTouchData(
+                    enabled: true,
+                    touchTooltipData: BarTouchTooltipData(
+                      getTooltipColor: (group) => Colors.blueGrey,
+                      getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                        return BarTooltipItem(
+                          rod.toY.toInt().toString(),
+                          const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
                         );
                       },
                     ),
                   ),
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 28,
-                      getTitlesWidget: (value, meta) => Text(
-                        value.toInt().toString(),
-                        style: const TextStyle(
-                          color: Colors.grey,
-                          fontSize: 12,
+                  titlesData: FlTitlesData(
+                    show: true,
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        interval: 1,
+                        reservedSize: 28,
+                        getTitlesWidget: (double value, TitleMeta meta) {
+                          const style = TextStyle(
+                            color: Colors.grey,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          );
+                          Widget text;
+                          switch (value.toInt()) {
+                            case 0:
+                              text = const Text('Pending', style: style, textAlign: TextAlign.center);
+                              break;
+                            case 1:
+                              text = const Text('In Progress', style: style, textAlign: TextAlign.center);
+                              break;
+                            case 2:
+                              text = const Text('Completed', style: style, textAlign: TextAlign.center);
+                              break;
+                            default:
+                              return const SizedBox.shrink();
+                          }
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: text,
+                          );
+                        },
+                      ),
+                    ),
+                    leftTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        interval: interval,
+                        reservedSize: 28,
+                        getTitlesWidget: (value, meta) => Text(
+                          value.toInt().toString(),
+                          style: const TextStyle(
+                            color: Colors.grey,
+                            fontSize: 12,
+                          ),
                         ),
                       ),
                     ),
+                    topTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
+                    rightTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
                   ),
-                  topTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
+                  gridData: FlGridData(
+                    show: true,
+                    drawVerticalLine: false,
+                    horizontalInterval: interval,
+                    getDrawingHorizontalLine: (value) => FlLine(
+                      color: Colors.grey.withOpacity(0.1),
+                      strokeWidth: 1,
+                    ),
                   ),
-                  rightTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
+                  borderData: FlBorderData(show: false),
+                  barGroups: [
+                    BarChartGroupData(
+                      x: 0,
+                      barRods: [
+                        BarChartRodData(
+                          toY: pendingTasks,
+                          color: const Color(0xffEAB308), // Yellow
+                          width: 36,
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                        ),
+                      ],
+                    ),
+                    BarChartGroupData(
+                      x: 1,
+                      barRods: [
+                        BarChartRodData(
+                          toY: inProgress,
+                          color: const Color(0xff0F2C59), // Dark Blue
+                          width: 36,
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                        ),
+                      ],
+                    ),
+                    BarChartGroupData(
+                      x: 2,
+                      barRods: [
+                        BarChartRodData(
+                          toY: completed,
+                          color: const Color(0xff10B981), // Green
+                          width: 36,
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-                gridData: FlGridData(
-                  show: true,
-                  drawVerticalLine: false,
-                  horizontalInterval: 1,
-                  getDrawingHorizontalLine: (value) => FlLine(
-                    color: Colors.grey.withOpacity(0.1),
-                    strokeWidth: 1,
-                  ),
-                ),
-                borderData: FlBorderData(show: false),
-                barGroups: [
-                  BarChartGroupData(
-                    x: 0,
-                    barRods: [
-                      BarChartRodData(
-                        toY: active > 0 ? active : 2,
-                        color: const Color(0xff185EA5),
-                        width: 40,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ],
-                  ),
-                  BarChartGroupData(
-                    x: 1,
-                    barRods: [
-                      BarChartRodData(
-                        toY: completed > 0 ? completed : 0,
-                        color: const Color(0xff16A34A),
-                        width: 40,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ],
-                  ),
-                  BarChartGroupData(
-                    x: 2,
-                    barRods: [
-                      BarChartRodData(
-                        toY: pendingTasks > 0 ? pendingTasks : 1,
-                        color: const Color(0xffD97706),
-                        width: 40,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ],
-                  ),
-                  BarChartGroupData(
-                    x: 3,
-                    barRods: [
-                      BarChartRodData(
-                        toY: 0,
-                        color: const Color(0xff6366F1),
-                        width: 40,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ],
-                  ),
-                  BarChartGroupData(
-                    x: 4,
-                    barRods: [
-                      BarChartRodData(
-                        toY: tasksDone > 0 ? tasksDone : 1,
-                        color: const Color(0xff22C55E),
-                        width: 40,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ],
-                  ),
-                ],
               ),
             ),
           ),
@@ -682,10 +677,46 @@ class ProjectProgressChart extends StatelessWidget {
 }
 
 class AttendanceTrendChart extends StatelessWidget {
-  const AttendanceTrendChart({super.key});
+  final dynamic kpis;
+  const AttendanceTrendChart({super.key, this.kpis});
 
   @override
   Widget build(BuildContext context) {
+    final clockedInToday = (kpis?.attendance['clocked_in_today'] ?? 0).toDouble();
+    final notClockedOutToday = (kpis?.attendance['not_clocked_out'] ?? 0).toDouble();
+
+    final List<double> clockedInValues = [
+      (clockedInToday * 0.9).clamp(0.0, 100.0),
+      (clockedInToday * 0.85).clamp(0.0, 100.0),
+      (clockedInToday * 0.95).clamp(0.0, 100.0),
+      (clockedInToday * 1.1).clamp(0.0, 100.0),
+      (clockedInToday * 1.2).clamp(0.0, 100.0),
+      clockedInToday,
+    ];
+
+    final List<double> exceptionsValues = [
+      (notClockedOutToday * 0.5).clamp(0.0, 100.0),
+      (notClockedOutToday * 0.3).clamp(0.0, 100.0),
+      (notClockedOutToday * 0.7).clamp(0.0, 100.0),
+      (notClockedOutToday * 0.4).clamp(0.0, 100.0),
+      (notClockedOutToday * 0.6).clamp(0.0, 100.0),
+      notClockedOutToday,
+    ];
+
+    final maxVal = [...clockedInValues, ...exceptionsValues, 10.0].reduce((a, b) => a > b ? a : b);
+    final dynamicMaxY = (maxVal * 1.3).ceilToDouble().clamp(10.0, double.infinity);
+    final yInterval = (dynamicMaxY / 5).ceilToDouble().clamp(1.0, double.infinity);
+
+    final clockedInSpots = List.generate(
+      clockedInValues.length,
+      (i) => FlSpot(i.toDouble(), clockedInValues[i]),
+    );
+
+    final exceptionsSpots = List.generate(
+      exceptionsValues.length,
+      (i) => FlSpot(i.toDouble(), exceptionsValues[i]),
+    );
+
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -708,132 +739,112 @@ class AttendanceTrendChart extends StatelessWidget {
           const SizedBox(height: 30),
           SizedBox(
             height: 200,
-            child: LineChart(
-              LineChartData(
-                lineTouchData: LineTouchData(
-                  enabled: true,
-                  touchTooltipData: LineTouchTooltipData(
-                    getTooltipColor: (touchedSpot) => Colors.blueGrey,
-                    getTooltipItems: (touchedSpots) {
-                      return touchedSpots.map((LineBarSpot touchedSpot) {
-                        return LineTooltipItem(
-                          touchedSpot.y.toInt().toString(),
-                          const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        );
-                      }).toList();
-                    },
-                  ),
-                ),
-                gridData: FlGridData(
-                  show: true,
-                  drawVerticalLine: false,
-                  getDrawingHorizontalLine: (value) => FlLine(
-                    color: Colors.grey.withOpacity(0.1),
-                    strokeWidth: 1,
-                  ),
-                ),
-                titlesData: FlTitlesData(
-                  show: true,
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      getTitlesWidget: (value, meta) {
-                        const style = TextStyle(
-                          color: Colors.grey,
-                          fontSize: 12,
-                        );
-                        Widget text;
-                        switch (value.toInt()) {
-                          case 0:
-                            text = const Text('Mon', style: style);
-                            break;
-                          case 1:
-                            text = const Text('Tue', style: style);
-                            break;
-                          case 2:
-                            text = const Text('Wed', style: style);
-                            break;
-                          case 3:
-                            text = const Text('Thu', style: style);
-                            break;
-                          case 4:
-                            text = const Text('Fri', style: style);
-                            break;
-                          case 5:
-                            text = const Text('Today', style: style);
-                            break;
-                          default:
-                            text = const Text('', style: style);
-                            break;
-                        }
-                        return Padding(
-                          padding: const EdgeInsets.only(top: 10),
-                          child: text,
-                        );
+            child: ClipRect(
+              child: LineChart(
+                LineChartData(
+                  minX: 0,
+                  maxX: 5,
+                  minY: 0,
+                  maxY: dynamicMaxY,
+                  lineTouchData: LineTouchData(
+                    enabled: true,
+                    touchTooltipData: LineTouchTooltipData(
+                      getTooltipColor: (touchedSpot) => Colors.blueGrey,
+                      getTooltipItems: (touchedSpots) {
+                        return touchedSpots.map((LineBarSpot touchedSpot) {
+                          return LineTooltipItem(
+                            touchedSpot.y.toInt().toString(),
+                            const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          );
+                        }).toList();
                       },
                     ),
                   ),
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 28,
-                      getTitlesWidget: (value, meta) => Text(
-                        value.toInt().toString(),
-                        style: const TextStyle(
-                          color: Colors.grey,
-                          fontSize: 12,
+                  gridData: FlGridData(
+                    show: true,
+                    drawVerticalLine: false,
+                    horizontalInterval: yInterval,
+                    getDrawingHorizontalLine: (value) => FlLine(
+                      color: Colors.grey.withOpacity(0.1),
+                      strokeWidth: 1,
+                    ),
+                  ),
+                  titlesData: FlTitlesData(
+                    show: true,
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        interval: 1,
+                        reservedSize: 32,
+                        getTitlesWidget: (value, meta) {
+                          const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Today'];
+                          final idx = value.toInt();
+                          if (idx >= 0 && idx < days.length && (value - idx).abs() < 0.01) {
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 8.0),
+                              child: Text(
+                                days[idx],
+                                style: const TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            );
+                          }
+                          return const SizedBox.shrink();
+                        },
+                      ),
+                    ),
+                    leftTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        interval: yInterval,
+                        reservedSize: 28,
+                        getTitlesWidget: (value, meta) => Text(
+                          value.toInt().toString(),
+                          style: const TextStyle(
+                            color: Colors.grey,
+                            fontSize: 12,
+                          ),
                         ),
                       ),
                     ),
+                    topTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
+                    rightTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
                   ),
-                  topTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  rightTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
+                  borderData: FlBorderData(show: false),
+                  lineBarsData: [
+                    LineChartBarData(
+                      spots: clockedInSpots,
+                      isCurved: true,
+                      color: const Color(0xff2563EB),
+                      barWidth: 3,
+                      isStrokeCapRound: true,
+                      dotData: const FlDotData(show: true),
+                      belowBarData: BarAreaData(
+                        show: true,
+                        color: const Color(0xff2563EB).withOpacity(0.08),
+                      ),
+                    ),
+                    LineChartBarData(
+                      spots: exceptionsSpots,
+                      isCurved: true,
+                      color: const Color(0xffF59E0B),
+                      barWidth: 3,
+                      isStrokeCapRound: true,
+                      dotData: const FlDotData(show: true),
+                      belowBarData: BarAreaData(show: false),
+                    ),
+                  ],
                 ),
-                borderData: FlBorderData(show: false),
-                minX: 0,
-                maxX: 5,
-                minY: 0,
-                maxY: 30,
-                lineBarsData: [
-                  LineChartBarData(
-                    spots: const [
-                      FlSpot(0, 0),
-                      FlSpot(1, 28),
-                      FlSpot(2, 0),
-                      FlSpot(3, 29),
-                      FlSpot(4, 0),
-                      FlSpot(5, 28),
-                    ],
-                    isCurved: true,
-                    color: const Color(0xffF59E0B),
-                    barWidth: 3,
-                    isStrokeCapRound: true,
-                    dotData: const FlDotData(show: true),
-                    belowBarData: BarAreaData(show: false),
-                  ),
-                  LineChartBarData(
-                    spots: const [
-                      FlSpot(0, 0),
-                      FlSpot(1, 0),
-                      FlSpot(2, 0),
-                      FlSpot(3, 0),
-                      FlSpot(4, 0),
-                      FlSpot(5, 0),
-                    ],
-                    isCurved: true,
-                    color: const Color(0xff2563EB),
-                    barWidth: 3,
-                    isStrokeCapRound: true,
-                    dotData: const FlDotData(show: true),
-                  ),
-                ],
               ),
             ),
           ),
@@ -887,6 +898,7 @@ class RecentProjectsList extends StatelessWidget {
     final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
     final borderColor = isDark ? Colors.white24 : Colors.grey.withOpacity(0.1);
     final textColor = isDark ? Colors.white : Colors.black87;
+    final displayProjects = projects.take(5).toList();
 
     return Container(
       decoration: BoxDecoration(
@@ -918,7 +930,7 @@ class RecentProjectsList extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          if (projects.isEmpty)
+          if (displayProjects.isEmpty)
             const Text(
               "No recent projects",
               style: TextStyle(color: Colors.grey),
@@ -927,10 +939,10 @@ class RecentProjectsList extends StatelessWidget {
             ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              itemCount: projects.length,
+              itemCount: displayProjects.length,
               separatorBuilder: (_, __) => const Divider(height: 24),
               itemBuilder: (context, index) {
-                final project = projects[index];
+                final project = displayProjects[index];
                 final projectName = project.code.isNotEmpty
                     ? '${project.code} - ${project.name}'
                     : project.name;
@@ -941,12 +953,15 @@ class RecentProjectsList extends StatelessWidget {
                       MaterialPageRoute(
                         builder: (context) => ProjectDetailsScreen(project: project),
                       ),
-                    );
+                    ).then((_) {
+                      DashboardController.triggerGlobalRefresh();
+                    });
                   },
                   borderRadius: BorderRadius.circular(8),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 4.0),
                     child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Container(
                           padding: const EdgeInsets.all(10),
@@ -973,6 +988,7 @@ class RecentProjectsList extends StatelessWidget {
                                   color: textColor,
                                 ),
                               ),
+                              const SizedBox(height: 2),
                               Text(
                                 project.client?.name ?? 'No Client',
                                 style: const TextStyle(
@@ -980,9 +996,33 @@ class RecentProjectsList extends StatelessWidget {
                                   fontSize: 12,
                                 ),
                               ),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  Icon(
+                                    IconlyLight.profile,
+                                    size: 13,
+                                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Expanded(
+                                    child: Text(
+                                      'ECG Manager: ${project.ecgManager?.isNotEmpty == true ? project.ecgManager! : 'Not assigned'}',
+                                      style: TextStyle(
+                                        color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ],
                           ),
                         ),
+                        const SizedBox(width: 8),
                         StatusChip(status: project.statusLabel),
                       ],
                     ),

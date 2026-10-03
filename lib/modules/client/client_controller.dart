@@ -66,8 +66,8 @@ class ClientController extends ChangeNotifier {
 
       if ((response.statusCode == 200 || response.statusCode == 201) && data['status'] == true) {
         final newClient = Client.fromJson(data['data']);
-        _clients.add(newClient);
-        _filteredClients.add(newClient);
+        _clients.insert(0, newClient);
+        _filteredClients.insert(0, newClient);
         _isLoading = false;
         notifyListeners();
         return true;

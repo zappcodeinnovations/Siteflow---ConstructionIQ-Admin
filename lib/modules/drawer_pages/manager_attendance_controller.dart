@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/network/api_client.dart';
 import '../../core/network/api_endpoints.dart';
 import '../../models/manager_attendance_model.dart';
+import '../dashboard/dashboard_controller.dart';
 
 class ManagerAttendanceController extends ChangeNotifier {
   bool _isLoading = false;
@@ -90,6 +91,7 @@ class ManagerAttendanceController extends ChangeNotifier {
       if (response.statusCode == 200 || response.statusCode == 201) {
         if (decodedData['status'] == true) {
           await fetchManagerAttendance(); // refresh the data and KPI
+          DashboardController.triggerGlobalRefresh();
           return {"success": true, "message": decodedData['message'] ?? "Action successful."};
         }
       }
