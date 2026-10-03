@@ -194,21 +194,31 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                         });
                       },
                       icon: Icon(
-                        _showAllKpis
-                            ? IconlyLight.category
-                            : IconlyLight.category,
+                        IconlyLight.category,
+                        size: 16,
+                        color: isDark ? Colors.white : const Color(0xff185EA5),
                       ),
-                      label: Text(_showAllKpis ? "See less" : "See more"),
+                      label: Text(
+                        _showAllKpis ? "See less" : "See more",
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.white : const Color(0xff185EA5),
+                        ),
+                      ),
                       style: TextButton.styleFrom(
-                        foregroundColor: const Color(0xff185EA5),
+                        foregroundColor: isDark ? Colors.white : const Color(0xff185EA5),
                         padding: const EdgeInsets.symmetric(
                           horizontal: 20,
                           vertical: 12,
                         ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(
+                            color: isDark ? Colors.white24 : Colors.grey.shade200,
+                          ),
                         ),
-                        backgroundColor: Colors.white,
+                        backgroundColor: isDark ? const Color(0xFF162A42) : Colors.white,
                       ),
                     ),
                   ),
