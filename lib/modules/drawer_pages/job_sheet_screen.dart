@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'dart:io';
+import 'dart:convert';
 import '../../core/network/api_client.dart';
 import '../../core/network/api_endpoints.dart';
 import 'job_sheet_controller.dart';
@@ -87,6 +88,160 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
         );
       }
     }
+  }
+
+  Future<void> _downloadProjectPdf() async {
+    if (_controller.jobSheets.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("No job sheets to export")),
+      );
+      return;
+    }
+
+    try {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Generating Project PDF...")),
+        );
+      }
+
+      final ids = _controller.jobSheets.map((e) => e.id).join(',');
+      String urlStr = '${ApiEndpoints.baseUrl}/job-sheets/?ids=$ids&export=pdf';
+      if (_controller.selectedProject != null && _controller.selectedProject!.isNotEmpty) {
+        urlStr += '&project=${Uri.encodeComponent(_controller.selectedProject!)}';
+      }
+      
+      final response = await ApiClient.get(urlStr);
+
+      if (response.statusCode == 200) {
+        // Check if response is JSON with a redirect/url or direct bytes
+        if (response.headers['content-type']?.contains('application/json') == true) {
+          try {
+            final data = jsonDecode(response.body);
+            if (data is Map && (data['url'] != null || data['file'] != null || data['pdf_url'] != null)) {
+              final pdfUrl = data['url'] ?? data['file'] ?? data['pdf_url'];
+              if (mounted) {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => JobSheetWebviewScreen(
+                      url: pdfUrl.toString().startsWith('http')
+                          ? pdfUrl.toString()
+                          : '${ApiEndpoints.baseUrl}${pdfUrl.toString()}',
+                      title: "Project PDF",
+                    ),
+                  ),
+                );
+              }
+              return;
+            }
+          } catch (_) {}
+        }
+
+        final directory = await getTemporaryDirectory();
+        final file = File('${directory.path}/project_job_sheets.pdf');
+        await file.writeAsBytes(response.bodyBytes);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        }
+
+        await Share.shareXFiles([XFile(file.path)], text: 'Project Job Sheets PDF');
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("PDF generation failed. Status: ${response.statusCode}")),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: $e")),
+        );
+      }
+    }
+  }
+
+  void _showSelectProjectsDialog(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final options = _controller.filterOptions;
+    List<String> projectList = [];
+    if (options['projects'] is List) {
+      projectList = (options['projects'] as List).map((e) => e.toString()).toList();
+    }
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        String? chosenProject = _controller.selectedProject;
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              backgroundColor: isDark ? AppTheme.corporateBlue : Colors.white,
+              title: Row(
+                children: [
+                  Icon(IconlyLight.folder, color: isDark ? Colors.white : const Color(0xFF0F2C4A)),
+                  const SizedBox(width: 8),
+                  Text("Select Project", style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 18, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: projectList.isEmpty
+                    ? Text("No projects available", style: TextStyle(color: isDark ? Colors.white70 : Colors.black54))
+                    : ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: projectList.length + 1,
+                        itemBuilder: (context, index) {
+                          if (index == 0) {
+                            final isSelected = chosenProject == null;
+                            return ListTile(
+                              leading: Icon(
+                                isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+                                color: const Color(0xFF0D6EFD),
+                              ),
+                              title: Text("All Projects", style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+                              onTap: () {
+                                setStateDialog(() => chosenProject = null);
+                              },
+                            );
+                          }
+                          final proj = projectList[index - 1];
+                          final isSelected = chosenProject == proj;
+                          return ListTile(
+                            leading: Icon(
+                              isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+                              color: const Color(0xFF0D6EFD),
+                            ),
+                            title: Text(proj, style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+                            onTap: () {
+                              setStateDialog(() => chosenProject = proj);
+                            },
+                          );
+                        },
+                      ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text("Cancel"),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0D6EFD)),
+                  onPressed: () {
+                    _controller.setFilter(project: chosenProject);
+                    Navigator.pop(ctx);
+                  },
+                  child: const Text("Apply", style: TextStyle(color: Colors.white)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
   void _showFilterDialog(BuildContext context) {
@@ -225,7 +380,7 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
             padding: const EdgeInsets.all(24.0),
             child: Column(
               children: [
-            // Filter Bar
+            // Filter & Action Bar
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(12),
@@ -241,78 +396,158 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
                   )
                 ],
               ),
-              child: Wrap(
-                spacing: 16,
-                runSpacing: 16,
-                alignment: WrapAlignment.spaceBetween,
-                crossAxisAlignment: WrapCrossAlignment.center,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Wrap(
-                    spacing: 16,
-                    runSpacing: 16,
-                    crossAxisAlignment: WrapCrossAlignment.center,
+                  // Row 1: Filters (Status dropdown, Filter dialog button, Refresh)
+                  Row(
                     children: [
                       // Status Dropdown
-                       Container(
-                        height: 36,
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        decoration: BoxDecoration(
-                          color: isDark ? Colors.white10 : Colors.white,
-                          border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade300),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: DropdownButtonHideUnderline(
-                          child: AnimatedBuilder(
-                            animation: _controller,
-                            builder: (context, _) {
-                              return DropdownButton<String>(
-                                dropdownColor: isDark ? AppTheme.corporateBlue : Colors.white,
-                                value: _controller.selectedStatus,
-                                style: TextStyle(color: isDark ? Colors.white : Colors.black87),
-                                items: ['Status: All', 'Status: Submitted', 'Status: Draft']
-                                    .map((e) => DropdownMenuItem(value: e, child: Text(e, style: TextStyle(fontSize: 14, color: isDark ? Colors.white : Colors.black87))))
-                                    .toList(),
-                                onChanged: (val) {
-                                  if (val != null) _controller.setStatusFilter(val);
-                                },
-                                icon: Icon(IconlyLight.arrow_down_2, color: isDark ? Colors.white70 : Colors.grey),
-                              );
-                            }
+                      Expanded(
+                        child: Container(
+                          height: 38,
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          decoration: BoxDecoration(
+                            color: isDark ? Colors.white10 : Colors.white,
+                            border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade300),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: DropdownButtonHideUnderline(
+                            child: AnimatedBuilder(
+                              animation: _controller,
+                              builder: (context, _) {
+                                return DropdownButton<String>(
+                                  isExpanded: true,
+                                  dropdownColor: isDark ? AppTheme.corporateBlue : Colors.white,
+                                  value: _controller.selectedStatus,
+                                  style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                                  items: ['Status: All', 'Status: Submitted', 'Status: Draft']
+                                      .map((e) => DropdownMenuItem(value: e, child: Text(e, style: TextStyle(fontSize: 13, color: isDark ? Colors.white : Colors.black87), overflow: TextOverflow.ellipsis)))
+                                      .toList(),
+                                  onChanged: (val) {
+                                    if (val != null) _controller.setStatusFilter(val);
+                                  },
+                                  icon: Icon(IconlyLight.arrow_down_2, size: 16, color: isDark ? Colors.white70 : Colors.grey),
+                                );
+                              }
+                            ),
                           ),
                         ),
                       ),
-                      
-                      // Refresh Icon
-                      IconButton(
-                        icon: Icon(IconlyLight.swap, color: isDark ? Colors.white : Colors.black87),
-                        onPressed: () => _controller.fetchJobSheets(),
-                        tooltip: 'Refresh',
-                        constraints: const BoxConstraints(),
-                        padding: EdgeInsets.zero,
-                      ),
                       const SizedBox(width: 8),
-                      // Filter Icon
-                      IconButton(
-                        icon: Icon(IconlyLight.filter, color: isDark ? Colors.white : Colors.black87),
-                        onPressed: () => _showFilterDialog(context),
-                        tooltip: 'Filter',
-                        constraints: const BoxConstraints(),
-                        padding: EdgeInsets.zero,
+                      // Add Filter Button
+                      SizedBox(
+                        height: 38,
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 10),
+                            foregroundColor: isDark ? Colors.white : const Color(0xFF0F2C4A),
+                            side: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                          ),
+                          onPressed: () => _showFilterDialog(context),
+                          icon: const Icon(IconlyLight.filter, size: 16),
+                          label: const Text("Filters", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      // Refresh Button
+                      Container(
+                        height: 38,
+                        width: 38,
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.white10 : Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade300),
+                        ),
+                        child: IconButton(
+                          icon: Icon(IconlyLight.swap, size: 16, color: isDark ? Colors.white : Colors.black87),
+                          onPressed: () => _controller.fetchJobSheets(),
+                          tooltip: 'Refresh',
+                          padding: EdgeInsets.zero,
+                        ),
                       ),
                     ],
                   ),
-                  
-                  // Get Report Button
-                  SizedBox(
-                    height: 36,
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0D6EFD),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                      ),
-                      onPressed: _downloadReport,
-                      icon: const Icon(IconlyLight.paper, color: Colors.white, size: 18),
-                      label: const Text("Get Report", style: TextStyle(color: Colors.white)),
+                  const SizedBox(height: 10),
+                  // Row 2: Action Buttons (Select Projects, Project PDF, Get Report)
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        // Select Projects Button
+                        AnimatedBuilder(
+                          animation: _controller,
+                          builder: (context, _) {
+                            final isProjectSelected = _controller.selectedProject != null && _controller.selectedProject!.isNotEmpty;
+                            return SizedBox(
+                              height: 36,
+                              child: OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                                  foregroundColor: isProjectSelected ? const Color(0xFF0D6EFD) : (isDark ? Colors.white : const Color(0xFF0F2C4A)),
+                                  side: BorderSide(
+                                    color: isProjectSelected ? const Color(0xFF0D6EFD) : (isDark ? Colors.white24 : Colors.grey.shade300),
+                                  ),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                                ),
+                                onPressed: () => _showSelectProjectsDialog(context),
+                                icon: Icon(
+                                  isProjectSelected ? Icons.folder : IconlyLight.folder,
+                                  size: 16,
+                                  color: isProjectSelected ? const Color(0xFF0D6EFD) : (isDark ? Colors.white70 : Colors.black54),
+                                ),
+                                label: Text(
+                                  isProjectSelected ? _controller.selectedProject! : "Select Projects",
+                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(width: 8),
+
+                        // Project PDF Button
+                        SizedBox(
+                          height: 36,
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF0284C7),
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(horizontal: 10),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                            ),
+                            onPressed: _downloadProjectPdf,
+                            icon: const Icon(IconlyLight.download, color: Colors.white, size: 16),
+                            label: const Text(
+                              "Project PDF",
+                              style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+
+                        // Get Report Button
+                        SizedBox(
+                          height: 36,
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF0D6EFD),
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(horizontal: 10),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                            ),
+                            onPressed: _downloadReport,
+                            icon: const Icon(IconlyLight.paper, color: Colors.white, size: 16),
+                            label: const Text(
+                              "Get Report",
+                              style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
