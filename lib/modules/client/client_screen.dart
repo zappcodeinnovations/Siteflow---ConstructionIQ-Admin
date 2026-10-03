@@ -53,48 +53,91 @@ class ClientsScreenState extends State<ClientsScreen> {
         return AlertDialog(
           backgroundColor: dialogBg,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
             side: isDark ? const BorderSide(color: Colors.white24) : BorderSide.none,
           ),
-          title: Text(
-            isEdit ? "Edit Client" : "Add Client",
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-              color: textColor,
-            ),
+          titlePadding: const EdgeInsets.fromLTRB(24, 20, 16, 12),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+          actionsPadding: const EdgeInsets.fromLTRB(24, 16, 24, 20),
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                isEdit ? "Edit Client" : "Add Client",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  color: textColor,
+                ),
+              ),
+              IconButton(
+                icon: Icon(Icons.close, color: textSecondary, size: 20),
+                onPressed: () => Navigator.pop(context),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+            ],
           ),
-          content: TextField(
-            controller: nameController,
-            style: TextStyle(color: textColor),
-            decoration: InputDecoration(
-              hintText: "Client Name",
-              hintStyle: TextStyle(color: textSecondary),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: isDark ? Colors.white24 : Colors.grey),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Name",
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.grey.shade300 : const Color(0xFF0F2C4A),
+                ),
               ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
+              const SizedBox(height: 8),
+              TextField(
+                controller: nameController,
+                autofocus: true,
+                style: TextStyle(color: textColor, fontSize: 14),
+                decoration: InputDecoration(
+                  hintText: "Enter client name",
+                  hintStyle: TextStyle(color: textSecondary, fontSize: 14),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  filled: true,
+                  fillColor: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Color(0xFF0D6EFD), width: 1.5),
+                  ),
+                ),
               ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: Color(0xFF0D6EFD)),
-              ),
-            ),
+            ],
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text("Cancel", style: TextStyle(color: textSecondary)),
+              child: Text(
+                "Cancel",
+                style: TextStyle(
+                  color: isDark ? Colors.white70 : Colors.grey.shade700,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF0D6EFD),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
+                elevation: 0,
               ),
               onPressed: () async {
                 final name = nameController.text.trim();
@@ -120,8 +163,8 @@ class ClientsScreenState extends State<ClientsScreen> {
                 }
               },
               child: Text(
-                isEdit ? "Save" : "Add",
-                style: const TextStyle(color: Colors.white),
+                isEdit ? "Save Changes" : "Add Client",
+                style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
               ),
             ),
           ],
