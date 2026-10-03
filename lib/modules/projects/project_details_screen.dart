@@ -11,6 +11,7 @@ import 'tabs/incidents_tab.dart';
 import 'tabs/snags_tab.dart';
 import 'tabs/inspections_tab.dart';
 import 'tabs/site_manager_tab.dart';
+import 'tabs/project_template_tab.dart';
 import '../../models/project_model.dart';
 import '../../models/project_all_in_one_model.dart';
 import 'project_controller.dart';
@@ -104,6 +105,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
       'Site Manager',
       'Locations',
       'Specifications',
+      'Project Template',
       'Docs & Files',
       'Project Setup',
     ];
@@ -137,6 +139,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
         title: "Specifications",
         data: _allInOneData?.specifications ?? [],
       ),
+      ProjectTemplateTab(projectId: widget.project.id),
       DocsFilesTab(
         folders: _allInOneData?.docsFolders ?? [],
         files: _allInOneData?.docsFiles ?? [],
