@@ -297,19 +297,37 @@ class ProjectsScreenState extends State<ProjectsScreen> {
             ),
             child: TextField(
               controller: _searchController,
+              onChanged: (value) {
+                setState(() {});
+                _controller.searchProjects(value);
+              },
               onSubmitted: (value) => _controller.searchProjects(value),
               style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 14),
               decoration: InputDecoration(
                 hintText: "Search projects...",
                 hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
                 prefixIcon: Icon(Icons.search, color: Colors.grey.shade400, size: 20),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: Icon(
+                          Icons.clear,
+                          color: isDark ? Colors.white70 : Colors.grey.shade600,
+                          size: 18,
+                        ),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() {});
+                          _controller.searchProjects('');
+                        },
+                      )
+                    : null,
                 border: InputBorder.none,
                 contentPadding: const EdgeInsets.symmetric(vertical: 12),
               ),
             ),
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 8),
         Container(
           width: 46,
           height: 46,
@@ -320,8 +338,44 @@ class ProjectsScreenState extends State<ProjectsScreen> {
           ),
           child: IconButton(
             icon: Icon(Icons.tune, color: isDark ? Colors.grey.shade300 : Colors.grey.shade600, size: 20),
+            tooltip: "Filter",
             onPressed: () {
               // Custom dialog / filter trigger
+            },
+          ),
+        ),
+        const SizedBox(width: 8),
+        Container(
+          width: 46,
+          height: 46,
+          decoration: BoxDecoration(
+            color: cardColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: borderColor),
+          ),
+          child: IconButton(
+            icon: Icon(
+              Icons.restart_alt_rounded,
+              color: isDark ? Colors.white70 : Colors.grey.shade700,
+              size: 22,
+            ),
+            tooltip: "Reset Filters",
+            onPressed: () {
+              _searchController.clear();
+              setState(() {
+                _selectedStatusTab = "All";
+              });
+              _controller.fetchProjects().then((_) {
+                if (widget.filterClient != null) {
+                  _controller.filterByClient(widget.filterClient!);
+                }
+              });
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text("Filters reset to default"),
+                  duration: Duration(seconds: 1),
+                ),
+              );
             },
           ),
         ),
