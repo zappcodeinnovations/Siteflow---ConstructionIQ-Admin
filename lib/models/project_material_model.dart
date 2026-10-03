@@ -59,6 +59,50 @@ class MaterialRateSetModel {
   }
 }
 
+/// Same shape as ProjectMaterialModel but for the global Library catalog
+/// (not scoped to one project's assignments) - reuses the rate set/tier
+/// models since the server serializes both the same way.
+class LibraryMaterialModel {
+  final int id;
+  final String name;
+  final String materialGroup;
+  final String inputTypeLabel;
+  final String unitLabel;
+  final String manufacturer;
+  final String productCode;
+  final String statusLabel;
+  final List<MaterialRateSetModel> rateSets;
+
+  LibraryMaterialModel({
+    required this.id,
+    required this.name,
+    required this.materialGroup,
+    required this.inputTypeLabel,
+    required this.unitLabel,
+    required this.manufacturer,
+    required this.productCode,
+    required this.statusLabel,
+    required this.rateSets,
+  });
+
+  factory LibraryMaterialModel.fromJson(Map<String, dynamic> json) {
+    return LibraryMaterialModel(
+      id: json['id'] is int ? json['id'] : int.tryParse('${json['id']}') ?? 0,
+      name: json['name']?.toString() ?? '',
+      materialGroup: json['material_group']?.toString() ?? '',
+      inputTypeLabel: json['input_type_label']?.toString() ?? '',
+      unitLabel: json['unit_label']?.toString() ?? '',
+      manufacturer: json['manufacturer']?.toString() ?? '',
+      productCode: json['product_code']?.toString() ?? '',
+      statusLabel: json['status_label']?.toString() ?? '',
+      rateSets: (json['rate_sets'] as List<dynamic>? ?? [])
+          .whereType<Map<String, dynamic>>()
+          .map(MaterialRateSetModel.fromJson)
+          .toList(),
+    );
+  }
+}
+
 class ProjectMaterialModel {
   final int id;
   final String name;

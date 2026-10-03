@@ -26,6 +26,11 @@ class ApiEndpoints {
       projectId == null ? '/my-approvals/' : '/my-approvals/?project_id=$projectId';
   static String projectJobCreate(int projectId) => '/operative/projects/$projectId/jobs/create/';
 
+  // Library (global catalog)
+  static const String libraryForms = '/library/forms/';
+  static const String libraryMaterials = '/library/materials/';
+  static const String libraryTemplates = '/library/templates/';
+
   // Announcements
   static const String announcements = '/admin/announcements/';
   static String announcementDetails(int id) => '/admin/announcements/$id/';
