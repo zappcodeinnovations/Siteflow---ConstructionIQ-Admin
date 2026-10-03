@@ -47,15 +47,40 @@ class ProfileController extends ChangeNotifier {
         ApiEndpoints.baseUrl + ApiEndpoints.profile,
         body: updateData,
       );
-      final data = jsonDecode(response.body);
 
-      if (response.statusCode == 200 && data['status'] == true) {
-        _profile = User.fromJson(data['user']);
+      dynamic data;
+      try {
+        data = jsonDecode(response.body);
+      } catch (_) {}
+
+      final isSuccess = response.statusCode >= 200 &&
+          response.statusCode < 300 &&
+          (data == null ||
+              data['status'] == null ||
+              data['status'] == true ||
+              data['status'] == 'success');
+
+      if (isSuccess) {
+        if (data is Map<String, dynamic>) {
+          final payload = data['data'] ?? data;
+          final userJson = payload is Map<String, dynamic>
+              ? (payload['user'] ?? (payload['id'] != null ? payload : null))
+              : null;
+          if (userJson is Map<String, dynamic>) {
+            _profile = User.fromJson(userJson);
+          }
+        }
+        // Refresh full profile data to ensure all UI components are synchronized
+        await fetchProfile();
         _isLoading = false;
         notifyListeners();
         return true;
       } else {
-        _errorMessage = data['message'] ?? 'Failed to update profile';
+        _errorMessage = (data is Map && data['message'] != null)
+            ? data['message']
+            : (data is Map && data['detail'] != null)
+                ? data['detail']
+                : 'Failed to update profile (HTTP ${response.statusCode})';
         _isLoading = false;
         notifyListeners();
         return false;
