@@ -198,9 +198,10 @@ class JobSheetController extends ChangeNotifier {
         queryParams.add('project=${Uri.encodeComponent(_selectedProject!)}');
       }
 
-      String statusVal = _selectedStatus.replaceAll('Status: ', '').toLowerCase();
-      if (statusVal != 'all') {
-        queryParams.add('status=${Uri.encodeComponent(statusVal)}');
+      String statusVal = _selectedStatus.replaceAll('Status: ', '').toLowerCase().trim();
+      if (statusVal != 'all' && statusVal.isNotEmpty) {
+        final queryStatus = statusVal.replaceAll(' ', '_');
+        queryParams.add('status=${Uri.encodeComponent(queryStatus)}');
       }
 
       if (_selectedSheetNo != null && _selectedSheetNo!.isNotEmpty) {

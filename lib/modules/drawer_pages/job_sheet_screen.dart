@@ -641,7 +641,15 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
                                   dropdownColor: isDark ? AppTheme.corporateBlue : Colors.white,
                                   value: _controller.selectedStatus,
                                   style: TextStyle(color: isDark ? Colors.white : Colors.black87),
-                                  items: ['Status: All', 'Status: Submitted', 'Status: Draft']
+                                  items: const [
+                                    'Status: All',
+                                    'Status: In Progress',
+                                    'Status: Submitted',
+                                    'Status: In Review',
+                                    'Status: Approved',
+                                    'Status: Rejected',
+                                    'Status: Archived',
+                                  ]
                                       .map((e) => DropdownMenuItem(value: e, child: Text(e, style: TextStyle(fontSize: 13, color: isDark ? Colors.white : Colors.black87), overflow: TextOverflow.ellipsis)))
                                       .toList(),
                                   onChanged: (val) {
