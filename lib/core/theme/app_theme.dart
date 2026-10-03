@@ -53,7 +53,7 @@ class AppTheme {
   static ThemeData darkTheme = ThemeData(
     brightness: Brightness.dark,
     primaryColor: corporateBlue,
-    scaffoldBackgroundColor: Colors.white,
+    scaffoldBackgroundColor: const Color(0xFF071C2D),
     cardTheme: const CardThemeData(
       color: Color(0xFF1E1E1E),
     ), // Slightly lighter for cards

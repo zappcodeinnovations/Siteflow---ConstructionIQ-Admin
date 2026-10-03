@@ -23,20 +23,19 @@ class LoginController extends ChangeNotifier {
     try {
       final response = await ApiClient.post(
         ApiEndpoints.baseUrl + ApiEndpoints.login,
-        body: {
-          'email': email,
-          'password': password,
-        },
+        body: {'email': email, 'password': password},
       );
 
-      var data;
+      dynamic data;
       try {
         data = jsonDecode(response.body);
       } catch (e) {
         // If response is not JSON, it might be a server error page (HTML)
       }
 
-      if (response.statusCode == 200 && data != null && data['status'] == true) {
+      if (response.statusCode == 200 &&
+          data != null &&
+          data['status'] == true) {
         // Check if payload is wrapped in 'data'
         final payload = data['data'] ?? data;
 
@@ -57,20 +56,29 @@ class LoginController extends ChangeNotifier {
           effectiveRole: _currentUser!.effectiveRole,
           roleLabel: _currentUser!.roleLabel,
         );
+        await AuthService.savePermissions(payload['user']['permissions']);
 
         _isLoading = false;
         notifyListeners();
         return true;
       } else {
-        if (response.statusCode == 401 || response.statusCode == 400 || response.statusCode == 404) {
-          _errorMessage = (data != null && data['message'] != null) ? data['message'] : 'Invalid email or password.';
+        if (response.statusCode == 401 ||
+            response.statusCode == 400 ||
+            response.statusCode == 404) {
+          _errorMessage = (data != null && data['message'] != null)
+              ? data['message']
+              : 'Invalid email or password.';
         } else {
-          _errorMessage = (data != null && data['message'] != null) ? data['message'] : 'A server error occurred. Please try again.';
+          _errorMessage = (data != null && data['message'] != null)
+              ? data['message']
+              : 'A server error occurred. Please try again.';
         }
-        
+
         // Prevent showing long HTML or backend stack traces
-        if (_errorMessage != null && (_errorMessage!.length > 100 || _errorMessage!.contains('<html'))) {
-           _errorMessage = 'Invalid credentials or server error. Please try again.';
+        if (_errorMessage != null &&
+            (_errorMessage!.length > 100 || _errorMessage!.contains('<html'))) {
+          _errorMessage =
+              'Invalid credentials or server error. Please try again.';
         }
 
         _isLoading = false;
@@ -78,7 +86,8 @@ class LoginController extends ChangeNotifier {
         return false;
       }
     } catch (e) {
-      _errorMessage = 'Unable to connect to the server. Please check your internet connection.';
+      _errorMessage =
+          'Unable to connect to the server. Please check your internet connection.';
       _isLoading = false;
       notifyListeners();
       return false;

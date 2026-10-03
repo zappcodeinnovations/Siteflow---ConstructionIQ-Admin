@@ -7,6 +7,7 @@ import 'admin_notifications_controller.dart';
 import 'add_notification_dialog.dart';
 import 'edit_notification_dialog.dart';
 import 'notification_details_dialog.dart';
+import '../../../../core/services/auth_service.dart';
 
 class AdminNotificationsView extends StatefulWidget {
   const AdminNotificationsView({super.key});
@@ -19,11 +20,29 @@ class _AdminNotificationsViewState extends State<AdminNotificationsView> {
   final AdminNotificationsController _controller =
       AdminNotificationsController();
   String _searchQuery = "";
+  bool _canCreate = false;
+  bool _canEdit = false;
+  bool _canDelete = false;
 
   @override
   void initState() {
     super.initState();
-    _controller.fetchNotifications();
+    _loadPermissions();
+  }
+
+  Future<void> _loadPermissions() async {
+    final access = await Future.wait([
+      AuthService.can('admin_notifications', action: 'create'),
+      AuthService.can('admin_notifications', action: 'edit'),
+      AuthService.can('admin_notifications', action: 'delete'),
+    ]);
+    if (!mounted) return;
+    setState(() {
+      _canCreate = access[0];
+      _canEdit = access[1];
+      _canDelete = access[2];
+    });
+    await _controller.fetchNotifications();
   }
 
   @override
@@ -210,29 +229,33 @@ class _AdminNotificationsViewState extends State<AdminNotificationsView> {
                         ],
                       ),
                     ),
-                    PopupMenuButton<String>(
-                      icon: const Icon(
-                        IconlyLight.more_circle,
-                        color: Colors.grey,
+                    if (_canEdit || _canDelete)
+                      PopupMenuButton<String>(
+                        icon: const Icon(
+                          IconlyLight.more_circle,
+                          color: Colors.grey,
+                        ),
+                        onSelected: (val) {
+                          if (val == 'edit') _editNotification(notification);
+                          if (val == 'delete')
+                            _deleteNotification(notification);
+                        },
+                        itemBuilder: (context) => [
+                          if (_canEdit)
+                            const PopupMenuItem(
+                              value: 'edit',
+                              child: Text("Edit Notification"),
+                            ),
+                          if (_canDelete)
+                            const PopupMenuItem(
+                              value: 'delete',
+                              child: Text(
+                                "Delete Notification",
+                                style: TextStyle(color: Colors.red),
+                              ),
+                            ),
+                        ],
                       ),
-                      onSelected: (val) {
-                        if (val == 'edit') _editNotification(notification);
-                        if (val == 'delete') _deleteNotification(notification);
-                      },
-                      itemBuilder: (context) => [
-                        const PopupMenuItem(
-                          value: 'edit',
-                          child: Text("Edit Notification"),
-                        ),
-                        const PopupMenuItem(
-                          value: 'delete',
-                          child: Text(
-                            "Delete Notification",
-                            style: TextStyle(color: Colors.red),
-                          ),
-                        ),
-                      ],
-                    ),
                   ],
                 ),
               ),
@@ -257,10 +280,7 @@ class _AdminNotificationsViewState extends State<AdminNotificationsView> {
                         const SizedBox(height: 2),
                         Text(
                           notification.audience,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: textColor,
-                          ),
+                          style: TextStyle(fontSize: 12, color: textColor),
                         ),
                       ],
                     ),
@@ -278,10 +298,7 @@ class _AdminNotificationsViewState extends State<AdminNotificationsView> {
                         const SizedBox(height: 2),
                         Text(
                           notification.createdByName,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: textColor,
-                          ),
+                          style: TextStyle(fontSize: 12, color: textColor),
                         ),
                       ],
                     ),
@@ -304,7 +321,9 @@ class _AdminNotificationsViewState extends State<AdminNotificationsView> {
     final textColor = isDark ? Colors.white : Colors.black87;
     final subtitleColor = isDark ? Colors.white70 : Colors.grey.shade600;
     final borderColor = isDark ? Colors.white12 : Colors.grey.shade300;
-    final searchFillColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.white;
+    final searchFillColor = isDark
+        ? Colors.white.withValues(alpha: 0.1)
+        : Colors.white;
 
     return Scaffold(
       backgroundColor: isDark ? AppTheme.corporateBlue : null,
@@ -358,31 +377,32 @@ class _AdminNotificationsViewState extends State<AdminNotificationsView> {
                           ),
                         ),
                         const SizedBox(width: 16),
-                        InkWell(
-                          onTap: _showAddDialog,
-                          borderRadius: BorderRadius.circular(10),
-                          child: Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF0D6EFD),
-                              borderRadius: BorderRadius.circular(10),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(
-                                    0xFF0D6EFD,
-                                  ).withValues(alpha: 0.3),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: const Icon(
-                              IconlyLight.plus,
-                              color: Colors.white,
-                              size: 20,
+                        if (_canCreate)
+                          InkWell(
+                            onTap: _showAddDialog,
+                            borderRadius: BorderRadius.circular(10),
+                            child: Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF0D6EFD),
+                                borderRadius: BorderRadius.circular(10),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(
+                                      0xFF0D6EFD,
+                                    ).withValues(alpha: 0.3),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                IconlyLight.plus,
+                                color: Colors.white,
+                                size: 20,
+                              ),
                             ),
                           ),
-                        ),
                       ],
                     ),
                     const SizedBox(height: 20),

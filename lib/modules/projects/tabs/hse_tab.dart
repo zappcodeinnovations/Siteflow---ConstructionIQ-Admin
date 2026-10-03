@@ -1,426 +1,267 @@
 import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
-import 'package:file_picker/file_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../models/hse_document_model.dart';
+import '../project_hse_controller.dart';
 
 class HseTab extends StatefulWidget {
-  const HseTab({Key? key}) : super(key: key);
+  final int projectId;
+  const HseTab({Key? key, required this.projectId}) : super(key: key);
 
   @override
   State<HseTab> createState() => _HseTabState();
 }
 
 class _HseTabState extends State<HseTab> {
-  bool _isFormVisible = false;
+  late final ProjectHseController _controller = ProjectHseController(widget.projectId);
+  String _categoryFilter = 'All';
 
-  final TextEditingController _titleController = TextEditingController();
-  final TextEditingController _notesController = TextEditingController();
-  String _selectedCategory = 'Training';
-  DateTime? _expiryDate;
-  String? _fileName;
+  static const _categories = ['All', 'rams', 'certificate', 'training', 'other'];
+  static const _categoryLabels = {
+    'All': 'All',
+    'rams': 'RAMS',
+    'certificate': 'Certificate',
+    'training': 'Training',
+    'other': 'Other',
+  };
 
-  final List<String> _categories = ['RAMS', 'Certificate', 'Training', 'Other'];
-
-  void _pickDate() async {
-    final date = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
-    );
-    if (date != null) {
-      setState(() {
-        _expiryDate = date;
-      });
-    }
+  @override
+  void initState() {
+    super.initState();
+    _controller.fetchDocuments();
   }
 
-  void _pickFile() async {
-    final result = await FilePicker.platform.pickFiles();
-    if (result != null && result.files.isNotEmpty) {
-      setState(() {
-        _fileName = result.files.first.name;
-      });
-    }
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final bool isDesktop = MediaQuery.of(context).size.width > 900;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
+    final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
+    final borderColor = isDark ? Colors.white24 : Colors.grey.shade200;
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24.0),
-      child: isDesktop
-          ? Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (_isFormVisible) ...[
-                  SizedBox(
-                    width: 320,
-                    child: _buildFormPanel(),
-                  ),
-                  const SizedBox(width: 24),
-                ],
-                Expanded(
-                  child: _buildMainContent(),
-                )
-              ],
-            )
-          : Column(
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        return RefreshIndicator(
+          onRefresh: _controller.fetchDocuments,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (_isFormVisible) ...[
-                  _buildFormPanel(),
+                if (_controller.isLoading)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 48),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else if (_controller.error != null)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24),
+                    child: Column(
+                      children: [
+                        Text(_controller.error!, style: TextStyle(color: textSecondary)),
+                        const SizedBox(height: 8),
+                        TextButton(onPressed: _controller.fetchDocuments, child: const Text("Retry")),
+                      ],
+                    ),
+                  )
+                else ...[
+                  _buildKpiGrid(textColor, textSecondary, cardColor, borderColor),
                   const SizedBox(height: 24),
+                  _buildDocumentList(isDark, textColor, textSecondary, cardColor, borderColor),
                 ],
-                _buildMainContent(),
               ],
             ),
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildFormPanel() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
-    final borderColor = isDark ? Colors.white24 : Colors.grey.shade200;
-    final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
-    final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+  Widget _buildKpiGrid(Color textColor, Color textSecondary, Color cardColor, Color borderColor) {
+    final counts = <String, int>{for (final c in _categories) c: 0};
+    counts['All'] = _controller.documents.length;
+    for (final doc in _controller.documents) {
+      counts[doc.category] = (counts[doc.category] ?? 0) + 1;
+    }
 
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        int crossAxisCount = 5;
+        double aspectRatio = 2.0;
+        if (constraints.maxWidth < 480) {
+          crossAxisCount = 2;
+          aspectRatio = 1.8;
+        } else if (constraints.maxWidth < 800) {
+          crossAxisCount = 3;
+          aspectRatio = 1.9;
+        }
+        return GridView.count(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisCount: crossAxisCount,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          childAspectRatio: aspectRatio,
+          children: _categories.map((c) {
+            return _buildKpiCard(
+              _categoryLabels[c] ?? c,
+              '${counts[c] ?? 0}',
+              isHighlighted: c == _categoryFilter,
+              onTap: () => setState(() => _categoryFilter = c),
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
+
+  Widget _buildDocumentList(bool isDark, Color textColor, Color textSecondary, Color cardColor, Color borderColor) {
+    final filtered = _categoryFilter == 'All'
+        ? _controller.documents
+        : _controller.documents.where((d) => d.category == _categoryFilter).toList();
+
+    if (filtered.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
+        decoration: BoxDecoration(
+          color: isDark ? AppTheme.corporateBlue : Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: borderColor),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text("No HS&E documents uploaded yet.", style: TextStyle(fontWeight: FontWeight.bold, color: textColor, fontSize: 16)),
+            const SizedBox(height: 8),
+            Text(
+              "RAMS, certificates, and training records are uploaded from the web admin panel.",
+              textAlign: TextAlign.center,
+              style: TextStyle(color: textSecondary, fontSize: 14),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: filtered.map((doc) => _buildDocCard(doc, textColor, textSecondary, cardColor, borderColor)).toList(),
+    );
+  }
+
+  Widget _buildDocCard(HseDocumentModel doc, Color textColor, Color textSecondary, Color cardColor, Color borderColor) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: cardColor,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: borderColor),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          )
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Expanded(
-                child: Text(
-                  "Upload HS&E Document",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor),
-                  overflow: TextOverflow.ellipsis,
-                ),
+                child: Text(doc.title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: textColor)),
               ),
-              IconButton(
-                icon: Icon(Icons.close, size: 20, color: isDark ? Colors.white : Colors.black87),
-                onPressed: () => setState(() => _isFormVisible = false),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-              )
-            ],
-          ),
-          const SizedBox(height: 20),
-          
-          _buildFormLabel("Category"),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              color: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
-              border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade300),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                dropdownColor: isDark ? AppTheme.corporateBlue : Colors.white,
-                isExpanded: true,
-                value: _selectedCategory,
-                style: TextStyle(color: isDark ? Colors.white : Colors.black87),
-                items: _categories.map((c) => DropdownMenuItem(value: c, child: Text(c, style: TextStyle(fontSize: 14, color: isDark ? Colors.white : Colors.black87)))).toList(),
-                onChanged: (val) {
-                  if (val != null) setState(() => _selectedCategory = val);
-                },
-                icon: Icon(IconlyLight.arrow_down_2, color: isDark ? Colors.white70 : Colors.grey),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          
-          _buildFormLabel("Title"),
-          TextField(
-            controller: _titleController,
-            style: TextStyle(color: isDark ? Colors.white : Colors.black87),
-            decoration: InputDecoration(
-              hintText: "Leave blank to use file name",
-              hintStyle: TextStyle(color: isDark ? Colors.white38 : Colors.grey.shade400, fontSize: 14),
-              isDense: true,
-              filled: true,
-              fillColor: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: borderColor)),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: borderColor)),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-            ),
-          ),
-          const SizedBox(height: 16),
-          
-          _buildFormLabel("Expiry Date"),
-          InkWell(
-            onTap: _pickDate,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-              decoration: BoxDecoration(
-                color: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
-                border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade300),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    _expiryDate != null ? "${_expiryDate!.day.toString().padLeft(2, '0')}-${_expiryDate!.month.toString().padLeft(2, '0')}-${_expiryDate!.year}" : "dd-mm-yyyy",
-                    style: TextStyle(color: _expiryDate != null ? textColor : (isDark ? Colors.white38 : Colors.grey.shade400), fontSize: 14),
-                  ),
-                  Icon(IconlyLight.calendar, size: 18, color: isDark ? Colors.white70 : Colors.grey),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          
-          _buildFormLabel("Files"),
-          InkWell(
-            onTap: _pickFile,
-            child: Container(
-              decoration: BoxDecoration(
-                color: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
-                border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade300),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: isDark ? Colors.white10 : Colors.grey.shade100,
-                      borderRadius: const BorderRadius.only(topLeft: Radius.circular(8), bottomLeft: Radius.circular(8)),
-                      border: Border(right: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300)),
-                    ),
-                    child: Text("Choose Files", style: TextStyle(fontSize: 14, color: isDark ? Colors.white : Colors.black87)),
-                  ),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: Text(
-                        _fileName ?? "No file chosen",
-                        style: TextStyle(fontSize: 14, color: _fileName != null ? textColor : (isDark ? Colors.white38 : Colors.grey.shade500)),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  )
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          
-          _buildFormLabel("Notes"),
-          TextField(
-            controller: _notesController,
-            maxLines: 3,
-            style: TextStyle(color: isDark ? Colors.white : Colors.black87),
-            decoration: InputDecoration(
-              hintText: "Optional notes",
-              hintStyle: TextStyle(color: isDark ? Colors.white38 : Colors.grey.shade400, fontSize: 14),
-              filled: true,
-              fillColor: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: borderColor)),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: borderColor)),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-            ),
-          ),
-          const SizedBox(height: 24),
-          
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: isDark ? Colors.white10 : const Color(0xFF0D6EFD),
-                foregroundColor: Colors.white,
-                side: BorderSide(color: isDark ? Colors.white24 : Colors.transparent),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              onPressed: () {
-                if (_fileName == null) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please select a file.")));
-                  return;
-                }
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("HS&E Document Uploaded!")));
-                setState(() => _isFormVisible = false);
-              },
-              child: const Text("Upload Documents", style: TextStyle(fontWeight: FontWeight.bold)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFormLabel(String text) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6.0),
-      child: Text(
-        text,
-        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: isDark ? Colors.grey.shade400 : Colors.black87),
-      ),
-    );
-  }
-
-  Widget _buildMainContent() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
-    final borderColor = isDark ? Colors.white24 : Colors.grey.shade200;
-    final textColor = isDark ? Colors.white : Colors.black87;
-    final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (!_isFormVisible)
-          Align(
-            alignment: Alignment.centerRight,
-            child: ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: isDark ? Colors.white10 : const Color(0xFF0D6EFD),
-                foregroundColor: Colors.white,
-                side: BorderSide(color: isDark ? Colors.white24 : Colors.transparent),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              onPressed: () => setState(() => _isFormVisible = true),
-              icon: const Icon(IconlyLight.upload, size: 18),
-              label: const Text("Upload HS&E Document", style: TextStyle(fontWeight: FontWeight.bold)),
-            ),
-          ),
-        if (!_isFormVisible) const SizedBox(height: 16),
-        
-        // KPI Cards in Grid
-        LayoutBuilder(
-          builder: (context, constraints) {
-            int crossAxisCount = 5;
-            double aspectRatio = 2.0;
-
-            if (constraints.maxWidth < 480) {
-              crossAxisCount = 2;
-              aspectRatio = 1.8;
-            } else if (constraints.maxWidth < 800) {
-              crossAxisCount = 3;
-              aspectRatio = 1.9;
-            }
-
-            return GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: crossAxisCount,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio: aspectRatio,
-              children: [
-                _buildKpiCard("All", "0", isHighlighted: true),
-                _buildKpiCard("RAMS", "0"),
-                _buildKpiCard("Certificate", "0"),
-                _buildKpiCard("Training", "0"),
-                _buildKpiCard("Other", "0"),
-              ],
-            );
-          },
-        ),
-        
-        const SizedBox(height: 24),
-        
-        // Empty State
-        Container(
-          padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
-          decoration: BoxDecoration(
-            color: isDark ? AppTheme.corporateBlue : Colors.grey.shade50,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: borderColor),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                "No HS&E documents uploaded yet.",
-                style: TextStyle(fontWeight: FontWeight.bold, color: textColor, fontSize: 16),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                "Upload RAMS, certificates, training records, and supporting files from the panel.",
-                textAlign: TextAlign.center,
-                style: TextStyle(color: textSecondary, fontSize: 14),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(color: textSecondary.withOpacity(0.08), borderRadius: BorderRadius.circular(6)),
+                child: Text(doc.categoryLabel, style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 11)),
               ),
             ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildKpiCard(String title, String value, {bool isHighlighted = false}) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
-    final borderColor = isDark 
-        ? (isHighlighted ? Colors.white : Colors.white24)
-        : (isHighlighted ? const Color(0xFF0D6EFD).withOpacity(0.5) : Colors.grey.shade200);
-    final labelColor = isHighlighted 
-        ? (isDark ? Colors.white : const Color(0xFF0D6EFD)) 
-        : (isDark ? Colors.grey.shade400 : Colors.grey.shade600);
-    final valColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
-
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: borderColor,
-          width: isHighlighted ? 1.5 : 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.01),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          )
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 12, 
-              color: labelColor, 
-              fontWeight: FontWeight.bold,
-              fontFamily: 'Inter',
-            ),
-            overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 6),
           Text(
-            value,
-            style: TextStyle(
-              fontSize: 20, 
-              fontWeight: FontWeight.bold, 
-              color: valColor,
-              fontFamily: 'Inter',
-            ),
+            "Uploaded by ${doc.uploadedByName.isEmpty ? '-' : doc.uploadedByName}${doc.revisionNumber > 1 ? ' · Revision ${doc.revisionNumber}' : ''}",
+            style: TextStyle(fontSize: 12, color: textSecondary),
+          ),
+          if (doc.expiryDate != null && doc.expiryDate!.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text("Expires ${doc.expiryDate}", style: TextStyle(fontSize: 12, color: textSecondary)),
+          ],
+          if (doc.notes.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(doc.notes, style: TextStyle(fontSize: 13, color: textSecondary)),
+          ],
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              if (doc.requiresAcknowledgment)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: (doc.isAcknowledged ? const Color(0xFF16A34A) : const Color(0xFFF59E0B)).withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    doc.isAcknowledged ? "Acknowledged" : "Acknowledgment required",
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: doc.isAcknowledged ? const Color(0xFF16A34A) : const Color(0xFFF59E0B),
+                    ),
+                  ),
+                ),
+              const Spacer(),
+              if (doc.fileUrl.isNotEmpty)
+                TextButton.icon(
+                  onPressed: () => launchUrl(Uri.parse(doc.fileUrl), mode: LaunchMode.externalApplication),
+                  icon: const Icon(IconlyLight.document, size: 16),
+                  label: const Text("View File"),
+                ),
+            ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildKpiCard(String title, String value, {bool isHighlighted = false, VoidCallback? onTap}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
+    final borderColor = isDark
+        ? (isHighlighted ? Colors.white : Colors.white24)
+        : (isHighlighted ? const Color(0xFF0D6EFD).withOpacity(0.5) : Colors.grey.shade200);
+    final labelColor = isHighlighted
+        ? (isDark ? Colors.white : const Color(0xFF0D6EFD))
+        : (isDark ? Colors.grey.shade400 : Colors.grey.shade600);
+    final valColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: cardColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: borderColor, width: isHighlighted ? 1.5 : 1),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              title,
+              style: TextStyle(fontSize: 12, color: labelColor, fontWeight: FontWeight.bold, fontFamily: 'Inter'),
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 6),
+            Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: valColor, fontFamily: 'Inter')),
+          ],
+        ),
       ),
     );
   }

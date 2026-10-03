@@ -3,18 +3,13 @@ import '../theme/app_theme.dart';
 import '../../models/admin_notification_model.dart';
 import '../../modules/drawer_pages/admin/admin_notifications_controller.dart';
 import '../../modules/drawer_pages/admin_screen.dart';
+import '../services/auth_service.dart';
 
-class CustomAppBar extends StatefulWidget
-    implements PreferredSizeWidget {
-
+class CustomAppBar extends StatefulWidget implements PreferredSizeWidget {
   final String title;
   final List<Widget>? actions;
 
-  const CustomAppBar({
-    super.key,
-    required this.title,
-    this.actions,
-  });
+  const CustomAppBar({super.key, required this.title, this.actions});
 
   @override
   State<CustomAppBar> createState() => _CustomAppBarState();
@@ -24,13 +19,22 @@ class CustomAppBar extends StatefulWidget
 }
 
 class _CustomAppBarState extends State<CustomAppBar> {
-  final AdminNotificationsController _controller = AdminNotificationsController();
+  final AdminNotificationsController _controller =
+      AdminNotificationsController();
+  bool _canViewNotifications = false;
 
   @override
   void initState() {
     super.initState();
-    _controller.fetchNotifications();
     _controller.addListener(_onChanged);
+    _loadNotificationAccess();
+  }
+
+  Future<void> _loadNotificationAccess() async {
+    final allowed = await AuthService.can('admin_notifications');
+    if (!mounted) return;
+    setState(() => _canViewNotifications = allowed);
+    if (allowed) await _controller.fetchNotifications();
   }
 
   void _onChanged() {
@@ -50,13 +54,19 @@ class _CustomAppBarState extends State<CustomAppBar> {
     final appBarColor = isDark ? AppTheme.corporateBlue : Colors.white;
     final foregroundColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
 
-    final recent = _controller.notifications.where((n) => n.isActive).take(5).toList();
+    final recent = _controller.notifications
+        .where((n) => n.isActive)
+        .take(5)
+        .toList();
 
     return AppBar(
       backgroundColor: appBarColor,
       foregroundColor: foregroundColor,
       elevation: 0,
-      title: Text(widget.title, style: TextStyle(fontWeight: FontWeight.bold, color: foregroundColor)),
+      title: Text(
+        widget.title,
+        style: TextStyle(fontWeight: FontWeight.bold, color: foregroundColor),
+      ),
       iconTheme: IconThemeData(color: foregroundColor),
       flexibleSpace: ClipRRect(
         child: Stack(
@@ -69,7 +79,9 @@ class _CustomAppBarState extends State<CustomAppBar> {
                 child: Container(
                   width: 120,
                   height: 200,
-                  color: isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.02),
+                  color: isDark
+                      ? Colors.white.withOpacity(0.1)
+                      : Colors.black.withOpacity(0.02),
                 ),
               ),
             ),
@@ -81,7 +93,9 @@ class _CustomAppBarState extends State<CustomAppBar> {
                 child: Container(
                   width: 80,
                   height: 250,
-                  color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.01),
+                  color: isDark
+                      ? Colors.white.withOpacity(0.05)
+                      : Colors.black.withOpacity(0.01),
                 ),
               ),
             ),
@@ -90,67 +104,90 @@ class _CustomAppBarState extends State<CustomAppBar> {
       ),
       actions: [
         if (widget.actions != null) ...widget.actions!,
-        PopupMenuButton<String>(
-          icon: Badge(
-            isLabelVisible: recent.isNotEmpty,
-            label: Text('${recent.length}'),
-            child: Icon(Icons.notifications_outlined, color: foregroundColor),
-          ),
-          offset: const Offset(0, 50),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          constraints: const BoxConstraints(minWidth: 280, maxWidth: 320),
-          itemBuilder: (context) => [
-            const PopupMenuItem(
-              enabled: false,
-              child: Text(
-                "Notifications",
-                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
-              ),
+        if (_canViewNotifications)
+          PopupMenuButton<String>(
+            color: isDark ? const Color(0xFF172433) : Colors.white,
+            icon: Badge(
+              isLabelVisible: recent.isNotEmpty,
+              label: Text('${recent.length}'),
+              child: Icon(Icons.notifications_outlined, color: foregroundColor),
             ),
-            const PopupMenuDivider(),
-            if (_controller.isLoading)
-              const PopupMenuItem(
+            offset: const Offset(0, 50),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            constraints: const BoxConstraints(minWidth: 280, maxWidth: 320),
+            itemBuilder: (context) => [
+              PopupMenuItem(
                 enabled: false,
-                child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 16.0),
-                  child: Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))),
-                ),
-              )
-            else if (recent.isEmpty)
-              const PopupMenuItem(
-                enabled: false,
-                child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 16.0),
-                  child: Text("No new notifications", style: TextStyle(color: Colors.grey)),
-                ),
-              )
-            else
-              ...recent.map(
-                (n) => PopupMenuItem(
-                  enabled: false,
-                  child: _NotificationRow(notification: n),
-                ),
-              ),
-            const PopupMenuDivider(),
-            const PopupMenuItem(
-              value: 'view_all',
-              child: Center(
                 child: Text(
-                  "View All Notifications",
-                  style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+                  "Notifications",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: foregroundColor,
+                  ),
                 ),
               ),
-            ),
-          ],
-          onSelected: (value) {
-            if (value == 'view_all') {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const AdminScreen(initialIndex: 4)),
-              );
-            }
-          },
-        ),
+              const PopupMenuDivider(),
+              if (_controller.isLoading)
+                const PopupMenuItem(
+                  enabled: false,
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16.0),
+                    child: Center(
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                  ),
+                )
+              else if (recent.isEmpty)
+                const PopupMenuItem(
+                  enabled: false,
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16.0),
+                    child: Text(
+                      "No new notifications",
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  ),
+                )
+              else
+                ...recent.map(
+                  (n) => PopupMenuItem(
+                    enabled: false,
+                    child: _NotificationRow(notification: n, isDark: isDark),
+                  ),
+                ),
+              const PopupMenuDivider(),
+              const PopupMenuItem(
+                value: 'view_all',
+                child: Center(
+                  child: Text(
+                    "View All Notifications",
+                    style: TextStyle(
+                      color: Colors.blue,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+            onSelected: (value) {
+              if (value == 'view_all') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const AdminScreen(
+                      initialMenuKey: 'admin_notifications',
+                    ),
+                  ),
+                );
+              }
+            },
+          ),
         const SizedBox(width: 10),
       ],
     );
@@ -159,8 +196,9 @@ class _CustomAppBarState extends State<CustomAppBar> {
 
 class _NotificationRow extends StatelessWidget {
   final AdminNotification notification;
+  final bool isDark;
 
-  const _NotificationRow({required this.notification});
+  const _NotificationRow({required this.notification, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
@@ -171,14 +209,21 @@ class _NotificationRow extends StatelessWidget {
         children: [
           Text(
             notification.headline,
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Colors.black87),
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 2),
           Text(
             notification.notificationText,
-            style: const TextStyle(fontSize: 12, color: Colors.grey),
+            style: TextStyle(
+              fontSize: 12,
+              color: isDark ? Colors.white70 : Colors.grey,
+            ),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),

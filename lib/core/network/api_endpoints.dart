@@ -16,6 +16,21 @@ class ApiEndpoints {
   static String projectDetails(int id) => '/projects/$id/';
   static String projectAllInOneDetails(int id) => '/projects/all-in-one/$id/';
   static String projectAssignments(int id) => '/projects/$id/assignments/';
+  static String projectIncidents(int projectId) => '/projects/$projectId/incidents/';
+  static String projectSnags(int projectId) => '/projects/$projectId/snags/';
+  static String projectInspections(int projectId) => '/projects/$projectId/inspections/';
+  static String inspectionComplete(int inspectionId) => '/inspections/$inspectionId/complete/';
+  static String projectTemplateDetail(int projectId) => '/projects/$projectId/template/';
+  static String projectMaterials(int projectId) => '/projects/$projectId/materials/';
+  static String projectHseDocuments(int projectId) => '/projects/$projectId/hse-documents/';
+  static String myApprovals({int? projectId}) =>
+      projectId == null ? '/my-approvals/' : '/my-approvals/?project_id=$projectId';
+  static String projectJobCreate(int projectId) => '/operative/projects/$projectId/jobs/create/';
+
+  // Library (global catalog)
+  static const String libraryForms = '/library/forms/';
+  static const String libraryMaterials = '/library/materials/';
+  static const String libraryTemplates = '/library/templates/';
 
   // Announcements
   static const String announcements = '/admin/announcements/';
