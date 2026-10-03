@@ -22,6 +22,10 @@ class _TasksScreenState extends State<TasksScreen> {
   bool _isSearchVisible = true;
   String _selectedStatus = "Status: All";
   String _selectedProject = "All Projects";
+  String _selectedClient = "All Clients";
+  String _selectedOperative = "All Operatives";
+  String _selectedForm = "All Forms";
+
   bool _canCreate = true;
   bool _canEdit = true;
   bool _canDelete = true;
@@ -89,6 +93,57 @@ class _TasksScreenState extends State<TasksScreen> {
     return projects.toList();
   }
 
+  List<String> get _clientOptions {
+    final clients = <String>{'All Clients'};
+    if (_controller.filterOptions['clients'] is List) {
+      for (final c in _controller.filterOptions['clients']) {
+        if (c != null && c.toString().trim().isNotEmpty) {
+          clients.add(c.toString().trim());
+        }
+      }
+    }
+    for (final task in _controller.jobSheets) {
+      if (task.clientName.trim().isNotEmpty) {
+        clients.add(task.clientName.trim());
+      }
+    }
+    return clients.toList();
+  }
+
+  List<String> get _operativeOptions {
+    final operatives = <String>{'All Operatives'};
+    if (_controller.filterOptions['operatives'] is List) {
+      for (final o in _controller.filterOptions['operatives']) {
+        if (o != null && o.toString().trim().isNotEmpty) {
+          operatives.add(o.toString().trim());
+        }
+      }
+    }
+    for (final task in _controller.jobSheets) {
+      if (task.operative.trim().isNotEmpty) {
+        operatives.add(task.operative.trim());
+      }
+    }
+    return operatives.toList();
+  }
+
+  List<String> get _formOptions {
+    final forms = <String>{'All Forms'};
+    if (_controller.filterOptions['forms'] is List) {
+      for (final f in _controller.filterOptions['forms']) {
+        if (f != null && f.toString().trim().isNotEmpty) {
+          forms.add(f.toString().trim());
+        }
+      }
+    }
+    for (final task in _controller.jobSheets) {
+      if (task.form.trim().isNotEmpty) {
+        forms.add(task.form.trim());
+      }
+    }
+    return forms.toList();
+  }
+
   List<JobSheet> get _filteredTasks {
     final query = _searchController.text.trim().toLowerCase();
 
@@ -116,7 +171,28 @@ class _TasksScreenState extends State<TasksScreen> {
         }
       }
 
-      // 3. Search Query Filter
+      // 3. Client Filter
+      if (_selectedClient != 'All Clients') {
+        if (task.clientName.trim().toLowerCase() != _selectedClient.trim().toLowerCase()) {
+          return false;
+        }
+      }
+
+      // 4. Operative Filter
+      if (_selectedOperative != 'All Operatives') {
+        if (task.operative.trim().toLowerCase() != _selectedOperative.trim().toLowerCase()) {
+          return false;
+        }
+      }
+
+      // 5. Form Filter
+      if (_selectedForm != 'All Forms') {
+        if (task.form.trim().toLowerCase() != _selectedForm.trim().toLowerCase()) {
+          return false;
+        }
+      }
+
+      // 6. Search Query Filter
       if (query.isNotEmpty) {
         final taskNo = (task.jobNo.isNotEmpty ? task.jobNo : task.sheetNo).toLowerCase();
         final sheetNo = task.sheetNo.toLowerCase();
@@ -144,12 +220,603 @@ class _TasksScreenState extends State<TasksScreen> {
       _searchController.clear();
       _selectedStatus = 'Status: All';
       _selectedProject = 'All Projects';
+      _selectedClient = 'All Clients';
+      _selectedOperative = 'All Operatives';
+      _selectedForm = 'All Forms';
     });
     _controller.clearFilters();
   }
 
-  void _applyFilter() {
-    setState(() {});
+  void _showFilterBottomSheet() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? const Color(0xFF162A42) : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
+    final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+    final borderColor = isDark ? Colors.white24 : Colors.grey.shade300;
+    final inputBg = isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade50;
+
+    String tempStatus = _selectedStatus;
+    String tempProject = _selectedProject;
+    String tempClient = _selectedClient;
+    String tempOperative = _selectedOperative;
+    String tempForm = _selectedForm;
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: bgColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        side: isDark ? const BorderSide(color: Colors.white24) : BorderSide.none,
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return DraggableScrollableSheet(
+              expand: false,
+              initialChildSize: 0.75,
+              minChildSize: 0.5,
+              maxChildSize: 0.95,
+              builder: (context, scrollController) {
+                return SafeArea(
+                  child: Column(
+                    children: [
+                      // Header & drag handle
+                      Container(
+                        margin: const EdgeInsets.only(top: 10, bottom: 6),
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: textSecondary.withOpacity(0.4),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(IconlyLight.filter, color: Color(0xFF0D6EFD), size: 22),
+                                const SizedBox(width: 8),
+                                Text(
+                                  "Filter Tasks",
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: textColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Row(
+                              children: [
+                                TextButton(
+                                  onPressed: () {
+                                    setSheetState(() {
+                                      tempStatus = 'Status: All';
+                                      tempProject = 'All Projects';
+                                      tempClient = 'All Clients';
+                                      tempOperative = 'All Operatives';
+                                      tempForm = 'All Forms';
+                                    });
+                                  },
+                                  child: const Text("Reset All", style: TextStyle(color: Color(0xFF0D6EFD), fontWeight: FontWeight.w600)),
+                                ),
+                                IconButton(
+                                  icon: Icon(Icons.close, color: textSecondary, size: 22),
+                                  onPressed: () => Navigator.pop(context),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Divider(height: 1),
+
+                      // Scrollable Filter Form Controls
+                      Expanded(
+                        child: ListView(
+                          controller: scrollController,
+                          padding: const EdgeInsets.all(20),
+                          children: [
+                            // 1. Status Selection Chips
+                            Text(
+                              "STATUS",
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.8,
+                                color: textSecondary,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: _statusOptions.map((status) {
+                                final isSelected = tempStatus == status;
+                                final label = status.replaceAll('Status: ', '');
+                                return ChoiceChip(
+                                  label: Text(label),
+                                  selected: isSelected,
+                                  selectedColor: const Color(0xFF0D6EFD),
+                                  backgroundColor: inputBg,
+                                  labelStyle: TextStyle(
+                                    color: isSelected ? Colors.white : textColor,
+                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                    fontSize: 12,
+                                  ),
+                                  side: BorderSide(
+                                    color: isSelected ? const Color(0xFF0D6EFD) : borderColor,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  onSelected: (selected) {
+                                    if (selected) {
+                                      setSheetState(() => tempStatus = status);
+                                    }
+                                  },
+                                );
+                              }).toList(),
+                            ),
+                            const SizedBox(height: 20),
+
+                            // 2. Project Dropdown
+                            Text(
+                              "PROJECT",
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.8,
+                                color: textSecondary,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 14),
+                              decoration: BoxDecoration(
+                                color: inputBg,
+                                border: Border.all(color: borderColor),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<String>(
+                                  value: _projectOptions.contains(tempProject) ? tempProject : 'All Projects',
+                                  isExpanded: true,
+                                  dropdownColor: bgColor,
+                                  style: TextStyle(color: textColor, fontSize: 14),
+                                  icon: Icon(IconlyLight.arrow_down_2, size: 16, color: textSecondary),
+                                  items: _projectOptions
+                                      .map(
+                                        (e) => DropdownMenuItem(
+                                          value: e,
+                                          child: Text(e, overflow: TextOverflow.ellipsis),
+                                        ),
+                                      )
+                                      .toList(),
+                                  onChanged: (val) {
+                                    if (val != null) {
+                                      setSheetState(() => tempProject = val);
+                                    }
+                                  },
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+
+                            // 3. Client Dropdown
+                            Text(
+                              "CLIENT",
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.8,
+                                color: textSecondary,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 14),
+                              decoration: BoxDecoration(
+                                color: inputBg,
+                                border: Border.all(color: borderColor),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<String>(
+                                  value: _clientOptions.contains(tempClient) ? tempClient : 'All Clients',
+                                  isExpanded: true,
+                                  dropdownColor: bgColor,
+                                  style: TextStyle(color: textColor, fontSize: 14),
+                                  icon: Icon(IconlyLight.arrow_down_2, size: 16, color: textSecondary),
+                                  items: _clientOptions
+                                      .map(
+                                        (e) => DropdownMenuItem(
+                                          value: e,
+                                          child: Text(e, overflow: TextOverflow.ellipsis),
+                                        ),
+                                      )
+                                      .toList(),
+                                  onChanged: (val) {
+                                    if (val != null) {
+                                      setSheetState(() => tempClient = val);
+                                    }
+                                  },
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+
+                            // 4. Operative Dropdown
+                            Text(
+                              "OPERATIVE",
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.8,
+                                color: textSecondary,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 14),
+                              decoration: BoxDecoration(
+                                color: inputBg,
+                                border: Border.all(color: borderColor),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<String>(
+                                  value: _operativeOptions.contains(tempOperative) ? tempOperative : 'All Operatives',
+                                  isExpanded: true,
+                                  dropdownColor: bgColor,
+                                  style: TextStyle(color: textColor, fontSize: 14),
+                                  icon: Icon(IconlyLight.arrow_down_2, size: 16, color: textSecondary),
+                                  items: _operativeOptions
+                                      .map(
+                                        (e) => DropdownMenuItem(
+                                          value: e,
+                                          child: Text(e, overflow: TextOverflow.ellipsis),
+                                        ),
+                                      )
+                                      .toList(),
+                                  onChanged: (val) {
+                                    if (val != null) {
+                                      setSheetState(() => tempOperative = val);
+                                    }
+                                  },
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+
+                            // 5. Form Type Dropdown
+                            Text(
+                              "FORM TYPE",
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.8,
+                                color: textSecondary,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 14),
+                              decoration: BoxDecoration(
+                                color: inputBg,
+                                border: Border.all(color: borderColor),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<String>(
+                                  value: _formOptions.contains(tempForm) ? tempForm : 'All Forms',
+                                  isExpanded: true,
+                                  dropdownColor: bgColor,
+                                  style: TextStyle(color: textColor, fontSize: 14),
+                                  icon: Icon(IconlyLight.arrow_down_2, size: 16, color: textSecondary),
+                                  items: _formOptions
+                                      .map(
+                                        (e) => DropdownMenuItem(
+                                          value: e,
+                                          child: Text(e, overflow: TextOverflow.ellipsis),
+                                        ),
+                                      )
+                                      .toList(),
+                                  onChanged: (val) {
+                                    if (val != null) {
+                                      setSheetState(() => tempForm = val);
+                                    }
+                                  },
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Bottom Action Buttons filling container
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: bgColor,
+                          border: Border(top: BorderSide(color: borderColor)),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              flex: 1,
+                              child: OutlinedButton(
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  side: BorderSide(color: borderColor),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                ),
+                                onPressed: () {
+                                  _resetFilters();
+                                  Navigator.pop(context);
+                                },
+                                child: Text("Clear All", style: TextStyle(color: textColor, fontWeight: FontWeight.w600)),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              flex: 2,
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF0D6EFD),
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _selectedStatus = tempStatus;
+                                    _selectedProject = tempProject;
+                                    _selectedClient = tempClient;
+                                    _selectedOperative = tempOperative;
+                                    _selectedForm = tempForm;
+                                  });
+                                  Navigator.pop(context);
+                                },
+                                child: const Text("Apply Filters", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showTaskDetailsBottomSheet(JobSheet task) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark ? const Color(0xFF162A42) : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
+    final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+    final borderColor = isDark ? Colors.white24 : Colors.grey.shade200;
+    final sectionBg = isDark ? Colors.white.withOpacity(0.04) : const Color(0xFFF8FAFC);
+
+    final taskNo = task.jobNo.isNotEmpty ? task.jobNo : task.sheetNo;
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: cardColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        side: isDark ? const BorderSide(color: Colors.white24) : BorderSide.none,
+      ),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Drag Handle
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: textSecondary.withOpacity(0.4),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+
+              // Title Header & Status Badge
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 16,
+                          backgroundColor: const Color(0xFFE8F2FF),
+                          child: const Icon(IconlyLight.document, color: Color(0xFF0D6EFD), size: 16),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            taskNo,
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: textColor,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  _buildStatusBadge(task.status, task.statusLabel),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Section: Project & Client
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: sectionBg,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: borderColor),
+                ),
+                child: Column(
+                  children: [
+                    _bottomSheetRow(
+                      icon: IconlyLight.folder,
+                      label: "Project",
+                      value: task.projectName.isNotEmpty ? task.projectName : "General Project",
+                      textColor: textColor,
+                      secondaryColor: textSecondary,
+                    ),
+                    const SizedBox(height: 10),
+                    _bottomSheetRow(
+                      icon: IconlyLight.work,
+                      label: "Client",
+                      value: task.clientName.isNotEmpty ? task.clientName : "Euroside",
+                      textColor: textColor,
+                      secondaryColor: textSecondary,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // Section: Operative & Form
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: sectionBg,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: borderColor),
+                ),
+                child: Column(
+                  children: [
+                    _bottomSheetRow(
+                      icon: IconlyLight.profile,
+                      label: "Operative",
+                      value: task.operative.isNotEmpty ? task.operative : "-",
+                      textColor: textColor,
+                      secondaryColor: textSecondary,
+                    ),
+                    const SizedBox(height: 10),
+                    _bottomSheetRow(
+                      icon: IconlyLight.paper,
+                      label: "Form Type",
+                      value: task.form.isNotEmpty ? task.form : "-",
+                      textColor: textColor,
+                      secondaryColor: textSecondary,
+                      valueColor: const Color(0xFF0D6EFD),
+                    ),
+                    if (task.created.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      _bottomSheetRow(
+                        icon: IconlyLight.time_circle,
+                        label: "Created",
+                        value: task.created,
+                        textColor: textColor,
+                        secondaryColor: textSecondary,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Action Buttons
+              Row(
+                children: [
+                  Expanded(
+                    flex: 1,
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        side: BorderSide(color: borderColor),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: () => Navigator.pop(context),
+                      child: Text("Close", style: TextStyle(color: textColor, fontWeight: FontWeight.w600)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 2,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF0D6EFD),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _viewDetails(task);
+                      },
+                      icon: const Icon(IconlyLight.show, size: 16, color: Colors.white),
+                      label: const Text("Full Details & Form", style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _bottomSheetRow({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color textColor,
+    required Color secondaryColor,
+    Color? valueColor,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 16, color: secondaryColor),
+        const SizedBox(width: 8),
+        SizedBox(
+          width: 85,
+          child: Text(
+            label,
+            style: TextStyle(color: secondaryColor, fontSize: 13, fontWeight: FontWeight.w500),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: TextStyle(
+              color: valueColor ?? textColor,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   void _showCreateTaskDialog() {
@@ -514,6 +1181,23 @@ class _TasksScreenState extends State<TasksScreen> {
                       ),
                       const SizedBox(height: 14),
                       Text(
+                        "Client Name",
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textSecondary),
+                      ),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: clientController,
+                        style: TextStyle(color: textColor, fontSize: 14),
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: borderColor),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Text(
                         "Status",
                         style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textSecondary),
                       ),
@@ -785,31 +1469,40 @@ class _TasksScreenState extends State<TasksScreen> {
                               ),
                             ],
                           ),
-                          if (_canCreate)
-                            ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF0D6EFD),
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 10,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                elevation: 0,
+                          Row(
+                            children: [
+                              IconButton(
+                                onPressed: _showFilterBottomSheet,
+                                icon: const Icon(IconlyLight.filter, color: Color(0xFF0D6EFD)),
+                                tooltip: "Filter Options",
                               ),
-                              onPressed: _showCreateTaskDialog,
-                              icon: const Icon(IconlyLight.plus, size: 16, color: Colors.white),
-                              label: const Text(
-                                "Create Task",
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w600,
+                              if (_canCreate)
+                                ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF0D6EFD),
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                      vertical: 10,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    elevation: 0,
+                                  ),
+                                  onPressed: _showCreateTaskDialog,
+                                  icon: const Icon(IconlyLight.plus, size: 16, color: Colors.white),
+                                  label: const Text(
+                                    "Create Task",
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            ),
+                            ],
+                          ),
                         ],
                       ),
                       const SizedBox(height: 16),
@@ -923,19 +1616,20 @@ class _TasksScreenState extends State<TasksScreen> {
                                     ),
                                   ),
 
-                                  // Filter Button (Blue)
-                                  ElevatedButton(
+                                  // Filter Button (Opens full Filter Modal)
+                                  ElevatedButton.icon(
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: const Color(0xFF0D6EFD),
                                       foregroundColor: Colors.white,
                                       elevation: 0,
-                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(6),
                                       ),
                                     ),
-                                    onPressed: _applyFilter,
-                                    child: const Text(
+                                    onPressed: _showFilterBottomSheet,
+                                    icon: const Icon(IconlyLight.filter, size: 14, color: Colors.white),
+                                    label: const Text(
                                       "Filter",
                                       style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                                     ),
@@ -1321,7 +2015,7 @@ class _TasksScreenState extends State<TasksScreen> {
                                           ),
                                           padding: const EdgeInsets.symmetric(vertical: 10),
                                         ),
-                                        onPressed: () => _viewDetails(task),
+                                        onPressed: () => _showTaskDetailsBottomSheet(task),
                                         child: Row(
                                           mainAxisAlignment: MainAxisAlignment.center,
                                           children: [
