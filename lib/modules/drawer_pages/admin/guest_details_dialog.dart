@@ -46,17 +46,20 @@ class _GuestDetailsDialogState extends State<GuestDetailsDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.all(20),
       child: Container(
         width: 400,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isDark ? const Color(0xFF0F2C4A) : Colors.white,
           borderRadius: BorderRadius.circular(24),
+          border: isDark ? Border.all(color: Colors.white24) : null,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
+              color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.1),
               blurRadius: 20,
               offset: const Offset(0, 10),
             )
@@ -75,14 +78,14 @@ class _GuestDetailsDialogState extends State<GuestDetailsDialog> {
                       children: [
                         const Icon(IconlyLight.danger, color: Colors.red, size: 56),
                         const SizedBox(height: 16),
-                        const Text("Oops!", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87)),
+                        Text("Oops!", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
                         const SizedBox(height: 8),
-                        const Text("Failed to load guest details.", style: TextStyle(color: Colors.grey)),
+                        Text("Failed to load guest details.", style: TextStyle(color: isDark ? Colors.white60 : Colors.grey)),
                         const SizedBox(height: 24),
                         ElevatedButton(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.grey.shade200,
-                            foregroundColor: Colors.black87,
+                            backgroundColor: isDark ? const Color(0xFF162A42) : Colors.grey.shade200,
+                            foregroundColor: isDark ? Colors.white : Colors.black87,
                             elevation: 0,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -104,9 +107,9 @@ class _GuestDetailsDialogState extends State<GuestDetailsDialog> {
                           children: [
                             Container(
                               height: 100,
-                              decoration: const BoxDecoration(
-                                color: Color(0xFF0F2C4A), // Deep navy
-                                borderRadius: BorderRadius.only(
+                              decoration: BoxDecoration(
+                                color: isDark ? const Color(0xFF071C2D) : const Color(0xFF0F2C4A), // Deep navy
+                                borderRadius: const BorderRadius.only(
                                   topLeft: Radius.circular(24),
                                   topRight: Radius.circular(24),
                                 ),
@@ -124,10 +127,10 @@ class _GuestDetailsDialogState extends State<GuestDetailsDialog> {
                               margin: const EdgeInsets.only(top: 50),
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                border: Border.all(color: Colors.white, width: 4),
+                                border: Border.all(color: isDark ? const Color(0xFF0F2C4A) : Colors.white, width: 4),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.1),
+                                    color: Colors.black.withValues(alpha: 0.2),
                                     blurRadius: 10,
                                     offset: const Offset(0, 4),
                                   )
@@ -150,15 +153,21 @@ class _GuestDetailsDialogState extends State<GuestDetailsDialog> {
                         // Name and Status
                         Text(
                           guest!.displayName,
-                          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF0F2C4A)),
+                          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF0F2C4A)),
                         ),
                         const SizedBox(height: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
-                            color: guest!.isActive ? Colors.green.shade50 : Colors.red.shade50,
+                            color: guest!.isActive
+                                ? (isDark ? Colors.green.shade900.withValues(alpha: 0.35) : Colors.green.shade50)
+                                : (isDark ? Colors.red.shade900.withValues(alpha: 0.35) : Colors.red.shade50),
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: guest!.isActive ? Colors.green.shade200 : Colors.red.shade200),
+                            border: Border.all(
+                              color: guest!.isActive
+                                  ? (isDark ? Colors.green.shade700.withValues(alpha: 0.6) : Colors.green.shade200)
+                                  : (isDark ? Colors.red.shade700.withValues(alpha: 0.6) : Colors.red.shade200),
+                            ),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -167,7 +176,7 @@ class _GuestDetailsDialogState extends State<GuestDetailsDialog> {
                                 width: 6,
                                 height: 6,
                                 decoration: BoxDecoration(
-                                  color: guest!.isActive ? Colors.green : Colors.red,
+                                  color: guest!.isActive ? Colors.greenAccent : Colors.redAccent,
                                   shape: BoxShape.circle,
                                 ),
                               ),
@@ -177,7 +186,9 @@ class _GuestDetailsDialogState extends State<GuestDetailsDialog> {
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
-                                  color: guest!.isActive ? Colors.green.shade700 : Colors.red.shade700,
+                                  color: guest!.isActive
+                                      ? (isDark ? Colors.green.shade300 : Colors.green.shade700)
+                                      : (isDark ? Colors.red.shade300 : Colors.red.shade700),
                                 ),
                               ),
                             ],
@@ -192,20 +203,20 @@ class _GuestDetailsDialogState extends State<GuestDetailsDialog> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _buildSectionTitle("Contact Information"),
+                              _buildSectionTitle("Contact Information", isDark),
                               _buildInfoCard([
-                                _buildInfoRow(IconlyLight.message, "Email", guest!.email),
-                                _buildInfoRow(IconlyLight.call, "Phone", guest!.phone.isNotEmpty ? guest!.phone : "N/A"),
-                              ]),
+                                _buildInfoRow(IconlyLight.message, "Email", guest!.email, isDark),
+                                _buildInfoRow(IconlyLight.call, "Phone", guest!.phone.isNotEmpty ? guest!.phone : "N/A", isDark),
+                              ], isDark),
                               
                               const SizedBox(height: 20),
                               
-                              _buildSectionTitle("Account Details"),
+                              _buildSectionTitle("Account Details", isDark),
                               _buildInfoCard([
-                                _buildInfoRow(IconlyLight.user_1, "Username", guest!.username),
+                                _buildInfoRow(IconlyLight.user_1, "Username", guest!.username, isDark),
                                 if (guest!.createdAt.isNotEmpty)
-                                  _buildInfoRow(IconlyLight.calendar, "Invited On", _formatDate(guest!.createdAt)),
-                              ]),
+                                  _buildInfoRow(IconlyLight.calendar, "Invited On", _formatDate(guest!.createdAt), isDark),
+                              ], isDark),
                               
                               const SizedBox(height: 24),
                             ],
@@ -218,22 +229,27 @@ class _GuestDetailsDialogState extends State<GuestDetailsDialog> {
     );
   }
 
-  Widget _buildSectionTitle(String title) {
+  Widget _buildSectionTitle(String title, bool isDark) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12, left: 4),
       child: Text(
         title,
-        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 0.5),
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.bold,
+          color: isDark ? Colors.white70 : Colors.grey,
+          letterSpacing: 0.5,
+        ),
       ),
     );
   }
 
-  Widget _buildInfoCard(List<Widget> children) {
+  Widget _buildInfoCard(List<Widget> children, bool isDark) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: isDark ? const Color(0xFF162A42) : Colors.grey.shade50,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
       ),
       child: Column(
         children: children,
@@ -241,7 +257,7 @@ class _GuestDetailsDialogState extends State<GuestDetailsDialog> {
     );
   }
 
-  Widget _buildInfoRow(IconData icon, String label, String value) {
+  Widget _buildInfoRow(IconData icon, String label, String value, bool isDark) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Row(
@@ -249,26 +265,41 @@ class _GuestDetailsDialogState extends State<GuestDetailsDialog> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: isDark ? const Color(0xFF0F2C4A) : Colors.white,
               borderRadius: BorderRadius.circular(10),
+              border: isDark ? Border.all(color: Colors.white12) : null,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.03),
+                  color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
                   blurRadius: 4,
                   offset: const Offset(0, 2),
                 )
-              ]
+              ],
             ),
-            child: Icon(icon, color: const Color(0xFF0D6EFD), size: 18),
+            child: Icon(icon, color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF0D6EFD), size: 18),
           ),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w600)),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: isDark ? Colors.white60 : Colors.grey,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 const SizedBox(height: 2),
-                Text(value, style: const TextStyle(fontSize: 14, color: Colors.black87, fontWeight: FontWeight.w500)),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: isDark ? Colors.white : Colors.black87,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ],
             ),
           ),

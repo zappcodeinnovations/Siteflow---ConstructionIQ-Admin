@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../core/network/api_client.dart';
 import '../../core/network/api_endpoints.dart';
-import '../../core/utils/date_helper.dart';
 import '../../models/job_sheet_model.dart';
 
 class JobSheetController extends ChangeNotifier {
@@ -43,154 +42,15 @@ class JobSheetController extends ChangeNotifier {
   // separate /daily-reports/ URL which reuses the same job_sheets_list view.
   bool dailyReportsMode = false;
 
-  List<String> _allProjectsList = [];
-  List<String> _allClientsList = [];
-  List<String> _allFormsList = [];
-
-  List<String> _extractList(dynamic rawList) {
-    if (rawList is! List) return [];
-    final set = <String>{};
-    for (final item in rawList) {
-      if (item == null) continue;
-      if (item is Map) {
-        final val = item['name'] ??
-            item['title'] ??
-            item['label'] ??
-            item['project_name'] ??
-            item['client_name'] ??
-            item['sheet_no'] ??
-            item['form_name'] ??
-            item['operative_name'] ??
-            item['username'] ??
-            item['code'];
-        if (val != null && val.toString().trim().isNotEmpty) {
-          set.add(val.toString().trim());
-        }
-      } else if (item is String) {
-        if (item.trim().isNotEmpty) set.add(item.trim());
-      } else {
-        final str = item.toString().trim();
-        if (str.isNotEmpty) set.add(str);
-      }
-    }
-    return set.toList();
-  }
-
-  List<String> get projectOptions {
-    final set = <String>{};
-    for (final key in ['projects', 'project_names', 'project', 'all_projects']) {
-      set.addAll(_extractList(_filterOptions[key]));
-    }
-    for (final s in _jobSheets) {
-      if (s.projectName.trim().isNotEmpty) set.add(s.projectName.trim());
-    }
-    for (final p in _allProjectsList) {
-      if (p.trim().isNotEmpty) set.add(p.trim());
-    }
-    final list = set.toList()..sort();
-    return list;
-  }
-
-  List<String> get sheetNoOptions {
-    final set = <String>{};
-    for (final key in ['sheet_nos', 'sheets', 'sheet_no', 'sheetNos']) {
-      set.addAll(_extractList(_filterOptions[key]));
-    }
-    for (final s in _jobSheets) {
-      if (s.sheetNo.trim().isNotEmpty) set.add(s.sheetNo.trim());
-    }
-    final list = set.toList()..sort();
-    return list;
-  }
-
-  List<String> get clientOptions {
-    final set = <String>{};
-    for (final key in ['clients', 'client_names', 'client', 'all_clients']) {
-      set.addAll(_extractList(_filterOptions[key]));
-    }
-    for (final s in _jobSheets) {
-      if (s.clientName.trim().isNotEmpty) set.add(s.clientName.trim());
-    }
-    for (final c in _allClientsList) {
-      if (c.trim().isNotEmpty) set.add(c.trim());
-    }
-    final list = set.toList()..sort();
-    return list;
-  }
-
-  List<String> get operativeOptions {
-    final set = <String>{};
-    for (final key in ['operatives', 'operative_names', 'operative', 'users']) {
-      set.addAll(_extractList(_filterOptions[key]));
-    }
-    for (final s in _jobSheets) {
-      if (s.operative.trim().isNotEmpty) set.add(s.operative.trim());
-    }
-    final list = set.toList()..sort();
-    return list;
-  }
-
-  List<String> get formOptions {
-    final set = <String>{};
-    for (final key in ['forms', 'form_names', 'form', 'form_types']) {
-      set.addAll(_extractList(_filterOptions[key]));
-    }
-    for (final s in _jobSheets) {
-      if (s.form.trim().isNotEmpty) set.add(s.form.trim());
-    }
-    for (final f in _allFormsList) {
-      if (f.trim().isNotEmpty) set.add(f.trim());
-    }
-    final list = set.toList()..sort();
-    return list;
-  }
-
-  Future<void> fetchFilterMetadata() async {
-    try {
-      final futures = await Future.wait([
-        ApiClient.get('${ApiEndpoints.baseUrl}${ApiEndpoints.projects}?page_size=100'),
-        ApiClient.get('${ApiEndpoints.baseUrl}${ApiEndpoints.clients}?page_size=100'),
-        ApiClient.get('${ApiEndpoints.baseUrl}${ApiEndpoints.libraryForms}?page_size=100'),
-      ]);
-
-      if (futures[0].statusCode == 200) {
-        final data = jsonDecode(futures[0].body);
-        final list = (data['data'] ?? data['results'] ?? data) as dynamic;
-        _allProjectsList = _extractList(list);
-      }
-      if (futures[1].statusCode == 200) {
-        final data = jsonDecode(futures[1].body);
-        final list = (data['data'] ?? data['results'] ?? data) as dynamic;
-        _allClientsList = _extractList(list);
-      }
-      if (futures[2].statusCode == 200) {
-        final data = jsonDecode(futures[2].body);
-        final list = (data['data'] ?? data['results'] ?? data) as dynamic;
-        _allFormsList = _extractList(list);
-      }
-      notifyListeners();
-    } catch (_) {}
-  }
-
   Future<void> fetchJobSheets({String? projectId}) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
-    if (_allProjectsList.isEmpty) {
-      fetchFilterMetadata();
-    }
-
     try {
-      final tz = await DateHelper.getDeviceTimezone();
-
       // Build query parameters
       String url = '${ApiEndpoints.baseUrl}/job-sheets/';
       List<String> queryParams = [];
-
-      if (tz.isNotEmpty) {
-        queryParams.add('tz=${Uri.encodeComponent(tz)}');
-      }
 
       if (projectId != null && projectId.isNotEmpty) {
         queryParams.add('project=$projectId');
@@ -198,10 +58,9 @@ class JobSheetController extends ChangeNotifier {
         queryParams.add('project=${Uri.encodeComponent(_selectedProject!)}');
       }
 
-      String statusVal = _selectedStatus.replaceAll('Status: ', '').toLowerCase().trim();
-      if (statusVal != 'all' && statusVal.isNotEmpty) {
-        final queryStatus = statusVal.replaceAll(' ', '_');
-        queryParams.add('status=${Uri.encodeComponent(queryStatus)}');
+      String statusVal = _selectedStatus.replaceAll('Status: ', '').toLowerCase();
+      if (statusVal != 'all') {
+        queryParams.add('status=${Uri.encodeComponent(statusVal)}');
       }
 
       if (_selectedSheetNo != null && _selectedSheetNo!.isNotEmpty) {
@@ -220,7 +79,9 @@ class JobSheetController extends ChangeNotifier {
         queryParams.add('form=${Uri.encodeComponent(_selectedForm!)}');
       }
 
-      queryParams.add('page_size=100');
+      if (!queryParams.any((p) => p.startsWith('page_size='))) {
+        queryParams.add('page_size=1000');
+      }
 
       if (queryParams.isNotEmpty) {
         url = '$url?${queryParams.join('&')}';
@@ -231,8 +92,24 @@ class JobSheetController extends ChangeNotifier {
 
       if (response.statusCode == 200 && data['status'] == true) {
         final jobSheetResponse = JobSheetResponse.fromJson(data);
-        _jobSheets = jobSheetResponse.data;
+        List<JobSheet> allSheets = List.from(jobSheetResponse.data);
         _filterOptions = jobSheetResponse.filterOptions;
+
+        if (jobSheetResponse.totalPages > 1 && jobSheetResponse.page < jobSheetResponse.totalPages) {
+          int currentPage = jobSheetResponse.page + 1;
+          while (currentPage <= jobSheetResponse.totalPages) {
+            String pageUrl = '$url${url.contains('?') ? '&' : '?'}page=$currentPage';
+            final pageRes = await ApiClient.get(pageUrl);
+            final pageData = jsonDecode(pageRes.body);
+            if (pageRes.statusCode == 200 && pageData['status'] == true) {
+              final nextResp = JobSheetResponse.fromJson(pageData);
+              allSheets.addAll(nextResp.data);
+            }
+            currentPage++;
+          }
+        }
+
+        _jobSheets = allSheets;
       } else {
         _errorMessage = data['message'] ?? 'Failed to fetch job sheets';
       }

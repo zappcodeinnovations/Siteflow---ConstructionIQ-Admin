@@ -3,7 +3,6 @@ import 'package:iconly/iconly.dart';
 import '../../core/network/api_endpoints.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/background_stripes_painter.dart';
-import '../../core/widgets/shimmer_loading.dart';
 import 'job_sheet_webview_screen.dart';
 import 'manager_diary_controller.dart';
 
@@ -72,7 +71,12 @@ class _ManagerDiarySelectScreenState extends State<ManagerDiarySelectScreen> {
               animation: _controller,
               builder: (context, _) {
                 if (_controller.isLoading && _controller.forms.isEmpty) {
-                  return const ShimmerLoadingList();
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(48.0),
+                      child: CircularProgressIndicator(),
+                    ),
+                  );
                 }
                 if (_controller.errorMessage != null && _controller.forms.isEmpty) {
                   return Center(child: Text(_controller.errorMessage!, style: const TextStyle(color: Colors.red)));

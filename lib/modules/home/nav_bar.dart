@@ -1,7 +1,7 @@
 import 'package:euroside_admin/modules/client/client_screen.dart';
 import 'package:euroside_admin/modules/dashboard/dashboard.dart';
-import 'package:euroside_admin/modules/dashboard/dashboard_controller.dart';
 import 'package:euroside_admin/modules/tasks/task_screen.dart';
+import '../dashboard/dashboard_controller.dart';
 import 'package:flutter/material.dart';
 
 import '../projects/projects_screen.dart';
@@ -110,13 +110,6 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
     }
   }
 
-  void _onTabSelected(int index) {
-    if (index == 0) {
-      DashboardController.triggerGlobalRefresh();
-    }
-    setState(() => currentIndex = index);
-  }
-
   Future<void> _logout() async {
     await AuthService.clearTokens();
     if (!mounted) return;
@@ -163,7 +156,12 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
             NavigationRail(
               backgroundColor: Colors.white,
               selectedIndex: currentIndex,
-              onDestinationSelected: _onTabSelected,
+              onDestinationSelected: (value) {
+                if (value == 0) {
+                  DashboardController.triggerGlobalRefresh();
+                }
+                setState(() => currentIndex = value);
+              },
               labelType: NavigationRailLabelType.all,
               selectedIconTheme: IconThemeData(
                 color: Theme.of(context).primaryColor,
@@ -196,12 +194,7 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
             ),
           if (isDesktop) const VerticalDivider(thickness: 1, width: 1),
           // Main Content
-          Expanded(
-            child: IndexedStack(
-              index: currentIndex,
-              children: pages,
-            ),
-          ),
+          Expanded(child: pages[currentIndex]),
         ],
       ),
 
@@ -209,7 +202,12 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
           ? null
           : BottomNavigationBar(
               currentIndex: currentIndex,
-              onTap: _onTabSelected,
+              onTap: (index) {
+                if (index == 0) {
+                  DashboardController.triggerGlobalRefresh();
+                }
+                setState(() => currentIndex = index);
+              },
               type: BottomNavigationBarType.fixed,
               items: List.generate(titles.length, (index) {
                 return BottomNavigationBarItem(

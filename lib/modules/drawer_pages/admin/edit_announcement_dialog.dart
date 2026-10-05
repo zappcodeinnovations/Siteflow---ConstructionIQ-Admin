@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
 import '../../../../models/announcement_model.dart';
-import '../../../core/theme/app_theme.dart';
 import 'admin_announcements_controller.dart';
 
 class EditAnnouncementDialog extends StatefulWidget {
@@ -66,18 +65,9 @@ class _EditAnnouncementDialogState extends State<EditAnnouncementDialog> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final dialogBg = isDark ? AppTheme.corporateBlue : Colors.white;
-    final inputBg = isDark ? const Color(0xFF1F2E40) : Colors.grey.shade50;
-    final borderColor = isDark ? Colors.white24 : Colors.grey.shade300;
-    final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
-    final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey;
 
     return Dialog(
-      backgroundColor: dialogBg,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: isDark ? const BorderSide(color: Colors.white24) : BorderSide.none,
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
         width: 450,
         padding: const EdgeInsets.all(24),
@@ -90,33 +80,38 @@ class _EditAnnouncementDialogState extends State<EditAnnouncementDialog> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text("Edit Announcement", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor)),
+                  Text(
+                    "Edit Announcement",
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : const Color(0xFF0F2C4A),
+                    ),
+                  ),
                   IconButton(
-                    icon: Icon(IconlyLight.close_square, color: textSecondary),
+                    icon: Icon(IconlyLight.close_square, color: isDark ? Colors.white70 : Colors.grey),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
               ),
-              Divider(color: borderColor),
+              Divider(color: isDark ? Colors.white24 : Colors.grey.shade300),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _titleController,
-                style: TextStyle(color: textColor),
-                decoration: _buildInputDecoration("Announcement Title", IconlyLight.document, inputBg, borderColor, textSecondary),
+                decoration: _buildInputDecoration("Announcement Title", IconlyLight.document, isDark),
                 validator: (val) => val == null || val.isEmpty ? "Required" : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _messageController,
                 maxLines: 4,
-                style: TextStyle(color: textColor),
-                decoration: _buildInputDecoration("Message", IconlyLight.message, inputBg, borderColor, textSecondary),
+                decoration: _buildInputDecoration("Message", IconlyLight.message, isDark),
                 validator: (val) => val == null || val.isEmpty ? "Required" : null,
               ),
               const SizedBox(height: 16),
               SwitchListTile(
-                title: Text("Is Active", style: TextStyle(fontWeight: FontWeight.bold, color: textColor)),
-                subtitle: Text("Make this announcement visible immediately", style: TextStyle(color: textSecondary, fontSize: 12)),
+                title: Text("Is Active", style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
+                subtitle: Text("Make this announcement visible immediately", style: TextStyle(color: isDark ? Colors.white60 : Colors.grey, fontSize: 12)),
                 value: _isActive,
                 activeColor: Colors.green,
                 contentPadding: EdgeInsets.zero,
@@ -141,16 +136,14 @@ class _EditAnnouncementDialogState extends State<EditAnnouncementDialog> {
     );
   }
 
-  InputDecoration _buildInputDecoration(String hint, IconData icon, Color inputBg, Color borderColor, Color textSecondary) {
+  InputDecoration _buildInputDecoration(String hint, IconData icon, bool isDark) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: TextStyle(color: textSecondary),
-      prefixIcon: Icon(icon, color: textSecondary),
+      prefixIcon: Icon(icon, color: isDark ? Colors.white70 : Colors.grey),
       filled: true,
-      fillColor: inputBg,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF0D6EFD))),
+      fillColor: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.grey.shade50,
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300)),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300)),
     );
   }
 }

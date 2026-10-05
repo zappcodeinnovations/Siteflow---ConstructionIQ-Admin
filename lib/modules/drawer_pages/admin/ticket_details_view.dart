@@ -31,15 +31,27 @@ class _TicketDetailsViewState extends State<TicketDetailsView> {
 
   Future<void> _sendReply() async {
     final body = _replyController.text.trim();
-    if (body.isEmpty) return;
+    if (body.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Please type a reply message before sending."),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
 
     final result = await widget.controller.replyToTicket(widget.ticketId, body);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message']), backgroundColor: result['success'] ? Colors.green : Colors.red),
+        SnackBar(
+          content: Text(result['message']),
+          backgroundColor: result['success'] ? Colors.green : Colors.red,
+        ),
       );
       if (result['success']) {
         _replyController.clear();
+        FocusScope.of(context).unfocus();
       }
     }
   }
@@ -53,16 +65,16 @@ class _TicketDetailsViewState extends State<TicketDetailsView> {
     }
   }
 
-  Widget _buildStatusPill(String statusDisplay, String statusKey) {
-    Color bg = Colors.grey.shade100;
-    Color fg = Colors.grey.shade700;
+  Widget _buildStatusPill(String statusDisplay, String statusKey, {bool isDark = false}) {
+    Color bg = isDark ? Colors.white12 : Colors.grey.shade100;
+    Color fg = isDark ? Colors.white70 : Colors.grey.shade700;
     
     if (statusKey == 'open' || statusKey == 'in_progress') {
-      bg = Colors.blue.shade50;
-      fg = Colors.blue.shade700;
+      bg = isDark ? const Color(0xFF1E3A8A).withOpacity(0.5) : Colors.blue.shade50;
+      fg = isDark ? Colors.lightBlueAccent : Colors.blue.shade700;
     } else if (statusKey == 'resolved' || statusKey == 'closed') {
-      bg = Colors.green.shade50;
-      fg = Colors.green.shade700;
+      bg = isDark ? const Color(0xFF065F46).withOpacity(0.5) : Colors.green.shade50;
+      fg = isDark ? Colors.greenAccent : Colors.green.shade700;
     }
 
     return Container(
@@ -72,7 +84,7 @@ class _TicketDetailsViewState extends State<TicketDetailsView> {
     );
   }
 
-  Widget _buildMessageBubble(SupportTicketMessage msg) {
+  Widget _buildMessageBubble(SupportTicketMessage msg, {bool isDark = false}) {
     final isSupport = msg.senderType != 'user';
     
     return Container(
@@ -81,8 +93,13 @@ class _TicketDetailsViewState extends State<TicketDetailsView> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           CircleAvatar(
-            backgroundColor: isSupport ? Colors.blue.shade100 : Colors.grey.shade200,
-            child: Icon(isSupport ? IconlyLight.user_1 : IconlyLight.profile, color: isSupport ? Colors.blue.shade700 : Colors.grey.shade700),
+            backgroundColor: isSupport
+                ? (isDark ? const Color(0xFF1E3A8A).withOpacity(0.5) : Colors.blue.shade100)
+                : (isDark ? const Color(0xFF162A42) : Colors.grey.shade200),
+            child: Icon(
+              isSupport ? IconlyLight.user_1 : IconlyLight.profile,
+              color: isSupport ? (isDark ? Colors.lightBlueAccent : Colors.blue.shade700) : (isDark ? Colors.white70 : Colors.grey.shade700),
+            ),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -91,20 +108,29 @@ class _TicketDetailsViewState extends State<TicketDetailsView> {
               children: [
                 Row(
                   children: [
-                    Text(msg.senderName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    Text(msg.senderName, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: isDark ? Colors.white : Colors.black87)),
                     const SizedBox(width: 8),
-                    Text(msg.createdAt.split('T').first, style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
+                    Text(msg.createdAt.split('T').first, style: TextStyle(color: isDark ? Colors.white60 : Colors.grey.shade500, fontSize: 12)),
                   ],
                 ),
                 const SizedBox(height: 8),
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: isSupport ? Colors.blue.shade50 : Colors.white,
-                    border: Border.all(color: isSupport ? Colors.blue.shade100 : Colors.grey.shade300),
+                    color: isSupport
+                        ? (isDark ? const Color(0xFF162A42) : Colors.blue.shade50)
+                        : (isDark ? const Color(0xFF0F2C4A) : Colors.white),
+                    border: Border.all(
+                      color: isSupport
+                          ? (isDark ? Colors.blue.withOpacity(0.3) : Colors.blue.shade100)
+                          : (isDark ? Colors.white12 : Colors.grey.shade300),
+                    ),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Text(msg.body, style: const TextStyle(fontSize: 14, height: 1.5)),
+                  child: Text(
+                    msg.body,
+                    style: TextStyle(fontSize: 14, height: 1.5, color: isDark ? Colors.white : Colors.black87),
+                  ),
                 )
               ],
             ),
@@ -116,13 +142,15 @@ class _TicketDetailsViewState extends State<TicketDetailsView> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
-      appBar: AppBar(
-        title: const Text("Ticket Details", style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    return Scaffold(
+      backgroundColor: isDark ? const Color(0xFF0A1929) : const Color(0xFFF8F9FA),
+      appBar: AppBar(
+        title: Text("Ticket Details", style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontWeight: FontWeight.bold)),
+        backgroundColor: isDark ? const Color(0xFF0F2C4A) : Colors.white,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black87),
+        iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black87),
       ),
       body: AnimatedBuilder(
         animation: widget.controller,
@@ -156,9 +184,9 @@ class _TicketDetailsViewState extends State<TicketDetailsView> {
                           Container(
                             padding: const EdgeInsets.all(24),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: isDark ? const Color(0xFF0F2C4A) : Colors.white,
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.grey.shade200),
+                              border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -166,24 +194,36 @@ class _TicketDetailsViewState extends State<TicketDetailsView> {
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Text("Ticket #${ticket.ticketNumber}", style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.bold)),
-                                    _buildStatusPill(ticket.statusDisplay, ticket.status),
+                                    Text("Ticket #${ticket.ticketNumber}", style: TextStyle(color: isDark ? Colors.white70 : Colors.grey.shade600, fontWeight: FontWeight.bold)),
+                                    _buildStatusPill(ticket.statusDisplay, ticket.status, isDark: isDark),
                                   ],
                                 ),
                                 const SizedBox(height: 12),
-                                Text(ticket.subject, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF0F2C4A))),
+                                Text(ticket.subject, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF0F2C4A))),
                                 const SizedBox(height: 16),
-                                const Divider(height: 1),
+                                Divider(height: 1, color: isDark ? Colors.white12 : null),
                                 const SizedBox(height: 16),
-                                Row(
+                                Wrap(
+                                  spacing: 24,
+                                  runSpacing: 12,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
                                   children: [
-                                    Icon(IconlyLight.category, size: 16, color: Colors.grey.shade600),
-                                    const SizedBox(width: 8),
-                                    Text("Category: ${ticket.categoryDisplay}", style: TextStyle(color: Colors.grey.shade800)),
-                                    const SizedBox(width: 24),
-                                    Icon(IconlyLight.bookmark, size: 16, color: Colors.grey.shade600),
-                                    const SizedBox(width: 8),
-                                    Text("Priority: ${ticket.priorityDisplay}", style: TextStyle(color: Colors.grey.shade800)),
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(IconlyLight.category, size: 16, color: isDark ? Colors.white60 : Colors.grey.shade600),
+                                        const SizedBox(width: 8),
+                                        Text("Category: ${ticket.categoryDisplay}", style: TextStyle(color: isDark ? Colors.white70 : Colors.grey.shade800)),
+                                      ],
+                                    ),
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(IconlyLight.bookmark, size: 16, color: isDark ? Colors.white60 : Colors.grey.shade600),
+                                        const SizedBox(width: 8),
+                                        Text("Priority: ${ticket.priorityDisplay}", style: TextStyle(color: isDark ? Colors.white70 : Colors.grey.shade800)),
+                                      ],
+                                    ),
                                   ],
                                 ),
                               ],
@@ -191,10 +231,10 @@ class _TicketDetailsViewState extends State<TicketDetailsView> {
                           ),
                           const SizedBox(height: 32),
 
-                          const Text("Conversation", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF0F2C4A))),
+                          Text("Conversation", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: isDark ? Colors.white : const Color(0xFF0F2C4A))),
                           const SizedBox(height: 24),
 
-                          ...details.messages.map((m) => _buildMessageBubble(m)),
+                          ...details.messages.map((m) => _buildMessageBubble(m, isDark: isDark)),
                         ],
                       ),
                     ),
@@ -203,64 +243,71 @@ class _TicketDetailsViewState extends State<TicketDetailsView> {
               ),
 
               // Reply Box
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border(top: BorderSide(color: Colors.grey.shade200)),
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -4))],
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                child: Center(
-                  child: Container(
-                    constraints: const BoxConstraints(maxWidth: 800),
-                    child: isClosed 
-                      ? Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text("This ticket is closed.", style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.bold)),
-                            ElevatedButton.icon(
-                              onPressed: widget.controller.isSubmitting ? null : _reopenTicket,
-                              icon: widget.controller.isSubmitting ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.refresh),
-                              label: const Text("Reopen Ticket"),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.orange.shade50,
-                                foregroundColor: Colors.orange.shade800,
-                                elevation: 0,
-                              ),
-                            )
-                          ],
-                        )
-                      : Row(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Expanded(
-                              child: TextField(
-                                controller: _replyController,
-                                maxLines: 4,
-                                minLines: 1,
-                                decoration: InputDecoration(
-                                  hintText: "Type your reply here...",
-                                  filled: true,
-                                  fillColor: Colors.grey.shade50,
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
-                                  contentPadding: const EdgeInsets.all(16),
+              SafeArea(
+                top: false,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF0F2C4A) : Colors.white,
+                    border: Border(top: BorderSide(color: isDark ? Colors.white12 : Colors.grey.shade200)),
+                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(isDark ? 0.2 : 0.05), blurRadius: 10, offset: const Offset(0, -4))],
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  child: Center(
+                    child: Container(
+                      constraints: const BoxConstraints(maxWidth: 800),
+                      child: isClosed 
+                        ? Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text("This ticket is closed.", style: TextStyle(color: isDark ? Colors.white70 : Colors.grey.shade600, fontWeight: FontWeight.bold)),
+                              ElevatedButton.icon(
+                                onPressed: widget.controller.isSubmitting ? null : _reopenTicket,
+                                icon: widget.controller.isSubmitting ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.refresh),
+                                label: const Text("Reopen Ticket"),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.orange.shade50,
+                                  foregroundColor: Colors.orange.shade800,
+                                  elevation: 0,
+                                ),
+                              )
+                            ],
+                          )
+                        : Row(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: _replyController,
+                                  maxLines: 4,
+                                  minLines: 1,
+                                  style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                                  decoration: InputDecoration(
+                                    hintText: "Type your reply here...",
+                                    hintStyle: TextStyle(color: isDark ? Colors.white60 : Colors.grey.shade500),
+                                    filled: true,
+                                    fillColor: isDark ? const Color(0xFF162A42) : Colors.grey.shade50,
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300)),
+                                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300)),
+                                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF0D6EFD), width: 1.5)),
+                                    contentPadding: const EdgeInsets.all(16),
+                                  ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: 16),
-                            ElevatedButton(
-                              onPressed: widget.controller.isSubmitting ? null : _sendReply,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF0D6EFD),
-                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              ),
-                              child: widget.controller.isSubmitting
-                                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                                : const Text("Reply", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                            )
-                          ],
-                        ),
+                              const SizedBox(width: 16),
+                              ElevatedButton(
+                                onPressed: widget.controller.isSubmitting ? null : _sendReply,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF0D6EFD),
+                                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                ),
+                                child: widget.controller.isSubmitting
+                                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                  : const Text("Reply", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                              )
+                            ],
+                          ),
+                    ),
                   ),
                 ),
               ),

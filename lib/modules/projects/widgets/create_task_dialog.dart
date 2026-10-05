@@ -65,7 +65,7 @@ class _CreateTaskDialogState extends State<CreateTaskDialog> {
     return AlertDialog(
       title: Text("Create Task${_controller.setup?.jobNoDisplay.isNotEmpty == true ? ' (${_controller.setup!.jobNoDisplay})' : ''}"),
       content: SizedBox(
-        width: 420,
+        width: double.maxFinite,
         child: _controller.isLoadingSetup
             ? const Padding(
                 padding: EdgeInsets.symmetric(vertical: 32),
@@ -92,10 +92,17 @@ class _CreateTaskDialogState extends State<CreateTaskDialog> {
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
                           initialValue: _recordingMethod,
+                          isExpanded: true,
                           decoration: const InputDecoration(labelText: "Recording method"),
                           items: const [
-                            DropdownMenuItem(value: 'with_sheet', child: Text("With job sheet")),
-                            DropdownMenuItem(value: 'without_sheet', child: Text("Without job sheet (Daily Diary)")),
+                            DropdownMenuItem(
+                              value: 'with_sheet',
+                              child: Text("With job sheet", overflow: TextOverflow.ellipsis),
+                            ),
+                            DropdownMenuItem(
+                              value: 'without_sheet',
+                              child: Text("Without job sheet (Daily Diary)", overflow: TextOverflow.ellipsis),
+                            ),
                           ],
                           onChanged: (val) => setState(() => _recordingMethod = val ?? 'with_sheet'),
                         ),
@@ -127,9 +134,13 @@ class _CreateTaskDialogState extends State<CreateTaskDialog> {
                         if ((_controller.setup?.siteContacts ?? []).isNotEmpty)
                           DropdownButtonFormField<String>(
                             initialValue: _siteContact,
+                            isExpanded: true,
                             decoration: const InputDecoration(labelText: "Site contact (optional)"),
                             items: _controller.setup!.siteContacts
-                                .map((c) => DropdownMenuItem(value: c, child: Text(c, overflow: TextOverflow.ellipsis)))
+                                .map((c) => DropdownMenuItem(
+                                      value: c,
+                                      child: Text(c, overflow: TextOverflow.ellipsis),
+                                    ))
                                 .toList(),
                             onChanged: (val) => setState(() => _siteContact = val),
                           ),

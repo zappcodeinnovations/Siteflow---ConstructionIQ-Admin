@@ -127,7 +127,12 @@ class _AdminOrganisationViewState extends State<AdminOrganisationView> {
                 animation: _controller,
                 builder: (context, _) {
                   if (_controller.isLoading) {
-                    return const ShimmerLoadingDashboard();
+                    return const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(48.0),
+                        child: CircularProgressIndicator(),
+                      ),
+                    );
                   }
 
                   return Center(

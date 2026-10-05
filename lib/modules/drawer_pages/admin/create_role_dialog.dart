@@ -49,6 +49,8 @@ class _CreateRoleDialogState extends State<CreateRoleDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Container(
@@ -63,14 +65,21 @@ class _CreateRoleDialogState extends State<CreateRoleDialog> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text("Create Custom Role", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF0F2C4A))),
+                  Text(
+                    "Create Custom Role",
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : const Color(0xFF0F2C4A),
+                    ),
+                  ),
                   IconButton(
-                    icon: const Icon(IconlyLight.close_square, color: Colors.grey),
+                    icon: Icon(IconlyLight.close_square, color: isDark ? Colors.white70 : Colors.grey),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
               ),
-              const Divider(),
+              Divider(color: isDark ? Colors.white24 : Colors.grey.shade300),
               const SizedBox(height: 16),
 
               TextFormField(

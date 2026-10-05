@@ -43,44 +43,60 @@ class ProfileController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await ApiClient.patch(
+      var response = await ApiClient.patch(
         ApiEndpoints.baseUrl + ApiEndpoints.profile,
         body: updateData,
       );
 
+      // If PATCH is not allowed (405), fallback to PUT or POST
+      if (response.statusCode == 405) {
+        response = await ApiClient.put(
+          ApiEndpoints.baseUrl + ApiEndpoints.profile,
+          body: updateData,
+        );
+      }
+
       dynamic data;
       try {
         data = jsonDecode(response.body);
-      } catch (_) {}
+      } catch (_) {
+        data = {};
+      }
 
-      final isSuccess = response.statusCode >= 200 &&
-          response.statusCode < 300 &&
-          (data == null ||
-              data['status'] == null ||
-              data['status'] == true ||
-              data['status'] == 'success');
-
-      if (isSuccess) {
-        if (data is Map<String, dynamic>) {
-          final payload = data['data'] ?? data;
-          final userJson = payload is Map<String, dynamic>
-              ? (payload['user'] ?? (payload['id'] != null ? payload : null))
-              : null;
-          if (userJson is Map<String, dynamic>) {
-            _profile = User.fromJson(userJson);
-          }
+      if ((response.statusCode == 200 || response.statusCode == 201) &&
+          (data is Map && (data['status'] == true || data['status'] == 'success' || data['user'] != null || data['data'] != null || data['id'] != null))) {
+        final payload = data['data'] ?? data;
+        final userMap = payload['user'] ?? payload;
+        if (userMap is Map<String, dynamic> && userMap.containsKey('id')) {
+          _profile = User.fromJson(userMap);
+        } else {
+          // Refresh profile data from server
+          await fetchProfile();
         }
-        // Refresh full profile data to ensure all UI components are synchronized
-        await fetchProfile();
         _isLoading = false;
         notifyListeners();
         return true;
       } else {
-        _errorMessage = (data is Map && data['message'] != null)
-            ? data['message']
-            : (data is Map && data['detail'] != null)
-                ? data['detail']
-                : 'Failed to update profile (HTTP ${response.statusCode})';
+        if (data is Map<String, dynamic>) {
+          if (data['message'] != null) {
+            _errorMessage = data['message'].toString();
+          } else if (data['detail'] != null) {
+            _errorMessage = data['detail'].toString();
+          } else if (data['error'] != null) {
+            _errorMessage = data['error'].toString();
+          } else if (data.isNotEmpty) {
+            final firstVal = data.values.first;
+            if (firstVal is List && firstVal.isNotEmpty) {
+              _errorMessage = firstVal.first.toString();
+            } else {
+              _errorMessage = firstVal.toString();
+            }
+          } else {
+            _errorMessage = 'Failed to update profile (Status ${response.statusCode})';
+          }
+        } else {
+          _errorMessage = 'Failed to update profile';
+        }
         _isLoading = false;
         notifyListeners();
         return false;

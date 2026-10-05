@@ -81,6 +81,8 @@ class _EditNotificationDialogState extends State<EditNotificationDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
@@ -96,31 +98,39 @@ class _EditNotificationDialogState extends State<EditNotificationDialog> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text("Edit Notification", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF0F2C4A))),
+                    Text(
+                      "Edit Notification",
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : const Color(0xFF0F2C4A),
+                      ),
+                    ),
                     IconButton(
-                      icon: const Icon(IconlyLight.close_square, color: Colors.grey),
+                      icon: Icon(IconlyLight.close_square, color: isDark ? Colors.white70 : Colors.grey),
                       onPressed: () => Navigator.pop(context),
                     ),
                   ],
                 ),
-                const Divider(),
+                Divider(color: isDark ? Colors.white24 : Colors.grey.shade300),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _headlineController,
-                  decoration: _buildInputDecoration("Headline", IconlyLight.document),
+                  decoration: _buildInputDecoration("Headline", IconlyLight.document, isDark),
                   validator: (val) => val == null || val.isEmpty ? "Required" : null,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _textController,
                   maxLines: 3,
-                  decoration: _buildInputDecoration("Notification Text", IconlyLight.message),
+                  decoration: _buildInputDecoration("Notification Text", IconlyLight.message, isDark),
                   validator: (val) => val == null || val.isEmpty ? "Required" : null,
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
                   value: _audience,
-                  decoration: _buildInputDecoration("Audience", IconlyLight.user_1),
+                  dropdownColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                  decoration: _buildInputDecoration("Audience", IconlyLight.user_1, isDark),
                   items: const [
                     DropdownMenuItem(value: "all", child: Text("All Operators")),
                     DropdownMenuItem(value: "selected_operators", child: Text("Selected Operators")),
@@ -131,13 +141,13 @@ class _EditNotificationDialogState extends State<EditNotificationDialog> {
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _operatorIdsController,
-                    decoration: _buildInputDecoration("Operator IDs (comma separated)", IconlyLight.category),
+                    decoration: _buildInputDecoration("Operator IDs (comma separated)", IconlyLight.category, isDark),
                     validator: (val) => val == null || val.isEmpty ? "Required for selected operators" : null,
                   ),
                 ],
                 const SizedBox(height: 16),
                 SwitchListTile(
-                  title: const Text("Is Active", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87, fontSize: 13)),
+                  title: Text("Is Active", style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87, fontSize: 13)),
                   value: _isActive,
                   activeColor: Colors.green,
                   contentPadding: EdgeInsets.zero,
@@ -163,14 +173,14 @@ class _EditNotificationDialogState extends State<EditNotificationDialog> {
     );
   }
 
-  InputDecoration _buildInputDecoration(String hint, IconData icon) {
+  InputDecoration _buildInputDecoration(String hint, IconData icon, bool isDark) {
     return InputDecoration(
       hintText: hint,
-      prefixIcon: Icon(icon, color: Colors.grey),
+      prefixIcon: Icon(icon, color: isDark ? Colors.white70 : Colors.grey),
       filled: true,
-      fillColor: Colors.grey.shade50,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
+      fillColor: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.grey.shade50,
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300)),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300)),
     );
   }
 }

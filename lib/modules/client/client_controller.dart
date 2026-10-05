@@ -42,75 +42,14 @@ class ClientController extends ChangeNotifier {
   }
 
   void searchClients(String query) {
-    final trimmed = query.trim().toLowerCase();
-    if (trimmed.isEmpty) {
+    if (query.isEmpty) {
       _filteredClients = List.from(_clients);
     } else {
-      final queryTokens = trimmed
-          .split(RegExp(r'\s+'))
-          .where((t) => t.isNotEmpty)
+      _filteredClients = _clients
+          .where((client) => client.name.toLowerCase().contains(query.toLowerCase()))
           .toList();
-
-      _filteredClients = _clients.where((client) {
-        final name = client.name.toLowerCase();
-
-        // 1. Direct contains match (fast path)
-        if (name.contains(trimmed)) return true;
-
-        // 2. Token / word matching
-        if (queryTokens.isNotEmpty) {
-          final matchesAllTokens = queryTokens.every((token) {
-            if (name.contains(token)) return true;
-            final nameWords = name.split(RegExp(r'\s+'));
-            return nameWords.any((w) => _isFuzzyMatch(w, token));
-          });
-          if (matchesAllTokens) return true;
-        }
-
-        // 3. Whole phrase fuzzy matching
-        return _isFuzzyMatch(name, trimmed);
-      }).toList();
     }
     notifyListeners();
-  }
-
-  bool _isFuzzyMatch(String source, String target) {
-    if (source.contains(target) || target.contains(source)) return true;
-    
-    // Normalized comparison removing adjacent duplicate characters (e.g. 'zaapkode' == 'zappkode' -> 'zapkode')
-    final normSource = source.replaceAll(RegExp(r'(.)\1+'), r'$1');
-    final normTarget = target.replaceAll(RegExp(r'(.)\1+'), r'$1');
-    if (normSource.contains(normTarget) || normTarget.contains(normSource)) {
-      return true;
-    }
-
-    // Levenshtein distance check for small typos
-    if (target.length >= 3) {
-      final distance = _levenshtein(source, target);
-      if (distance <= 2) return true;
-    }
-    return false;
-  }
-
-  int _levenshtein(String s, String t) {
-    if (s == t) return 0;
-    if (s.isEmpty) return t.length;
-    if (t.isEmpty) return s.length;
-
-    List<int> v0 = List<int>.generate(t.length + 1, (i) => i);
-    List<int> v1 = List<int>.filled(t.length + 1, 0);
-
-    for (int i = 0; i < s.length; i++) {
-      v1[0] = i + 1;
-      for (int j = 0; j < t.length; j++) {
-        int cost = (s[i] == t[j]) ? 0 : 1;
-        v1[j + 1] = [v1[j] + 1, v0[j + 1] + 1, v0[j] + cost].reduce((a, b) => a < b ? a : b);
-      }
-      for (int j = 0; j <= t.length; j++) {
-        v0[j] = v1[j];
-      }
-    }
-    return v0[t.length];
   }
 
   Future<bool> createClient(String name) async {
@@ -127,8 +66,8 @@ class ClientController extends ChangeNotifier {
 
       if ((response.statusCode == 200 || response.statusCode == 201) && data['status'] == true) {
         final newClient = Client.fromJson(data['data']);
-        _clients.insert(0, newClient);
-        _filteredClients.insert(0, newClient);
+        _clients.add(newClient);
+        _filteredClients.add(newClient);
         _isLoading = false;
         notifyListeners();
         return true;

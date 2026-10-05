@@ -9,7 +9,6 @@ import 'timesheet_controller.dart';
 import 'add_attendance_dialog.dart';
 import 'attendance_logs_dialog.dart';
 import '../../models/timesheet_model.dart';
-import '../../core/widgets/shimmer_loading.dart';
 import 'package:iconly/iconly.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/background_stripes_painter.dart';
@@ -36,254 +35,23 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
     super.dispose();
   }
 
-  DateTime? _selectedStartDate;
-  DateTime? _selectedEndDate;
-
-  void _showModernDateRangePicker(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    DateTime viewingMonth = _selectedStartDate ?? DateTime.now();
-    DateTime? tempStart = _selectedStartDate;
-    DateTime? tempEnd = _selectedEndDate;
-
-    final months = [
-      "January", "February", "March", "April", "May", "June",
-      "July", "August", "September", "October", "November", "December"
-    ];
-
-    showDialog(
+  Future<void> _selectDateRange(BuildContext context) async {
+    final initialDate = DateTime.now();
+    final DateTimeRange? picked = await showDateRangePicker(
       context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            int year = viewingMonth.year;
-            int month = viewingMonth.month;
-            DateTime firstDayOfMonth = DateTime(year, month, 1);
-            int daysInMonth = DateTime(year, month + 1, 0).day;
-            int startingWeekday = firstDayOfMonth.weekday % 7;
-
-            List<DateTime?> gridDays = [];
-            for (int i = 0; i < startingWeekday; i++) {
-              gridDays.add(null);
-            }
-            for (int i = 1; i <= daysInMonth; i++) {
-              gridDays.add(DateTime(year, month, i));
-            }
-
-            return Dialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-              backgroundColor: isDark ? AppTheme.corporateBlue : Colors.white,
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                width: MediaQuery.of(context).size.width * 0.88,
-                constraints: const BoxConstraints(maxWidth: 360),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Header with Month/Year & Navigation
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            "${months[month - 1]} $year",
-                            style: TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.bold,
-                              color: isDark ? Colors.white : const Color(0xFF0F2C4A),
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            SizedBox(
-                              width: 36,
-                              height: 36,
-                              child: IconButton(
-                                padding: EdgeInsets.zero,
-                                icon: Icon(Icons.chevron_left, color: isDark ? Colors.white70 : Colors.black87, size: 20),
-                                onPressed: () {
-                                  setDialogState(() {
-                                    viewingMonth = DateTime(year, month - 1, 1);
-                                  });
-                                },
-                              ),
-                            ),
-                            SizedBox(
-                              width: 36,
-                              height: 36,
-                              child: IconButton(
-                                padding: EdgeInsets.zero,
-                                icon: Icon(Icons.chevron_right, color: isDark ? Colors.white70 : Colors.black87, size: 20),
-                                onPressed: () {
-                                  setDialogState(() {
-                                    viewingMonth = DateTime(year, month + 1, 1);
-                                  });
-                                },
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Weekday headers
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((day) {
-                        return Expanded(
-                          child: Text(
-                            day,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: isDark ? Colors.white70 : Colors.grey.shade600,
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // Days Grid
-                    GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 7,
-                        mainAxisSpacing: 6,
-                        crossAxisSpacing: 2,
-                        childAspectRatio: 1.0,
-                      ),
-                      itemCount: gridDays.length,
-                      itemBuilder: (context, index) {
-                        final dayDate = gridDays[index];
-                        if (dayDate == null) {
-                          return const SizedBox.shrink();
-                        }
-
-                        bool isStart = tempStart != null && 
-                            dayDate.year == tempStart!.year && 
-                            dayDate.month == tempStart!.month && 
-                            dayDate.day == tempStart!.day;
-
-                        bool isEnd = tempEnd != null && 
-                            dayDate.year == tempEnd!.year && 
-                            dayDate.month == tempEnd!.month && 
-                            dayDate.day == tempEnd!.day;
-
-                        bool isInRange = tempStart != null && tempEnd != null && 
-                            dayDate.isAfter(tempStart!) && dayDate.isBefore(tempEnd!);
-
-                        Color bgColor = Colors.transparent;
-                        Color textColor = isDark ? Colors.white : Colors.black87;
-                        BorderRadius? borderRadius;
-
-                        if (isStart && isEnd) {
-                          bgColor = const Color(0xFF0D6EFD);
-                          textColor = Colors.white;
-                          borderRadius = BorderRadius.circular(20);
-                        } else if (isStart) {
-                          bgColor = const Color(0xFF0D6EFD);
-                          textColor = Colors.white;
-                          borderRadius = const BorderRadius.horizontal(
-                            left: Radius.circular(20),
-                            right: Radius.circular(4),
-                          );
-                        } else if (isEnd) {
-                          bgColor = const Color(0xFF0D6EFD);
-                          textColor = Colors.white;
-                          borderRadius = const BorderRadius.horizontal(
-                            left: Radius.circular(4),
-                            right: Radius.circular(20),
-                          );
-                        } else if (isInRange) {
-                          bgColor = isDark ? Colors.blue.withOpacity(0.3) : const Color(0xFFEEF2FF);
-                          textColor = isDark ? Colors.white : const Color(0xFF0D6EFD);
-                          borderRadius = BorderRadius.zero;
-                        }
-
-                        return InkWell(
-                          onTap: () {
-                            setDialogState(() {
-                              if (tempStart == null || (tempStart != null && tempEnd != null)) {
-                                tempStart = dayDate;
-                                tempEnd = null;
-                              } else if (tempStart != null && tempEnd == null) {
-                                if (dayDate.isBefore(tempStart!)) {
-                                  tempStart = dayDate;
-                                } else {
-                                  tempEnd = dayDate;
-                                }
-                              }
-                            });
-                          },
-                          borderRadius: BorderRadius.circular(20),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: bgColor,
-                              borderRadius: borderRadius,
-                            ),
-                            alignment: Alignment.center,
-                            child: Text(
-                              dayDate.day.toString(),
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: (isStart || isEnd) ? FontWeight.bold : FontWeight.w500,
-                                color: textColor,
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Footer Buttons
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: Text("Cancel", style: TextStyle(color: isDark ? Colors.white70 : Colors.grey.shade700)),
-                        ),
-                        const SizedBox(width: 12),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF0D6EFD),
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                          ),
-                          onPressed: tempStart == null ? null : () {
-                            setState(() {
-                              _selectedStartDate = tempStart;
-                              _selectedEndDate = tempEnd ?? tempStart;
-                              
-                              final startStr = "${_selectedStartDate!.year}-${_selectedStartDate!.month.toString().padLeft(2, '0')}-${_selectedStartDate!.day.toString().padLeft(2, '0')}";
-                              final endStr = "${_selectedEndDate!.year}-${_selectedEndDate!.month.toString().padLeft(2, '0')}-${_selectedEndDate!.day.toString().padLeft(2, '0')}";
-                              
-                              _controller.setDateRange(startStr, endStr);
-                              _controller.fetchTimesheets();
-                            });
-                            Navigator.pop(context);
-                          },
-                          child: const Text("Apply", style: TextStyle(fontWeight: FontWeight.bold)),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2101),
+      initialDateRange: DateTimeRange(
+        start: initialDate.subtract(const Duration(days: 30)),
+        end: initialDate,
+      ),
     );
+    if (picked != null) {
+      final startStr = "${picked.start.year}-${picked.start.month.toString().padLeft(2, '0')}-${picked.start.day.toString().padLeft(2, '0')}";
+      final endStr = "${picked.end.year}-${picked.end.month.toString().padLeft(2, '0')}-${picked.end.day.toString().padLeft(2, '0')}";
+      _controller.setDateRange(startStr, endStr);
+      _controller.fetchTimesheets();
+    }
   }
 
   Future<void> _downloadReport() async {
@@ -628,42 +396,28 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       InkWell(
-                        borderRadius: BorderRadius.circular(24),
-                        onTap: () => _showModernDateRangePicker(context),
+                        onTap: () => _selectDateRange(context),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                           decoration: BoxDecoration(
                             color: isDark ? AppTheme.corporateBlue : Colors.white,
                             border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade200),
                             borderRadius: BorderRadius.circular(24),
                           ),
                           child: Row(
-                            mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(IconlyLight.calendar, size: 14, color: isDark ? Colors.white : Colors.blue.shade700),
                               const SizedBox(width: 8),
-                              Text(
-                                (_controller.fromDate != null && _controller.toDate != null)
-                                    ? "${_controller.fromDate} - ${_controller.toDate}"
-                                    : "Select Date Range",
-                                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: isDark ? Colors.white : Colors.black87),
-                              ),
-                              const SizedBox(width: 6),
-                              Icon(IconlyLight.arrow_down_2, size: 14, color: isDark ? Colors.white70 : Colors.grey.shade600),
+                              Text("${_controller.fromDate ?? 'Select'} - ${_controller.toDate ?? 'Date'}", style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: isDark ? Colors.white : Colors.black87)),
+                              const SizedBox(width: 4),
+                              Icon(IconlyLight.arrow_down_2, size: 16, color: isDark ? Colors.white70 : Colors.grey.shade600),
                             ],
                           ),
                         ),
                       ),
-                      const SizedBox(width: 8),
                       IconButton(
-                        constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                        padding: EdgeInsets.zero,
-                        icon: Icon(IconlyLight.swap, color: isDark ? Colors.white : Colors.blue, size: 20),
+                        icon: Icon(IconlyLight.swap, color: isDark ? Colors.white : Colors.blue),
                         onPressed: () {
-                          setState(() {
-                            _selectedStartDate = null;
-                            _selectedEndDate = null;
-                          });
                           _controller.resetFilters();
                           _controller.fetchTimesheets();
                         },
@@ -702,7 +456,12 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
                   const SizedBox(height: 16),
 
                   if (_controller.isLoading && _controller.data == null)
-                    const ShimmerLoadingList()
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(48.0),
+                        child: CircularProgressIndicator(),
+                      ),
+                    )
                   else if (_controller.errorMessage != null && _controller.data == null)
                     Center(child: Text(_controller.errorMessage!, style: const TextStyle(color: Colors.red)))
                   else if (_controller.data != null)

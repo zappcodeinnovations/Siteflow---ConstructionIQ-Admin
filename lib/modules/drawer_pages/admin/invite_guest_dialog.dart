@@ -71,6 +71,8 @@ class _InviteGuestDialogState extends State<InviteGuestDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
@@ -86,21 +88,28 @@ class _InviteGuestDialogState extends State<InviteGuestDialog> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text("Invite Guest", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF0F2C4A))),
+                    Text(
+                      "Invite Guest",
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : const Color(0xFF0F2C4A),
+                      ),
+                    ),
                     IconButton(
-                      icon: const Icon(IconlyLight.close_square, color: Colors.grey),
+                      icon: Icon(IconlyLight.close_square, color: isDark ? Colors.white70 : Colors.grey),
                       onPressed: () => Navigator.pop(context),
                     ),
                   ],
                 ),
-                const Divider(),
+                Divider(color: isDark ? Colors.white24 : Colors.grey.shade300),
                 const SizedBox(height: 16),
                 Row(
                   children: [
                     Expanded(
                       child: TextFormField(
                         controller: _firstNameController,
-                        decoration: _buildInputDecoration("First Name", IconlyLight.profile),
+                        decoration: _buildInputDecoration("First Name", IconlyLight.profile, isDark),
                         validator: (val) => val == null || val.isEmpty ? "Required" : null,
                       ),
                     ),
@@ -108,7 +117,7 @@ class _InviteGuestDialogState extends State<InviteGuestDialog> {
                     Expanded(
                       child: TextFormField(
                         controller: _lastNameController,
-                        decoration: _buildInputDecoration("Last Name", IconlyLight.profile),
+                        decoration: _buildInputDecoration("Last Name", IconlyLight.profile, isDark),
                         validator: (val) => val == null || val.isEmpty ? "Required" : null,
                       ),
                     ),
@@ -117,19 +126,19 @@ class _InviteGuestDialogState extends State<InviteGuestDialog> {
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _emailController,
-                  decoration: _buildInputDecoration("Email Address", IconlyLight.message),
+                  decoration: _buildInputDecoration("Email Address", IconlyLight.message, isDark),
                   validator: (val) => val == null || !val.contains('@') ? "Invalid email" : null,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _phoneController,
-                  decoration: _buildInputDecoration("Phone Number", IconlyLight.call),
+                  decoration: _buildInputDecoration("Phone Number", IconlyLight.call, isDark),
                   validator: (val) => val == null || val.isEmpty ? "Required" : null,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _projectIdsController,
-                  decoration: _buildInputDecoration("Project IDs (comma separated e.g. 1, 2)", IconlyLight.folder),
+                  decoration: _buildInputDecoration("Project IDs (comma separated e.g. 1, 2)", IconlyLight.folder, isDark),
                 ),
                 const SizedBox(height: 24),
                 ElevatedButton(
@@ -151,14 +160,14 @@ class _InviteGuestDialogState extends State<InviteGuestDialog> {
     );
   }
 
-  InputDecoration _buildInputDecoration(String hint, IconData icon) {
+  InputDecoration _buildInputDecoration(String hint, IconData icon, bool isDark) {
     return InputDecoration(
       hintText: hint,
-      prefixIcon: Icon(icon, color: Colors.grey),
+      prefixIcon: Icon(icon, color: isDark ? Colors.white70 : Colors.grey),
       filled: true,
-      fillColor: Colors.grey.shade50,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
+      fillColor: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.grey.shade50,
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300)),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300)),
     );
   }
 }

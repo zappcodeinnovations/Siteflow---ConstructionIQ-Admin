@@ -30,253 +30,219 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final user = _controller.profile;
     if (user == null) return;
 
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final dialogBg = isDark ? const Color(0xFF162A42) : Colors.white;
-    final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
-    final textSecondary = isDark ? Colors.white70 : Colors.grey.shade600;
-    final labelColor = isDark ? Colors.grey.shade300 : const Color(0xFF0F2C4A);
-    final inputBg = isDark ? Colors.white.withValues(alpha: 0.06) : const Color(0xFFF8FAFC);
-    final inputBorder = isDark ? Colors.white24 : Colors.grey.shade300;
-
     final formKey = GlobalKey<FormState>();
-    final firstNameController = TextEditingController(
-      text: user.firstName ?? '',
-    );
+    final firstNameController = TextEditingController(text: user.firstName ?? '');
     final lastNameController = TextEditingController(text: user.lastName ?? '');
     final phoneController = TextEditingController(text: user.phone ?? '');
 
-    bool isSubmitting = false;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     showDialog(
       context: context,
-      builder: (context) {
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        bool isSubmitting = false;
+
         return StatefulBuilder(
           builder: (context, setDialogState) {
+            InputDecoration buildInputDecoration({
+              required String label,
+              required IconData icon,
+            }) {
+              return InputDecoration(
+                labelText: label,
+                labelStyle: TextStyle(
+                  color: isDark ? Colors.white70 : Colors.grey.shade700,
+                  fontSize: 14,
+                ),
+                floatingLabelStyle: TextStyle(
+                  color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF0D6EFD),
+                  fontWeight: FontWeight.w600,
+                ),
+                prefixIcon: Icon(
+                  icon,
+                  size: 20,
+                  color: isDark ? Colors.white70 : const Color(0xFF0D6EFD),
+                ),
+                filled: true,
+                fillColor: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.grey.shade50,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(
+                    color: isDark ? Colors.white24 : Colors.grey.shade300,
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(
+                    color: Color(0xFF0D6EFD),
+                    width: 1.8,
+                  ),
+                ),
+                errorBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Colors.redAccent),
+                ),
+                focusedErrorBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Colors.redAccent, width: 1.8),
+                ),
+              );
+            }
+
             return AlertDialog(
-              backgroundColor: dialogBg,
+              backgroundColor: isDark ? AppTheme.corporateBlue : Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
-                side: isDark ? const BorderSide(color: Colors.white24) : BorderSide.none,
+                side: BorderSide(
+                  color: isDark ? Colors.white24 : Colors.grey.shade200,
+                ),
               ),
-              titlePadding: const EdgeInsets.fromLTRB(24, 20, 16, 12),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-              actionsPadding: const EdgeInsets.fromLTRB(24, 16, 24, 20),
-              title: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    "Edit Profile",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                      color: textColor,
-                    ),
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.close, color: textSecondary, size: 20),
-                    onPressed: () => Navigator.pop(context),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  ),
-                ],
+              title: Text(
+                "Edit Profile",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 20,
+                  color: isDark ? Colors.white : const Color(0xFF0F2C4A),
+                ),
               ),
               content: SizedBox(
-                width: 400,
+                width: MediaQuery.of(context).size.width > 400 ? 360 : double.maxFinite,
                 child: Form(
                   key: formKey,
                   child: SingleChildScrollView(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          "First Name",
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: labelColor,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 8),
                         TextFormField(
                           controller: firstNameController,
-                          style: TextStyle(color: textColor, fontSize: 14),
-                          decoration: InputDecoration(
-                            hintText: "Enter first name",
-                            hintStyle: TextStyle(color: textSecondary, fontSize: 14),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                            filled: true,
-                            fillColor: inputBg,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide(color: inputBorder),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide(color: inputBorder),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: const BorderSide(color: Color(0xFF0D6EFD), width: 1.5),
-                            ),
+                          style: TextStyle(
+                            color: isDark ? Colors.white : Colors.black87,
+                            fontSize: 15,
                           ),
-                          validator: (v) {
-                            if (v == null || v.trim().isEmpty) {
+                          decoration: buildInputDecoration(
+                            label: "First Name",
+                            icon: IconlyLight.profile,
+                          ),
+                          validator: (val) {
+                            if (val == null || val.trim().isEmpty) {
                               return "Please enter first name";
                             }
                             return null;
                           },
                         ),
-                        const SizedBox(height: 14),
-                        Text(
-                          "Last Name",
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: labelColor,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 16),
                         TextFormField(
                           controller: lastNameController,
-                          style: TextStyle(color: textColor, fontSize: 14),
-                          decoration: InputDecoration(
-                            hintText: "Enter last name",
-                            hintStyle: TextStyle(color: textSecondary, fontSize: 14),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                            filled: true,
-                            fillColor: inputBg,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide(color: inputBorder),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide(color: inputBorder),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: const BorderSide(color: Color(0xFF0D6EFD), width: 1.5),
-                            ),
+                          style: TextStyle(
+                            color: isDark ? Colors.white : Colors.black87,
+                            fontSize: 15,
                           ),
-                          validator: (v) {
-                            if (v == null || v.trim().isEmpty) {
+                          decoration: buildInputDecoration(
+                            label: "Last Name",
+                            icon: IconlyLight.profile,
+                          ),
+                          validator: (val) {
+                            if (val == null || val.trim().isEmpty) {
                               return "Please enter last name";
                             }
                             return null;
                           },
                         ),
-                        const SizedBox(height: 14),
-                        Text(
-                          "Mobile Number",
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: labelColor,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 16),
                         TextFormField(
                           controller: phoneController,
                           keyboardType: TextInputType.phone,
-                          style: TextStyle(color: textColor, fontSize: 14),
-                          decoration: InputDecoration(
-                            hintText: "Enter mobile number",
-                            hintStyle: TextStyle(color: textSecondary, fontSize: 14),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                            filled: true,
-                            fillColor: inputBg,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide(color: inputBorder),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide(color: inputBorder),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: const BorderSide(color: Color(0xFF0D6EFD), width: 1.5),
-                            ),
+                          style: TextStyle(
+                            color: isDark ? Colors.white : Colors.black87,
+                            fontSize: 15,
+                          ),
+                          decoration: buildInputDecoration(
+                            label: "Mobile Number",
+                            icon: IconlyLight.call,
                           ),
                         ),
+                        const SizedBox(height: 8),
                       ],
                     ),
                   ),
                 ),
               ),
+              actionsPadding: const EdgeInsets.only(left: 20, right: 20, bottom: 20),
               actions: [
                 TextButton(
-                  onPressed: isSubmitting ? null : () => Navigator.pop(context),
+                  onPressed: isSubmitting ? null : () => Navigator.pop(dialogContext),
                   child: Text(
                     "Cancel",
                     style: TextStyle(
-                      color: isDark ? Colors.white70 : Colors.grey.shade700,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
+                      color: isDark ? Colors.white70 : Colors.grey.shade600,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF0D6EFD),
-                    disabledBackgroundColor: const Color(0xFF0D6EFD).withValues(alpha: 0.6),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                   ),
                   onPressed: isSubmitting
                       ? null
                       : () async {
                           if (!formKey.currentState!.validate()) return;
-                          setDialogState(() => isSubmitting = true);
+
+                          setDialogState(() {
+                            isSubmitting = true;
+                          });
 
                           final success = await _controller.updateProfile({
                             'first_name': firstNameController.text.trim(),
                             'last_name': lastNameController.text.trim(),
                             'phone': phoneController.text.trim(),
-                            'mobile': phoneController.text.trim(),
-                            'mobile_number': phoneController.text.trim(),
                           });
 
-                          if (!context.mounted) return;
-
-                          if (success) {
-                            Navigator.pop(context);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text("Profile updated successfully"),
-                                backgroundColor: Colors.green,
-                              ),
-                            );
-                          } else {
-                            setDialogState(() => isSubmitting = false);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  _controller.errorMessage ?? "Failed to update profile",
+                          if (dialogContext.mounted) {
+                            if (success) {
+                              Navigator.pop(dialogContext);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text("Profile updated successfully"),
+                                  backgroundColor: Colors.green,
                                 ),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
+                              );
+                            } else {
+                              setDialogState(() {
+                                isSubmitting = false;
+                              });
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    _controller.errorMessage ?? "Failed to update profile",
+                                  ),
+                                  backgroundColor: Colors.redAccent,
+                                ),
+                              );
+                            }
                           }
                         },
                   child: isSubmitting
                       ? const SizedBox(
-                          width: 20,
-                          height: 20,
+                          width: 18,
+                          height: 18,
                           child: CircularProgressIndicator(
-                            strokeWidth: 2,
                             color: Colors.white,
+                            strokeWidth: 2,
                           ),
                         )
                       : const Text(
                           "Save Changes",
                           style: TextStyle(
                             color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                 ),
@@ -341,7 +307,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.15),
+              color: color.withOpacity(0.15),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: color, size: 20),
@@ -384,11 +350,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
       builder: (context, _) {
         final isDark = Theme.of(context).brightness == Brightness.dark;
         final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
-        final shadowColor = isDark ? Colors.black26 : Colors.black.withValues(alpha: 0.04);
+        final shadowColor = isDark ? Colors.black26 : Colors.black.withOpacity(0.04);
         final textColor = isDark ? Colors.white : Colors.black87;
         final subtitleColor = isDark ? Colors.white70 : Colors.grey.shade600;
         
-        if (_controller.isLoading) return const ShimmerLoadingDashboard();
+        if (_controller.isLoading) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(48.0),
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
         if (_controller.errorMessage != null && _controller.profile == null) {
           return Center(
             child: Text(
@@ -399,13 +372,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         }
 
         final user = _controller.profile;
-        if (user == null) {
+        if (user == null)
           return const Center(child: Text("No profile data found."));
-        }
 
         final displayName = user.firstName != null && user.lastName != null
             ? "${user.firstName} ${user.lastName}"
-            : (user.displayName.isNotEmpty ? user.displayName : (user.email.isNotEmpty ? user.email : "Unknown"));
+            : (user.displayName ?? user.email ?? "Unknown");
 
         final initial =
             user.initials ??
@@ -485,16 +457,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 // Name & Role
                 Text(
                   displayName,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: textColor,
+                    color: Colors.black87,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  user.email,
-                  style: TextStyle(fontSize: 13, color: subtitleColor),
+                  user.email ?? "",
+                  style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
                 ),
                 const SizedBox(height: 12),
                 Container(
@@ -503,16 +475,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: isDark ? Colors.amber.shade700.withValues(alpha: 0.3) : Colors.amber.shade200,
+                    color: Colors.amber.shade200,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    (user.roleLabel ?? user.effectiveRole)
+                    (user.roleLabel ?? user.effectiveRole ?? "User")
                         .toUpperCase(),
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.amber.shade200 : const Color(0xFF0F2C4A),
+                      color: textColor,
                     ),
                   ),
                 ),
@@ -570,12 +542,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   size: 20,
                                 ),
                                 const SizedBox(width: 8),
-                                Text(
+                                const Text(
                                   "Personal Details",
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
-                                    color: textColor,
                                   ),
                                 ),
                               ],
@@ -597,19 +568,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 ),
                               ],
                             ),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              child: Divider(height: 1, color: isDark ? Colors.white12 : Colors.grey.shade200),
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 12),
+                              child: Divider(height: 1),
                             ),
-                            _buildInfoRow("Email Address", user.email),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              child: Divider(height: 1, color: isDark ? Colors.white12 : Colors.grey.shade200),
+                            _buildInfoRow("Email Address", user.email ?? ""),
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 12),
+                              child: Divider(height: 1),
                             ),
                             _buildInfoRow("Mobile Number", user.phone ?? ""),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              child: Divider(height: 1, color: isDark ? Colors.white12 : Colors.grey.shade200),
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 12),
+                              child: Divider(height: 1),
                             ),
                             _buildInfoRow(
                               "Preferred Language",
@@ -646,12 +617,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   size: 20,
                                 ),
                                 const SizedBox(width: 8),
-                                Text(
+                                const Text(
                                   "Role & Permissions",
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
-                                    color: textColor,
                                   ),
                                 ),
                                 const Spacer(),
@@ -661,14 +631,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     vertical: 4,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: isDark ? const Color(0xFF0D6EFD).withValues(alpha: 0.2) : Colors.blue.shade50,
+                                    color: Colors.blue.shade50,
                                     borderRadius: BorderRadius.circular(6),
                                   ),
-                                  child: Text(
+                                  child: const Text(
                                     "Level 4",
                                     style: TextStyle(
                                       fontSize: 11,
-                                      color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF0D6EFD),
+                                      color: Color(0xFF0D6EFD),
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
@@ -713,12 +683,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   size: 20,
                                 ),
                                 const SizedBox(width: 8),
-                                Text(
+                                const Text(
                                   "Recent Account Activity",
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
-                                    color: textColor,
                                   ),
                                 ),
                               ],
@@ -747,7 +716,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               Colors.grey.shade600,
                             ),
 
-                            Divider(color: isDark ? Colors.white12 : Colors.grey.shade200),
+                            const Divider(),
                             Center(
                               child: TextButton(
                                 onPressed: () {},

@@ -7,9 +7,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../core/network/api_client.dart';
 import '../../core/network/api_endpoints.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/utils/date_helper.dart';
 import '../../core/widgets/background_stripes_painter.dart';
-import '../../core/widgets/shimmer_loading.dart';
 import '../../models/job_sheet_model.dart';
 import '../../models/weekly_diary_model.dart';
 import 'job_sheet_details_screen.dart';
@@ -40,158 +38,104 @@ class _WeeklyDiaryScreenState extends State<WeeklyDiaryScreen> {
   }
 
   Future<void> _downloadRowPdf(WeeklyDiaryRow row) async {
-    final submittedIds = row.days
-        .where((d) => d.submissionId != null)
-        .map((d) => d.submissionId!)
-        .toList();
-
-    if (submittedIds.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("No submitted diary entries to export for this operative.")),
-      );
-      return;
-    }
-
     try {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Generating PDF...")),
+          SnackBar(
+            content: Text("Downloading PDF for ${row.operative}..."),
+            duration: const Duration(seconds: 2),
+          ),
         );
       }
 
-      final ids = submittedIds.join(',');
-      String urlStr = '${ApiEndpoints.baseUrl}${ApiEndpoints.jobSheets}?ids=$ids&export=pdf';
+      // Collect submission IDs if available
+      final submissionIds = row.days
+          .where((d) => d.submissionId != null)
+          .map((d) => d.submissionId.toString())
+          .toList();
+
+      List<String> queryParams = [];
+      if (row.operativeId != null) {
+        queryParams.add('operative_id=${row.operativeId}');
+      }
       if (row.projectId != null) {
-        urlStr += '&project_id=${row.projectId}';
+        queryParams.add('project_id=${row.projectId}');
+      }
+      if (_controller.data?.weekStart != null && _controller.data!.weekStart.isNotEmpty) {
+        queryParams.add('week=${_controller.data!.weekStart}');
+      }
+      if (submissionIds.isNotEmpty) {
+        queryParams.add('ids=${submissionIds.join(',')}');
+      }
+      queryParams.add('export=pdf');
+
+      String urlStr = '${ApiEndpoints.baseUrl}${ApiEndpoints.weeklyDiary}?${queryParams.join('&')}';
+      var response = await ApiClient.get(urlStr);
+
+      // If weekly diary endpoint didn't return binary pdf and submissionIds are present, try job-sheets endpoint
+      if (response.statusCode != 200 && submissionIds.isNotEmpty) {
+        final fallbackUrl = '${ApiEndpoints.baseUrl}${ApiEndpoints.jobSheets}?ids=${submissionIds.join(',')}&export=pdf';
+        final fallbackResp = await ApiClient.get(fallbackUrl);
+        if (fallbackResp.statusCode == 200 && fallbackResp.bodyBytes.isNotEmpty) {
+          response = fallbackResp;
+        }
       }
 
-      final response = await ApiClient.get(urlStr);
+      if (response.statusCode == 200 && response.bodyBytes.isNotEmpty) {
+        final contentType = response.headers['content-type'] ?? '';
+        final isPdfBinary = contentType.contains('application/pdf') ||
+            (response.bodyBytes.length >= 4 &&
+                response.bodyBytes[0] == 0x25 && // %
+                response.bodyBytes[1] == 0x50 && // P
+                response.bodyBytes[2] == 0x44 && // D
+                response.bodyBytes[3] == 0x46);   // F
 
-      if (response.statusCode == 200) {
-        if (response.headers['content-type']?.contains('application/json') == true) {
-          try {
-            final data = jsonDecode(response.body);
-            if (data is Map && (data['url'] != null || data['file'] != null || data['pdf_url'] != null)) {
-              final pdfUrl = data['url'] ?? data['file'] ?? data['pdf_url'];
-              if (mounted) {
-                ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => JobSheetWebviewScreen(
-                      url: pdfUrl.toString().startsWith('http')
-                          ? pdfUrl.toString()
-                          : '${ApiEndpoints.baseUrl}${pdfUrl.toString()}',
-                      title: "Weekly Diary: ${row.operative}",
-                    ),
-                  ),
-                );
-              }
-              return;
-            }
-          } catch (_) {}
+        if (isPdfBinary) {
+          final directory = await getTemporaryDirectory();
+          final safeName = '${row.operative}_${row.project}'.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+          final file = File('${directory.path}/weekly_diary_$safeName.pdf');
+          await file.writeAsBytes(response.bodyBytes);
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            await Share.shareXFiles([XFile(file.path)], text: 'Weekly Diary: ${row.operative} - ${row.project}');
+          }
+          return;
         }
+      }
 
-        final directory = await getTemporaryDirectory();
-        final sanitizedName = row.operative.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
-        final file = File('${directory.path}/weekly_diary_$sanitizedName.pdf');
-        await file.writeAsBytes(response.bodyBytes);
+      // If binary PDF is not directly returned, check if first submission can be opened in webview
+      final firstSubmissionId = row.days
+          .firstWhere(
+            (d) => d.submissionId != null,
+            orElse: () => WeeklyDiaryDay(label: '', date: ''),
+          )
+          .submissionId;
 
-        if (mounted) {
-          ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        }
+      if (firstSubmissionId != null && mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        final formUrl = '${ApiEndpoints.baseUrl}${ApiEndpoints.jobSheets}user_form/$firstSubmissionId/html/';
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => JobSheetWebviewScreen(
+              url: formUrl,
+              title: "Weekly Diary: ${row.operative}",
+            ),
+          ),
+        );
+        return;
+      }
 
-        await Share.shareXFiles([XFile(file.path)], text: 'Weekly Diary - ${row.operative}');
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("PDF generation failed. Status: ${response.statusCode}")),
-          );
-        }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("PDF is not available for this entry yet.")),
+        );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error generating PDF: $e")),
-        );
-      }
-    }
-  }
-
-  Future<void> _downloadAllPdf() async {
-    final rows = _controller.data?.rows ?? [];
-    final allIds = <int>[];
-    for (final r in rows) {
-      for (final d in r.days) {
-        if (d.submissionId != null) {
-          allIds.add(d.submissionId!);
-        }
-      }
-    }
-
-    if (allIds.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("No submitted diary entries to export for this week.")),
-      );
-      return;
-    }
-
-    try {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Generating Weekly Diary PDF...")),
-        );
-      }
-
-      final ids = allIds.join(',');
-      final urlStr = '${ApiEndpoints.baseUrl}${ApiEndpoints.jobSheets}?ids=$ids&export=pdf';
-      final response = await ApiClient.get(urlStr);
-
-      if (response.statusCode == 200) {
-        if (response.headers['content-type']?.contains('application/json') == true) {
-          try {
-            final data = jsonDecode(response.body);
-            if (data is Map && (data['url'] != null || data['file'] != null || data['pdf_url'] != null)) {
-              final pdfUrl = data['url'] ?? data['file'] ?? data['pdf_url'];
-              if (mounted) {
-                ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => JobSheetWebviewScreen(
-                      url: pdfUrl.toString().startsWith('http')
-                          ? pdfUrl.toString()
-                          : '${ApiEndpoints.baseUrl}${pdfUrl.toString()}',
-                      title: "Weekly Diary PDF",
-                    ),
-                  ),
-                );
-              }
-              return;
-            }
-          } catch (_) {}
-        }
-
-        final directory = await getTemporaryDirectory();
-        final file = File('${directory.path}/weekly_diary_all.pdf');
-        await file.writeAsBytes(response.bodyBytes);
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        }
-
-        await Share.shareXFiles([XFile(file.path)], text: 'Weekly Diary PDF');
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("PDF generation failed. Status: ${response.statusCode}")),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error generating PDF: $e")),
+          SnackBar(content: Text("Error downloading PDF: $e")),
         );
       }
     }
@@ -221,6 +165,24 @@ class _WeeklyDiaryScreenState extends State<WeeklyDiaryScreen> {
     }
   }
 
+  String _formatDateUk(String dateStr) {
+    if (dateStr.isEmpty) return '';
+    try {
+      final parsed = DateTime.tryParse(dateStr);
+      if (parsed != null) {
+        final day = parsed.day.toString().padLeft(2, '0');
+        final month = parsed.month.toString().padLeft(2, '0');
+        final year = parsed.year.toString();
+        return '$day/$month/$year';
+      }
+      final parts = dateStr.split('-');
+      if (parts.length == 3 && parts[0].length == 4) {
+        return '${parts[2].padLeft(2, '0')}/${parts[1].padLeft(2, '0')}/${parts[0]}';
+      }
+    } catch (_) {}
+    return dateStr;
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -240,13 +202,6 @@ class _WeeklyDiaryScreenState extends State<WeeklyDiaryScreen> {
             fontWeight: FontWeight.bold,
           ),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(IconlyLight.download),
-            tooltip: 'Export Weekly Diary PDF',
-            onPressed: () => _downloadAllPdf(),
-          ),
-        ],
       ),
       body: Stack(
         children: [
@@ -276,9 +231,7 @@ class _WeeklyDiaryScreenState extends State<WeeklyDiaryScreen> {
                               onPressed: _controller.isLoading ? null : _controller.goToPreviousWeek,
                             ),
                             Text(
-                              data == null
-                                  ? ''
-                                  : '${DateHelper.formatDate(data.weekStart)}  →  ${DateHelper.formatDate(data.weekEnd)}',
+                              data == null ? '' : '${_formatDateUk(data.weekStart)}  →  ${_formatDateUk(data.weekEnd)}',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: isDark ? Colors.white : Colors.black87,
@@ -299,7 +252,12 @@ class _WeeklyDiaryScreenState extends State<WeeklyDiaryScreen> {
                       animation: _controller,
                       builder: (context, _) {
                         if (_controller.isLoading && _controller.data == null) {
-                          return const ShimmerLoadingList();
+                          return const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(48.0),
+                              child: CircularProgressIndicator(),
+                            ),
+                          );
                         }
                         if (_controller.errorMessage != null && _controller.data == null) {
                           return Center(child: Text(_controller.errorMessage!, style: const TextStyle(color: Colors.red)));
@@ -373,31 +331,29 @@ class _WeeklyDiaryScreenState extends State<WeeklyDiaryScreen> {
           Row(
             children: row.days.map((day) => Expanded(child: _buildDayPill(day, isDark))).toList(),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Text(
                 '${row.submittedCount}/5 submitted · ${row.approvedCount} approved',
-                style: TextStyle(fontSize: 12, color: textSecondary, fontWeight: FontWeight.w500),
+                style: TextStyle(fontSize: 12, color: textSecondary),
               ),
               ElevatedButton.icon(
-                onPressed: () => _downloadRowPdf(row),
-                icon: const Icon(IconlyLight.download, size: 14),
-                label: const Text(
-                  'Download PDF',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: isDark ? const Color(0xFF1E88E5) : AppTheme.corporateBlue,
+                  backgroundColor: const Color(0xFF0D6EFD),
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
+                  visualDensity: VisualDensity.compact,
+                ),
+                onPressed: () => _downloadRowPdf(row),
+                icon: const Icon(IconlyLight.document, size: 16),
+                label: const Text(
+                  "Download PDF",
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                 ),
               ),
             ],

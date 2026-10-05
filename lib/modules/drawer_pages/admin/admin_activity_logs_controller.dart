@@ -30,9 +30,15 @@ class AdminActivityLogsController extends ChangeNotifier {
   String searchQuery = "";
 
   Future<void> initializeData() async {
-    await fetchKPIs();
-    await fetchFilterOptions();
-    await fetchLogs();
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    await Future.wait([
+      fetchKPIs(),
+      fetchFilterOptions(),
+      fetchLogs(isInitial: true),
+    ]);
   }
 
   Future<void> fetchKPIs() async {
@@ -107,14 +113,14 @@ class AdminActivityLogsController extends ChangeNotifier {
     fetchLogs();
   }
 
-  Future<void> fetchLogs() async {
-    _isLoading = true;
-    _errorMessage = null;
-    _logs = [];
-    notifyListeners();
+  Future<void> fetchLogs({bool isInitial = false}) async {
+    if (!isInitial) {
+      _isLoading = true;
+      _errorMessage = null;
+      notifyListeners();
+    }
 
     try {
-      String url = '${ApiEndpoints.baseUrl}/admin/activity-logs/?';
       List<String> queryParams = [];
       
       if (selectedManager != null) queryParams.add('user_id=$selectedManager');
@@ -124,7 +130,9 @@ class AdminActivityLogsController extends ChangeNotifier {
       if (toDate != null) queryParams.add('to=$toDate');
       if (searchQuery.isNotEmpty) queryParams.add('search=$searchQuery');
 
-      url += queryParams.join('&');
+      final String url = queryParams.isNotEmpty
+          ? '${ApiEndpoints.baseUrl}/admin/activity-logs/?${queryParams.join('&')}'
+          : '${ApiEndpoints.baseUrl}/admin/activity-logs/';
 
       final response = await ApiClient.get(url);
       
@@ -134,15 +142,19 @@ class AdminActivityLogsController extends ChangeNotifier {
 
         if (decoded is List) {
           dataList = decoded;
-        } else if (decoded is Map<String, dynamic> && decoded.containsKey('data')) {
-          dataList = decoded['data'];
-        } else if (decoded is Map<String, dynamic> && decoded.containsKey('results')) {
-          dataList = decoded['results'];
+        } else if (decoded is Map<String, dynamic>) {
+          final data = decoded['data'] ?? decoded['results'] ?? decoded['logs'];
+          if (data is List) {
+            dataList = data;
+          } else if (data is Map<String, dynamic>) {
+            dataList = (data['results'] ?? data['logs'] ?? data['data']) as List? ?? [];
+          }
         }
 
-        _logs = dataList.map((i) => ActivityLog.fromJson(i)).toList();
+        _logs = dataList.map((i) => ActivityLog.fromJson(i as Map<String, dynamic>)).toList();
+        _errorMessage = null;
       } else {
-        _errorMessage = 'Failed to load activity logs.';
+        _errorMessage = 'Failed to load activity logs (${response.statusCode}).';
       }
     } catch (e) {
       _errorMessage = 'An error occurred: $e';

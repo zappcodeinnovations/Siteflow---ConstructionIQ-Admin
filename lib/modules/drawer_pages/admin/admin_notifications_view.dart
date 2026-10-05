@@ -439,7 +439,12 @@ class _AdminNotificationsViewState extends State<AdminNotificationsView> {
               Expanded(
                 child:
                     _controller.isLoading && _controller.notifications.isEmpty
-                    ? const ShimmerLoadingList()
+                    ? const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(48.0),
+                          child: CircularProgressIndicator(),
+                        ),
+                      )
                     : _controller.errorMessage != null &&
                           _controller.notifications.isEmpty
                     ? Center(

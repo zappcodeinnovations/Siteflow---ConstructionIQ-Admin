@@ -421,7 +421,12 @@ class _AdminAnnouncementsViewState extends State<AdminAnnouncementsView> {
               Expanded(
                 child:
                     _controller.isLoading && _controller.announcements.isEmpty
-                    ? const ShimmerLoadingList()
+                    ? const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(48.0),
+                          child: CircularProgressIndicator(),
+                        ),
+                      )
                     : _controller.errorMessage != null &&
                           _controller.announcements.isEmpty
                     ? Center(

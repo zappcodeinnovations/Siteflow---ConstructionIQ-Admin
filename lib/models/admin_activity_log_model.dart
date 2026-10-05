@@ -48,39 +48,45 @@ class ActivityLog {
   });
 
   factory ActivityLog.fromJson(Map<String, dynamic> json) {
-    final managerName = json['user_name'] ?? 'Unknown';
+    final managerName = json['user_name'] ?? json['user']?['name'] ?? json['user']?.toString() ?? 'Unknown';
     
-    final moduleName = json['module_name'] ?? '';
+    final moduleName = json['module_name'] ?? json['module'] ?? '';
     final moduleSub = json['record_id']?.toString() ?? '';
 
     // Format date and time
-    final createdAt = json['timestamp'] ?? '';
+    final createdAt = json['timestamp'] ?? json['created_at'] ?? '';
     String date = '';
     String time = '';
     try {
-      if (createdAt.isNotEmpty) {
-        final dt = DateTime.parse(createdAt).toLocal();
+      if (createdAt.toString().isNotEmpty) {
+        final dt = DateTime.parse(createdAt.toString()).toLocal();
         date = "${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}";
         time = "${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}:${dt.second.toString().padLeft(2, '0')}";
       }
     } catch (_) {
-      date = createdAt;
+      date = createdAt.toString();
     }
 
     // JSON diff stringification
     String beforeStr = '-';
     String afterStr = '-';
-    if (json['change_summary'] != null) {
-      beforeStr = json['change_summary']['previous']?.toString() ?? '-';
-      afterStr = json['change_summary']['new']?.toString() ?? '-';
+    final changeSummary = json['change_summary'];
+    if (changeSummary is Map) {
+      beforeStr = changeSummary['previous']?.toString() ?? '-';
+      afterStr = changeSummary['new']?.toString() ?? '-';
+    } else if (changeSummary is String && changeSummary.isNotEmpty) {
+      afterStr = changeSummary;
     }
 
+    final idVal = json['id'];
+    final id = idVal is int ? idVal : int.tryParse(idVal?.toString() ?? '0') ?? 0;
+
     return ActivityLog(
-      id: json['id'] ?? 0,
-      managerName: managerName,
-      module: moduleName,
+      id: id,
+      managerName: managerName.toString(),
+      module: moduleName.toString(),
       moduleDetail: moduleSub.isNotEmpty ? 'Record ID: $moduleSub' : '',
-      action: json['action_type'] ?? 'Unknown',
+      action: (json['action_type'] ?? json['action'] ?? 'Unknown').toString(),
       beforeState: beforeStr,
       afterState: afterStr,
       whenDate: date,

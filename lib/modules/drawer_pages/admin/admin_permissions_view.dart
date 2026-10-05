@@ -361,7 +361,12 @@ class _AdminPermissionsViewState extends State<AdminPermissionsView> {
                   }
 
                   if (_controller.isLoading) {
-                    return const ShimmerLoadingList();
+                    return const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(48.0),
+                        child: CircularProgressIndicator(),
+                      ),
+                    );
                   }
 
                   if (_controller.errorMessage != null &&

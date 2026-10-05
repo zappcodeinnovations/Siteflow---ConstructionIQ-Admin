@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../core/widgets/status_chip.dart';
-import '../../core/widgets/shimmer_loading.dart';
 import 'dashboard_controller.dart';
 import '../../models/project_model.dart';
 import '../projects/project_details_screen.dart';
@@ -36,8 +35,8 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     _dashboardController.fetchDashboard();
     DashboardController.refreshNotifier.addListener(_onGlobalRefresh);
 
-    // Dynamic periodic background refresh (silent)
-    _autoRefreshTimer = Timer.periodic(const Duration(seconds: 12), (_) {
+    // Dynamic periodic background refresh (silent real-time sync)
+    _autoRefreshTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       if (mounted) {
         _dashboardController.fetchDashboard(silent: true);
       }
@@ -86,7 +85,9 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
               listenable: _dashboardController,
               builder: (context, _) {
                 if (_dashboardController.isLoading) {
-                  return const ShimmerLoadingDashboard();
+                  return const Center(
+                    child: CircularProgressIndicator(),
+                  );
                 }
 
                 if (_dashboardController.errorMessage != null) {
@@ -277,10 +278,6 @@ class DashboardHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    int activeProj = kpis?.projects['active'] ?? 0;
-    int clockedIn = kpis?.attendance['clocked_in_today'] ?? 0;
-    int tasksDone = kpis?.tasks['completed'] ?? 0;
-
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(28),
@@ -330,32 +327,6 @@ class DashboardHero extends StatelessWidget {
                 ],
               ),
             ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildChip(IconData icon, String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withOpacity(0.15)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: Colors.white, size: 16),
-          const SizedBox(width: 8),
-          Text(
-            text,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
-              fontSize: 13,
-            ),
           ),
         ],
       ),
@@ -494,8 +465,9 @@ class ProjectProgressChart extends StatelessWidget {
 
     final maxVal = [pendingTasks, inProgress, completed, 5.0]
         .reduce((a, b) => a > b ? a : b);
-    final dynamicMaxY = (maxVal * 1.25).ceilToDouble().clamp(5.0, double.infinity);
+    final dynamicMaxY = (maxVal * 1.35).ceilToDouble().clamp(5.0, double.infinity);
     final interval = (dynamicMaxY / 5).ceilToDouble().clamp(1.0, double.infinity);
+    final chartMaxY = dynamicMaxY + (interval * 1.0);
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -555,91 +527,102 @@ class ProjectProgressChart extends StatelessWidget {
           const SizedBox(height: 30),
           SizedBox(
             height: 200,
-            child: ClipRect(
-              child: BarChart(
-                BarChartData(
-                  alignment: BarChartAlignment.spaceAround,
-                  maxY: dynamicMaxY,
-                  minY: 0,
-                  barTouchData: BarTouchData(
-                    enabled: true,
-                    touchTooltipData: BarTouchTooltipData(
-                      getTooltipColor: (group) => Colors.blueGrey,
-                      getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                        return BarTooltipItem(
-                          rod.toY.toInt().toString(),
-                          const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
+            child: BarChart(
+              BarChartData(
+                alignment: BarChartAlignment.spaceAround,
+                maxY: chartMaxY,
+                minY: 0,
+                barTouchData: BarTouchData(
+                  enabled: true,
+                  touchTooltipData: BarTouchTooltipData(
+                    fitInsideHorizontally: true,
+                    fitInsideVertically: true,
+                    tooltipPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    tooltipMargin: 6,
+                    getTooltipColor: (group) => const Color(0xFF1E293B),
+                    getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                      return BarTooltipItem(
+                        rod.toY.toInt().toString(),
+                        const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                titlesData: FlTitlesData(
+                  show: true,
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      interval: 1,
+                      reservedSize: 28,
+                      getTitlesWidget: (double value, TitleMeta meta) {
+                        const style = TextStyle(
+                          color: Colors.grey,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        );
+                        Widget text;
+                        switch (value.toInt()) {
+                          case 0:
+                            text = const Text('Pending', style: style, textAlign: TextAlign.center);
+                            break;
+                          case 1:
+                            text = const Text('In Progress', style: style, textAlign: TextAlign.center);
+                            break;
+                          case 2:
+                            text = const Text('Completed', style: style, textAlign: TextAlign.center);
+                            break;
+                          default:
+                            return const SizedBox.shrink();
+                        }
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: text,
+                        );
+                      },
+                    ),
+                  ),
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      interval: interval,
+                      reservedSize: 32,
+                      getTitlesWidget: (value, meta) {
+                        if (value > dynamicMaxY + 0.01) return const SizedBox.shrink();
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: Text(
+                            value.toInt().toString(),
+                            style: const TextStyle(
+                              color: Colors.grey,
+                              fontSize: 12,
+                            ),
+                            textAlign: TextAlign.right,
                           ),
                         );
                       },
                     ),
                   ),
-                  titlesData: FlTitlesData(
-                    show: true,
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        interval: 1,
-                        reservedSize: 28,
-                        getTitlesWidget: (double value, TitleMeta meta) {
-                          const style = TextStyle(
-                            color: Colors.grey,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                          );
-                          Widget text;
-                          switch (value.toInt()) {
-                            case 0:
-                              text = const Text('Pending', style: style, textAlign: TextAlign.center);
-                              break;
-                            case 1:
-                              text = const Text('In Progress', style: style, textAlign: TextAlign.center);
-                              break;
-                            case 2:
-                              text = const Text('Completed', style: style, textAlign: TextAlign.center);
-                              break;
-                            default:
-                              return const SizedBox.shrink();
-                          }
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 8),
-                            child: text,
-                          );
-                        },
-                      ),
-                    ),
-                    leftTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        interval: interval,
-                        reservedSize: 28,
-                        getTitlesWidget: (value, meta) => Text(
-                          value.toInt().toString(),
-                          style: const TextStyle(
-                            color: Colors.grey,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    ),
-                    topTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    rightTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
                   ),
-                  gridData: FlGridData(
-                    show: true,
-                    drawVerticalLine: false,
-                    horizontalInterval: interval,
-                    getDrawingHorizontalLine: (value) => FlLine(
-                      color: Colors.grey.withOpacity(0.1),
-                      strokeWidth: 1,
-                    ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
                   ),
+                ),
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: false,
+                  horizontalInterval: interval,
+                  getDrawingHorizontalLine: (value) => FlLine(
+                    color: Colors.grey.withOpacity(0.1),
+                    strokeWidth: 1,
+                  ),
+                ),
                   borderData: FlBorderData(show: false),
                   barGroups: [
                     BarChartGroupData(
@@ -679,7 +662,6 @@ class ProjectProgressChart extends StatelessWidget {
                 ),
               ),
             ),
-          ),
         ],
       ),
     );
@@ -716,6 +698,7 @@ class AttendanceTrendChart extends StatelessWidget {
     final maxVal = [...clockedInValues, ...exceptionsValues, 10.0].reduce((a, b) => a > b ? a : b);
     final dynamicMaxY = (maxVal * 1.3).ceilToDouble().clamp(10.0, double.infinity);
     final yInterval = (dynamicMaxY / 5).ceilToDouble().clamp(1.0, double.infinity);
+    final chartMaxY = dynamicMaxY + (yInterval * 0.75);
 
     final clockedInSpots = List.generate(
       clockedInValues.length,
@@ -737,124 +720,177 @@ class AttendanceTrendChart extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            "Attendance Trend",
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            "Clock-in coverage for current operations",
-            style: TextStyle(color: Colors.grey, fontSize: 13),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    Text(
+                      "Attendance Trend",
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      "Clock-in coverage for current operations",
+                      style: TextStyle(color: Colors.grey, fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xff10B981).withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 7,
+                      height: 7,
+                      decoration: const BoxDecoration(
+                        color: Color(0xff10B981),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 5),
+                    const Text(
+                      "Live Sync",
+                      style: TextStyle(
+                        color: Color(0xff10B981),
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 30),
           SizedBox(
             height: 200,
-            child: ClipRect(
-              child: LineChart(
-                LineChartData(
-                  minX: 0,
-                  maxX: 5,
-                  minY: 0,
-                  maxY: dynamicMaxY,
-                  lineTouchData: LineTouchData(
-                    enabled: true,
-                    touchTooltipData: LineTouchTooltipData(
-                      getTooltipColor: (touchedSpot) => Colors.blueGrey,
-                      getTooltipItems: (touchedSpots) {
-                        return touchedSpots.map((LineBarSpot touchedSpot) {
-                          return LineTooltipItem(
-                            touchedSpot.y.toInt().toString(),
-                            const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
+            child: LineChart(
+              LineChartData(
+                minX: 0,
+                maxX: 5,
+                minY: 0,
+                maxY: chartMaxY,
+                lineTouchData: LineTouchData(
+                  enabled: true,
+                  touchTooltipData: LineTouchTooltipData(
+                    fitInsideHorizontally: true,
+                    fitInsideVertically: true,
+                    tooltipPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    tooltipMargin: 6,
+                    getTooltipColor: (touchedSpot) => const Color(0xFF1E293B),
+                    getTooltipItems: (touchedSpots) {
+                      return touchedSpots.map((LineBarSpot touchedSpot) {
+                        return LineTooltipItem(
+                          touchedSpot.y.toInt().toString(),
+                          const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        );
+                      }).toList();
+                    },
+                  ),
+                ),
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: false,
+                  horizontalInterval: yInterval,
+                  getDrawingHorizontalLine: (value) => FlLine(
+                    color: Colors.grey.withOpacity(0.1),
+                    strokeWidth: 1,
+                  ),
+                ),
+                titlesData: FlTitlesData(
+                  show: true,
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      interval: 1,
+                      reservedSize: 32,
+                      getTitlesWidget: (value, meta) {
+                        const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Today'];
+                        final idx = value.toInt();
+                        if (idx >= 0 && idx < days.length && (value - idx).abs() < 0.01) {
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: Text(
+                              days[idx],
+                              style: const TextStyle(
+                                color: Colors.grey,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           );
-                        }).toList();
+                        }
+                        return const SizedBox.shrink();
                       },
                     ),
                   ),
-                  gridData: FlGridData(
-                    show: true,
-                    drawVerticalLine: false,
-                    horizontalInterval: yInterval,
-                    getDrawingHorizontalLine: (value) => FlLine(
-                      color: Colors.grey.withOpacity(0.1),
-                      strokeWidth: 1,
-                    ),
-                  ),
-                  titlesData: FlTitlesData(
-                    show: true,
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        interval: 1,
-                        reservedSize: 32,
-                        getTitlesWidget: (value, meta) {
-                          const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Today'];
-                          final idx = value.toInt();
-                          if (idx >= 0 && idx < days.length && (value - idx).abs() < 0.01) {
-                            return Padding(
-                              padding: const EdgeInsets.only(top: 8.0),
-                              child: Text(
-                                days[idx],
-                                style: const TextStyle(
-                                  color: Colors.grey,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            );
-                          }
-                          return const SizedBox.shrink();
-                        },
-                      ),
-                    ),
-                    leftTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        interval: yInterval,
-                        reservedSize: 28,
-                        getTitlesWidget: (value, meta) => Text(
-                          value.toInt().toString(),
-                          style: const TextStyle(
-                            color: Colors.grey,
-                            fontSize: 12,
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      interval: yInterval,
+                      reservedSize: 32,
+                      getTitlesWidget: (value, meta) {
+                        if (value > dynamicMaxY + 0.01) return const SizedBox.shrink();
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: Text(
+                            value.toInt().toString(),
+                            style: const TextStyle(
+                              color: Colors.grey,
+                              fontSize: 12,
+                            ),
+                            textAlign: TextAlign.right,
                           ),
-                        ),
-                      ),
-                    ),
-                    topTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    rightTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
+                        );
+                      },
                     ),
                   ),
-                  borderData: FlBorderData(show: false),
-                  lineBarsData: [
-                    LineChartBarData(
-                      spots: clockedInSpots,
-                      isCurved: true,
-                      color: const Color(0xff2563EB),
-                      barWidth: 3,
-                      isStrokeCapRound: true,
-                      dotData: const FlDotData(show: true),
-                      belowBarData: BarAreaData(
-                        show: true,
-                        color: const Color(0xff2563EB).withOpacity(0.08),
-                      ),
-                    ),
-                    LineChartBarData(
-                      spots: exceptionsSpots,
-                      isCurved: true,
-                      color: const Color(0xffF59E0B),
-                      barWidth: 3,
-                      isStrokeCapRound: true,
-                      dotData: const FlDotData(show: true),
-                      belowBarData: BarAreaData(show: false),
-                    ),
-                  ],
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
                 ),
+                borderData: FlBorderData(show: false),
+                lineBarsData: [
+                  LineChartBarData(
+                    spots: clockedInSpots,
+                    isCurved: true,
+                    color: const Color(0xff2563EB),
+                    barWidth: 3,
+                    isStrokeCapRound: true,
+                    dotData: const FlDotData(show: true),
+                    belowBarData: BarAreaData(
+                      show: true,
+                      color: const Color(0xff2563EB).withOpacity(0.08),
+                    ),
+                  ),
+                  LineChartBarData(
+                    spots: exceptionsSpots,
+                    isCurved: true,
+                    color: const Color(0xffF59E0B),
+                    barWidth: 3,
+                    isStrokeCapRound: true,
+                    dotData: const FlDotData(show: true),
+                    belowBarData: BarAreaData(show: false),
+                  ),
+                ],
               ),
             ),
           ),

@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
 import '../../core/network/api_endpoints.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/utils/date_helper.dart';
 import '../../core/widgets/background_stripes_painter.dart';
-import '../../core/widgets/shimmer_loading.dart';
 import '../../models/manager_diary_model.dart';
 import 'job_sheet_webview_screen.dart';
 import 'manager_diary_controller.dart';
@@ -95,7 +93,7 @@ class _ManagerDiaryListScreenState extends State<ManagerDiaryListScreen> {
         onPressed: _openNewEntry,
         backgroundColor: const Color(0xFF0D6EFD),
         icon: const Icon(IconlyLight.plus, color: Colors.white),
-        label: const Text("Fill the Sheet", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+        label: const Text("Fill the Sheet", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
       ),
       body: Stack(
         children: [
@@ -105,72 +103,34 @@ class _ManagerDiaryListScreenState extends State<ManagerDiaryListScreen> {
               animation: _controller,
               builder: (context, _) {
                 if (_controller.isLoading && _controller.entries.isEmpty) {
-                  return const ShimmerLoadingList();
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(48.0),
+                      child: CircularProgressIndicator(),
+                    ),
+                  );
                 }
                 if (_controller.errorMessage != null && _controller.entries.isEmpty) {
                   return Center(child: Text(_controller.errorMessage!, style: const TextStyle(color: Colors.red)));
                 }
-                final entries = _controller.entries;
-                final count = entries.length;
 
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                final count = _controller.entries.length;
+                final paginationText = count > 0 ? "1 - $count of $count" : "0 of 0";
+
+                return ListView(
+                  padding: const EdgeInsets.fromLTRB(24, 16, 24, 96),
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: isDark ? AppTheme.corporateBlue : Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade200),
+                    _buildHeaderInfo(isDark, paginationText),
+                    const SizedBox(height: 16),
+                    if (_controller.entries.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 48.0),
+                        child: Center(
+                          child: Text("No Manager Diary entries yet.", style: TextStyle(color: Colors.grey)),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              "Sheets filled directly by managers/admins, outside of any job. Saved here for admin review.",
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: isDark ? Colors.white70 : Colors.grey.shade600,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  "Entries",
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: isDark ? Colors.white54 : Colors.grey.shade500,
-                                  ),
-                                ),
-                                Text(
-                                  count > 0 ? "1 - $count of $count" : "0 of 0",
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.bold,
-                                    color: isDark ? Colors.white : const Color(0xFF0F2C4A),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: entries.isEmpty
-                          ? const Center(child: Text("No Manager Diary entries yet.", style: TextStyle(color: Colors.grey)))
-                          : ListView.builder(
-                              padding: const EdgeInsets.fromLTRB(24, 8, 24, 96),
-                              itemCount: entries.length,
-                              itemBuilder: (context, index) => _buildEntryCard(entries[index], isDark),
-                            ),
-                    ),
+                      )
+                    else
+                      ..._controller.entries.map((entry) => _buildEntryCard(entry, isDark)),
                   ],
                 );
               },
@@ -179,6 +139,77 @@ class _ManagerDiaryListScreenState extends State<ManagerDiaryListScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildHeaderInfo(bool isDark, String paginationText) {
+    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
+    final borderColor = isDark ? Colors.white24 : Colors.grey.shade200;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: borderColor),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: Text(
+              "Sheets filled directly by managers/admins, outside of any job. Saved here for admin review.",
+              style: TextStyle(fontSize: 12, color: textSecondary, height: 1.3),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.white10 : Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade300),
+            ),
+            child: Text(
+              paginationText,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: textColor,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDateUk(String dateStr) {
+    if (dateStr.isEmpty) return '';
+    try {
+      final dateOnly = dateStr.split('T').first;
+      final parts = dateOnly.split('-');
+      if (parts.length == 3 && parts[0].length == 4) {
+        return '${parts[2].padLeft(2, '0')}/${parts[1].padLeft(2, '0')}/${parts[0]}';
+      }
+      final parsed = DateTime.tryParse(dateStr);
+      if (parsed != null) {
+        final day = parsed.day.toString().padLeft(2, '0');
+        final month = parsed.month.toString().padLeft(2, '0');
+        final year = parsed.year.toString();
+        return '$day/$month/$year';
+      }
+    } catch (_) {}
+    return dateStr;
   }
 
   Widget _buildEntryCard(ManagerDiaryEntry entry, bool isDark) {
@@ -198,7 +229,7 @@ class _ManagerDiaryListScreenState extends State<ManagerDiaryListScreen> {
           color: cardColor,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: borderColor),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 15, offset: const Offset(0, 4))],
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 15, offset: const Offset(0, 4))],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -211,7 +242,7 @@ class _ManagerDiaryListScreenState extends State<ManagerDiaryListScreen> {
                 ),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(color: statusColor.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                  decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
                   child: Text(
                     entry.status.isNotEmpty ? entry.status[0].toUpperCase() + entry.status.substring(1) : '-',
                     style: TextStyle(color: statusColor, fontSize: 12, fontWeight: FontWeight.bold),
@@ -232,8 +263,11 @@ class _ManagerDiaryListScreenState extends State<ManagerDiaryListScreen> {
                 const SizedBox(width: 4),
                 Text('${entry.fileCount} files', style: TextStyle(fontSize: 12, color: textSecondary)),
                 const Spacer(),
-                if (entry.submittedAt != null)
-                  Text(DateHelper.formatDate(entry.submittedAt), style: TextStyle(fontSize: 12, color: textSecondary)),
+                if (entry.submittedAt != null && entry.submittedAt!.isNotEmpty)
+                  Text(
+                    _formatDateUk(entry.submittedAt!),
+                    style: TextStyle(fontSize: 12, color: textSecondary),
+                  ),
               ],
             ),
             if (entry.canEditAndResubmit) ...[

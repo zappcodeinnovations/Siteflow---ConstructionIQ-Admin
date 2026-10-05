@@ -1,5 +1,3 @@
-import '../core/utils/date_helper.dart';
-
 class JobSheet {
   final int id;
   final String sheetNo;
@@ -65,9 +63,9 @@ class JobSheet {
       materialCost: json['material_cost']?.toString() ?? '',
       charge: json['charge']?.toString() ?? '',
       globalDetailApiUrl: json['global_detail_api_url'] ?? '',
-      created: DateHelper.formatToLocal(json['created']?.toString()),
-      submitted: DateHelper.formatToLocal(json['submitted']?.toString()),
-      lastUpdated: DateHelper.formatToLocal(json['last_updated']?.toString()),
+      created: json['created'] ?? '',
+      submitted: json['submitted'] ?? '',
+      lastUpdated: json['last_updated'] ?? '',
       formHtmlUrl: json['form_html_url'] ?? '',
       viewFormInBrowserUrl: json['view_form_in_browser_url'] ?? '',
     );

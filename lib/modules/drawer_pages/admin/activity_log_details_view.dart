@@ -33,7 +33,7 @@ class _ActivityLogDetailsViewState extends State<ActivityLogDetailsView> {
     }
   }
 
-  Widget _buildJsonBlock(String title, dynamic data) {
+  Widget _buildJsonBlock(String title, dynamic data, {bool isDark = false}) {
     if (data == null || data.toString().isEmpty || data.toString() == '{}') {
       return const SizedBox.shrink();
     }
@@ -48,45 +48,51 @@ class _ActivityLogDetailsViewState extends State<ActivityLogDetailsView> {
     return _buildInfoCard(
       title: title,
       icon: IconlyLight.document,
+      isDark: isDark,
       content: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.grey.shade50,
+          color: isDark ? const Color(0xFF162A42) : Colors.grey.shade50,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.grey.shade300),
+          border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade300),
         ),
         child: SelectableText(
           formatted,
-          style: const TextStyle(fontFamily: 'monospace', fontSize: 13, height: 1.5),
+          style: TextStyle(
+            fontFamily: 'monospace',
+            fontSize: 13,
+            height: 1.5,
+            color: isDark ? Colors.white70 : Colors.black87,
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildInfoCard({required String title, required IconData icon, required Widget content}) {
+  Widget _buildInfoCard({required String title, required IconData icon, required Widget content, bool isDark = false}) {
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF0F2C4A) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4))],
+        border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(isDark ? 0.2 : 0.02), blurRadius: 10, offset: const Offset(0, 4))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, size: 20, color: const Color(0xFF0F2C4A)),
+              Icon(icon, size: 20, color: isDark ? Colors.white : const Color(0xFF0F2C4A)),
               const SizedBox(width: 8),
-              Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF0F2C4A))),
+              Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: isDark ? Colors.white : const Color(0xFF0F2C4A))),
             ],
           ),
           const SizedBox(height: 16),
-          const Divider(height: 1),
+          Divider(height: 1, color: isDark ? Colors.white12 : null),
           const SizedBox(height: 16),
           content,
         ],
@@ -94,16 +100,16 @@ class _ActivityLogDetailsViewState extends State<ActivityLogDetailsView> {
     );
   }
 
-  Widget _buildDetailRow(String label, String value) {
+  Widget _buildDetailRow(String label, String value, {bool isDark = false}) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(
           width: 140,
-          child: Text(label, style: const TextStyle(fontSize: 14, color: Colors.grey, fontWeight: FontWeight.w500)),
+          child: Text(label, style: TextStyle(fontSize: 14, color: isDark ? Colors.white60 : Colors.grey, fontWeight: FontWeight.w500)),
         ),
         Expanded(
-          child: SelectableText(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87)),
+          child: SelectableText(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
         ),
       ],
     );
@@ -111,18 +117,20 @@ class _ActivityLogDetailsViewState extends State<ActivityLogDetailsView> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
-      appBar: AppBar(
-        title: const Text("Activity Log Details", style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    return Scaffold(
+      backgroundColor: isDark ? const Color(0xFF0A1929) : const Color(0xFFF8F9FA),
+      appBar: AppBar(
+        title: Text("Activity Log Details", style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontWeight: FontWeight.bold)),
+        backgroundColor: isDark ? const Color(0xFF0F2C4A) : Colors.white,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black87),
+        iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black87),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _logDetails == null
-              ? const Center(child: Text("Failed to load details."))
+              ? Center(child: Text("Failed to load details.", style: TextStyle(color: isDark ? Colors.white70 : Colors.black87)))
               : SingleChildScrollView(
                   padding: const EdgeInsets.all(24.0),
                   child: Center(
@@ -135,11 +143,12 @@ class _ActivityLogDetailsViewState extends State<ActivityLogDetailsView> {
                           _buildInfoCard(
                             title: "User Information",
                             icon: IconlyLight.profile,
+                            isDark: isDark,
                             content: Column(
                               children: [
-                                _buildDetailRow("User Name", _logDetails!['user_name']?.toString() ?? 'N/A'),
+                                _buildDetailRow("User Name", _logDetails!['user_name']?.toString() ?? 'N/A', isDark: isDark),
                                 const SizedBox(height: 12),
-                                _buildDetailRow("User Role", _logDetails!['user_role']?.toString() ?? 'N/A'),
+                                _buildDetailRow("User Role", _logDetails!['user_role']?.toString() ?? 'N/A', isDark: isDark),
                               ],
                             )
                           ),
@@ -149,37 +158,39 @@ class _ActivityLogDetailsViewState extends State<ActivityLogDetailsView> {
                           _buildInfoCard(
                             title: "Activity Details",
                             icon: IconlyLight.activity,
+                            isDark: isDark,
                             content: Column(
                               children: [
-                                _buildDetailRow("Action", _logDetails!['action_type']?.toString() ?? 'N/A'),
+                                _buildDetailRow("Action", _logDetails!['action_type']?.toString() ?? 'N/A', isDark: isDark),
                                 const SizedBox(height: 12),
-                                _buildDetailRow("Module", _logDetails!['module_name']?.toString() ?? 'N/A'),
+                                _buildDetailRow("Module", _logDetails!['module_name']?.toString() ?? 'N/A', isDark: isDark),
                                 if (_logDetails!['record_id'] != null && _logDetails!['record_id'].toString().isNotEmpty) ...[
                                   const SizedBox(height: 12),
-                                  _buildDetailRow("Record ID", _logDetails!['record_id'].toString()),
+                                  _buildDetailRow("Record ID", _logDetails!['record_id'].toString(), isDark: isDark),
                                 ],
                                 const SizedBox(height: 12),
-                                _buildDetailRow("Timestamp", _logDetails!['timestamp']?.toString() ?? 'N/A'),
+                                _buildDetailRow("Timestamp", _logDetails!['timestamp']?.toString() ?? 'N/A', isDark: isDark),
                               ],
                             )
                           ),
                           const SizedBox(height: 8),
                           
-                          _buildJsonBlock("Previous State", _logDetails!['change_summary'] != null ? _logDetails!['change_summary']['previous'] : null),
-                          _buildJsonBlock("New State / Activity", _logDetails!['change_summary'] != null ? _logDetails!['change_summary']['new'] : null),
+                          _buildJsonBlock("Previous State", _logDetails!['change_summary'] != null ? _logDetails!['change_summary']['previous'] : null, isDark: isDark),
+                          _buildJsonBlock("New State / Activity", _logDetails!['change_summary'] != null ? _logDetails!['change_summary']['new'] : null, isDark: isDark),
                           
                           if (_logDetails!['ip_address'] != null || _logDetails!['browser_information'] != null) ...[
                             const SizedBox(height: 8),
                             _buildInfoCard(
                               title: "System Information",
                               icon: IconlyLight.info_square,
+                              isDark: isDark,
                               content: Column(
                                 children: [
                                   if (_logDetails!['ip_address'] != null)
-                                    _buildDetailRow("IP Address", _logDetails!['ip_address']),
+                                    _buildDetailRow("IP Address", _logDetails!['ip_address'], isDark: isDark),
                                   if (_logDetails!['browser_information'] != null) ...[
                                     const SizedBox(height: 12),
-                                    _buildDetailRow("Browser Info", _logDetails!['browser_information']),
+                                    _buildDetailRow("Browser Info", _logDetails!['browser_information'], isDark: isDark),
                                   ],
                                 ],
                               )

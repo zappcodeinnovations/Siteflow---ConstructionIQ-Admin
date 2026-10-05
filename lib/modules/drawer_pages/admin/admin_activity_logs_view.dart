@@ -640,15 +640,64 @@ class _AdminActivityLogsViewState extends State<AdminActivityLogsView> {
                   animation: _controller,
                   builder: (context, _) {
                     if (_controller.isLoading) {
-                      return const ShimmerLoadingList();
+                      return const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(48.0),
+                          child: CircularProgressIndicator(),
+                        ),
+                      );
                     }
 
                     if (_controller.errorMessage != null &&
                         _controller.logs.isEmpty) {
                       return Center(
-                        child: Text(
-                          _controller.errorMessage!,
-                          style: const TextStyle(color: Colors.red),
+                        child: Padding(
+                          padding: const EdgeInsets.all(32.0),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                _controller.errorMessage!,
+                                style: const TextStyle(color: Colors.red),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 12),
+                              ElevatedButton.icon(
+                                onPressed: () => _controller.fetchLogs(),
+                                icon: const Icon(Icons.refresh, size: 16, color: Colors.white),
+                                label: const Text("Retry", style: TextStyle(color: Colors.white)),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF0D6EFD),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+
+                    if (_controller.logs.isEmpty) {
+                      return Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(48.0),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                IconlyLight.document,
+                                size: 48,
+                                color: subtitleColor.withValues(alpha: 0.5),
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                "No activity logs found",
+                                style: TextStyle(
+                                  color: subtitleColor,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       );
                     }

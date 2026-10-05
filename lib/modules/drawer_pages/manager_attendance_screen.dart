@@ -621,7 +621,12 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
                       const SizedBox(height: 16),
 
                       if (_controller.isLoading && _controller.data == null)
-                        const ShimmerLoadingList()
+                        const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(48.0),
+                            child: CircularProgressIndicator(),
+                          ),
+                        )
                       else if (_controller.errorMessage != null &&
                           _controller.data == null)
                         Center(

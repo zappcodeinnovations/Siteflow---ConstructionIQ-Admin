@@ -81,6 +81,7 @@ class _AdminSupportViewState extends State<AdminSupportView> {
     required Color borderColor,
     required Color textColor,
     required Color subtitleColor,
+    bool isDark = false,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -95,10 +96,10 @@ class _AdminSupportViewState extends State<AdminSupportView> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.blue.shade50,
+              color: isDark ? const Color(0xFF162A42) : Colors.blue.shade50,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(icon, color: Colors.blue.shade700, size: 20),
+            child: Icon(icon, color: isDark ? Colors.lightBlueAccent : Colors.blue.shade700, size: 20),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -134,6 +135,7 @@ class _AdminSupportViewState extends State<AdminSupportView> {
     required Color borderColor,
     required Color textColor,
     required Color subtitleColor,
+    bool isDark = false,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -145,7 +147,7 @@ class _AdminSupportViewState extends State<AdminSupportView> {
       ),
       child: Row(
         children: [
-          Icon(icon, color: Colors.blue.shade300, size: 20),
+          Icon(icon, color: isDark ? Colors.lightBlueAccent : Colors.blue.shade300, size: 20),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
@@ -203,6 +205,7 @@ class _AdminSupportViewState extends State<AdminSupportView> {
     required Color borderColor,
     required Color textColor,
     required Color subtitleColor,
+    bool isDark = false,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -213,7 +216,7 @@ class _AdminSupportViewState extends State<AdminSupportView> {
         border: Border.all(color: borderColor),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withOpacity(isDark ? 0.2 : 0.02),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -283,8 +286,8 @@ class _AdminSupportViewState extends State<AdminSupportView> {
                 );
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue.shade50,
-                foregroundColor: Colors.blue.shade700,
+                backgroundColor: isDark ? const Color(0xFF162A42) : Colors.blue.shade50,
+                foregroundColor: isDark ? Colors.white : Colors.blue.shade700,
                 elevation: 0,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 24,
@@ -292,6 +295,7 @@ class _AdminSupportViewState extends State<AdminSupportView> {
                 ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
+                  side: BorderSide(color: isDark ? Colors.white24 : Colors.transparent),
                 ),
               ),
               child: const Text(
@@ -375,7 +379,12 @@ class _AdminSupportViewState extends State<AdminSupportView> {
                 animation: _controller,
                 builder: (context, _) {
                   if (_controller.isLoading) {
-                    return const ShimmerLoadingDashboard();
+                    return const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(48.0),
+                        child: CircularProgressIndicator(),
+                      ),
+                    );
                   }
 
                   Widget contentLeft = Column(
@@ -427,6 +436,7 @@ class _AdminSupportViewState extends State<AdminSupportView> {
                               borderColor: borderColor,
                               textColor: textColor,
                               subtitleColor: subtitleColor,
+                              isDark: isDark,
                             );
                           },
                         ),
@@ -450,12 +460,12 @@ class _AdminSupportViewState extends State<AdminSupportView> {
                                 Icon(
                                   IconlyLight.message,
                                   size: 16,
-                                  color: Colors.blue.shade700,
+                                  color: isDark ? Colors.lightBlueAccent : Colors.blue.shade700,
                                 ),
                                 const SizedBox(width: 12),
                                 Text(
                                   "Email: ${_controller.quickActions?.supportEmail ?? 'Loading...'}",
-                                  style: const TextStyle(fontSize: 13),
+                                  style: TextStyle(fontSize: 13, color: textColor),
                                 ),
                               ],
                             ),
@@ -465,12 +475,12 @@ class _AdminSupportViewState extends State<AdminSupportView> {
                                 Icon(
                                   IconlyLight.category,
                                   size: 16,
-                                  color: Colors.blue.shade700,
+                                  color: isDark ? Colors.lightBlueAccent : Colors.blue.shade700,
                                 ),
                                 const SizedBox(width: 12),
                                 Text(
                                   "Call: ${_controller.quickActions?.supportPhone ?? 'Loading...'}",
-                                  style: const TextStyle(fontSize: 13),
+                                  style: TextStyle(fontSize: 13, color: textColor),
                                 ),
                               ],
                             ),
@@ -480,12 +490,12 @@ class _AdminSupportViewState extends State<AdminSupportView> {
                                 Icon(
                                   IconlyLight.category,
                                   size: 16,
-                                  color: Colors.blue.shade700,
+                                  color: isDark ? Colors.lightBlueAccent : Colors.blue.shade700,
                                 ),
                                 const SizedBox(width: 12),
-                                const Text(
+                                Text(
                                   "Monday to Friday, 09:30 - 17:30",
-                                  style: TextStyle(fontSize: 13),
+                                  style: TextStyle(fontSize: 13, color: textColor),
                                 ),
                               ],
                             ),
@@ -493,13 +503,14 @@ class _AdminSupportViewState extends State<AdminSupportView> {
                             Container(
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                color: Colors.blue.shade50,
+                                color: isDark ? const Color(0xFF162A42) : Colors.blue.shade50,
                                 borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: isDark ? Colors.white12 : Colors.blue.shade100),
                               ),
                               child: Text(
                                 "Include screenshots, exact URLs, and affected job or project numbers. This helps support resolve the request faster.",
                                 style: TextStyle(
-                                  color: Colors.blue.shade900,
+                                  color: isDark ? Colors.white70 : Colors.blue.shade900,
                                   fontSize: 12,
                                   height: 1.5,
                                 ),
@@ -520,7 +531,7 @@ class _AdminSupportViewState extends State<AdminSupportView> {
                                     child: Text(
                                       link.title,
                                       style: TextStyle(
-                                        color: Colors.blue.shade700,
+                                        color: isDark ? Colors.lightBlueAccent : Colors.blue.shade700,
                                         decoration: TextDecoration.underline,
                                         fontSize: 13,
                                       ),
@@ -549,6 +560,7 @@ class _AdminSupportViewState extends State<AdminSupportView> {
                               borderColor: borderColor,
                               textColor: textColor,
                               subtitleColor: subtitleColor,
+                              isDark: isDark,
                             ),
                             _buildBeforeSendItem(
                               IconlyLight.category,
@@ -558,6 +570,7 @@ class _AdminSupportViewState extends State<AdminSupportView> {
                               borderColor: borderColor,
                               textColor: textColor,
                               subtitleColor: subtitleColor,
+                              isDark: isDark,
                             ),
                           ],
                         ),

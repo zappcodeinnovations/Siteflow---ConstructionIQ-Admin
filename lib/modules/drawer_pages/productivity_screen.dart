@@ -5,8 +5,6 @@ import 'package:share_plus/share_plus.dart';
 import '../../core/network/api_client.dart';
 import '../../core/network/api_endpoints.dart';
 import 'productivity_controller.dart';
-import '../../models/productivity_model.dart';
-import '../../core/widgets/shimmer_loading.dart';
 import 'package:iconly/iconly.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/background_stripes_painter.dart';
@@ -33,258 +31,24 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
     super.dispose();
   }
 
-  String _dateRangeLabel = "This Month";
-  DateTime? _selectedStartDate;
-  DateTime? _selectedEndDate;
-
-  void _showModernDateRangePicker(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    DateTime viewingMonth = _selectedStartDate ?? DateTime.now();
-    DateTime? tempStart = _selectedStartDate;
-    DateTime? tempEnd = _selectedEndDate;
-
-    final months = [
-      "January", "February", "March", "April", "May", "June",
-      "July", "August", "September", "October", "November", "December"
-    ];
-
-    showDialog(
+  Future<void> _selectDateRange(BuildContext context) async {
+    final initialDate = DateTime.now();
+    final DateTimeRange? picked = await showDateRangePicker(
       context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            int year = viewingMonth.year;
-            int month = viewingMonth.month;
-            DateTime firstDayOfMonth = DateTime(year, month, 1);
-            int daysInMonth = DateTime(year, month + 1, 0).day;
-            int startingWeekday = firstDayOfMonth.weekday % 7;
-
-            List<DateTime?> gridDays = [];
-            for (int i = 0; i < startingWeekday; i++) {
-              gridDays.add(null);
-            }
-            for (int i = 1; i <= daysInMonth; i++) {
-              gridDays.add(DateTime(year, month, i));
-            }
-
-            return Dialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-              backgroundColor: isDark ? AppTheme.corporateBlue : Colors.white,
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                width: MediaQuery.of(context).size.width * 0.88,
-                constraints: const BoxConstraints(maxWidth: 360),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Header with Month/Year & Navigation
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            "${months[month - 1]} $year",
-                            style: TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.bold,
-                              color: isDark ? Colors.white : const Color(0xFF0F2C4A),
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            SizedBox(
-                              width: 36,
-                              height: 36,
-                              child: IconButton(
-                                padding: EdgeInsets.zero,
-                                icon: Icon(Icons.chevron_left, color: isDark ? Colors.white70 : Colors.black87, size: 20),
-                                onPressed: () {
-                                  setDialogState(() {
-                                    viewingMonth = DateTime(year, month - 1, 1);
-                                  });
-                                },
-                              ),
-                            ),
-                            SizedBox(
-                              width: 36,
-                              height: 36,
-                              child: IconButton(
-                                padding: EdgeInsets.zero,
-                                icon: Icon(Icons.chevron_right, color: isDark ? Colors.white70 : Colors.black87, size: 20),
-                                onPressed: () {
-                                  setDialogState(() {
-                                    viewingMonth = DateTime(year, month + 1, 1);
-                                  });
-                                },
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Weekday headers
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((day) {
-                        return Expanded(
-                          child: Text(
-                            day,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: isDark ? Colors.white70 : Colors.grey.shade600,
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // Days Grid
-                    GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 7,
-                        mainAxisSpacing: 6,
-                        crossAxisSpacing: 2,
-                        childAspectRatio: 1.0,
-                      ),
-                      itemCount: gridDays.length,
-                      itemBuilder: (context, index) {
-                        final dayDate = gridDays[index];
-                        if (dayDate == null) {
-                          return const SizedBox.shrink();
-                        }
-
-                        bool isStart = tempStart != null && 
-                            dayDate.year == tempStart!.year && 
-                            dayDate.month == tempStart!.month && 
-                            dayDate.day == tempStart!.day;
-
-                        bool isEnd = tempEnd != null && 
-                            dayDate.year == tempEnd!.year && 
-                            dayDate.month == tempEnd!.month && 
-                            dayDate.day == tempEnd!.day;
-
-                        bool isInRange = tempStart != null && tempEnd != null && 
-                            dayDate.isAfter(tempStart!) && dayDate.isBefore(tempEnd!);
-
-                        Color bgColor = Colors.transparent;
-                        Color textColor = isDark ? Colors.white : Colors.black87;
-                        BorderRadius? borderRadius;
-
-                        if (isStart && isEnd) {
-                          bgColor = const Color(0xFF0D6EFD);
-                          textColor = Colors.white;
-                          borderRadius = BorderRadius.circular(20);
-                        } else if (isStart) {
-                          bgColor = const Color(0xFF0D6EFD);
-                          textColor = Colors.white;
-                          borderRadius = const BorderRadius.horizontal(
-                            left: Radius.circular(20),
-                            right: Radius.circular(4),
-                          );
-                        } else if (isEnd) {
-                          bgColor = const Color(0xFF0D6EFD);
-                          textColor = Colors.white;
-                          borderRadius = const BorderRadius.horizontal(
-                            left: Radius.circular(4),
-                            right: Radius.circular(20),
-                          );
-                        } else if (isInRange) {
-                          bgColor = isDark ? Colors.blue.withOpacity(0.3) : const Color(0xFFEEF2FF);
-                          textColor = isDark ? Colors.white : const Color(0xFF0D6EFD);
-                          borderRadius = BorderRadius.zero;
-                        }
-
-                        return InkWell(
-                          onTap: () {
-                            setDialogState(() {
-                              if (tempStart == null || (tempStart != null && tempEnd != null)) {
-                                tempStart = dayDate;
-                                tempEnd = null;
-                              } else if (tempStart != null && tempEnd == null) {
-                                if (dayDate.isBefore(tempStart!)) {
-                                  tempStart = dayDate;
-                                } else {
-                                  tempEnd = dayDate;
-                                }
-                              }
-                            });
-                          },
-                          borderRadius: BorderRadius.circular(20),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: bgColor,
-                              borderRadius: borderRadius,
-                            ),
-                            alignment: Alignment.center,
-                            child: Text(
-                              dayDate.day.toString(),
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: (isStart || isEnd) ? FontWeight.bold : FontWeight.w500,
-                                color: textColor,
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Footer Buttons
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: Text("Cancel", style: TextStyle(color: isDark ? Colors.white70 : Colors.grey.shade700)),
-                        ),
-                        const SizedBox(width: 12),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF0D6EFD),
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                          ),
-                          onPressed: tempStart == null ? null : () {
-                            setState(() {
-                              _selectedStartDate = tempStart;
-                              _selectedEndDate = tempEnd ?? tempStart;
-                              
-                              final startStr = "${_selectedStartDate!.day.toString().padLeft(2, '0')}/${_selectedStartDate!.month.toString().padLeft(2, '0')}/${_selectedStartDate!.year}";
-                              final endStr = "${_selectedEndDate!.day.toString().padLeft(2, '0')}/${_selectedEndDate!.month.toString().padLeft(2, '0')}/${_selectedEndDate!.year}";
-                              
-                              _dateRangeLabel = "$startStr - $endStr";
-                              _controller.setDateRange(startStr, endStr);
-                              _controller.fetchProductivity();
-                            });
-                            Navigator.pop(context);
-                          },
-                          child: const Text("Apply", style: TextStyle(fontWeight: FontWeight.bold)),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2101),
+      initialDateRange: DateTimeRange(
+        start: initialDate.subtract(const Duration(days: 30)),
+        end: initialDate,
+      ),
     );
+    if (picked != null) {
+      final startStr = "${picked.start.day.toString().padLeft(2, '0')}/${picked.start.month.toString().padLeft(2, '0')}/${picked.start.year}";
+      final endStr = "${picked.end.day.toString().padLeft(2, '0')}/${picked.end.month.toString().padLeft(2, '0')}/${picked.end.year}";
+      _controller.setDateRange(startStr, endStr);
+      _controller.fetchProductivity();
+    }
   }
-
 
   void _showFilterDialog() {
     if (_controller.data == null) return;
@@ -301,28 +65,17 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
         String? tempMember = _controller.selectedMember;
         String? tempProject = _controller.selectedProject;
 
-        final isDark = Theme.of(context).brightness == Brightness.dark;
-        final dialogBg = isDark ? AppTheme.corporateBlue : Colors.white;
-        final inputBg = isDark ? const Color(0xFF1F2E40) : Colors.grey.shade50;
-        final borderColor = isDark ? Colors.white24 : Colors.grey.shade200;
-        final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
-        final secondaryTextColor = isDark ? Colors.grey.shade400 : Colors.grey;
-
         return StatefulBuilder(
           builder: (context, setState) {
             return Dialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24),
-                side: isDark ? const BorderSide(color: Colors.white24) : BorderSide.none,
-              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
               elevation: 0,
               backgroundColor: Colors.transparent,
               child: Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: dialogBg,
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(24),
-                  border: isDark ? Border.all(color: Colors.white24) : null,
                   boxShadow: [
                     BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20, offset: const Offset(0, 10))
                   ],
@@ -335,17 +88,17 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
+                          const Text(
                             "Filter Results",
-                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor),
+                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF0F2C4A)),
                           ),
                           InkWell(
                             onTap: () => Navigator.pop(context),
                             borderRadius: BorderRadius.circular(20),
                             child: Container(
                               padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(color: isDark ? const Color(0xFF1F2E40) : Colors.grey.shade100, shape: BoxShape.circle),
-                              child: Icon(IconlyLight.close_square, size: 18, color: secondaryTextColor),
+                              decoration: BoxDecoration(color: Colors.grey.shade100, shape: BoxShape.circle),
+                              child: const Icon(IconlyLight.close_square, size: 18, color: Colors.black54),
                             ),
                           ),
                         ],
@@ -353,15 +106,15 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
                       const SizedBox(height: 24),
                       _buildPremiumDropdown("Team", tempTeam, ["All Teams", ...teams], (val) {
                         setState(() => tempTeam = val == "All Teams" ? null : val);
-                      }, isDark, inputBg, borderColor, textColor, secondaryTextColor),
+                      }),
                       const SizedBox(height: 16),
                       _buildPremiumDropdown("Member", tempMember, ["All Members", ...members], (val) {
                         setState(() => tempMember = val == "All Members" ? null : val);
-                      }, isDark, inputBg, borderColor, textColor, secondaryTextColor),
+                      }),
                       const SizedBox(height: 16),
                       _buildPremiumDropdown("Project", tempProject, ["All Projects", ...projects], (val) {
                         setState(() => tempProject = val == "All Projects" ? null : val);
-                      }, isDark, inputBg, borderColor, textColor, secondaryTextColor),
+                      }),
                       const SizedBox(height: 32),
                       Row(
                         children: [
@@ -370,7 +123,7 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
                               style: OutlinedButton.styleFrom(
                                 padding: const EdgeInsets.symmetric(vertical: 14),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                side: BorderSide(color: borderColor),
+                                side: BorderSide(color: Colors.grey.shade300),
                               ),
                               onPressed: () {
                                 setState(() {
@@ -379,7 +132,7 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
                                   tempProject = null;
                                 });
                               },
-                              child: Text("Clear All", style: TextStyle(color: isDark ? Colors.white70 : Colors.black87, fontWeight: FontWeight.w600)),
+                              child: const Text("Clear All", style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w600)),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -416,39 +169,28 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
     );
   }
 
-  Widget _buildPremiumDropdown(
-    String label,
-    String? currentValue,
-    List<String> items,
-    Function(String?) onChanged,
-    bool isDark,
-    Color inputBg,
-    Color borderColor,
-    Color textColor,
-    Color secondaryTextColor,
-  ) {
+  Widget _buildPremiumDropdown(String label, String? currentValue, List<String> items, Function(String?) onChanged) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: secondaryTextColor)),
+        Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black54)),
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           decoration: BoxDecoration(
-            color: inputBg,
+            color: Colors.grey.shade50,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: borderColor),
+            border: Border.all(color: Colors.grey.shade200),
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               isExpanded: true,
               value: currentValue ?? items.first,
-              dropdownColor: inputBg,
-              icon: Icon(IconlyLight.arrow_down_2, color: secondaryTextColor),
+              icon: const Icon(IconlyLight.arrow_down_2, color: Colors.grey),
               items: items.map((String value) {
                 return DropdownMenuItem<String>(
                   value: value,
-                  child: Text(value, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: textColor)),
+                  child: Text(value, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Colors.black87)),
                 );
               }).toList(),
               onChanged: onChanged,
@@ -598,7 +340,12 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
   Widget _buildDataList() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     if (_controller.isLoading && _controller.data == null) {
-      return const ShimmerLoadingList();
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(48.0),
+          child: CircularProgressIndicator(),
+        ),
+      );
     }
     if (_controller.errorMessage != null && _controller.data == null) {
       return Center(child: Text(_controller.errorMessage!, style: const TextStyle(color: Colors.red)));
@@ -849,61 +596,44 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
                         children: [
                           // Date Selector
                           InkWell(
-                            borderRadius: BorderRadius.circular(24),
-                            onTap: () => _showModernDateRangePicker(context),
+                            onTap: () => _selectDateRange(context),
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                               decoration: BoxDecoration(
-                                color: isDark ? AppTheme.corporateBlue : Colors.white,
-                                border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade200),
+                                color: Colors.white,
+                                border: Border.all(color: Colors.grey.shade200),
                                 borderRadius: BorderRadius.circular(24),
                                 boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.grey.withValues(alpha: 0.05),
-                                    blurRadius: 4,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
+                                  BoxShadow(color: Colors.grey.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2))
+                                ]
                               ),
                               child: Row(
-                                mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(IconlyLight.calendar, size: 14, color: isDark ? Colors.white : Colors.blue.shade700),
+                                  Icon(IconlyLight.calendar, size: 14, color: Colors.blue.shade700),
                                   const SizedBox(width: 8),
-                                  Text(
-                                    _dateRangeLabel,
-                                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: isDark ? Colors.white : Colors.black87),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Icon(IconlyLight.arrow_down_2, size: 14, color: isDark ? Colors.white70 : Colors.grey.shade600),
+                                  const Text("This Month", style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                                  const SizedBox(width: 4),
+                                  Icon(IconlyLight.arrow_down_2, size: 16, color: Colors.grey.shade600),
                                 ],
                               ),
                             ),
                           ),
-                          const SizedBox(width: 8),
                           
                           // Quick Actions
                           Row(
-                            mainAxisSize: MainAxisSize.min,
                             children: [
                               IconButton(
-                                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                                padding: EdgeInsets.zero,
-                                icon: Icon(IconlyLight.filter, color: isDark ? Colors.white70 : Colors.black87, size: 20),
+                                icon: const Icon(IconlyLight.filter, color: Colors.black87),
                                 onPressed: _showFilterDialog,
                                 tooltip: 'Filters',
                               ),
                               IconButton(
-                                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                                padding: EdgeInsets.zero,
-                                icon: Icon(IconlyLight.download, color: isDark ? Colors.white70 : Colors.black87, size: 20),
+                                icon: const Icon(IconlyLight.download, color: Colors.black87),
                                 onPressed: _downloadReport,
                                 tooltip: 'Download Report',
                               ),
                               IconButton(
-                                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                                padding: EdgeInsets.zero,
-                                icon: Icon(IconlyLight.swap, color: isDark ? Colors.white70 : Colors.black87, size: 20),
+                                icon: const Icon(IconlyLight.swap, color: Colors.black87),
                                 onPressed: () {
                                   _controller.setTeam(null);
                                   _controller.setMember(null);

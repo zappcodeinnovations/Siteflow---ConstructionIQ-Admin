@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../core/network/api_client.dart';
 import '../../core/network/api_endpoints.dart';
-import '../../models/manager_attendance_model.dart';
 import '../dashboard/dashboard_controller.dart';
+import '../../models/manager_attendance_model.dart';
 
 class ManagerAttendanceController extends ChangeNotifier {
   bool _isLoading = false;

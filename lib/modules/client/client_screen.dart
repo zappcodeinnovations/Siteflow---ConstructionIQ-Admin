@@ -21,9 +21,14 @@ class ClientsScreenState extends State<ClientsScreen> {
   final ClientController _controller = ClientController();
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _verticalScrollController = ScrollController();
-  final ScrollController _horizontalScrollController = ScrollController();
   bool _isSearchVisible = false;
-  String _selectedStatus = 'Active Clients';
+  String _selectedFilter = 'Active Clients';
+  final List<String> _filterOptions = const [
+    'Active Clients',
+    'Inactive Clients',
+    'Archived Clients',
+    'All Clients',
+  ];
 
   void toggleSearch() {
     setState(() {
@@ -42,102 +47,65 @@ class ClientsScreenState extends State<ClientsScreen> {
       text: initialName ?? '',
     );
     final isEdit = id != null;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final dialogBg = isDark ? AppTheme.corporateBlue : Colors.white;
-    final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
-    final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey;
 
     showDialog(
       context: context,
       builder: (context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final dialogBg = isDark ? const Color(0xFF0F2C4A) : Colors.white;
+        final titleColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
+        final textColor = isDark ? Colors.white : Colors.black87;
+        final hintColor = isDark ? Colors.white54 : Colors.grey;
+        final inputBorderColor = isDark ? Colors.white24 : Colors.grey.shade300;
+        final inputFillColor = isDark ? Colors.white.withOpacity(0.08) : Colors.transparent;
+
         return AlertDialog(
           backgroundColor: dialogBg,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(12),
             side: isDark ? const BorderSide(color: Colors.white24) : BorderSide.none,
           ),
-          titlePadding: const EdgeInsets.fromLTRB(24, 20, 16, 12),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-          actionsPadding: const EdgeInsets.fromLTRB(24, 16, 24, 20),
-          title: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                isEdit ? "Edit Client" : "Add Client",
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                  color: textColor,
-                ),
-              ),
-              IconButton(
-                icon: Icon(Icons.close, color: textSecondary, size: 20),
-                onPressed: () => Navigator.pop(context),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-              ),
-            ],
+          title: Text(
+            isEdit ? "Edit Client" : "Add Client",
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              color: titleColor,
+            ),
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                "Name",
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: isDark ? Colors.grey.shade300 : const Color(0xFF0F2C4A),
-                ),
+          content: TextField(
+            controller: nameController,
+            style: TextStyle(color: textColor),
+            decoration: InputDecoration(
+              hintText: "Client Name",
+              hintStyle: TextStyle(color: hintColor),
+              filled: true,
+              fillColor: inputFillColor,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: inputBorderColor),
               ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: nameController,
-                autofocus: true,
-                style: TextStyle(color: textColor, fontSize: 14),
-                decoration: InputDecoration(
-                  hintText: "Enter client name",
-                  hintStyle: TextStyle(color: textSecondary, fontSize: 14),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  filled: true,
-                  fillColor: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Color(0xFF0D6EFD), width: 1.5),
-                  ),
-                ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: inputBorderColor),
               ),
-            ],
+              focusedBorder: const OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(8)),
+                borderSide: BorderSide(color: Color(0xFF0D6EFD), width: 1.5),
+              ),
+            ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text(
-                "Cancel",
-                style: TextStyle(
-                  color: isDark ? Colors.white70 : Colors.grey.shade700,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
+              child: Text("Cancel", style: TextStyle(color: isDark ? Colors.white70 : Colors.grey)),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF0D6EFD),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
-                elevation: 0,
               ),
               onPressed: () async {
                 final name = nameController.text.trim();
@@ -163,8 +131,8 @@ class ClientsScreenState extends State<ClientsScreen> {
                 }
               },
               child: Text(
-                isEdit ? "Save Changes" : "Add Client",
-                style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                isEdit ? "Save" : "Add",
+                style: const TextStyle(color: Colors.white),
               ),
             ),
           ],
@@ -174,14 +142,14 @@ class ClientsScreenState extends State<ClientsScreen> {
   }
 
   void _confirmDelete(int id, String name) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final dialogBg = isDark ? AppTheme.corporateBlue : Colors.white;
-    final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
-    final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey;
-
     showDialog(
       context: context,
       builder: (context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final dialogBg = isDark ? const Color(0xFF0F2C4A) : Colors.white;
+        final titleColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
+        final textColor = isDark ? Colors.white70 : Colors.black87;
+
         return AlertDialog(
           backgroundColor: dialogBg,
           shape: RoundedRectangleBorder(
@@ -190,16 +158,16 @@ class ClientsScreenState extends State<ClientsScreen> {
           ),
           title: Text(
             "Delete Client",
-            style: TextStyle(fontWeight: FontWeight.bold, color: textColor),
+            style: TextStyle(fontWeight: FontWeight.bold, color: titleColor),
           ),
           content: Text(
             "Are you sure you want to delete $name?",
-            style: TextStyle(color: isDark ? Colors.white70 : Colors.black87),
+            style: TextStyle(color: textColor),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text("Cancel", style: TextStyle(color: textSecondary)),
+              child: Text("Cancel", style: TextStyle(color: isDark ? Colors.white70 : Colors.grey)),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -312,12 +280,10 @@ class ClientsScreenState extends State<ClientsScreen> {
                   ),
                   ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(
-                        0xFF0D6EFD,
-                      ),
+                      backgroundColor: const Color(0xFF0D6EFD),
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
+                        horizontal: 20,
+                        vertical: 14,
                       ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
@@ -332,7 +298,7 @@ class ClientsScreenState extends State<ClientsScreen> {
                     label: const Text(
                       "Add Client",
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: 12,
                         color: Colors.white,
                         fontWeight: FontWeight.w600,
                       ),
@@ -349,15 +315,13 @@ class ClientsScreenState extends State<ClientsScreen> {
                   decoration: BoxDecoration(
                     color: cardColor,
                     borderRadius: BorderRadius.circular(12),
-                    boxShadow: isDark
-                        ? []
-                        : [
-                            BoxShadow(
-                              color: Colors.grey.withOpacity(0.1),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                     border: Border.all(color: borderColor),
                   ),
                   child: Wrap(
@@ -377,35 +341,32 @@ class ClientsScreenState extends State<ClientsScreen> {
                             height: 40,
                             child: TextField(
                               controller: _searchController,
-                              style: TextStyle(
-                                color: textColor,
-                                fontSize: 14,
-                              ),
-                              onChanged: (value) =>
-                                  _controller.searchClients(value),
+                              style: TextStyle(color: textColor, fontSize: 14),
                               onSubmitted: (value) =>
                                   _controller.searchClients(value),
                               decoration: InputDecoration(
                                 hintText: "Search clients",
                                 hintStyle: TextStyle(
-                                  color: isDark
-                                      ? Colors.white38
-                                      : Colors.grey.shade400,
+                                  color: isDark ? Colors.white54 : Colors.grey.shade400,
                                   fontSize: 14,
                                 ),
                                 contentPadding: const EdgeInsets.symmetric(
                                   horizontal: 16,
                                 ),
+                                filled: true,
+                                fillColor: isDark
+                                    ? Colors.white.withValues(alpha: 0.08)
+                                    : Colors.white,
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(6),
                                   borderSide: BorderSide(
-                                    color: borderColor,
+                                    color: isDark ? Colors.white24 : Colors.grey.shade300,
                                   ),
                                 ),
                                 enabledBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(6),
                                   borderSide: BorderSide(
-                                    color: borderColor,
+                                    color: isDark ? Colors.white24 : Colors.grey.shade300,
                                   ),
                                 ),
                                 focusedBorder: OutlineInputBorder(
@@ -417,58 +378,90 @@ class ClientsScreenState extends State<ClientsScreen> {
                               ),
                             ),
                           ),
-                          // Active Clients Dropdown
+                          // Status Filter Dropdown
                           Container(
                             height: 40,
                             padding: const EdgeInsets.symmetric(horizontal: 12),
                             decoration: BoxDecoration(
-                              color: cardColor,
-                              border: Border.all(color: borderColor),
+                              color: isDark
+                                  ? Colors.white.withValues(alpha: 0.08)
+                                  : Colors.white,
+                              border: Border.all(
+                                color: isDark ? Colors.white24 : Colors.grey.shade300,
+                              ),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: DropdownButtonHideUnderline(
                               child: DropdownButton<String>(
-                                dropdownColor: isDark
-                                    ? const Color(0xFF162A42)
-                                    : Colors.white,
+                                value: _selectedFilter,
+                                dropdownColor: isDark ? const Color(0xFF0F2C4A) : Colors.white,
                                 borderRadius: BorderRadius.circular(8),
-                                value: _selectedStatus,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: textColor,
-                                ),
+                                menuMaxHeight: 260,
+                                elevation: 8,
                                 icon: Icon(
                                   IconlyLight.arrow_down_2,
                                   size: 16,
-                                  color: textSecondary,
+                                  color: isDark ? Colors.white70 : Colors.grey.shade700,
                                 ),
-                                items: [
-                                  'Active Clients',
-                                  'Inactive Clients',
-                                  'Archived Clients',
-                                  'All Clients',
-                                ]
-                                    .map(
-                                      (e) => DropdownMenuItem(
-                                        value: e,
-                                        child: Text(
-                                          e,
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: e == _selectedStatus
-                                                ? FontWeight.w600
-                                                : FontWeight.normal,
-                                            color: isDark
-                                                ? Colors.white
-                                                : const Color(0xFF0F2C4A),
-                                          ),
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  color: textColor,
+                                ),
+                                selectedItemBuilder: (context) {
+                                  return _filterOptions.map((e) {
+                                    return Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(
+                                        e,
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w500,
+                                          color: textColor,
                                         ),
                                       ),
-                                    )
-                                    .toList(),
+                                    );
+                                  }).toList();
+                                },
+                                items: _filterOptions.map((e) {
+                                  final isSelected = e == _selectedFilter;
+                                  return DropdownMenuItem<String>(
+                                    value: e,
+                                    alignment: AlignmentDirectional.centerStart,
+                                    child: Container(
+                                      width: double.infinity,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 8,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: isSelected
+                                            ? const Color(0xFF0D6EFD)
+                                            : Colors.transparent,
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        e,
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: isSelected
+                                              ? FontWeight.w600
+                                              : FontWeight.w500,
+                                          color: isSelected
+                                              ? Colors.white
+                                              : (isDark
+                                                  ? Colors.white
+                                                  : const Color(0xFF0F2C4A)),
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
                                 onChanged: (val) {
                                   if (val != null) {
-                                    setState(() => _selectedStatus = val);
+                                    setState(() {
+                                      _selectedFilter = val;
+                                    });
                                   }
                                 },
                               ),
@@ -496,9 +489,6 @@ class ClientsScreenState extends State<ClientsScreen> {
                           IconButton(
                             onPressed: () {
                               _searchController.clear();
-                              setState(() {
-                                _selectedStatus = 'Active Clients';
-                              });
                               _controller.fetchClients();
                             },
                             icon: Icon(
@@ -517,7 +507,7 @@ class ClientsScreenState extends State<ClientsScreen> {
                           return Text(
                             count > 0 ? "1 - $count of $count" : "0 of 0",
                             style: TextStyle(
-                              color: textSecondary,
+                              color: isDark ? Colors.white70 : Colors.grey.shade600,
                               fontSize: 14,
                             ),
                           );
@@ -534,7 +524,12 @@ class ClientsScreenState extends State<ClientsScreen> {
                 builder: (context, child) {
                   if (_controller.isLoading &&
                       _controller.filteredClients.isEmpty) {
-                    return const ShimmerLoadingList();
+                    return const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(48.0),
+                        child: CircularProgressIndicator(),
+                      ),
+                    );
                   }
 
                   if (_controller.errorMessage != null &&
@@ -678,13 +673,11 @@ class ClientsScreenState extends State<ClientsScreen> {
                                 ),
                               ),
                               
-                              // Actions
+                              // Actions (Edit & Delete only)
                               PopupMenuButton<String>(
                                 icon: const Icon(IconlyLight.more_circle, color: Colors.grey),
-                                color: cardColor,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
-                                  side: isDark ? const BorderSide(color: Colors.white24) : BorderSide.none,
                                 ),
                                 onSelected: (value) {
                                   if (value == 'edit') {
@@ -697,19 +690,19 @@ class ClientsScreenState extends State<ClientsScreen> {
                                   }
                                 },
                                 itemBuilder: (context) => [
-                                  PopupMenuItem(
+                                  const PopupMenuItem(
                                     value: 'edit',
                                     child: Row(
                                       children: [
-                                        const Icon(
+                                        Icon(
                                           IconlyLight.edit,
                                           size: 18,
                                           color: Color(0xFF0D6EFD),
                                         ),
-                                        const SizedBox(width: 12),
+                                        SizedBox(width: 12),
                                         Text(
                                           "Edit",
-                                          style: TextStyle(color: textColor),
+                                          style: TextStyle(color: Colors.black87),
                                         ),
                                       ],
                                     ),
@@ -756,7 +749,6 @@ class ClientsScreenState extends State<ClientsScreen> {
     _controller.dispose();
     _searchController.dispose();
     _verticalScrollController.dispose();
-    _horizontalScrollController.dispose();
     super.dispose();
   }
 }

@@ -60,9 +60,34 @@ class _CreateTicketDialogState extends State<CreateTicketDialog> {
     }
   }
 
+  InputDecoration _buildInputDecoration({required String hintText, required bool isDark}) {
+    return InputDecoration(
+      hintText: hintText,
+      hintStyle: TextStyle(color: isDark ? Colors.white38 : Colors.grey.shade500),
+      filled: true,
+      fillColor: isDark ? const Color(0xFF162A42) : Colors.grey.shade50,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: Color(0xFF0D6EFD), width: 1.5),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Dialog(
+      backgroundColor: isDark ? const Color(0xFF0F2C4A) : Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Container(
         width: 600,
@@ -76,14 +101,21 @@ class _CreateTicketDialogState extends State<CreateTicketDialog> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text("Create Support Ticket", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF0F2C4A))),
+                  Text(
+                    "Create Support Ticket",
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : const Color(0xFF0F2C4A),
+                    ),
+                  ),
                   IconButton(
-                    icon: const Icon(IconlyLight.close_square, color: Colors.grey),
+                    icon: Icon(IconlyLight.close_square, color: isDark ? Colors.white70 : Colors.grey),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
               ),
-              const Divider(),
+              Divider(color: isDark ? Colors.white24 : Colors.grey.shade300),
               const SizedBox(height: 16),
               
               Flexible(
@@ -91,76 +123,131 @@ class _CreateTicketDialogState extends State<CreateTicketDialog> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text("Subject", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      Text("Subject", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isDark ? Colors.white : const Color(0xFF0F2C4A))),
                       const SizedBox(height: 8),
                       TextFormField(
                         controller: _subjectController,
-                        decoration: const InputDecoration(border: OutlineInputBorder(), hintText: "Briefly describe the issue", contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12)),
+                        style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                        decoration: _buildInputDecoration(hintText: "Briefly describe the issue", isDark: isDark),
                         validator: (v) => v!.isEmpty ? 'Required' : null,
                       ),
                       const SizedBox(height: 16),
                       
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Column(
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final isNarrow = constraints.maxWidth < 450;
+                          if (isNarrow) {
+                            return Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text("Category", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                Text("Category", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isDark ? Colors.white : const Color(0xFF0F2C4A))),
                                 const SizedBox(height: 8),
                                 DropdownButtonFormField<String>(
                                   value: _selectedCategory,
-                                  decoration: const InputDecoration(border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12)),
-                                  items: _categories.map((c) => DropdownMenuItem(value: c['value'], child: Text(c['label']!))).toList(),
+                                  isExpanded: true,
+                                  dropdownColor: isDark ? const Color(0xFF162A42) : Colors.white,
+                                  style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                                  icon: Icon(Icons.arrow_drop_down, color: isDark ? Colors.white70 : Colors.grey.shade700),
+                                  decoration: _buildInputDecoration(hintText: "Select Category", isDark: isDark),
+                                  items: _categories.map((c) => DropdownMenuItem(value: c['value'], child: Text(c['label']!, overflow: TextOverflow.ellipsis))).toList(),
                                   onChanged: (val) => setState(() => _selectedCategory = val!),
                                 ),
-                              ],
-                            )
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text("Priority", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                const SizedBox(height: 16),
+                                Text("Priority", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isDark ? Colors.white : const Color(0xFF0F2C4A))),
                                 const SizedBox(height: 8),
                                 DropdownButtonFormField<String>(
                                   value: _selectedPriority,
-                                  decoration: const InputDecoration(border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12)),
-                                  items: _priorities.map((p) => DropdownMenuItem(value: p['value'], child: Text(p['label']!))).toList(),
+                                  isExpanded: true,
+                                  dropdownColor: isDark ? const Color(0xFF162A42) : Colors.white,
+                                  style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                                  icon: Icon(Icons.arrow_drop_down, color: isDark ? Colors.white70 : Colors.grey.shade700),
+                                  decoration: _buildInputDecoration(hintText: "Select Priority", isDark: isDark),
+                                  items: _priorities.map((p) => DropdownMenuItem(value: p['value'], child: Text(p['label']!, overflow: TextOverflow.ellipsis))).toList(),
                                   onChanged: (val) => setState(() => _selectedPriority = val!),
                                 ),
                               ],
-                            )
-                          ),
-                        ],
+                            );
+                          }
+                          return Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text("Category", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isDark ? Colors.white : const Color(0xFF0F2C4A))),
+                                    const SizedBox(height: 8),
+                                    DropdownButtonFormField<String>(
+                                      value: _selectedCategory,
+                                      isExpanded: true,
+                                      dropdownColor: isDark ? const Color(0xFF162A42) : Colors.white,
+                                      style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                                      icon: Icon(Icons.arrow_drop_down, color: isDark ? Colors.white70 : Colors.grey.shade700),
+                                      decoration: _buildInputDecoration(hintText: "Select Category", isDark: isDark),
+                                      items: _categories.map((c) => DropdownMenuItem(value: c['value'], child: Text(c['label']!, overflow: TextOverflow.ellipsis))).toList(),
+                                      onChanged: (val) => setState(() => _selectedCategory = val!),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text("Priority", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isDark ? Colors.white : const Color(0xFF0F2C4A))),
+                                    const SizedBox(height: 8),
+                                    DropdownButtonFormField<String>(
+                                      value: _selectedPriority,
+                                      isExpanded: true,
+                                      dropdownColor: isDark ? const Color(0xFF162A42) : Colors.white,
+                                      style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                                      icon: Icon(Icons.arrow_drop_down, color: isDark ? Colors.white70 : Colors.grey.shade700),
+                                      decoration: _buildInputDecoration(hintText: "Select Priority", isDark: isDark),
+                                      items: _priorities.map((p) => DropdownMenuItem(value: p['value'], child: Text(p['label']!, overflow: TextOverflow.ellipsis))).toList(),
+                                      onChanged: (val) => setState(() => _selectedPriority = val!),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          );
+                        },
                       ),
                       const SizedBox(height: 16),
 
-                      const Text("Message", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      Text("Message", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isDark ? Colors.white : const Color(0xFF0F2C4A))),
                       const SizedBox(height: 8),
                       TextFormField(
                         controller: _messageController,
                         maxLines: 4,
-                        decoration: const InputDecoration(border: OutlineInputBorder(), hintText: "Add the page, user, project, job number, and what you expected to happen.", contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12)),
+                        style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                        decoration: _buildInputDecoration(hintText: "Add the page, user, project, job number, and what you expected to happen.", isDark: isDark),
                         validator: (v) => v!.isEmpty ? 'Required' : null,
                       ),
                       const SizedBox(height: 16),
 
-                      const Text("Attachment or screenshot", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      Text("Attachment or screenshot", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isDark ? Colors.white : const Color(0xFF0F2C4A))),
                       const SizedBox(height: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade400), borderRadius: BorderRadius.circular(4)),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF162A42) : Colors.transparent,
+                          border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade400),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
                         child: Row(
                           children: [
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                              decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(4), border: Border.all(color: Colors.grey.shade300)),
-                              child: const Text("Choose File", style: TextStyle(fontSize: 12)),
+                              decoration: BoxDecoration(
+                                color: isDark ? const Color(0xFF0F2C4A) : Colors.grey.shade200,
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade300),
+                              ),
+                              child: Text("Choose File", style: TextStyle(fontSize: 12, color: isDark ? Colors.white : Colors.black87)),
                             ),
                             const SizedBox(width: 12),
-                            const Text("No file chosen", style: TextStyle(color: Colors.grey, fontSize: 12)),
+                            Text("No file chosen", style: TextStyle(color: isDark ? Colors.white60 : Colors.grey, fontSize: 12)),
                           ],
                         ),
                       ),
