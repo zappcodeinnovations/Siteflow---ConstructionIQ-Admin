@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../models/job_sheet_model.dart';
+import '../../drawer_pages/job_sheet_details_screen.dart';
 
 class JobSheetsTab extends StatelessWidget {
   final List<dynamic> jobSheets;
@@ -46,6 +48,7 @@ class JobSheetsTab extends StatelessWidget {
                     final sheet = jobSheets[index] as Map<String, dynamic>? ?? {};
                     return _buildJobSheetCard(
                       context,
+                      sheet: sheet,
                       sheetNo: sheet['sheet_no']?.toString() ?? "N/A",
                       reference: sheet['job_reference']?.toString() ??
                           sheet['job_no']?.toString() ??
@@ -167,6 +170,7 @@ class JobSheetsTab extends StatelessWidget {
 
   Widget _buildJobSheetCard(
     BuildContext context, {
+    required Map<String, dynamic> sheet,
     required String sheetNo,
     required String reference,
     required String status,
@@ -310,7 +314,16 @@ class JobSheetsTab extends StatelessWidget {
                       elevation: 0,
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                     ),
-                    onPressed: () {},
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => JobSheetDetailsScreen(
+                            jobSheet: JobSheet.fromJson(sheet),
+                          ),
+                        ),
+                      );
+                    },
                     child: const Text("View Details",
                         style: TextStyle(fontWeight: FontWeight.bold)),
                   ),

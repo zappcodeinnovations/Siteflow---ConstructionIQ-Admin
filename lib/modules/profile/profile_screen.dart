@@ -3,6 +3,7 @@ import '../../core/widgets/shimmer_loading.dart';
 import 'profile_controller.dart';
 import 'package:iconly/iconly.dart';
 import '../../core/theme/app_theme.dart';
+import '../drawer_pages/admin/admin_activity_logs_view.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -591,7 +592,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             const Divider(),
                             Center(
                               child: TextButton(
-                                onPressed: () {},
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (_) => const AdminActivityLogsView()),
+                                  );
+                                },
                                 child: const Text(
                                   "View Full Audit Log",
                                   style: TextStyle(

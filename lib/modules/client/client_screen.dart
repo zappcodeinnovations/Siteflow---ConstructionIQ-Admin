@@ -619,10 +619,7 @@ class ClientsScreenState extends State<ClientsScreen> {
                                                 color: Color(0xFF0D6EFD),
                                               ),
                                               SizedBox(width: 12),
-                                              Text(
-                                                "Edit",
-                                                style: TextStyle(color: Colors.black87),
-                                              ),
+                                              Text("Edit"),
                                             ],
                                           ),
                                         ),

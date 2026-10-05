@@ -595,28 +595,13 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
                         ),
                       const SizedBox(height: 24),
 
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            "Active Records",
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: isDark ? Colors.white : Colors.black87,
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: () {},
-                            child: Text(
-                              "View All",
-                              style: TextStyle(
-                                color: isDark ? Colors.white : Colors.blue,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ],
+                      Text(
+                        "Active Records",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
                       ),
                       const SizedBox(height: 16),
 

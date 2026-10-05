@@ -3,6 +3,8 @@ import 'package:iconly/iconly.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/background_stripes_painter.dart';
 import '../../core/services/auth_service.dart';
+import '../../models/admin_task_model.dart';
+import 'admin_tasks_controller.dart';
 
 class TasksScreen extends StatefulWidget {
   const TasksScreen({super.key});
@@ -13,6 +15,7 @@ class TasksScreen extends StatefulWidget {
 
 class _TasksScreenState extends State<TasksScreen> {
   final ScrollController _verticalScrollController = ScrollController();
+  final AdminTasksController _controller = AdminTasksController();
   bool _isSearchVisible = false;
   String _searchQuery = "";
   String _selectedStatus = "Status: All";
@@ -24,6 +27,20 @@ class _TasksScreenState extends State<TasksScreen> {
   void initState() {
     super.initState();
     _loadPermissions();
+    _controller.addListener(_onControllerChanged);
+    _controller.fetchTasks();
+  }
+
+  void _onControllerChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _controller.removeListener(_onControllerChanged);
+    _controller.dispose();
+    _verticalScrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadPermissions() async {
@@ -40,7 +57,7 @@ class _TasksScreenState extends State<TasksScreen> {
     });
   }
 
-  Future<void> _viewDetails(Map<String, String> task) async {
+  Future<void> _viewDetails(AdminTaskModel task) async {
     if (!await AuthService.can('tasks')) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -66,20 +83,47 @@ class _TasksScreenState extends State<TasksScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                task['taskNo'] ?? 'Task Details',
+                task.taskDisplayNo.isNotEmpty ? task.taskDisplayNo : 'Task Details',
                 style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w700,
                 ),
               ),
               const SizedBox(height: 20),
-              _detailRow('Project', task['project'] ?? '-'),
-              _detailRow('Client', task['client'] ?? '-'),
-              _detailRow('Status', task['status'] ?? '-'),
+              _detailRow('Project', task.projectName.isEmpty ? '-' : task.projectName),
+              _detailRow('Client', task.clientName.isEmpty ? '-' : task.clientName),
+              _detailRow('Status', task.statusLabel.isEmpty ? '-' : task.statusLabel),
+              _detailRow('Reference', task.reference.isEmpty ? '-' : task.reference),
+              _detailRow('Operative', task.operativeName.isEmpty ? '-' : task.operativeName),
+              _detailRow('Form', task.formName.isEmpty ? '-' : task.formName),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Future<void> _confirmDeleteTask(AdminTaskModel task) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text("Delete Task"),
+        content: Text("Delete ${task.taskDisplayNo} (${task.reference})? This cannot be undone."),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text("Cancel")),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text("Delete", style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    final result = await _controller.deleteTask(task.id);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(result['message']?.toString() ?? '')),
     );
   }
 
@@ -107,33 +151,6 @@ class _TasksScreenState extends State<TasksScreen> {
     ),
   );
 
-  final List<Map<String, String>> _dummyTasks = [
-    {
-      "taskNo": "JOB 29",
-      "status": "Pending",
-      "project": "Asobu Client",
-      "client": "Asobu",
-    },
-    {
-      "taskNo": "JOB 30",
-      "status": "Completed",
-      "project": "Euroside Office",
-      "client": "Euroside",
-    },
-    {
-      "taskNo": "JOB 31",
-      "status": "In Progress",
-      "project": "Central Park Reno",
-      "client": "City Council",
-    },
-    {
-      "taskNo": "JOB 32",
-      "status": "Draft",
-      "project": "Highway A1",
-      "client": "Gov Roads",
-    },
-  ];
-
   Widget _buildStatusPill(String status) {
     Color bg = Colors.grey.shade100;
     Color text = Colors.grey.shade700;
@@ -143,7 +160,7 @@ class _TasksScreenState extends State<TasksScreen> {
       bg = Colors.green.shade50;
       text = Colors.green.shade700;
       icon = IconlyLight.tick_square;
-    } else if (status == 'Pending') {
+    } else if (status == 'Awaiting') {
       bg = Colors.orange.shade50;
       text = Colors.orange.shade700;
       icon = IconlyLight.time_circle;
@@ -179,21 +196,15 @@ class _TasksScreenState extends State<TasksScreen> {
   }
 
   @override
-  void dispose() {
-    _verticalScrollController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final filteredTasks = _dummyTasks.where((t) {
-      final matchesSearch =
-          t['taskNo']!.toLowerCase().contains(_searchQuery) ||
-          t['project']!.toLowerCase().contains(_searchQuery) ||
-          t['client']!.toLowerCase().contains(_searchQuery);
+    final filteredTasks = _controller.tasks.where((t) {
+      final matchesSearch = _searchQuery.isEmpty ||
+          t.taskDisplayNo.toLowerCase().contains(_searchQuery) ||
+          t.projectName.toLowerCase().contains(_searchQuery) ||
+          t.clientName.toLowerCase().contains(_searchQuery);
       final matchesStatus =
           _selectedStatus == 'Status: All' ||
-          'Status: ${t['status']}' == _selectedStatus;
+          'Status: ${t.statusLabel}' == _selectedStatus;
       return matchesSearch && matchesStatus;
     }).toList();
 
@@ -360,10 +371,9 @@ class _TasksScreenState extends State<TasksScreen> {
                                       items:
                                           [
                                                 'Status: All',
-                                                'Status: Pending',
+                                                'Status: Awaiting',
                                                 'Status: In Progress',
                                                 'Status: Completed',
-                                                'Status: Draft',
                                               ]
                                               .map(
                                                 (e) => DropdownMenuItem(
@@ -428,7 +438,25 @@ class _TasksScreenState extends State<TasksScreen> {
                     const SizedBox(height: 24),
 
                     // Task Card List
-                    if (filteredTasks.isEmpty)
+                    if (_controller.isLoading)
+                      const Padding(
+                        padding: EdgeInsets.all(40.0),
+                        child: Center(child: CircularProgressIndicator()),
+                      )
+                    else if (_controller.error != null)
+                      Padding(
+                        padding: const EdgeInsets.all(40.0),
+                        child: Center(
+                          child: Column(
+                            children: [
+                              Text(_controller.error!, style: TextStyle(color: textSecondary)),
+                              const SizedBox(height: 8),
+                              TextButton(onPressed: _controller.fetchTasks, child: const Text("Retry")),
+                            ],
+                          ),
+                        ),
+                      )
+                    else if (filteredTasks.isEmpty)
                       Padding(
                         padding: const EdgeInsets.all(40.0),
                         child: Center(
@@ -477,7 +505,7 @@ class _TasksScreenState extends State<TasksScreen> {
                                           0xFFE8F2FF,
                                         ),
                                         child: Text(
-                                          task['taskNo']!.replaceAll(
+                                          task.taskDisplayNo.replaceAll(
                                             "JOB ",
                                             "",
                                           ),
@@ -495,7 +523,7 @@ class _TasksScreenState extends State<TasksScreen> {
                                               CrossAxisAlignment.start,
                                           children: [
                                             Text(
-                                              task['taskNo']!,
+                                              task.taskDisplayNo,
                                               style: TextStyle(
                                                 fontWeight: FontWeight.bold,
                                                 fontSize: 16,
@@ -504,7 +532,7 @@ class _TasksScreenState extends State<TasksScreen> {
                                             ),
                                             const SizedBox(height: 4),
                                             Text(
-                                              task['project']!,
+                                              task.projectName,
                                               style: TextStyle(
                                                 fontSize: 14,
                                                 color: textSecondary,
@@ -516,7 +544,7 @@ class _TasksScreenState extends State<TasksScreen> {
                                       Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          _buildStatusPill(task['status']!),
+                                          _buildStatusPill(task.statusLabel),
                                           const SizedBox(width: 4),
                                           if (_canEdit || _canDelete)
                                             PopupMenuButton<String>(
@@ -528,7 +556,15 @@ class _TasksScreenState extends State<TasksScreen> {
                                                 borderRadius:
                                                     BorderRadius.circular(12),
                                               ),
-                                              onSelected: (val) {},
+                                              onSelected: (val) {
+                                                if (val == 'delete') {
+                                                  _confirmDeleteTask(task);
+                                                } else if (val == 'edit') {
+                                                  ScaffoldMessenger.of(context).showSnackBar(
+                                                    const SnackBar(content: Text("Editing tasks is coming soon.")),
+                                                  );
+                                                }
+                                              },
                                               itemBuilder: (context) => [
                                                 if (_canEdit)
                                                   const PopupMenuItem(
@@ -592,7 +628,7 @@ class _TasksScreenState extends State<TasksScreen> {
                                         ),
                                       ),
                                       Text(
-                                        task['client']!,
+                                        task.clientName,
                                         style: TextStyle(
                                           fontSize: 13,
                                           fontWeight: FontWeight.bold,

@@ -32,6 +32,10 @@ class ApiEndpoints {
   static const String libraryMaterials = '/library/materials/';
   static const String libraryTemplates = '/library/templates/';
 
+  // Tasks (global, admin/manager)
+  static const String adminTasks = '/admin/tasks/';
+  static String adminTaskDelete(int taskId) => '/admin/tasks/$taskId/';
+
   // Announcements
   static const String announcements = '/admin/announcements/';
   static String announcementDetails(int id) => '/admin/announcements/$id/';

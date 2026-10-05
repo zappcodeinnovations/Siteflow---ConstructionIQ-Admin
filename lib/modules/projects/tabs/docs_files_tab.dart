@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_theme.dart';
 
 class DocsFilesTab extends StatefulWidget {
@@ -238,6 +239,71 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
     }
   }
 
+  void _showFilesDialog(BuildContext context, String title, bool signedDocsOnly) {
+    final matching = _localFiles.where((f) {
+      final fMap = f as Map<String, dynamic>? ?? {};
+      final folderType = (fMap['folder_type']?.toString() ?? '').toLowerCase();
+      final isSigned = folderType.contains('signed');
+      return signedDocsOnly ? isSigned : !isSigned;
+    }).toList();
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        final isDark = Theme.of(dialogContext).brightness == Brightness.dark;
+        return AlertDialog(
+          title: Text(title),
+          content: SizedBox(
+            width: 420,
+            child: matching.isEmpty
+                ? Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24),
+                    child: Text(
+                      "No files here yet.",
+                      style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                    ),
+                  )
+                : SizedBox(
+                    height: 320,
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: matching.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final file = matching[index] as Map<String, dynamic>;
+                        final name = file['title']?.toString() ??
+                            file['file_name']?.toString() ??
+                            'Untitled file';
+                        final url = file['file_url']?.toString() ??
+                            file['file_path']?.toString() ??
+                            '';
+                        final canOpen = url.startsWith('http');
+                        return ListTile(
+                          leading: const Icon(IconlyLight.document),
+                          title: Text(name, overflow: TextOverflow.ellipsis),
+                          trailing: TextButton(
+                            onPressed: canOpen
+                                ? () => launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication)
+                                : () {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text("No file URL available for this entry.")),
+                                    );
+                                  },
+                            child: const Text("View"),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text("Close")),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -418,7 +484,8 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
                               const SizedBox(width: 8),
                               IconButton(
                                 icon: const Icon(IconlyLight.show, size: 16),
-                                onPressed: () {},
+                                onPressed: () => _showFilesDialog(context, "Signed Documents", true),
+                                tooltip: "View Files",
                                 constraints: const BoxConstraints(),
                                 padding: const EdgeInsets.all(4),
                               ),
@@ -491,7 +558,8 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
                               const SizedBox(width: 8),
                               IconButton(
                                 icon: const Icon(IconlyLight.show, size: 16),
-                                onPressed: () {},
+                                onPressed: () => _showFilesDialog(context, "Files", false),
+                                tooltip: "View Files",
                                 constraints: const BoxConstraints(),
                                 padding: const EdgeInsets.all(4),
                               ),

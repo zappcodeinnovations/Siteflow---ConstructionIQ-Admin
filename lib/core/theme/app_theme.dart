@@ -61,7 +61,7 @@ class AppTheme {
       seedColor: corporateBlue,
       brightness: Brightness.dark,
     ).copyWith(surface: const Color(0xFF1E1E1E)),
-    textTheme: GoogleFonts.interTextTheme(ThemeData.light().textTheme),
+    textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
 
     appBarTheme: const AppBarTheme(
       backgroundColor: corporateBlue,
