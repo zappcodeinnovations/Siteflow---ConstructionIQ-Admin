@@ -627,34 +627,30 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Expanded(
-                        child: InkWell(
-                          onTap: () => _showModernDateRangePicker(context),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                            decoration: BoxDecoration(
-                              color: isDark ? AppTheme.corporateBlue : Colors.white,
-                              border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade200),
-                              borderRadius: BorderRadius.circular(24),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(IconlyLight.calendar, size: 14, color: isDark ? Colors.white : Colors.blue.shade700),
-                                const SizedBox(width: 6),
-                                Flexible(
-                                  child: Text(
-                                    (_controller.fromDate != null && _controller.toDate != null)
-                                        ? "${_controller.fromDate} - ${_controller.toDate}"
-                                        : "Select Date Range",
-                                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: isDark ? Colors.white : Colors.black87),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                Icon(IconlyLight.arrow_down_2, size: 14, color: isDark ? Colors.white70 : Colors.grey.shade600),
-                              ],
-                            ),
+                      InkWell(
+                        borderRadius: BorderRadius.circular(24),
+                        onTap: () => _showModernDateRangePicker(context),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: isDark ? AppTheme.corporateBlue : Colors.white,
+                            border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade200),
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(IconlyLight.calendar, size: 14, color: isDark ? Colors.white : Colors.blue.shade700),
+                              const SizedBox(width: 8),
+                              Text(
+                                (_controller.fromDate != null && _controller.toDate != null)
+                                    ? "${_controller.fromDate} - ${_controller.toDate}"
+                                    : "Select Date Range",
+                                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: isDark ? Colors.white : Colors.black87),
+                              ),
+                              const SizedBox(width: 6),
+                              Icon(IconlyLight.arrow_down_2, size: 14, color: isDark ? Colors.white70 : Colors.grey.shade600),
+                            ],
                           ),
                         ),
                       ),

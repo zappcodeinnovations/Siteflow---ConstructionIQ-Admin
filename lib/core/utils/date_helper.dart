@@ -114,4 +114,34 @@ class DateHelper {
 
     return trimmed;
   }
+
+  /// Formats a date string (e.g. "yyyy-MM-dd" or ISO format) to "dd/MM/yyyy".
+  static String formatDate(String? rawDate) {
+    if (rawDate == null || rawDate.trim().isEmpty || rawDate == '-' || rawDate == 'null') {
+      return '-';
+    }
+
+    final trimmed = rawDate.trim();
+
+    // 1. If already in dd/MM/yyyy format
+    if (RegExp(r'^\d{2}/\d{2}/\d{4}$').hasMatch(trimmed)) {
+      return trimmed;
+    }
+
+    // 2. Direct check for yyyy-MM-dd format to avoid UTC/local timezone day shifts
+    final ymdMatch = RegExp(r'^(\d{4})-(\d{2})-(\d{2})$').firstMatch(trimmed);
+    if (ymdMatch != null) {
+      return '${ymdMatch.group(3)}/${ymdMatch.group(2)}/${ymdMatch.group(1)}';
+    }
+
+    // 3. Fallback to parsing
+    try {
+      final parsed = DateTime.tryParse(trimmed);
+      if (parsed != null) {
+        return DateFormat('dd/MM/yyyy').format(parsed);
+      }
+    } catch (_) {}
+
+    return trimmed;
+  }
 }

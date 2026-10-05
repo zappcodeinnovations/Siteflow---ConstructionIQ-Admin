@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
 import '../../core/network/api_endpoints.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/date_helper.dart';
 import '../../core/widgets/background_stripes_painter.dart';
 import '../../core/widgets/shimmer_loading.dart';
 import '../../models/manager_diary_model.dart';
@@ -94,7 +95,7 @@ class _ManagerDiaryListScreenState extends State<ManagerDiaryListScreen> {
         onPressed: _openNewEntry,
         backgroundColor: const Color(0xFF0D6EFD),
         icon: const Icon(IconlyLight.plus, color: Colors.white),
-        label: const Text("New Entry", style: TextStyle(color: Colors.white)),
+        label: const Text("Fill the Sheet", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
       ),
       body: Stack(
         children: [
@@ -109,13 +110,68 @@ class _ManagerDiaryListScreenState extends State<ManagerDiaryListScreen> {
                 if (_controller.errorMessage != null && _controller.entries.isEmpty) {
                   return Center(child: Text(_controller.errorMessage!, style: const TextStyle(color: Colors.red)));
                 }
-                if (_controller.entries.isEmpty) {
-                  return const Center(child: Text("No Manager Diary entries yet.", style: TextStyle(color: Colors.grey)));
-                }
-                return ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 96),
-                  itemCount: _controller.entries.length,
-                  itemBuilder: (context, index) => _buildEntryCard(_controller.entries[index], isDark),
+                final entries = _controller.entries;
+                final count = entries.length;
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: isDark ? AppTheme.corporateBlue : Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade200),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Sheets filled directly by managers/admins, outside of any job. Saved here for admin review.",
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: isDark ? Colors.white70 : Colors.grey.shade600,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  "Entries",
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: isDark ? Colors.white54 : Colors.grey.shade500,
+                                  ),
+                                ),
+                                Text(
+                                  count > 0 ? "1 - $count of $count" : "0 of 0",
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: isDark ? Colors.white : const Color(0xFF0F2C4A),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: entries.isEmpty
+                          ? const Center(child: Text("No Manager Diary entries yet.", style: TextStyle(color: Colors.grey)))
+                          : ListView.builder(
+                              padding: const EdgeInsets.fromLTRB(24, 8, 24, 96),
+                              itemCount: entries.length,
+                              itemBuilder: (context, index) => _buildEntryCard(entries[index], isDark),
+                            ),
+                    ),
+                  ],
                 );
               },
             ),
@@ -177,7 +233,7 @@ class _ManagerDiaryListScreenState extends State<ManagerDiaryListScreen> {
                 Text('${entry.fileCount} files', style: TextStyle(fontSize: 12, color: textSecondary)),
                 const Spacer(),
                 if (entry.submittedAt != null)
-                  Text(entry.submittedAt!.split('T').first, style: TextStyle(fontSize: 12, color: textSecondary)),
+                  Text(DateHelper.formatDate(entry.submittedAt), style: TextStyle(fontSize: 12, color: textSecondary)),
               ],
             ),
             if (entry.canEditAndResubmit) ...[

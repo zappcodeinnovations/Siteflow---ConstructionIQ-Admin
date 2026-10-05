@@ -848,35 +848,35 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           // Date Selector
-                          Expanded(
-                            child: InkWell(
-                              onTap: () => _showModernDateRangePicker(context),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                                decoration: BoxDecoration(
-                                  color: isDark ? AppTheme.corporateBlue : Colors.white,
-                                  border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade200),
-                                  borderRadius: BorderRadius.circular(24),
-                                  boxShadow: [
-                                    BoxShadow(color: Colors.grey.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2))
-                                  ]
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(IconlyLight.calendar, size: 14, color: isDark ? Colors.white : Colors.blue.shade700),
-                                    const SizedBox(width: 6),
-                                    Flexible(
-                                      child: Text(
-                                        _dateRangeLabel,
-                                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: isDark ? Colors.white : Colors.black87),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Icon(IconlyLight.arrow_down_2, size: 14, color: isDark ? Colors.white70 : Colors.grey.shade600),
-                                  ],
-                                ),
+                          InkWell(
+                            borderRadius: BorderRadius.circular(24),
+                            onTap: () => _showModernDateRangePicker(context),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: isDark ? AppTheme.corporateBlue : Colors.white,
+                                border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade200),
+                                borderRadius: BorderRadius.circular(24),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.grey.withValues(alpha: 0.05),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(IconlyLight.calendar, size: 14, color: isDark ? Colors.white : Colors.blue.shade700),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    _dateRangeLabel,
+                                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: isDark ? Colors.white : Colors.black87),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Icon(IconlyLight.arrow_down_2, size: 14, color: isDark ? Colors.white70 : Colors.grey.shade600),
+                                ],
                               ),
                             ),
                           ),

@@ -6,6 +6,7 @@ import 'package:iconly/iconly.dart';
 import '../../core/network/api_client.dart';
 import '../../core/network/api_endpoints.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/date_helper.dart';
 import '../../core/widgets/background_stripes_painter.dart';
 import '../../core/widgets/custom_drawer.dart';
 
@@ -128,7 +129,7 @@ class _WorkforcePlannerScreenState extends State<WorkforcePlannerScreen> {
                                     ),
                                     const SizedBox(height: 5),
                                     Text(
-                                      '${_data['week_start'] ?? ''} — ${_data['week_end'] ?? ''}',
+                                      '${DateHelper.formatDate(_data['week_start']?.toString())} — ${DateHelper.formatDate(_data['week_end']?.toString())}',
                                       style: TextStyle(
                                         fontSize: 12,
                                         color: isDark

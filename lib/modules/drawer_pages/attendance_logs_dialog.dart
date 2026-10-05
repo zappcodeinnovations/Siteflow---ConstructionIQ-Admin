@@ -104,6 +104,12 @@ class AttendanceLogsDialog extends StatelessWidget {
                   final entry = record.projectEntries[index];
                   final startLoc = entryStartAddresses[index] ?? entry.startLocation;
                   final endLoc = entryEndAddresses[index] ?? entry.endLocation;
+                  final deviceName = entry.device.isNotEmpty
+                      ? entry.device
+                      : (record.device.isNotEmpty ? record.device : '');
+                  final flag = entry.flags.isNotEmpty
+                      ? entry.flags
+                      : (record.flags.isNotEmpty ? record.flags : '');
                   
                   return Container(
                     padding: const EdgeInsets.all(16),
@@ -175,6 +181,42 @@ class AttendanceLogsDialog extends StatelessWidget {
                                 ],
                               ),
                             ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(Icons.devices, size: 14, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text("Device", style: TextStyle(fontSize: 10, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600)),
+                                  const SizedBox(height: 2),
+                                  Text(deviceName.isNotEmpty ? deviceName : "N/A", style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: textColor)),
+                                ],
+                              ),
+                            ),
+                            if (flag.isNotEmpty) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: (flag.toLowerCase() == 'valid' ? Colors.green : Colors.orange).withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  flag,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: flag.toLowerCase() == 'valid' ? Colors.green : Colors.orange,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ],

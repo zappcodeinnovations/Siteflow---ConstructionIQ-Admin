@@ -36,6 +36,8 @@ class ProjectEntry {
   final String startLocation;
   final String endLocation;
   final String notes;
+  final String device;
+  final String flags;
 
   ProjectEntry({
     required this.projectName,
@@ -46,6 +48,8 @@ class ProjectEntry {
     required this.startLocation,
     required this.endLocation,
     required this.notes,
+    this.device = '',
+    this.flags = '',
   });
 
   factory ProjectEntry.fromJson(Map<String, dynamic> json) {
@@ -58,6 +62,8 @@ class ProjectEntry {
       startLocation: json['start_location'] ?? '',
       endLocation: json['end_location'] ?? '',
       notes: json['notes'] ?? '',
+      device: (json['device'] ?? json['device_model'] ?? json['device_name'] ?? json['device_info'] ?? json['platform'] ?? json['device_source'] ?? '')?.toString() ?? '',
+      flags: (json['flags'] ?? json['flag'] ?? json['status'] ?? json['validation_status'] ?? '')?.toString() ?? '',
     );
   }
 }
@@ -75,6 +81,8 @@ class TimesheetRecord {
   final String endLocation;
   final String attendanceState;
   final List<ProjectEntry> projectEntries;
+  final String device;
+  final String flags;
 
   TimesheetRecord({
     required this.operatorName,
@@ -89,6 +97,8 @@ class TimesheetRecord {
     required this.endLocation,
     required this.attendanceState,
     required this.projectEntries,
+    this.device = '',
+    this.flags = '',
   });
 
   factory TimesheetRecord.fromJson(Map<String, dynamic> json) {
@@ -106,6 +116,8 @@ class TimesheetRecord {
       endLocation: json['end_location'] ?? '',
       attendanceState: json['attendance_state'] ?? '',
       projectEntries: entriesList.map((i) => ProjectEntry.fromJson(i)).toList(),
+      device: (json['device'] ?? json['device_model'] ?? json['device_name'] ?? json['device_info'] ?? json['platform'] ?? json['device_source'] ?? '')?.toString() ?? '',
+      flags: (json['flags'] ?? json['flag'] ?? json['status'] ?? json['validation_status'] ?? '')?.toString() ?? '',
     );
   }
 }
