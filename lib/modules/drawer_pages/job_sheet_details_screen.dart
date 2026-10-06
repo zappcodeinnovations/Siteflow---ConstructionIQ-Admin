@@ -5,6 +5,7 @@ import '../../core/network/api_endpoints.dart';
 import 'package:iconly/iconly.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/date_helper.dart';
 import '../../core/widgets/background_stripes_painter.dart';
 import 'job_sheet_webview_screen.dart';
 
@@ -231,9 +232,9 @@ class JobSheetDetailsScreen extends StatelessWidget {
                           title: "Timestamps",
                           isDark: isDark,
                           children: [
-                            _buildDetailRow("Created", jobSheet.created, isDark),
-                            _buildDetailRow("Submitted", jobSheet.submitted, isDark),
-                            _buildDetailRow("Last Updated", jobSheet.lastUpdated, isDark),
+                            _buildDetailRow("Created", DateHelper.formatToLocal(jobSheet.created), isDark),
+                            _buildDetailRow("Submitted", DateHelper.formatToLocal(jobSheet.submitted), isDark),
+                            _buildDetailRow("Last Updated", DateHelper.formatToLocal(jobSheet.lastUpdated), isDark),
                           ],
                         ),
                       ],
@@ -272,9 +273,9 @@ class JobSheetDetailsScreen extends StatelessWidget {
                     title: "Timestamps",
                     isDark: isDark,
                     children: [
-                      _buildDetailRow("Created", jobSheet.created, isDark),
-                      _buildDetailRow("Submitted", jobSheet.submitted, isDark),
-                      _buildDetailRow("Last Updated", jobSheet.lastUpdated, isDark),
+                      _buildDetailRow("Created", DateHelper.formatToLocal(jobSheet.created), isDark),
+                      _buildDetailRow("Submitted", DateHelper.formatToLocal(jobSheet.submitted), isDark),
+                      _buildDetailRow("Last Updated", DateHelper.formatToLocal(jobSheet.lastUpdated), isDark),
                     ],
                   ),
                 ],

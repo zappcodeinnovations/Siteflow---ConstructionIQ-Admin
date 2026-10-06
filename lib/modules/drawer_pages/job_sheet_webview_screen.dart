@@ -33,6 +33,12 @@ class _JobSheetWebviewScreenState extends State<JobSheetWebviewScreen> {
             setState(() {
               _isLoading = true;
             });
+            _injectAutoFitScript();
+          },
+          onProgress: (int progress) {
+            if (progress > 60) {
+              _injectAutoFitScript();
+            }
           },
           onPageFinished: (String url) async {
             setState(() {
@@ -58,84 +64,82 @@ Page resource error:
   Future<void> _injectAutoFitScript() async {
     const script = r"""
 (function() {
-  function fitToViewport() {
-    // 1. Inject or update viewport meta tag
+  function scaleFormToFit() {
+    // 1. Clean up any previous style overrides
+    var oldStyle = document.getElementById('siteflow-form-lock-style');
+    if (oldStyle) oldStyle.remove();
+    var oldAutofit = document.getElementById('siteflow-autofit-style');
+    if (oldAutofit) oldAutofit.remove();
+
+    // 2. Reset inline styles on body so natural dimensions can be measured
+    document.body.style.zoom = '1';
+    document.body.style.transform = 'none';
+
+    var screenWidth = window.screen.width || window.innerWidth || document.documentElement.clientWidth;
+    if (!screenWidth || screenWidth <= 0) return;
+
+    // 3. Find the main form container / tables to measure natural layout width
+    var mainEl = document.querySelector('.form-container') ||
+                 document.querySelector('.container') ||
+                 document.querySelector('.page') ||
+                 document.querySelector('form') ||
+                 document.querySelector('table') ||
+                 document.body;
+
+    var detectedWidth = Math.max(
+      document.body.scrollWidth || 0,
+      document.documentElement.scrollWidth || 0,
+      mainEl ? (mainEl.scrollWidth || mainEl.offsetWidth || 0) : 0
+    );
+
+    // Standard desktop / A4 print form width (at least 1024px for full zoom-out view)
+    var targetWidth = Math.max(detectedWidth, 1024);
+
+    // Zoom out with comfortable padding so the entire form borders fit inside the screen
+    var scale = ((screenWidth - 16) / targetWidth) * 0.94;
+    scale = Math.floor(scale * 10000) / 10000;
+
     var meta = document.querySelector('meta[name="viewport"]');
     if (!meta) {
       meta = document.createElement('meta');
       meta.name = 'viewport';
       document.head.appendChild(meta);
     }
-    meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes';
+    meta.setAttribute('content', 'width=' + targetWidth + ', initial-scale=' + scale + ', minimum-scale=' + (scale * 0.5) + ', maximum-scale=5.0, user-scalable=yes');
 
-    // 2. Add base style overrides
-    if (!document.getElementById('siteflow-autofit-style')) {
-      var style = document.createElement('style');
-      style.id = 'siteflow-autofit-style';
-      style.innerHTML = `
-        html, body {
-          margin: 0 !important;
-          padding: 0 !important;
-          box-sizing: border-box !important;
-          overflow-x: hidden !important;
-        }
-        * {
-          box-sizing: border-box !important;
-        }
-      `;
-      document.head.appendChild(style);
-    }
-
-    // 3. Measure content width and auto-scale if wider than screen
-    var screenWidth = window.innerWidth || document.documentElement.clientWidth || screen.width;
-    if (!screenWidth || screenWidth <= 0) return;
-
-    document.body.style.zoom = '1';
-    document.body.style.transform = 'none';
-    document.body.style.width = 'auto';
-
-    var rootEl = document.querySelector('.form-container') || 
-                 document.querySelector('.container') || 
-                 document.querySelector('.page') || 
-                 document.querySelector('form') || 
-                 document.body.firstElementChild || 
-                 document.body;
-
-    var contentWidth = Math.max(
-      document.body.scrollWidth,
-      document.documentElement.scrollWidth,
-      rootEl ? (rootEl.scrollWidth || rootEl.offsetWidth) : 0
-    );
-
-    if (contentWidth > screenWidth) {
-      var padding = 6;
-      var availableWidth = screenWidth - (padding * 2);
-      var scale = availableWidth / contentWidth;
-
-      if ('zoom' in document.body.style) {
-        document.body.style.zoom = scale;
-        document.body.style.padding = (padding / scale) + 'px';
-      } else {
-        document.body.style.transformOrigin = 'top left';
-        document.body.style.transform = 'scale(' + scale + ')';
-        document.body.style.width = (100 / scale) + '%';
-        document.body.style.padding = padding + 'px';
+    var style = document.createElement('style');
+    style.id = 'siteflow-form-lock-style';
+    style.innerHTML = `
+      html {
+        min-width: ${targetWidth}px !important;
+        background-color: transparent !important;
       }
-    }
+      body {
+        min-width: ${targetWidth}px !important;
+        margin: 0 auto !important;
+        padding: 10px !important;
+        background-color: transparent !important;
+      }
+    `;
+    document.head.appendChild(style);
   }
 
-  fitToViewport();
-  setTimeout(fitToViewport, 100);
-  setTimeout(fitToViewport, 300);
-  setTimeout(fitToViewport, 700);
-  setTimeout(fitToViewport, 1500);
-  window.addEventListener('resize', fitToViewport);
+  scaleFormToFit();
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', scaleFormToFit);
+  }
+  window.addEventListener('load', scaleFormToFit);
+  setTimeout(scaleFormToFit, 100);
+  setTimeout(scaleFormToFit, 300);
+  setTimeout(scaleFormToFit, 600);
+  setTimeout(scaleFormToFit, 1200);
+  window.addEventListener('resize', scaleFormToFit);
 })();
 """;
     try {
       await _controller.runJavaScript(script);
     } catch (e) {
-      debugPrint("Error injecting autofit script: $e");
+      debugPrint("Error injecting scale form script: $e");
     }
   }
 

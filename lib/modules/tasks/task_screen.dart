@@ -720,18 +720,6 @@ class _TasksScreenState extends State<TasksScreen> {
     );
   }
 
-  String _getTaskDisplayNumber(JobSheet task, int index) {
-    if (task.jobNo.isNotEmpty) {
-      final cleaned = task.jobNo.replaceAll(RegExp(r'[^0-9]'), '');
-      if (cleaned.isNotEmpty) return cleaned;
-    }
-    if (task.sheetNo.isNotEmpty) {
-      final cleaned = task.sheetNo.replaceAll(RegExp(r'[^0-9]'), '');
-      if (cleaned.isNotEmpty) return cleaned;
-    }
-    return '${index + 1}';
-  }
-
   Widget _buildStatusPill(String status, String statusLabel) {
     Color bg = Colors.grey.shade100;
     Color text = Colors.grey.shade700;
@@ -1130,10 +1118,6 @@ class _TasksScreenState extends State<TasksScreen> {
                                     : (task.sheetNo.isNotEmpty
                                         ? task.sheetNo
                                         : "JOB ${task.id}");
-                            final circleNumber = _getTaskDisplayNumber(
-                              task,
-                              index,
-                            );
 
                             return Container(
                               margin: EdgeInsets.zero,
@@ -1159,21 +1143,6 @@ class _TasksScreenState extends State<TasksScreen> {
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
-                                        CircleAvatar(
-                                          radius: 20,
-                                          backgroundColor: const Color(
-                                            0xFFE8F2FF,
-                                          ),
-                                          child: Text(
-                                            circleNumber,
-                                            style: const TextStyle(
-                                              color: Color(0xFF0D6EFD),
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 12),
                                         Expanded(
                                           child: Column(
                                             crossAxisAlignment:
@@ -1186,6 +1155,7 @@ class _TasksScreenState extends State<TasksScreen> {
                                                   fontSize: 16,
                                                   color: textColor,
                                                 ),
+                                                softWrap: true,
                                               ),
                                               const SizedBox(height: 4),
                                               Text(
@@ -1196,6 +1166,7 @@ class _TasksScreenState extends State<TasksScreen> {
                                                   fontSize: 14,
                                                   color: textSecondary,
                                                 ),
+                                                softWrap: true,
                                               ),
                                             ],
                                           ),

@@ -1,9 +1,9 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:flutter_timezone/flutter_timezone.dart';
 import 'api_endpoints.dart';
 import '../services/auth_service.dart';
+import '../utils/date_helper.dart';
 import '../../main.dart'; // To access the global navigatorKey
 
 class ApiClient {
@@ -14,7 +14,7 @@ class ApiClient {
     final token = await AuthService.getAccessToken();
     
     try {
-      _deviceTimezone ??= (await FlutterTimezone.getLocalTimezone()).identifier;
+      _deviceTimezone ??= await DateHelper.getDeviceTimezone();
     } catch (e) {
       debugPrint("[API Client] Error getting device timezone: $e");
     }

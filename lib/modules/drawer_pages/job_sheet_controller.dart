@@ -2,9 +2,25 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../core/network/api_client.dart';
 import '../../core/network/api_endpoints.dart';
+import '../../core/utils/date_helper.dart';
 import '../../models/job_sheet_model.dart';
 
 class JobSheetController extends ChangeNotifier {
+  bool _isDisposed = false;
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    super.dispose();
+  }
+
+  @override
+  void notifyListeners() {
+    if (!_isDisposed) {
+      super.notifyListeners();
+    }
+  }
+
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
@@ -52,16 +68,20 @@ class JobSheetController extends ChangeNotifier {
       String url = '${ApiEndpoints.baseUrl}/job-sheets/';
       List<String> queryParams = [];
 
+      final tz = await DateHelper.getDeviceTimezone();
+      if (tz.isNotEmpty) {
+        queryParams.add('tz=${Uri.encodeComponent(tz)}');
+      }
+
       if (projectId != null && projectId.isNotEmpty) {
         queryParams.add('project=$projectId');
       } else if (_selectedProject != null && _selectedProject!.isNotEmpty) {
         queryParams.add('project=${Uri.encodeComponent(_selectedProject!)}');
       }
 
-      String statusVal = _selectedStatus.replaceAll('Status: ', '').toLowerCase();
-      if (statusVal != 'all') {
-        queryParams.add('status=${Uri.encodeComponent(statusVal)}');
-      }
+      String statusVal = _selectedStatus.replaceAll('Status: ', '').toLowerCase().trim();
+      if (statusVal.isEmpty) statusVal = 'all';
+      queryParams.add('status=${Uri.encodeComponent(statusVal)}');
 
       if (_selectedSheetNo != null && _selectedSheetNo!.isNotEmpty) {
         queryParams.add('sheet_no=${Uri.encodeComponent(_selectedSheetNo!)}');
@@ -93,7 +113,20 @@ class JobSheetController extends ChangeNotifier {
       if (response.statusCode == 200 && data['status'] == true) {
         final jobSheetResponse = JobSheetResponse.fromJson(data);
         List<JobSheet> allSheets = List.from(jobSheetResponse.data);
-        _filterOptions = jobSheetResponse.filterOptions;
+        
+        if (jobSheetResponse.filterOptions.isNotEmpty) {
+          if (_filterOptions.isEmpty) {
+            _filterOptions = Map<String, dynamic>.from(jobSheetResponse.filterOptions);
+          } else {
+            jobSheetResponse.filterOptions.forEach((k, v) {
+              if (v is List && v.isNotEmpty) {
+                final currentSet = ((_filterOptions[k] as List?) ?? []).toSet();
+                currentSet.addAll(v);
+                _filterOptions[k] = currentSet.toList();
+              }
+            });
+          }
+        }
 
         if (jobSheetResponse.totalPages > 1 && jobSheetResponse.page < jobSheetResponse.totalPages) {
           int currentPage = jobSheetResponse.page + 1;
@@ -123,6 +156,7 @@ class JobSheetController extends ChangeNotifier {
 
   void setStatusFilter(String status) {
     _selectedStatus = status;
+    _jobSheets = [];
     fetchJobSheets();
   }
 
@@ -138,6 +172,7 @@ class JobSheetController extends ChangeNotifier {
     _selectedClient = client;
     _selectedOperative = operative;
     _selectedForm = form;
+    _jobSheets = [];
     fetchJobSheets();
   }
 
@@ -148,6 +183,7 @@ class JobSheetController extends ChangeNotifier {
     _selectedClient = null;
     _selectedOperative = null;
     _selectedForm = null;
+    _jobSheets = [];
     fetchJobSheets();
   }
 }

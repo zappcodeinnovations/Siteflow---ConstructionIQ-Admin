@@ -10,6 +10,7 @@ import 'job_sheet_webview_screen.dart';
 import '../../models/job_sheet_model.dart';
 import 'package:iconly/iconly.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/date_helper.dart';
 import '../../core/widgets/background_stripes_painter.dart';
 
 class JobSheetScreen extends StatefulWidget {
@@ -1118,7 +1119,30 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
                   }
 
                   if (_controller.errorMessage != null && _controller.jobSheets.isEmpty) {
-                    return Center(child: Text(_controller.errorMessage!, style: const TextStyle(color: Colors.red)));
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24.0),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              _controller.errorMessage!,
+                              style: const TextStyle(color: Colors.red),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 12),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF0D6EFD),
+                                foregroundColor: Colors.white,
+                              ),
+                              onPressed: () => _controller.fetchJobSheets(),
+                              child: const Text("Retry"),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
                   }
 
                   if (_controller.jobSheets.isEmpty) {
@@ -1255,7 +1279,7 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    "Created: ${sheet.created}",
+                                    "Created: ${DateHelper.formatToLocal(sheet.created)}",
                                     style: TextStyle(fontSize: 12, color: textSecondary),
                                   ),
                                   const SizedBox(height: 4),
@@ -1264,7 +1288,7 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
                                       Icon(IconlyLight.time_circle, size: 12, color: textSecondary),
                                       const SizedBox(width: 4),
                                       Text(
-                                        "Updated: ${sheet.lastUpdated}",
+                                        "Updated: ${DateHelper.formatToLocal(sheet.lastUpdated)}",
                                         style: TextStyle(fontSize: 12, color: textSecondary),
                                       ),
                                     ],

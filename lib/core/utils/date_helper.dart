@@ -12,7 +12,13 @@ class DateHelper {
     }
     try {
       final tz = await FlutterTimezone.getLocalTimezone();
-      final tzName = tz.toString().trim();
+      String tzName = '';
+      try {
+        tzName = (tz as dynamic).identifier?.toString().trim() ?? '';
+      } catch (_) {}
+      if (tzName.isEmpty) {
+        tzName = tz.toString().trim();
+      }
       if (tzName.isNotEmpty && tzName != 'null') {
         _cachedTimezone = tzName;
         return _cachedTimezone!;

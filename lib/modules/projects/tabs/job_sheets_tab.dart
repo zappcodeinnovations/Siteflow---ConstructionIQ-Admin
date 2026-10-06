@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/date_helper.dart';
 
 class JobSheetsTab extends StatelessWidget {
   final List<dynamic> jobSheets;
@@ -54,7 +55,7 @@ class JobSheetsTab extends StatelessWidget {
                       operativeName: sheet['operative']?.toString() ?? "N/A",
                       form: sheet['form']?.toString() ?? "N/A",
                       location: sheet['location']?.toString() ?? "N/A",
-                      created: sheet['created']?.toString() ?? "N/A",
+                      created: DateHelper.formatToLocal(sheet['created']?.toString()),
                     );
                   },
                 ),

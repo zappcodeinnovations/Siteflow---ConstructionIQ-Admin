@@ -5,6 +5,21 @@ import '../../../../core/network/api_endpoints.dart';
 import '../../../../models/admin_permission_model.dart';
 
 class AdminPermissionsController extends ChangeNotifier {
+  bool _isDisposed = false;
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    super.dispose();
+  }
+
+  @override
+  void notifyListeners() {
+    if (!_isDisposed) {
+      super.notifyListeners();
+    }
+  }
+
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
