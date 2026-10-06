@@ -34,10 +34,11 @@ class _JobSheetWebviewScreenState extends State<JobSheetWebviewScreen> {
               _isLoading = true;
             });
           },
-          onPageFinished: (String url) {
+          onPageFinished: (String url) async {
             setState(() {
               _isLoading = false;
             });
+            await _injectAutoFitScript();
           },
           onWebResourceError: (WebResourceError error) {
             debugPrint('''
@@ -52,6 +53,90 @@ Page resource error:
       );
       
     _loadUrlWithAuth();
+  }
+
+  Future<void> _injectAutoFitScript() async {
+    const script = r"""
+(function() {
+  function fitToViewport() {
+    // 1. Inject or update viewport meta tag
+    var meta = document.querySelector('meta[name="viewport"]');
+    if (!meta) {
+      meta = document.createElement('meta');
+      meta.name = 'viewport';
+      document.head.appendChild(meta);
+    }
+    meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes';
+
+    // 2. Add base style overrides
+    if (!document.getElementById('siteflow-autofit-style')) {
+      var style = document.createElement('style');
+      style.id = 'siteflow-autofit-style';
+      style.innerHTML = `
+        html, body {
+          margin: 0 !important;
+          padding: 0 !important;
+          box-sizing: border-box !important;
+          overflow-x: hidden !important;
+        }
+        * {
+          box-sizing: border-box !important;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
+    // 3. Measure content width and auto-scale if wider than screen
+    var screenWidth = window.innerWidth || document.documentElement.clientWidth || screen.width;
+    if (!screenWidth || screenWidth <= 0) return;
+
+    document.body.style.zoom = '1';
+    document.body.style.transform = 'none';
+    document.body.style.width = 'auto';
+
+    var rootEl = document.querySelector('.form-container') || 
+                 document.querySelector('.container') || 
+                 document.querySelector('.page') || 
+                 document.querySelector('form') || 
+                 document.body.firstElementChild || 
+                 document.body;
+
+    var contentWidth = Math.max(
+      document.body.scrollWidth,
+      document.documentElement.scrollWidth,
+      rootEl ? (rootEl.scrollWidth || rootEl.offsetWidth) : 0
+    );
+
+    if (contentWidth > screenWidth) {
+      var padding = 6;
+      var availableWidth = screenWidth - (padding * 2);
+      var scale = availableWidth / contentWidth;
+
+      if ('zoom' in document.body.style) {
+        document.body.style.zoom = scale;
+        document.body.style.padding = (padding / scale) + 'px';
+      } else {
+        document.body.style.transformOrigin = 'top left';
+        document.body.style.transform = 'scale(' + scale + ')';
+        document.body.style.width = (100 / scale) + '%';
+        document.body.style.padding = padding + 'px';
+      }
+    }
+  }
+
+  fitToViewport();
+  setTimeout(fitToViewport, 100);
+  setTimeout(fitToViewport, 300);
+  setTimeout(fitToViewport, 700);
+  setTimeout(fitToViewport, 1500);
+  window.addEventListener('resize', fitToViewport);
+})();
+""";
+    try {
+      await _controller.runJavaScript(script);
+    } catch (e) {
+      debugPrint("Error injecting autofit script: $e");
+    }
   }
 
   Future<void> _loadUrlWithAuth() async {
