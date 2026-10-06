@@ -5,6 +5,7 @@ import '../../core/widgets/status_chip.dart';
 import '../../core/widgets/shimmer_loading.dart';
 import 'dashboard_controller.dart';
 import '../../models/project_model.dart';
+import '../../models/dashboard_model.dart';
 import '../projects/project_details_screen.dart';
 import 'package:iconly/iconly.dart';
 import '../../core/theme/app_theme.dart';
@@ -161,6 +162,14 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                           if (mounted) _dashboardController.fetchDashboard(silent: true);
                         }),
                       ),
+                      ModernKpiCard(
+                        title: "Not Clocked In Today",
+                        value: "${kpis?.attendance['not_clocked_in_today'] ?? 0}",
+                        icon: IconlyLight.profile,
+                        bgColor: const Color(0xffB91C1C), // Red
+                        topAction: "View",
+                        onTap: () => _showAttendanceListDialog(context),
+                      ),
                       if (_showAllKpis)
                         ModernKpiCard(
                           title: "Clocked In Today",
@@ -267,6 +276,77 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
         ],
       ),
     ),
+  );
+}
+
+void _showAttendanceListDialog(BuildContext context) {
+  final data = _dashboardController.dashboardData;
+  final present = data?.presentOperativesToday ?? [];
+  final absent = data?.absentOperativesToday ?? [];
+
+  showDialog(
+    context: context,
+    builder: (dialogContext) {
+      final isDark = Theme.of(dialogContext).brightness == Brightness.dark;
+      return AlertDialog(
+        title: const Text("Today's Attendance"),
+        content: SizedBox(
+          width: 420,
+          height: 420,
+          child: DefaultTabController(
+            length: 2,
+            child: Column(
+              children: [
+                TabBar(
+                  labelColor: isDark ? Colors.white : const Color(0xFF0D6EFD),
+                  unselectedLabelColor: isDark ? Colors.white54 : Colors.grey,
+                  tabs: [
+                    Tab(text: "Present (${present.length})"),
+                    Tab(text: "Absent (${absent.length})"),
+                  ],
+                ),
+                Expanded(
+                  child: TabBarView(
+                    children: [
+                      _buildAttendanceList(present, isDark, emptyText: "No one has clocked in yet today."),
+                      _buildAttendanceList(absent, isDark, emptyText: "Everyone has clocked in today."),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text("Close")),
+        ],
+      );
+    },
+  );
+}
+
+Widget _buildAttendanceList(List<AttendanceOperative> people, bool isDark, {required String emptyText}) {
+  if (people.isEmpty) {
+    return Center(
+      child: Text(emptyText, style: TextStyle(color: isDark ? Colors.white60 : Colors.grey.shade600)),
+    );
+  }
+  return ListView.separated(
+    itemCount: people.length,
+    separatorBuilder: (_, __) => const Divider(height: 1),
+    itemBuilder: (context, index) {
+      final person = people[index];
+      return ListTile(
+        leading: const Icon(IconlyLight.profile),
+        title: Text(person.name.isEmpty ? '-' : person.name),
+        subtitle: Text(
+          [
+            if (person.employeeId.isNotEmpty) person.employeeId,
+            person.roleLabel,
+          ].where((s) => s.isNotEmpty).join(' · '),
+        ),
+      );
+    },
   );
 }
 }
