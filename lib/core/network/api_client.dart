@@ -140,6 +140,27 @@ class ApiClient {
     });
   }
 
+  /// Multipart POST for file uploads - [fields] become form fields,
+  /// [filePath] is sent under [fileFieldName] ("file" by default, matching
+  /// every admin/project file-upload endpoint on the backend).
+  static Future<http.Response> postMultipart(
+    String url, {
+    required String filePath,
+    String fileFieldName = 'file',
+    Map<String, String>? fields,
+  }) async {
+    return _handleRequest(() async {
+      final headers = await _getHeaders();
+      headers.remove('Content-Type'); // let MultipartRequest set its own boundary
+      final request = http.MultipartRequest('POST', Uri.parse(url))
+        ..headers.addAll(headers)
+        ..fields.addAll(fields ?? {})
+        ..files.add(await http.MultipartFile.fromPath(fileFieldName, filePath));
+      final streamedResponse = await request.send();
+      return await http.Response.fromStream(streamedResponse);
+    });
+  }
+
   static Future<http.Response> patch(String url, {Map<String, dynamic>? body}) async {
     return _handleRequest(() async {
       final headers = await _getHeaders();

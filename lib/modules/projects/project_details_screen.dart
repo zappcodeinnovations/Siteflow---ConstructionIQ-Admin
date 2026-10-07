@@ -151,6 +151,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
       InspectionsTab(projectId: widget.project.id),
       DrawingsTab(
         projectId: widget.project.id,
+        onChanged: _fetchData,
         rawBlocks:
             _allInOneData
                     ?.projectSetup?['dropdown_options']?['available_blocks']
@@ -171,8 +172,10 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
       ProjectTemplateTab(projectId: widget.project.id),
       MaterialsTab(projectId: widget.project.id),
       DocsFilesTab(
+        projectId: widget.project.id,
         folders: _allInOneData?.docsFolders ?? [],
         files: _allInOneData?.docsFiles ?? [],
+        onChanged: _fetchData,
       ),
       ProjectSetupTab(
         projectId: widget.project.id,

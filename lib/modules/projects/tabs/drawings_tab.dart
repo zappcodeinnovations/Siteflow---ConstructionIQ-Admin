@@ -1,16 +1,20 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/network/api_client.dart';
+import '../../../core/network/api_endpoints.dart';
 import 'drawing_pin_viewer_screen.dart';
 
 class DrawingsTab extends StatelessWidget {
   final int? projectId;
   final List<dynamic>? rawBlocks;
   final List<dynamic>? drawings;
+  final VoidCallback? onChanged;
 
-  const DrawingsTab({Key? key, this.projectId, this.rawBlocks, this.drawings}) : super(key: key);
+  const DrawingsTab({Key? key, this.projectId, this.rawBlocks, this.drawings, this.onChanged}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -226,11 +230,36 @@ class DrawingsTab extends StatelessWidget {
                                   type: FileType.custom,
                                   allowedExtensions: ['pdf', 'dwg', 'dxf', 'png', 'jpg'],
                                 );
-                                if (result != null) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                          content: Text(
-                                              "Uploading '${result.files.first.name}' to $blockName -> $levelName...")));
+                                final pickedFile = result?.files.first;
+                                if (pickedFile == null || pickedFile.path == null || projectId == null) return;
+
+                                final scaffoldMessenger = ScaffoldMessenger.of(context);
+                                try {
+                                  final url = ApiEndpoints.baseUrl + ApiEndpoints.projectAllInOneDetails(projectId!);
+                                  final response = await ApiClient.postMultipart(
+                                    url,
+                                    filePath: pickedFile.path!,
+                                    fields: {
+                                      "module": "drawings",
+                                      "level_id": (l['id'] as int).toString(),
+                                      "name": pickedFile.name,
+                                    },
+                                  );
+                                  if (response.statusCode == 200 || response.statusCode == 201) {
+                                    onChanged?.call();
+                                    scaffoldMessenger.showSnackBar(
+                                      SnackBar(content: Text("Uploaded '${pickedFile.name}' to $blockName -> $levelName."), backgroundColor: Colors.green),
+                                    );
+                                  } else {
+                                    final decoded = jsonDecode(response.body);
+                                    scaffoldMessenger.showSnackBar(
+                                      SnackBar(content: Text(decoded['message']?.toString() ?? 'Upload failed.'), backgroundColor: Colors.red),
+                                    );
+                                  }
+                                } catch (e) {
+                                  scaffoldMessenger.showSnackBar(
+                                    SnackBar(content: Text('Upload failed: $e'), backgroundColor: Colors.red),
+                                  );
                                 }
                               },
                               icon: Icon(IconlyLight.upload, size: 16, color: isDark ? Colors.white : Colors.black87),
@@ -379,7 +408,7 @@ class DrawingsTab extends StatelessWidget {
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8)),
                 ),
-                onPressed: () {
+                onPressed: () async {
                   final blockName = blockController.text.trim();
                   final levels = levelsController.text
                       .split(',')
@@ -387,16 +416,36 @@ class DrawingsTab extends StatelessWidget {
                       .where((e) => e.isNotEmpty)
                       .toList();
 
-                  if (blockName.isEmpty || levels.isEmpty) {
+                  if (blockName.isEmpty || levels.isEmpty || projectId == null) {
                     ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text("Please fill all fields")));
                     return;
                   }
 
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: Text(
-                          "Simulating API POST for Block '$blockName' with ${levels.length} levels...")));
-                  Navigator.pop(context);
+                  try {
+                    final url = ApiEndpoints.baseUrl + ApiEndpoints.projectAllInOneDetails(projectId!);
+                    final response = await ApiClient.post(url, body: {
+                      "module": "blocks",
+                      "block_name": blockName,
+                      "level_names": levels,
+                    });
+                    final decoded = jsonDecode(response.body);
+                    if (!context.mounted) return;
+                    Navigator.pop(context);
+                    if (response.statusCode == 200 || response.statusCode == 201) {
+                      onChanged?.call();
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(decoded['message']?.toString() ?? 'Failed to create block.'), backgroundColor: Colors.red),
+                      );
+                    }
+                  } catch (e) {
+                    if (!context.mounted) return;
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Failed to create block: $e'), backgroundColor: Colors.red),
+                    );
+                  }
                 },
                 child: const Text("Create Block",
                     style: TextStyle(fontWeight: FontWeight.bold)),
