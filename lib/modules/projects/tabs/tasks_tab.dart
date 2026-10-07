@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/network/api_client.dart';
+import '../../../core/network/api_endpoints.dart';
 
 class TasksTab extends StatefulWidget {
   final List<dynamic> tasks;
+  final VoidCallback? onChanged;
 
-  const TasksTab({super.key, required this.tasks});
+  const TasksTab({super.key, required this.tasks, this.onChanged});
 
   @override
   State<TasksTab> createState() => _TasksTabState();
@@ -273,6 +276,7 @@ class _TasksTabState extends State<TasksTab> {
                     final task = displayedTasks[index];
                     return _buildTaskCard(
                       context,
+                      task: task,
                       taskNo: task['task_no']?.toString() ?? "N/A",
                       reference: task['reference']?.toString() ?? "N/A",
                       status: task['status']?.toString() ?? "N/A",
@@ -290,6 +294,7 @@ class _TasksTabState extends State<TasksTab> {
 
   Widget _buildTaskCard(
     BuildContext context, {
+    required dynamic task,
     required String taskNo,
     required String reference,
     required String status,
@@ -420,7 +425,7 @@ class _TasksTabState extends State<TasksTab> {
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               TextButton.icon(
-                onPressed: () {},
+                onPressed: () => _confirmAndDeleteTask(context, task),
                 icon: const Icon(IconlyLight.delete,
                     size: 16, color: Colors.red),
                 label: const Text("Delete",
@@ -438,12 +443,105 @@ class _TasksTabState extends State<TasksTab> {
                   elevation: 0,
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                 ),
-                onPressed: () {},
+                onPressed: () => _showTaskDetails(context, task),
                 child: const Text("View Details",
                     style: TextStyle(fontWeight: FontWeight.bold)),
               ),
             ],
           )
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmAndDeleteTask(BuildContext context, dynamic task) async {
+    final taskId = task is Map ? task['id'] : null;
+    if (taskId == null) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text("Delete Task"),
+        content: const Text("Are you sure you want to delete this task? This cannot be undone."),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text("Delete", style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    try {
+      final response = await ApiClient.delete(
+        ApiEndpoints.baseUrl + ApiEndpoints.adminTaskDelete(taskId is int ? taskId : int.parse(taskId.toString())),
+      );
+      if (!context.mounted) return;
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Task deleted"), backgroundColor: Colors.green),
+        );
+        widget.onChanged?.call();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Failed to delete task (${response.statusCode})"), backgroundColor: Colors.red),
+        );
+      }
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to delete task: $e"), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  void _showTaskDetails(BuildContext context, dynamic task) {
+    final map = task is Map ? task : <String, dynamic>{};
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text("Task #${map['task_no'] ?? 'N/A'}"),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _detailRow("Reference", map['reference']?.toString()),
+              _detailRow("Status", map['status']?.toString()),
+              _detailRow("Operative", map['operative_name']?.toString()),
+              _detailRow("Form", map['form']?.toString()),
+              _detailRow("Sheets", map['sheets']?.toString()),
+              _detailRow("Site Contact", map['site_contact']?.toString()),
+              _detailRow("Instructions", map['instructions']?.toString()),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text("Close"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _detailRow(String label, String? value) {
+    if (value == null || value.isEmpty || value == 'null') return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label.toUpperCase(),
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey.shade600)),
+          const SizedBox(height: 2),
+          Text(value, style: const TextStyle(fontSize: 14)),
         ],
       ),
     );

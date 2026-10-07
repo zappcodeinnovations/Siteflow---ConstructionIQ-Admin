@@ -123,7 +123,11 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
       'Project Setup',
     ];
     final tabViews = <Widget>[
-      if (_canViewTasks) TasksTab(tasks: _allInOneData?.tasks ?? []),
+      if (_canViewTasks)
+        TasksTab(
+          tasks: _allInOneData?.tasks ?? [],
+          onChanged: _fetchData,
+        ),
       if (_canViewJobSheets)
         JobSheetsTab(
           jobSheets: _allInOneData?.jobSheets ?? [],

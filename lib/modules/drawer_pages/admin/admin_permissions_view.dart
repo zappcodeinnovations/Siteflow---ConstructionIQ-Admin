@@ -34,6 +34,73 @@ class _AdminPermissionsViewState extends State<AdminPermissionsView> {
     );
   }
 
+  void _showRenameRoleDialog(AdminRole role) {
+    final nameController = TextEditingController(text: role.name);
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text("Rename Role"),
+        content: TextField(
+          controller: nameController,
+          decoration: const InputDecoration(labelText: "Role name", border: OutlineInputBorder()),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final newName = nameController.text.trim();
+              if (newName.isEmpty) return;
+              Navigator.pop(dialogContext);
+              final result = await _controller.renameRole(role, newName);
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(result['message'] ?? ''),
+                  backgroundColor: result['success'] == true ? Colors.green : Colors.red,
+                ),
+              );
+            },
+            child: const Text("Save"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDeleteRole(AdminRole role) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text("Delete Role"),
+        content: Text('Delete the role "${role.name}"? Users must be reassigned off it first.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              final result = await _controller.deleteRole(role);
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(result['message'] ?? ''),
+                  backgroundColor: result['success'] == true ? Colors.green : Colors.red,
+                ),
+              );
+            },
+            child: const Text("Delete", style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
   IconData _getMenuIcon(String key) {
     final normalized = key.toLowerCase().replaceAll('/', '_').replaceAll(' ', '_');
     switch (normalized) {
@@ -226,6 +293,25 @@ class _AdminPermissionsViewState extends State<AdminPermissionsView> {
                             if (val != null) _controller.selectRole(val);
                           },
                         ),
+                        if (_controller.selectedRole != null && !_controller.selectedRole!.isSystem)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: Row(
+                              children: [
+                                TextButton.icon(
+                                  onPressed: () => _showRenameRoleDialog(_controller.selectedRole!),
+                                  icon: const Icon(IconlyLight.edit, size: 16),
+                                  label: const Text("Rename"),
+                                ),
+                                const SizedBox(width: 8),
+                                TextButton.icon(
+                                  onPressed: () => _confirmDeleteRole(_controller.selectedRole!),
+                                  icon: const Icon(IconlyLight.delete, size: 16, color: Colors.red),
+                                  label: const Text("Delete", style: TextStyle(color: Colors.red)),
+                                ),
+                              ],
+                            ),
+                          ),
                       ],
                     );
 

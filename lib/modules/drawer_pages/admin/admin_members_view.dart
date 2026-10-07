@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'admin_members_controller.dart';
 import 'invite_member_dialog.dart';
+import 'edit_member_dialog.dart';
 import 'member_details_dialog.dart';
 import '../../../../models/admin_member_model.dart';
 import '../../../../core/widgets/shimmer_loading.dart';
@@ -36,6 +37,13 @@ class _AdminMembersViewState extends State<AdminMembersView> {
     showDialog(
       context: context,
       builder: (context) => InviteMemberDialog(controller: _controller),
+    );
+  }
+
+  void _showEditDialog(AdminMember member) {
+    showDialog(
+      context: context,
+      builder: (context) => EditMemberDialog(controller: _controller, member: member),
     );
   }
 
@@ -245,6 +253,7 @@ class _AdminMembersViewState extends State<AdminMembersView> {
                       ),
                       onSelected: (val) {
                         if (val == 'delete') _deleteMember(member);
+                        if (val == 'edit') _showEditDialog(member);
                       },
                       itemBuilder: (context) => [
                         const PopupMenuItem(
