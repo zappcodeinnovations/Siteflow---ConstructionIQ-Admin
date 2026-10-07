@@ -36,6 +36,10 @@ class ApiEndpoints {
   static const String adminTasks = '/admin/tasks/';
   static String adminTaskDelete(int taskId) => '/admin/tasks/$taskId/';
 
+  // Work Types (admin/manager master data, under Library on web)
+  static const String adminWorkTypes = '/admin/work-types/';
+  static String adminWorkTypeDetail(int workTypeId) => '/admin/work-types/$workTypeId/';
+
   // Announcements
   static const String announcements = '/admin/announcements/';
   static String announcementDetails(int id) => '/admin/announcements/$id/';

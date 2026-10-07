@@ -22,10 +22,12 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
+    _tabController.addListener(() => setState(() {}));
     _controller.fetchForms();
     _controller.fetchMaterials();
     _controller.fetchTemplates();
+    _controller.fetchWorkTypes();
   }
 
   @override
@@ -46,10 +48,12 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
         title: const Text('Library', style: TextStyle(fontWeight: FontWeight.w700)),
         bottom: TabBar(
           controller: _tabController,
+          isScrollable: true,
           tabs: const [
             Tab(text: "Forms"),
             Tab(text: "Materials"),
             Tab(text: "Templates"),
+            Tab(text: "Work Types"),
           ],
         ),
       ),
@@ -66,12 +70,157 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
                   _buildFormsTab(isDark),
                   _buildMaterialsTab(isDark),
                   _buildTemplatesTab(isDark),
+                  _buildWorkTypesTab(isDark),
                 ],
               );
             },
           ),
         ],
       ),
+      floatingActionButton: _tabController.index == 3
+          ? FloatingActionButton.extended(
+              onPressed: () => _showAddWorkTypeDialog(context),
+              icon: const Icon(Icons.add),
+              label: const Text("Add Work Type"),
+            )
+          : null,
+    );
+  }
+
+  Future<void> _showAddWorkTypeDialog(BuildContext context) async {
+    final nameController = TextEditingController();
+    await showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text("Add Work Type"),
+        content: TextField(
+          controller: nameController,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: "Name", border: OutlineInputBorder()),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text("Cancel")),
+          ElevatedButton(
+            onPressed: () async {
+              final name = nameController.text.trim();
+              if (name.isEmpty) return;
+              Navigator.pop(dialogContext);
+              final result = await _controller.createWorkType(name);
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(result['message'] ?? ''), backgroundColor: result['success'] == true ? Colors.green : Colors.red),
+              );
+            },
+            child: const Text("Add"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showRenameWorkTypeDialog(BuildContext context, Map<String, dynamic> workType) async {
+    final nameController = TextEditingController(text: workType['name']?.toString() ?? '');
+    await showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text("Rename Work Type"),
+        content: TextField(
+          controller: nameController,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: "Name", border: OutlineInputBorder()),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text("Cancel")),
+          ElevatedButton(
+            onPressed: () async {
+              final name = nameController.text.trim();
+              if (name.isEmpty) return;
+              Navigator.pop(dialogContext);
+              final result = await _controller.renameWorkType(workType['id'] as int, name);
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(result['message'] ?? ''), backgroundColor: result['success'] == true ? Colors.green : Colors.red),
+              );
+            },
+            child: const Text("Save"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmDeleteWorkType(BuildContext context, Map<String, dynamic> workType) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text("Delete Work Type"),
+        content: Text('Delete "${workType['name']}"?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text("Cancel")),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text("Delete", style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final result = await _controller.deleteWorkType(workType['id'] as int);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(result['message'] ?? ''), backgroundColor: result['success'] == true ? Colors.green : Colors.red),
+    );
+  }
+
+  Widget _buildWorkTypesTab(bool isDark) {
+    final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
+    final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+
+    if (_controller.isLoadingWorkTypes) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_controller.workTypesError != null) {
+      return Center(child: Text(_controller.workTypesError!, style: TextStyle(color: textSecondary)));
+    }
+    if (_controller.workTypes.isEmpty) {
+      return _emptyState(isDark, "No work types yet", "Add one with the button below.");
+    }
+    return ListView.separated(
+      padding: const EdgeInsets.all(16),
+      itemCount: _controller.workTypes.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      itemBuilder: (context, index) {
+        final workType = _controller.workTypes[index];
+        final isActive = workType['is_active'] == true;
+        return Container(
+          decoration: BoxDecoration(
+            color: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade200),
+          ),
+          child: ListTile(
+            title: Text(workType['name']?.toString() ?? '', style: TextStyle(color: textColor, fontWeight: FontWeight.w600)),
+            subtitle: Text(isActive ? "Active" : "Inactive", style: TextStyle(color: isActive ? Colors.green : textSecondary)),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Switch(
+                  value: isActive,
+                  onChanged: (val) => _controller.toggleWorkType(workType['id'] as int, val),
+                ),
+                IconButton(
+                  icon: const Icon(IconlyLight.edit, size: 18),
+                  onPressed: () => _showRenameWorkTypeDialog(context, workType),
+                ),
+                IconButton(
+                  icon: const Icon(IconlyLight.delete, size: 18, color: Colors.red),
+                  onPressed: () => _confirmDeleteWorkType(context, workType),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 

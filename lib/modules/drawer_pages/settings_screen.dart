@@ -4,6 +4,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/widgets/background_stripes_painter.dart';
 import '../../models/admin_team_model.dart';
 import 'admin_team_controller.dart';
+import 'team_detail_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -422,7 +423,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
         : 'Not set';
     final members = '${team.memberCount} Member${team.memberCount == 1 ? '' : 's'}';
 
-    return Container(
+    return InkWell(
+      onTap: () async {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => TeamDetailScreen(teamId: team.id, controller: _teamController),
+          ),
+        );
+      },
+      child: Container(
       decoration: BoxDecoration(
         border: Border(top: BorderSide(color: borderColor)),
       ),
@@ -503,10 +513,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   style: TextStyle(color: Colors.red.shade700, fontWeight: FontWeight.bold),
                 ),
               ),
-              Icon(IconlyLight.category, color: subtitleColor, size: 16),
+              Icon(IconlyLight.arrow_right_2, color: subtitleColor, size: 16),
             ],
           ),
         ],
+      ),
       ),
     );
   }

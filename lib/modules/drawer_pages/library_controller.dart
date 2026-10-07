@@ -22,6 +22,10 @@ class LibraryController extends ChangeNotifier {
   List<LibraryMaterialModel> materials = [];
   List<LibraryTemplateModel> templates = [];
 
+  bool isLoadingWorkTypes = false;
+  String? workTypesError;
+  List<Map<String, dynamic>> workTypes = [];
+
   Future<void> fetchForms() async {
     isLoadingForms = true;
     formsError = null;
@@ -91,6 +95,87 @@ class LibraryController extends ChangeNotifier {
     } finally {
       isLoadingTemplates = false;
       notifyListeners();
+    }
+  }
+
+  Future<void> fetchWorkTypes() async {
+    isLoadingWorkTypes = true;
+    workTypesError = null;
+    notifyListeners();
+    try {
+      final url = ApiEndpoints.baseUrl + ApiEndpoints.adminWorkTypes;
+      final response = await ApiClient.get(url);
+      final decoded = jsonDecode(response.body);
+      if (response.statusCode == 200 && decoded['status'] == true) {
+        workTypes = (decoded['data'] as List? ?? []).whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
+      } else {
+        workTypesError = decoded['message']?.toString() ?? 'Failed to fetch work types.';
+      }
+    } catch (e) {
+      workTypesError = 'An error occurred: $e';
+    } finally {
+      isLoadingWorkTypes = false;
+      notifyListeners();
+    }
+  }
+
+  Future<Map<String, dynamic>> createWorkType(String name) async {
+    try {
+      final url = ApiEndpoints.baseUrl + ApiEndpoints.adminWorkTypes;
+      final response = await ApiClient.post(url, body: {"name": name});
+      final decoded = jsonDecode(response.body);
+      if (response.statusCode == 201) {
+        await fetchWorkTypes();
+        return {"success": true, "message": decoded['message'] ?? 'Work type added.'};
+      }
+      return {"success": false, "message": decoded['message'] ?? 'Failed to add work type.'};
+    } catch (e) {
+      return {"success": false, "message": "An error occurred: $e"};
+    }
+  }
+
+  Future<Map<String, dynamic>> toggleWorkType(int id, bool isActive) async {
+    try {
+      final url = ApiEndpoints.baseUrl + ApiEndpoints.adminWorkTypeDetail(id);
+      final response = await ApiClient.patch(url, body: {"is_active": isActive});
+      final decoded = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        await fetchWorkTypes();
+        return {"success": true, "message": decoded['message'] ?? 'Updated.'};
+      }
+      return {"success": false, "message": decoded['message'] ?? 'Failed to update work type.'};
+    } catch (e) {
+      return {"success": false, "message": "An error occurred: $e"};
+    }
+  }
+
+  Future<Map<String, dynamic>> renameWorkType(int id, String name) async {
+    try {
+      final url = ApiEndpoints.baseUrl + ApiEndpoints.adminWorkTypeDetail(id);
+      final response = await ApiClient.patch(url, body: {"name": name});
+      final decoded = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        await fetchWorkTypes();
+        return {"success": true, "message": decoded['message'] ?? 'Updated.'};
+      }
+      return {"success": false, "message": decoded['message'] ?? 'Failed to rename work type.'};
+    } catch (e) {
+      return {"success": false, "message": "An error occurred: $e"};
+    }
+  }
+
+  Future<Map<String, dynamic>> deleteWorkType(int id) async {
+    try {
+      final url = ApiEndpoints.baseUrl + ApiEndpoints.adminWorkTypeDetail(id);
+      final response = await ApiClient.delete(url);
+      final decoded = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        await fetchWorkTypes();
+        return {"success": true, "message": decoded['message'] ?? 'Work type deleted.'};
+      }
+      return {"success": false, "message": decoded['message'] ?? 'Failed to delete work type.'};
+    } catch (e) {
+      return {"success": false, "message": "An error occurred: $e"};
     }
   }
 }
