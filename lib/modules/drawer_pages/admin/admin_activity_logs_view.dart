@@ -84,7 +84,7 @@ class _AdminActivityLogsViewState extends State<AdminActivityLogsView> {
   Widget _buildKpiCard(
     String title,
     String value, {
-    double width = 170,
+    double? width,
     required Color cardColor,
     required Color borderColor,
     required Color textColor,
@@ -281,62 +281,138 @@ class _AdminActivityLogsViewState extends State<AdminActivityLogsView> {
                 animation: _controller,
                 builder: (context, _) {
                   final kpi = _controller.kpi;
-                  final double kpiCardWidth = isMobile ? 150 : 170;
-                  return SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
+                  if (isMobile) {
+                    return Column(
                       children: [
-                        _buildKpiCard(
-                          "TOTAL MANAGERS",
-                          kpi?.totalManagers.toString() ?? "0",
-                          width: kpiCardWidth,
-                          cardColor: cardColor,
-                          borderColor: borderColor,
-                          textColor: textColor,
-                          subtitleColor: subtitleColor,
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildKpiCard(
+                                "TOTAL MANAGERS",
+                                kpi?.totalManagers.toString() ?? "0",
+                                cardColor: cardColor,
+                                borderColor: borderColor,
+                                textColor: textColor,
+                                subtitleColor: subtitleColor,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _buildKpiCard(
+                                "ACTIVE MANAGERS",
+                                kpi?.activeManagers.toString() ?? "0",
+                                cardColor: cardColor,
+                                borderColor: borderColor,
+                                textColor: textColor,
+                                subtitleColor: subtitleColor,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 12),
-                        _buildKpiCard(
-                          "ACTIVE MANAGERS",
-                          kpi?.activeManagers.toString() ?? "0",
-                          width: kpiCardWidth,
-                          cardColor: cardColor,
-                          borderColor: borderColor,
-                          textColor: textColor,
-                          subtitleColor: subtitleColor,
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildKpiCard(
+                                "TODAY'S ACTIVITIES",
+                                kpi?.todayActivities.toString() ?? "0",
+                                cardColor: cardColor,
+                                borderColor: borderColor,
+                                textColor: textColor,
+                                subtitleColor: subtitleColor,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _buildKpiCard(
+                                "THIS MONTH",
+                                kpi?.thisMonth.toString() ?? "0",
+                                cardColor: cardColor,
+                                borderColor: borderColor,
+                                textColor: textColor,
+                                subtitleColor: subtitleColor,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 12),
-                        _buildKpiCard(
-                          "TODAY'S ACTIVITIES",
-                          kpi?.todayActivities.toString() ?? "0",
-                          width: kpiCardWidth + 10,
-                          cardColor: cardColor,
-                          borderColor: borderColor,
-                          textColor: textColor,
-                          subtitleColor: subtitleColor,
-                        ),
-                        const SizedBox(width: 12),
-                        _buildKpiCard(
-                          "THIS MONTH",
-                          kpi?.thisMonth.toString() ?? "0",
-                          width: kpiCardWidth,
-                          cardColor: cardColor,
-                          borderColor: borderColor,
-                          textColor: textColor,
-                          subtitleColor: subtitleColor,
-                        ),
-                        const SizedBox(width: 12),
-                        _buildKpiCard(
-                          "FAILED LOGINS",
-                          kpi?.failedLogins.toString() ?? "0",
-                          width: kpiCardWidth,
-                          cardColor: cardColor,
-                          borderColor: borderColor,
-                          textColor: textColor,
-                          subtitleColor: subtitleColor,
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildKpiCard(
+                                "FAILED LOGINS",
+                                kpi?.failedLogins.toString() ?? "0",
+                                cardColor: cardColor,
+                                borderColor: borderColor,
+                                textColor: textColor,
+                                subtitleColor: subtitleColor,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            const Expanded(child: SizedBox()),
+                          ],
                         ),
                       ],
-                    ),
+                    );
+                  }
+
+                  return Row(
+                    children: [
+                      Expanded(
+                        child: _buildKpiCard(
+                          "TOTAL MANAGERS",
+                          kpi?.totalManagers.toString() ?? "0",
+                          cardColor: cardColor,
+                          borderColor: borderColor,
+                          textColor: textColor,
+                          subtitleColor: subtitleColor,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildKpiCard(
+                          "ACTIVE MANAGERS",
+                          kpi?.activeManagers.toString() ?? "0",
+                          cardColor: cardColor,
+                          borderColor: borderColor,
+                          textColor: textColor,
+                          subtitleColor: subtitleColor,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildKpiCard(
+                          "TODAY'S ACTIVITIES",
+                          kpi?.todayActivities.toString() ?? "0",
+                          cardColor: cardColor,
+                          borderColor: borderColor,
+                          textColor: textColor,
+                          subtitleColor: subtitleColor,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildKpiCard(
+                          "THIS MONTH",
+                          kpi?.thisMonth.toString() ?? "0",
+                          cardColor: cardColor,
+                          borderColor: borderColor,
+                          textColor: textColor,
+                          subtitleColor: subtitleColor,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildKpiCard(
+                          "FAILED LOGINS",
+                          kpi?.failedLogins.toString() ?? "0",
+                          cardColor: cardColor,
+                          borderColor: borderColor,
+                          textColor: textColor,
+                          subtitleColor: subtitleColor,
+                        ),
+                      ),
+                    ],
                   );
                 },
               ),
