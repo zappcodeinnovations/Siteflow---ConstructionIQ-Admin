@@ -64,64 +64,91 @@ Page resource error:
   Future<void> _injectAutoFitScript() async {
     const script = r"""
 (function() {
-  function scaleFormToFit() {
-    // 1. Clean up any previous style overrides
-    var oldStyle = document.getElementById('siteflow-form-lock-style');
-    if (oldStyle) oldStyle.remove();
-    var oldAutofit = document.getElementById('siteflow-autofit-style');
-    if (oldAutofit) oldAutofit.remove();
-
-    // 2. Reset inline styles on body so natural dimensions can be measured
-    document.body.style.zoom = '1';
-    document.body.style.transform = 'none';
-
-    var screenWidth = window.screen.width || window.innerWidth || document.documentElement.clientWidth;
-    if (!screenWidth || screenWidth <= 0) return;
-
-    // 3. Find the main form container / tables to measure natural layout width
-    var mainEl = document.querySelector('.form-container') ||
-                 document.querySelector('.container') ||
-                 document.querySelector('.page') ||
-                 document.querySelector('form') ||
-                 document.querySelector('table') ||
-                 document.body;
-
-    var detectedWidth = Math.max(
-      document.body.scrollWidth || 0,
-      document.documentElement.scrollWidth || 0,
-      mainEl ? (mainEl.scrollWidth || mainEl.offsetWidth || 0) : 0
-    );
-
-    // Standard desktop / A4 print form width (at least 1024px for full zoom-out view)
-    var targetWidth = Math.max(detectedWidth, 1024);
-
-    // Zoom out with comfortable padding so the entire form borders fit inside the screen
-    var scale = ((screenWidth - 16) / targetWidth) * 0.94;
-    scale = Math.floor(scale * 10000) / 10000;
-
+  function fitFormToScreen() {
+    // 1. Set standard responsive viewport meta
     var meta = document.querySelector('meta[name="viewport"]');
     if (!meta) {
       meta = document.createElement('meta');
       meta.name = 'viewport';
       document.head.appendChild(meta);
     }
-    meta.setAttribute('content', 'width=' + targetWidth + ', initial-scale=' + scale + ', minimum-scale=' + (scale * 0.5) + ', maximum-scale=5.0, user-scalable=yes');
+    meta.setAttribute('content', 'width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=3.0, user-scalable=yes');
 
+    // 2. Remove old conflicting styles
+    var oldStyle = document.getElementById('siteflow-form-fit-style');
+    if (oldStyle) oldStyle.remove();
+    var oldLock = document.getElementById('siteflow-form-lock-style');
+    if (oldLock) oldLock.remove();
+    var oldAutofit = document.getElementById('siteflow-autofit-style');
+    if (oldAutofit) oldAutofit.remove();
+
+    // 3. Inject responsive styles so the form card fits the mobile screen edge-to-edge
     var style = document.createElement('style');
-    style.id = 'siteflow-form-lock-style';
+    style.id = 'siteflow-form-fit-style';
     style.innerHTML = `
+      * {
+        box-sizing: border-box !important;
+      }
       html {
-        min-width: ${targetWidth}px !important;
-        background-color: transparent !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background-color: #f8fafc !important;
+        overflow-x: hidden !important;
       }
       body {
-        min-width: ${targetWidth}px !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
         margin: 0 auto !important;
-        padding: 10px !important;
-        background-color: transparent !important;
+        padding: 12px !important;
+        background-color: #f8fafc !important;
+        overflow-x: hidden !important;
+        -webkit-text-size-adjust: 100% !important;
+      }
+      .form-container, .container, .page, .card, form, table, .sheet-container, .sheet-card, .wrapper, main, [class*="container"], [class*="card"] {
+        max-width: 100% !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08) !important;
+        border-radius: 12px !important;
+      }
+      table {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        table-layout: auto !important;
+        word-break: break-word !important;
+      }
+      td, th {
+        word-break: break-word !important;
+      }
+      img {
+        max-width: 100% !important;
+        height: auto !important;
       }
     `;
     document.head.appendChild(style);
+
+    // 4. Clean up any inline min-widths or fixed widths on DOM elements
+    var screenW = window.innerWidth || document.documentElement.clientWidth || 360;
+    var allElements = document.querySelectorAll('*');
+    for (var i = 0; i < allElements.length; i++) {
+      var el = allElements[i];
+      if (el.style) {
+        if (el.style.minWidth && parseInt(el.style.minWidth) > screenW) {
+          el.style.minWidth = '100%';
+        }
+        if (el.style.width && parseInt(el.style.width) > screenW) {
+          el.style.width = '100%';
+        }
+      }
+    }
   }
 
   function formatDateTimestamps() {
@@ -182,8 +209,8 @@ Page resource error:
   }
 
   function applyEnhancements() {
+    fitFormToScreen();
     formatDateTimestamps();
-    scaleFormToFit();
   }
 
   applyEnhancements();
