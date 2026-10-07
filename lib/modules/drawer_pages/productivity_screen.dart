@@ -9,6 +9,7 @@ import 'package:iconly/iconly.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/background_stripes_painter.dart';
 import '../../core/widgets/custom_date_picker_dialog.dart';
+import 'productivity_detail_screen.dart';
 
 class ProductivityScreen extends StatefulWidget {
   const ProductivityScreen({super.key});
@@ -440,7 +441,25 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
     final textColor = isDark ? Colors.white : Colors.black87;
     final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
 
-    return Container(
+    VoidCallback? onTap;
+    if (_controller.currentView == 'member') {
+      final member = _controller.data!.byMember[index];
+      onTap = () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => ProductivityDetailScreen(id: member.id, title: member.name, isMember: true)),
+          );
+    } else if (_controller.currentView == 'project') {
+      final project = _controller.data!.byProject[index];
+      onTap = () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => ProductivityDetailScreen(id: project.id, title: project.name, isMember: false)),
+          );
+    }
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: onTap,
+      child: Container(
       decoration: BoxDecoration(
         color: cardColor,
         borderRadius: BorderRadius.circular(16),
@@ -546,6 +565,7 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
             ),
           ],
         ),
+      ),
       ),
     );
   }

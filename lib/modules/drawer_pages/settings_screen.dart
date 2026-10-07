@@ -5,6 +5,7 @@ import '../../core/widgets/background_stripes_painter.dart';
 import '../../models/admin_team_model.dart';
 import 'admin_team_controller.dart';
 import 'team_detail_screen.dart';
+import 'material_settings_content.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -227,7 +228,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Expanded(
                   child: _selectedIndex == 0
                       ? _buildTeamsContent(isDesktop, cardColor: cardColor, textColor: textColor, subtitleColor: subtitleColor, borderColor: borderColor, isDark: isDark)
-                      : Center(child: Text("Materials Content", style: TextStyle(color: textColor))),
+                      : MaterialSettingsContent(isDesktop: isDesktop),
                 ),
               ],
             ),
