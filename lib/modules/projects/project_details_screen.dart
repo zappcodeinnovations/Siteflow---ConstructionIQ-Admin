@@ -108,8 +108,8 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     // Custom Palette based on theme mode
-    final bgColor = isDark ? AppTheme.corporateBlue : const Color(0xFFF8FAFC);
-    final appBarBg = isDark ? AppTheme.corporateBlue : Colors.white;
+    final bgColor = isDark ? AppTheme.darkBackground : const Color(0xFFF8FAFC);
+    final appBarBg = isDark ? AppTheme.darkSurface : Colors.white;
     final textPrimary = isDark ? Colors.white : const Color(0xFF0F2C4A);
     final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
 
@@ -316,7 +316,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                     children: [
                       // Tab Bar Area
                       Container(
-                        color: isDark ? AppTheme.corporateBlue : Colors.white,
+                        color: isDark ? AppTheme.darkSurface : Colors.white,
                         child: TabBar(
                           isScrollable: true,
                           indicatorColor: isDark

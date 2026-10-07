@@ -140,11 +140,11 @@ class _AdminPermissionsViewState extends State<AdminPermissionsView> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
-    final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
-    final subtitleColor = isDark ? Colors.white70 : Colors.grey.shade600;
-    final borderColor = isDark ? Colors.white12 : Colors.grey.shade200;
-    final dropdownFillColor = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.grey.shade50;
+    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
+    final textColor = isDark ? AppTheme.darkText : const Color(0xFF0F2C4A);
+    final subtitleColor = isDark ? AppTheme.darkMuted : Colors.grey.shade600;
+    final borderColor = isDark ? AppTheme.darkBorder : Colors.grey.shade200;
+    final dropdownFillColor = isDark ? AppTheme.darkSurfaceRaised : Colors.grey.shade50;
 
     return LayoutBuilder(
       builder: (context, screenConstraints) {

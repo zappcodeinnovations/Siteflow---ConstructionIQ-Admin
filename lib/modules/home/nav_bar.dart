@@ -165,7 +165,7 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
           // Show NavigationRail on large screens for true responsiveness
           if (isDesktop)
             NavigationRail(
-              backgroundColor: Colors.white,
+              backgroundColor: Theme.of(context).colorScheme.surface,
               selectedIndex: currentIndex,
               onDestinationSelected: (value) {
                 if (value == 0) {
@@ -197,7 +197,10 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
               destinations: [
                 for (int i = 0; i < titles.length; i++)
                   NavigationRailDestination(
-                    icon: Icon(icons[i], color: Colors.grey.shade400),
+                    icon: Icon(
+                      icons[i],
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                     selectedIcon: Icon(icons[i]),
                     label: Text(titles[i]),
                   ),

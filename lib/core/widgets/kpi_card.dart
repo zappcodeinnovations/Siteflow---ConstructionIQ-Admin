@@ -17,18 +17,22 @@ class KpiCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
 
     return Container(
 
       padding: const EdgeInsets.all(20),
 
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colors.surface,
+        border: Border.all(color: colors.outlineVariant),
         borderRadius: BorderRadius.circular(16),
 
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(.05),
+            color: Colors.black.withValues(
+              alpha: Theme.of(context).brightness == Brightness.dark ? .22 : .05,
+            ),
             blurRadius: 10,
           ),
         ],
@@ -47,8 +51,8 @@ class KpiCard extends StatelessWidget {
                 Text(
                   title.toUpperCase(),
 
-                  style: const TextStyle(
-                    color: Colors.grey,
+                  style: TextStyle(
+                    color: colors.onSurfaceVariant,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -58,7 +62,8 @@ class KpiCard extends StatelessWidget {
                 Text(
                   value,
 
-                  style: const TextStyle(
+                  style: TextStyle(
+                    color: colors.onSurface,
                     fontSize: 32,
                     fontWeight: FontWeight.bold,
                   ),

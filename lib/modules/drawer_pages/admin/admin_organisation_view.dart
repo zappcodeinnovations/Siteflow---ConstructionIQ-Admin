@@ -93,7 +93,7 @@ class _AdminOrganisationViewState extends State<AdminOrganisationView> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
+    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
     final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
     final subtitleColor = isDark ? Colors.white70 : Colors.grey.shade600;
     final borderColor = isDark ? Colors.white12 : Colors.grey.shade200;
@@ -214,7 +214,7 @@ class _AdminOrganisationViewState extends State<AdminOrganisationView> {
                                       vertical: 16,
                                     ),
                                   ),
-                                  dropdownColor: isDark ? AppTheme.corporateBlue : Colors.white,
+                                  dropdownColor: isDark ? AppTheme.darkSurface : Colors.white,
                                   icon: Icon(
                                     IconlyLight.arrow_down_2,
                                     color: subtitleColor,

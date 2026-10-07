@@ -14,6 +14,11 @@ class ManagerAttendanceController extends ChangeNotifier {
 
   ManagerAttendanceResponse? _data;
   ManagerAttendanceResponse? get data => _data;
+  bool _isLoadingMore = false;
+  bool get isLoadingMore => _isLoadingMore;
+  int _currentPage = 0;
+  int _totalPages = 1;
+  bool get hasMore => _currentPage < _totalPages;
 
   List<dynamic> _managersList = [];
   List<dynamic> get managersList => _managersList;
@@ -28,28 +33,31 @@ class ManagerAttendanceController extends ChangeNotifier {
   String? _selectedManager;
   String? get selectedManager => _selectedManager;
 
+  String _buildUrl(int page) {
+    final queryParams = <String>['page=$page', 'page_size=25'];
+    if (_fromDate != null && _fromDate!.isNotEmpty) queryParams.add('from=$_fromDate');
+    if (_toDate != null && _toDate!.isNotEmpty) queryParams.add('to=$_toDate');
+    if (_selectedManager != null && _selectedManager!.isNotEmpty) queryParams.add('manager=$_selectedManager');
+    return '${ApiEndpoints.baseUrl}/manager-attendance/?${queryParams.join('&')}';
+  }
+
+  void _setPagination(ManagerAttendanceResponse response) {
+    _currentPage = response.pagination['page'] is int ? response.pagination['page'] as int : int.tryParse('${response.pagination['page']}') ?? 1;
+    _totalPages = response.pagination['total_pages'] is int ? response.pagination['total_pages'] as int : int.tryParse('${response.pagination['total_pages']}') ?? 1;
+  }
+
   Future<void> fetchManagerAttendance() async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      String url = ApiEndpoints.baseUrl + '/manager-attendance/';
-      List<String> queryParams = [];
-
-      if (_fromDate != null && _fromDate!.isNotEmpty) queryParams.add('from=$_fromDate');
-      if (_toDate != null && _toDate!.isNotEmpty) queryParams.add('to=$_toDate');
-      if (_selectedManager != null && _selectedManager!.isNotEmpty) queryParams.add('manager=$_selectedManager');
-
-      if (queryParams.isNotEmpty) {
-        url += '?' + queryParams.join('&');
-      }
-
-      final response = await ApiClient.get(url);
+      final response = await ApiClient.get(_buildUrl(1));
       final decodedData = jsonDecode(response.body);
 
       if (response.statusCode == 200 && decodedData['status'] == true) {
         _data = ManagerAttendanceResponse.fromJson(decodedData);
+        _setPagination(_data!);
       } else {
         _errorMessage = decodedData['message'] ?? 'Failed to fetch manager attendance';
       }
@@ -57,6 +65,30 @@ class ManagerAttendanceController extends ChangeNotifier {
       _errorMessage = 'An error occurred: $e';
     } finally {
       _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> loadMore() async {
+    if (_isLoading || _isLoadingMore || !hasMore || _data == null) return;
+    _isLoadingMore = true;
+    notifyListeners();
+    try {
+      final response = await ApiClient.get(_buildUrl(_currentPage + 1));
+      final decodedData = jsonDecode(response.body);
+      if (response.statusCode == 200 && decodedData['status'] == true) {
+        final next = ManagerAttendanceResponse.fromJson(decodedData);
+        _data = ManagerAttendanceResponse(
+          status: next.status, message: next.message, kpi: next.kpi,
+          filters: next.filters, pagination: next.pagination,
+          data: [..._data!.data, ...next.data],
+        );
+        _setPagination(next);
+      }
+    } catch (_) {
+      // Preserve the records already loaded if another page fails.
+    } finally {
+      _isLoadingMore = false;
       notifyListeners();
     }
   }

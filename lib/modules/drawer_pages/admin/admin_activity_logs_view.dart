@@ -181,7 +181,7 @@ class _AdminActivityLogsViewState extends State<AdminActivityLogsView> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
+    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
     final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
     final subtitleColor = isDark ? Colors.white70 : Colors.grey.shade600;
     final borderColor = isDark ? Colors.white12 : Colors.grey.shade200;
@@ -436,7 +436,8 @@ class _AdminActivityLogsViewState extends State<AdminActivityLogsView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    InkWell(
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
                       onTap: () {
                         setState(() {
                           _isFilterExpanded = !_isFilterExpanded;
@@ -633,7 +634,8 @@ class _AdminActivityLogsViewState extends State<AdminActivityLogsView> {
                                 width: isMobile
                                     ? (constraints.maxWidth - 52) / 2
                                     : 150,
-                                child: InkWell(
+                                child: GestureDetector(
+                                  behavior: HitTestBehavior.opaque,
                                   onTap: () => _selectDate(_fromDateController),
                                   child: TextField(
                                     controller: _fromDateController,
@@ -664,7 +666,8 @@ class _AdminActivityLogsViewState extends State<AdminActivityLogsView> {
                                 width: isMobile
                                     ? (constraints.maxWidth - 52) / 2
                                     : 150,
-                                child: InkWell(
+                                child: GestureDetector(
+                                  behavior: HitTestBehavior.opaque,
                                   onTap: () => _selectDate(_toDateController),
                                   child: TextField(
                                     controller: _toDateController,

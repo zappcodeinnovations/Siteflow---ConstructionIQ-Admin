@@ -47,7 +47,7 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final background = isDark ? AppTheme.corporateBlue : const Color(0xFFF4F7FB);
+    final background = isDark ? AppTheme.darkBackground : const Color(0xFFF4F7FB);
 
     return Scaffold(
       backgroundColor: background,
@@ -288,9 +288,9 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
         final isActive = workType['is_active'] == true;
         return Container(
           decoration: BoxDecoration(
-            color: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
+            color: isDark ? AppTheme.darkSurfaceRaised : Colors.white,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade200),
+            border: Border.all(color: isDark ? AppTheme.darkBorder : Colors.grey.shade200),
           ),
           child: ListTile(
             title: Text(workType['name']?.toString() ?? '', style: TextStyle(color: textColor, fontWeight: FontWeight.w600)),
@@ -328,9 +328,9 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
         Container(
           padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
           decoration: BoxDecoration(
-            color: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
+            color: isDark ? AppTheme.darkSurfaceRaised : Colors.white,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade200),
+            border: Border.all(color: isDark ? AppTheme.darkBorder : Colors.grey.shade200),
           ),
           child: Column(
             children: [
@@ -359,8 +359,8 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
   Widget _buildFormsTab(bool isDark) {
     final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
     final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
-    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
-    final borderColor = isDark ? Colors.white24 : Colors.grey.shade200;
+    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
+    final borderColor = isDark ? AppTheme.darkBorder : Colors.grey.shade200;
 
     if (_controller.isLoadingForms) return const Center(child: CircularProgressIndicator());
     if (_controller.formsError != null) return _errorState(_controller.formsError!, _controller.fetchForms);
@@ -468,8 +468,8 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
   Widget _buildMaterialsTab(bool isDark) {
     final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
     final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
-    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
-    final borderColor = isDark ? Colors.white24 : Colors.grey.shade200;
+    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
+    final borderColor = isDark ? AppTheme.darkBorder : Colors.grey.shade200;
 
     if (_controller.isLoadingMaterials) return const Center(child: CircularProgressIndicator());
     if (_controller.materialsError != null) return _errorState(_controller.materialsError!, _controller.fetchMaterials);
@@ -512,7 +512,9 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: borderColor),
               ),
-              child: ExpansionTile(
+              child: Material(
+                color: Colors.transparent,
+                child: ExpansionTile(
                 leading: _materialSelectMode
                     ? Checkbox(
                         value: isSelected,
@@ -566,6 +568,7 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
                           ),
                   ),
                 ],
+                ),
               ),
             ),
           );
@@ -609,8 +612,8 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
   Widget _buildTemplatesTab(bool isDark) {
     final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
     final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
-    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
-    final borderColor = isDark ? Colors.white24 : Colors.grey.shade200;
+    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
+    final borderColor = isDark ? AppTheme.darkBorder : Colors.grey.shade200;
 
     if (_controller.isLoadingTemplates) return const Center(child: CircularProgressIndicator());
     if (_controller.templatesError != null) return _errorState(_controller.templatesError!, _controller.fetchTemplates);

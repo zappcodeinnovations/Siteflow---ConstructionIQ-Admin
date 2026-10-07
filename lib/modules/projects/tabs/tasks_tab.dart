@@ -76,7 +76,7 @@ class _TasksTabState extends State<TasksTab> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet(
       context: context,
-      backgroundColor: isDark ? AppTheme.corporateBlue : Colors.white,
+      backgroundColor: isDark ? AppTheme.darkSurface : Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -168,7 +168,7 @@ class _TasksTabState extends State<TasksTab> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-                color: isDark ? AppTheme.corporateBlue : Colors.white,
+                color: isDark ? AppTheme.darkSurface : Colors.white,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade200),
                 boxShadow: [
@@ -195,7 +195,7 @@ class _TasksTabState extends State<TasksTab> {
                       ),
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
-                          dropdownColor: isDark ? AppTheme.corporateBlue : Colors.white,
+                          dropdownColor: isDark ? AppTheme.darkSurface : Colors.white,
                           value: _selectedStatus,
                           items: options
                               .map((e) => DropdownMenuItem(
@@ -303,7 +303,7 @@ class _TasksTabState extends State<TasksTab> {
     required String sheets,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
+    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
     final borderColor = isDark ? Colors.white24 : Colors.grey.shade200;
     final textColor = isDark ? Colors.white : Colors.black87;
     final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;

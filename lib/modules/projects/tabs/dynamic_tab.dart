@@ -61,7 +61,7 @@ class DynamicTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
+    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
     final borderColor = isDark ? Colors.white24 : Colors.grey.shade200;
     final textColor = isDark ? Colors.white : Colors.black87;
 

@@ -47,7 +47,7 @@ class _MaterialSettingsContentState extends State<MaterialSettingsContent> {
     await showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: isDark ? AppTheme.corporateBlue : Colors.white,
+        backgroundColor: isDark ? AppTheme.darkSurface : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(title, style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF0F2C4A))),
         content: TextField(
@@ -100,7 +100,7 @@ class _MaterialSettingsContentState extends State<MaterialSettingsContent> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
+    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
     final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
     final subtitleColor = isDark ? Colors.white70 : Colors.grey.shade600;
     final borderColor = isDark ? Colors.white12 : Colors.grey.shade200;

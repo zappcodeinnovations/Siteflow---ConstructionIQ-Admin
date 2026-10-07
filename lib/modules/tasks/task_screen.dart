@@ -46,12 +46,20 @@ class _TasksScreenState extends State<TasksScreen> {
   void initState() {
     super.initState();
     _controller.addListener(_onControllerUpdate);
+    _verticalScrollController.addListener(_loadNextPageWhenNeeded);
     _controller.fetchJobSheets();
     _loadPermissions();
   }
 
   void _onControllerUpdate() {
     if (mounted) setState(() {});
+  }
+
+  void _loadNextPageWhenNeeded() {
+    if (!_verticalScrollController.hasClients) return;
+    if (_verticalScrollController.position.extentAfter < 400) {
+      _controller.loadMore();
+    }
   }
 
   @override
@@ -633,11 +641,11 @@ class _TasksScreenState extends State<TasksScreen> {
   @override
   Widget build(BuildContext context) {
     final filteredTasks = _filteredTasks;
-    final totalCount = _controller.jobSheets.length;
+    final totalCount = _controller.totalCount;
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? AppTheme.corporateBlue : const Color(0xFFF8FAFC);
-    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
+    final bgColor = isDark ? AppTheme.darkBackground : const Color(0xFFF8FAFC);
+    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
     final borderColor = isDark ? Colors.white24 : Colors.grey.shade200;
     final textColor = isDark ? Colors.white : Colors.black87;
     final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
@@ -1176,6 +1184,16 @@ class _TasksScreenState extends State<TasksScreen> {
                               ),
                             );
                           },
+                        ),
+                      if (_controller.isLoadingMore)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 20),
+                          child: Center(child: CircularProgressIndicator()),
+                        )
+                      else if (_controller.hasMore)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 12),
+                          child: Center(child: Text('Scroll to load more tasks')),
                         ),
                     ],
                   ),

@@ -75,7 +75,7 @@ class JobSheetsTab extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDark ? AppTheme.corporateBlue : Colors.white,
+        color: isDark ? AppTheme.darkSurface : Colors.white,
         border: Border(bottom: BorderSide(color: isDark ? Colors.white12 : Colors.grey.shade200)),
       ),
       child: Column(
@@ -145,7 +145,7 @@ class JobSheetsTab extends StatelessWidget {
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
-          dropdownColor: isDark ? AppTheme.corporateBlue : Colors.white,
+          dropdownColor: isDark ? AppTheme.darkSurface : Colors.white,
           value: null,
           hint: Text(label,
               style: TextStyle(
@@ -181,7 +181,7 @@ class JobSheetsTab extends StatelessWidget {
     required String created,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
+    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
     final borderColor = isDark ? Colors.white24 : Colors.grey.shade200;
     final textColor = isDark ? Colors.white : Colors.black87;
     final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;

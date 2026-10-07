@@ -132,7 +132,7 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
     final subtitleColor = isDark ? Colors.white70 : Colors.grey.shade600;
-    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
+    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
     final borderColor = isDark ? Colors.white24 : Colors.grey.shade200;
 
     return Scaffold(

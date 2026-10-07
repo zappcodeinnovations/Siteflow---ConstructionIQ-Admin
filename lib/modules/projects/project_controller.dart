@@ -17,6 +17,14 @@ class ProjectController extends ChangeNotifier {
   List<Project> _projects = [];
   List<Project> get projects => _projects;
 
+  int _currentPage = 0;
+  int _totalPages = 1;
+  int _totalCount = 0;
+  bool _isLoadingMore = false;
+  bool get isLoadingMore => _isLoadingMore;
+  bool get hasMore => _currentPage < _totalPages;
+  int get totalCount => _totalCount;
+
   List<Project> _filteredProjects = [];
   List<Project> get filteredProjects => _filteredProjects;
 
@@ -29,13 +37,16 @@ class ProjectController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await ApiClient.get(ApiEndpoints.baseUrl + ApiEndpoints.projects);
+      final response = await ApiClient.get('${ApiEndpoints.baseUrl}${ApiEndpoints.projects}?page=1&page_size=25');
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200 && data['status'] == true) {
-        final List<dynamic> projectList = data['data'];
+        final List<dynamic> projectList = data['data'] ?? [];
         _projects = projectList.map((json) => Project.fromJson(json)).toList();
         _filteredProjects = List.from(_projects);
+        _currentPage = data['page'] ?? 1;
+        _totalPages = data['total_pages'] ?? 1;
+        _totalCount = data['count'] ?? _projects.length;
         _selectedProjectIds.clear();
       } else {
         _errorMessage = data['message'] ?? 'Failed to fetch projects';
@@ -44,6 +55,31 @@ class ProjectController extends ChangeNotifier {
       _errorMessage = 'An error occurred: $e';
     } finally {
       _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> loadMoreProjects() async {
+    if (_isLoading || _isLoadingMore || !hasMore) return;
+    _isLoadingMore = true;
+    notifyListeners();
+    try {
+      final response = await ApiClient.get(
+        '${ApiEndpoints.baseUrl}${ApiEndpoints.projects}?page=${_currentPage + 1}&page_size=25',
+      );
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200 && data['status'] == true) {
+        final next = ((data['data'] as List?) ?? []).map((json) => Project.fromJson(json)).toList();
+        _projects = [..._projects, ...next];
+        _applyFilters(notify: false);
+        _currentPage = data['page'] ?? _currentPage + 1;
+        _totalPages = data['total_pages'] ?? _totalPages;
+        _totalCount = data['count'] ?? _totalCount;
+      }
+    } catch (_) {
+      // Keep already-rendered projects visible if a later page fails.
+    } finally {
+      _isLoadingMore = false;
       notifyListeners();
     }
   }
@@ -263,7 +299,7 @@ class ProjectController extends ChangeNotifier {
     _applyFilters();
   }
 
-  void _applyFilters() {
+  void _applyFilters({bool notify = true}) {
     _filteredProjects = _projects.where((project) {
       bool matchesClient = true;
       if (_activeClientFilter != null) {
@@ -278,7 +314,7 @@ class ProjectController extends ChangeNotifier {
       }
       return true;
     }).toList();
-    notifyListeners();
+    if (notify) notifyListeners();
   }
 
   void toggleSelection(int id) {

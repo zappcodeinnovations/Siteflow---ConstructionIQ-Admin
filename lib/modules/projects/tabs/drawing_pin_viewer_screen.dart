@@ -125,7 +125,7 @@ class _DrawingPinViewerScreenState extends State<DrawingPinViewerScreen> {
           children: [
             Text(pin['title']?.toString() ?? pin['label']?.toString() ?? 'Pin', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 4),
-            Text(pin['reference_no']?.toString() ?? '', style: TextStyle(color: Colors.grey.shade600)),
+            Text(pin['reference_no']?.toString() ?? '', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
             const SizedBox(height: 12),
             Text("Status: ${pin['status_label'] ?? status}"),
             if (pin['assigned_to_name'] != null) Text("Assigned to: ${pin['assigned_to_name']}"),

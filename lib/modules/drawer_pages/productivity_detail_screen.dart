@@ -56,7 +56,7 @@ class _ProductivityDetailScreenState extends State<ProductivityDetailScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
     final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
-    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
+    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
     final borderColor = isDark ? Colors.white24 : Colors.grey.shade200;
 
     return Scaffold(

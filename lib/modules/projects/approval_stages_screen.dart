@@ -66,24 +66,25 @@ class _ApprovalStagesScreenState extends State<ApprovalStagesScreen> {
   @override
   Widget build(BuildContext context) {
     final stages = widget.controller.stages;
+    final colors = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: Colors.white,
-        iconTheme: const IconThemeData(color: Colors.black87),
-        title: const Text(
+        backgroundColor: colors.surface,
+        iconTheme: IconThemeData(color: colors.onSurface),
+        title: Text(
           "Approval Stages",
           style: TextStyle(
-            color: Color(0xFF0F2C4A),
+            color: colors.onSurface,
             fontSize: 20,
             fontWeight: FontWeight.bold,
           ),
         ),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
-          child: Container(color: Colors.grey.shade200, height: 1),
+          child: Container(color: colors.outlineVariant, height: 1),
         ),
         actions: [
           Padding(
@@ -114,7 +115,7 @@ class _ApprovalStagesScreenState extends State<ApprovalStagesScreen> {
                     children: [
                       Text(
                         "Configure declaration stages and signer access for this project.",
-                        style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                        style: TextStyle(color: colors.onSurfaceVariant, fontSize: 14),
                       ),
                       const SizedBox(height: 16),
                       if (stages.isEmpty)
@@ -123,9 +124,9 @@ class _ApprovalStagesScreenState extends State<ApprovalStagesScreen> {
                             padding: const EdgeInsets.all(32.0),
                             child: Column(
                               children: [
-                                Icon(IconlyLight.document, size: 48, color: Colors.grey.shade300),
+                                Icon(IconlyLight.document, size: 48, color: colors.onSurfaceVariant),
                                 const SizedBox(height: 16),
-                                Text("No approval stages found.", style: TextStyle(color: Colors.grey.shade600)),
+                                Text("No approval stages found.", style: TextStyle(color: colors.onSurfaceVariant)),
                               ],
                             ),
                           ),
@@ -139,9 +140,9 @@ class _ApprovalStagesScreenState extends State<ApprovalStagesScreen> {
                             margin: const EdgeInsets.only(bottom: 12),
                             padding: const EdgeInsets.all(20),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: colors.surface,
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.grey.shade200),
+                              border: Border.all(color: colors.outlineVariant),
                               boxShadow: [
                                 BoxShadow(
                                   color: Colors.black.withOpacity(0.02),
@@ -176,17 +177,17 @@ class _ApprovalStagesScreenState extends State<ApprovalStagesScreen> {
                                     children: [
                                       Text(
                                         stage['title']?.toString() ?? '',
-                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF0F2C4A)),
+                                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: colors.onSurface),
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
                                         stage['declaration']?.toString() ?? '',
-                                        style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                                        style: TextStyle(color: colors.onSurfaceVariant, fontSize: 14),
                                       ),
                                       const SizedBox(height: 12),
                                       Text(
                                         "Users: $signerNames",
-                                        style: TextStyle(color: Colors.grey.shade500, fontSize: 12, fontWeight: FontWeight.w600),
+                                        style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12, fontWeight: FontWeight.w600),
                                       ),
                                     ],
                                   ),
@@ -195,8 +196,8 @@ class _ApprovalStagesScreenState extends State<ApprovalStagesScreen> {
                                   children: [
                                     OutlinedButton(
                                       style: OutlinedButton.styleFrom(
-                                        foregroundColor: Colors.black87,
-                                        side: BorderSide(color: Colors.grey.shade300),
+                                        foregroundColor: colors.onSurface,
+                                        side: BorderSide(color: colors.outline),
                                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                       ),
                                       onPressed: () => _showEditStageDialog(stage),
@@ -205,8 +206,8 @@ class _ApprovalStagesScreenState extends State<ApprovalStagesScreen> {
                                     const SizedBox(width: 8),
                                     OutlinedButton(
                                       style: OutlinedButton.styleFrom(
-                                        foregroundColor: Colors.black87,
-                                        side: BorderSide(color: Colors.grey.shade300),
+                                        foregroundColor: colors.onSurface,
+                                        side: BorderSide(color: colors.outline),
                                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                       ),
                                       onPressed: () => _confirmDelete(stage),

@@ -31,7 +31,7 @@ class _ApprovalsTabState extends State<ApprovalsTab> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
+    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
     final borderColor = isDark ? Colors.white24 : Colors.grey.shade200;
     final textColor = isDark ? Colors.white : Colors.black87;
     final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
@@ -245,7 +245,7 @@ class _ApprovalsTabState extends State<ApprovalsTab> {
 
   Widget _buildInfoCard(BuildContext context, String title, String description) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
+    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
     final borderColor = isDark ? Colors.white24 : Colors.grey.shade200;
     final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
     final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;

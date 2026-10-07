@@ -154,13 +154,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     final isDesktop = MediaQuery.of(context).size.width > 800;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
+    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
     final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
     final subtitleColor = isDark ? Colors.white70 : Colors.grey.shade600;
     final borderColor = isDark ? Colors.white12 : Colors.grey.shade200;
 
     return Scaffold(
-      backgroundColor: isDark ? AppTheme.corporateBlue : const Color(0xFFF8FAFC),
+      backgroundColor: isDark ? AppTheme.darkBackground : const Color(0xFFF8FAFC),
       body: Stack(
         children: [
           Positioned.fill(
@@ -213,7 +213,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 // If not desktop, show a simple app bar to allow navigating back
                 if (!isDesktop)
                   AppBar(
-                    backgroundColor: isDark ? AppTheme.corporateBlue : Colors.white,
+                    backgroundColor: isDark ? AppTheme.darkSurface : Colors.white,
                     elevation: 0,
                     iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black87),
                     leading: IconButton(

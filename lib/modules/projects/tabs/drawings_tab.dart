@@ -28,7 +28,7 @@ class DrawingsTab extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: isDark ? AppTheme.corporateBlue : Colors.white,
+            color: isDark ? AppTheme.darkSurface : Colors.white,
             border: Border(bottom: BorderSide(color: isDark ? Colors.white12 : Colors.grey.shade200)),
           ),
           child: Wrap(
@@ -117,7 +117,7 @@ class DrawingsTab extends StatelessWidget {
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
-          dropdownColor: isDark ? AppTheme.corporateBlue : Colors.white,
+          dropdownColor: isDark ? AppTheme.darkSurface : Colors.white,
           value: null,
           hint: Text(label,
               style: TextStyle(
@@ -144,7 +144,7 @@ class DrawingsTab extends StatelessWidget {
   Widget _buildBlockCard(
       BuildContext context, String blockName, List<dynamic> levels) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
+    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
     final borderColor = isDark ? Colors.white24 : Colors.grey.shade200;
     final textColor = isDark ? Colors.white : Colors.black87;
     final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
@@ -354,7 +354,7 @@ class DrawingsTab extends StatelessWidget {
         context: context,
         builder: (context) {
           return AlertDialog(
-            backgroundColor: isDark ? AppTheme.corporateBlue : Colors.white,
+            backgroundColor: isDark ? AppTheme.darkSurface : Colors.white,
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             title: Text("Add Block & Levels",

@@ -305,7 +305,7 @@ class _AdminAnnouncementsViewState extends State<AdminAnnouncementsView> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardColor = isDark ? const Color(0xFF1F2E40) : Colors.white;
-    final headerBg = isDark ? AppTheme.corporateBlue : Colors.white;
+    final headerBg = isDark ? AppTheme.darkSurface : Colors.white;
     final headerTitle = isDark ? Colors.white : const Color(0xFF0F2C4A);
     final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
     final subtitleColor = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
@@ -313,7 +313,7 @@ class _AdminAnnouncementsViewState extends State<AdminAnnouncementsView> {
     final searchFillColor = isDark ? const Color(0xFF152232) : Colors.grey.shade50;
 
     return Scaffold(
-      backgroundColor: isDark ? AppTheme.corporateBlue : const Color(0xFFF8FAFC),
+      backgroundColor: isDark ? AppTheme.darkBackground : const Color(0xFFF8FAFC),
       body: AnimatedBuilder(
         animation: _controller,
         builder: (context, _) {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'dart:io';
+import 'package:flutter/services.dart';
 import '../../core/network/api_client.dart';
 import '../../core/network/api_endpoints.dart';
 import 'job_sheet_controller.dart';
@@ -29,6 +30,21 @@ class JobSheetScreen extends StatefulWidget {
 
 class _JobSheetScreenState extends State<JobSheetScreen> {
   final JobSheetController _controller = JobSheetController();
+  static const MethodChannel _downloadsChannel = MethodChannel(
+    'com.euroside.siteflow_admin/downloads',
+  );
+
+  Future<String?> _savePdfToDownloads(List<int> bytes, String fileName) async {
+    if (!Platform.isAndroid) return null;
+    try {
+      return await _downloadsChannel.invokeMethod<String>('savePdf', {
+        'bytes': bytes,
+        'fileName': fileName,
+      });
+    } on PlatformException {
+      return null;
+    }
+  }
 
   @override
   void initState() {
@@ -214,7 +230,20 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
 
           if (mounted) {
             ScaffoldMessenger.of(context).hideCurrentSnackBar();
-            await Share.shareXFiles([XFile(file.path)], text: 'Project PDF: ${widget.title}');
+            final savedLocation = await _savePdfToDownloads(
+              response.bodyBytes,
+              'project_pdf_$projName.pdf',
+            );
+            if (!mounted) return;
+            if (savedLocation != null) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Project PDF saved in Downloads/Euroside')),
+              );
+            } else {
+              // iOS/desktop and older Android versions use the system save
+              // sheet when public Downloads storage is unavailable.
+              await Share.shareXFiles([XFile(file.path)], text: 'Project PDF: ${widget.title}');
+            }
           }
           return;
         }
@@ -311,7 +340,7 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
             return Container(
               height: MediaQuery.of(context).size.height * 0.75,
               decoration: BoxDecoration(
-                color: isDark ? AppTheme.corporateBlue : Colors.white,
+                color: isDark ? AppTheme.darkSurface : Colors.white,
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
                 boxShadow: [
                   BoxShadow(
@@ -555,7 +584,7 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: isDark ? AppTheme.corporateBlue : Colors.white,
+                      color: isDark ? AppTheme.darkSurface : Colors.white,
                       border: Border(
                         top: BorderSide(color: isDark ? Colors.white12 : Colors.grey.shade200),
                       ),
@@ -650,7 +679,7 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
         return Container(
           padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
           decoration: BoxDecoration(
-            color: isDark ? AppTheme.corporateBlue : Colors.white,
+            color: isDark ? AppTheme.darkSurface : Colors.white,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
             boxShadow: [
               BoxShadow(
@@ -854,14 +883,14 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? AppTheme.corporateBlue : const Color(0xFFF8FAFC);
+    final bgColor = isDark ? AppTheme.darkBackground : const Color(0xFFF8FAFC);
 
     return Scaffold(
       backgroundColor: bgColor,
       appBar: AppBar(
         elevation: 0,
         iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black87),
-        backgroundColor: isDark ? AppTheme.corporateBlue : Colors.white,
+        backgroundColor: isDark ? AppTheme.darkSurface : Colors.white,
         title: Text(
           widget.title,
           style: TextStyle(
@@ -887,7 +916,7 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: isDark ? AppTheme.corporateBlue : Colors.white,
+                color: isDark ? AppTheme.darkSurface : Colors.white,
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade200),
                 boxShadow: [
@@ -971,7 +1000,7 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
                                       : 'Status: All';
 
                                   return DropdownButton<String>(
-                                    dropdownColor: isDark ? AppTheme.corporateBlue : Colors.white,
+                                    dropdownColor: isDark ? AppTheme.darkSurface : Colors.white,
                                     value: currentVal,
                                     style: TextStyle(color: isDark ? Colors.white : Colors.black87),
                                     items: statusList
@@ -1156,7 +1185,7 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
                       final isCompleted = sheet.statusLabel.toLowerCase().contains("completed") || sheet.status.toLowerCase().contains("completed");
                       
                       final isDark = Theme.of(context).brightness == Brightness.dark;
-                      final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
+                      final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
                       final borderColor = isDark ? Colors.white24 : Colors.grey.shade200;
                       final textColor = isDark ? Colors.white : Colors.black87;
                       final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;

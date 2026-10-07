@@ -129,7 +129,7 @@ class _DetailsSectionState extends State<_DetailsSection> {
           TextField(controller: _nameController, decoration: const InputDecoration(labelText: "Name", border: OutlineInputBorder())),
           const SizedBox(height: 16),
           Text("Group: ${widget.controller.material?['material_group']?.toString() ?? ''} · Type: ${widget.controller.material?['input_type_label']?.toString() ?? ''}",
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13)),
           const SizedBox(height: 16),
           TextField(controller: _manufacturerController, decoration: const InputDecoration(labelText: "Manufacturer", border: OutlineInputBorder())),
           const SizedBox(height: 16),

@@ -70,7 +70,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? AppTheme.corporateBlue : const Color(0xffF5F7FB);
+    final bgColor = isDark ? AppTheme.darkBackground : const Color(0xffF5F7FB);
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -228,7 +228,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                             color: isDark ? Colors.white24 : Colors.grey.shade200,
                           ),
                         ),
-                        backgroundColor: isDark ? const Color(0xFF162A42) : Colors.white,
+                        backgroundColor: isDark ? AppTheme.darkSurfaceRaised : Colors.white,
                       ),
                     ),
                   ),
@@ -358,11 +358,12 @@ class DashboardHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
-        color: const Color(0xff0F2C59),
+        color: isDark ? AppTheme.darkSurfaceRaised : const Color(0xff0F2C59),
         borderRadius: BorderRadius.circular(16),
         boxShadow: const [
           BoxShadow(
@@ -538,6 +539,12 @@ class ProjectProgressChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colors = Theme.of(context).colorScheme;
+    final panelColor = isDark ? AppTheme.darkSurfaceRaised : Colors.white;
+    final textColor = colors.onSurface;
+    final mutedColor = colors.onSurfaceVariant;
+    final gridColor = isDark ? AppTheme.darkBorder.withValues(alpha: 0.7) : Colors.grey.withValues(alpha: 0.1);
     final completed = (kpis?.tasks['completed'] ?? 0).toDouble();
     final inProgress = (kpis?.tasks['in_progress'] ?? 0).toDouble();
     final totalTasks = (kpis?.tasks['total'] ?? 0).toDouble();
@@ -552,9 +559,9 @@ class ProjectProgressChart extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: panelColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.withOpacity(0.1)),
+        border: Border.all(color: isDark ? AppTheme.darkBorder : Colors.grey.withValues(alpha: 0.1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -566,15 +573,15 @@ class ProjectProgressChart extends StatelessWidget {
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
+                  children: [
                     Text(
                       "Project Progress",
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor),
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Text(
                       "Portfolio completion statistics and task movement",
-                      style: TextStyle(color: Colors.grey, fontSize: 13),
+                      style: TextStyle(color: mutedColor, fontSize: 13),
                     ),
                   ],
                 ),
@@ -640,21 +647,21 @@ class ProjectProgressChart extends StatelessWidget {
                       interval: 1,
                       reservedSize: 28,
                       getTitlesWidget: (double value, TitleMeta meta) {
-                        const style = TextStyle(
-                          color: Colors.grey,
+                        final style = TextStyle(
+                          color: mutedColor,
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                         );
                         Widget text;
                         switch (value.toInt()) {
                           case 0:
-                            text = const Text('Pending', style: style, textAlign: TextAlign.center);
+                            text = Text('Pending', style: style, textAlign: TextAlign.center);
                             break;
                           case 1:
-                            text = const Text('In Progress', style: style, textAlign: TextAlign.center);
+                            text = Text('In Progress', style: style, textAlign: TextAlign.center);
                             break;
                           case 2:
-                            text = const Text('Completed', style: style, textAlign: TextAlign.center);
+                            text = Text('Completed', style: style, textAlign: TextAlign.center);
                             break;
                           default:
                             return const SizedBox.shrink();
@@ -677,8 +684,8 @@ class ProjectProgressChart extends StatelessWidget {
                           padding: const EdgeInsets.only(right: 6),
                           child: Text(
                             value.toInt().toString(),
-                            style: const TextStyle(
-                              color: Colors.grey,
+                            style: TextStyle(
+                              color: mutedColor,
                               fontSize: 12,
                             ),
                             textAlign: TextAlign.right,
@@ -699,7 +706,7 @@ class ProjectProgressChart extends StatelessWidget {
                   drawVerticalLine: false,
                   horizontalInterval: interval,
                   getDrawingHorizontalLine: (value) => FlLine(
-                    color: Colors.grey.withOpacity(0.1),
+                    color: gridColor,
                     strokeWidth: 1,
                   ),
                 ),
@@ -754,6 +761,12 @@ class AttendanceTrendChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colors = Theme.of(context).colorScheme;
+    final panelColor = isDark ? AppTheme.darkSurfaceRaised : Colors.white;
+    final textColor = colors.onSurface;
+    final mutedColor = colors.onSurfaceVariant;
+    final gridColor = isDark ? AppTheme.darkBorder.withValues(alpha: 0.7) : Colors.grey.withValues(alpha: 0.1);
     final clockedInToday = (kpis?.attendance['clocked_in_today'] ?? 0).toDouble();
     final notClockedOutToday = (kpis?.attendance['not_clocked_out'] ?? 0).toDouble();
 
@@ -793,9 +806,9 @@ class AttendanceTrendChart extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: panelColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.withOpacity(0.1)),
+        border: Border.all(color: isDark ? AppTheme.darkBorder : Colors.grey.withValues(alpha: 0.1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -807,15 +820,15 @@ class AttendanceTrendChart extends StatelessWidget {
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
+                  children: [
                     Text(
                       "Attendance Trend",
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor),
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Text(
                       "Clock-in coverage for current operations",
-                      style: TextStyle(color: Colors.grey, fontSize: 13),
+                      style: TextStyle(color: mutedColor, fontSize: 13),
                     ),
                   ],
                 ),
@@ -888,7 +901,7 @@ class AttendanceTrendChart extends StatelessWidget {
                   drawVerticalLine: false,
                   horizontalInterval: yInterval,
                   getDrawingHorizontalLine: (value) => FlLine(
-                    color: Colors.grey.withOpacity(0.1),
+                    color: gridColor,
                     strokeWidth: 1,
                   ),
                 ),
@@ -907,8 +920,8 @@ class AttendanceTrendChart extends StatelessWidget {
                             padding: const EdgeInsets.only(top: 8.0),
                             child: Text(
                               days[idx],
-                              style: const TextStyle(
-                                color: Colors.grey,
+                              style: TextStyle(
+                                color: mutedColor,
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -930,8 +943,8 @@ class AttendanceTrendChart extends StatelessWidget {
                           padding: const EdgeInsets.only(right: 6),
                           child: Text(
                             value.toInt().toString(),
-                            style: const TextStyle(
-                              color: Colors.grey,
+                            style: TextStyle(
+                              color: mutedColor,
                               fontSize: 12,
                             ),
                             textAlign: TextAlign.right,
@@ -987,9 +1000,9 @@ class AttendanceTrendChart extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 6),
-              const Text(
+              Text(
                 "Clocked In",
-                style: TextStyle(fontSize: 12, color: Colors.grey),
+                style: TextStyle(fontSize: 12, color: mutedColor),
               ),
               const SizedBox(width: 16),
               Container(
@@ -1001,9 +1014,9 @@ class AttendanceTrendChart extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 6),
-              const Text(
+              Text(
                 "Exceptions",
-                style: TextStyle(fontSize: 12, color: Colors.grey),
+                style: TextStyle(fontSize: 12, color: mutedColor),
               ),
             ],
           ),
@@ -1021,8 +1034,8 @@ class RecentProjectsList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
-    final borderColor = isDark ? Colors.white24 : Colors.grey.withOpacity(0.1);
+    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
+    final borderColor = isDark ? AppTheme.darkBorder : Colors.grey.withOpacity(0.1);
     final textColor = isDark ? Colors.white : Colors.black87;
     final displayProjects = projects.take(5).toList();
 
@@ -1169,7 +1182,7 @@ class RecentTasksList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
+    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
     final borderColor = isDark ? Colors.white24 : Colors.grey.withOpacity(0.1);
     final textColor = isDark ? Colors.white : Colors.black87;
 
@@ -1253,7 +1266,7 @@ class RecentJobSheetsList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
+    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
     final borderColor = isDark ? Colors.white24 : Colors.grey.withOpacity(0.1);
     final textColor = isDark ? Colors.white : Colors.black87;
 

@@ -106,7 +106,7 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              backgroundColor: isDark ? AppTheme.corporateBlue : Colors.white,
+              backgroundColor: isDark ? AppTheme.darkSurface : Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               title: Text(
                 "New Folder",
@@ -474,7 +474,7 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
 
   Widget _buildFolderCard(BuildContext context, Map<String, dynamic> folder) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
+    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
     final borderColor = isDark ? Colors.white24 : Colors.grey.shade200;
     final textColor = isDark ? Colors.white : Colors.black87;
 

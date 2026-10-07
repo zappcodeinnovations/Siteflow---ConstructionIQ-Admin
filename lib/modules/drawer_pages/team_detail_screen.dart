@@ -195,12 +195,12 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
+    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
     final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
     final subtitleColor = isDark ? Colors.white70 : Colors.grey.shade600;
 
     return Scaffold(
-      backgroundColor: isDark ? AppTheme.corporateBlue : const Color(0xFFF8FAFC),
+      backgroundColor: isDark ? AppTheme.darkBackground : const Color(0xFFF8FAFC),
       appBar: AppBar(
         title: Text(_data?['display_name']?.toString() ?? 'Team Details'),
         actions: [

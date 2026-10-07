@@ -2,6 +2,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../core/theme/app_theme.dart';
 import 'specification_controller.dart';
 
 class SpecificationDetailScreen extends StatefulWidget {
@@ -40,13 +41,21 @@ class _SpecificationDetailScreenState extends State<SpecificationDetailScreen> w
   @override
   Widget build(BuildContext context) {
     final spec = _controller.spec;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colors = Theme.of(context).colorScheme;
 
     return Scaffold(
+      backgroundColor: colors.surface,
       appBar: AppBar(
+        backgroundColor: isDark ? AppTheme.darkSurface : AppTheme.corporateBlue,
+        foregroundColor: Colors.white,
         title: Text(spec?['name']?.toString() ?? 'Specification'),
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          indicatorColor: Colors.white,
           tabs: const [
             Tab(text: "Details"),
             Tab(text: "Attributes"),

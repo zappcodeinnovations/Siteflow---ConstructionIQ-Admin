@@ -441,7 +441,7 @@ class _ProjectSetupTabState extends State<ProjectSetupTab> {
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
-              dropdownColor: isDark ? AppTheme.corporateBlue : Colors.white,
+              dropdownColor: isDark ? AppTheme.darkSurface : Colors.white,
               isExpanded: true,
               value: _selectedTeamId,
               hint: Text("Select a team", style: TextStyle(color: labelColor)),
@@ -550,7 +550,7 @@ class _ProjectSetupTabState extends State<ProjectSetupTab> {
     required List<Widget> children,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
+    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
     final borderColor = isDark ? Colors.white24 : Colors.grey.shade200;
     final textColor = isDark ? Colors.white : Colors.black87;
 
@@ -703,7 +703,7 @@ class _ProjectSetupTabState extends State<ProjectSetupTab> {
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
-              dropdownColor: isDark ? AppTheme.corporateBlue : Colors.white,
+              dropdownColor: isDark ? AppTheme.darkSurface : Colors.white,
               isExpanded: true,
               value:
                   options.any(

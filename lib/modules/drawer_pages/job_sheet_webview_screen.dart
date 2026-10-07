@@ -249,7 +249,7 @@ Page resource error:
       backgroundColor: isDark ? const Color(0xFF0A192F) : const Color(0xFFF8FAFC),
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: isDark ? AppTheme.corporateBlue : Colors.white,
+        backgroundColor: isDark ? AppTheme.darkSurface : Colors.white,
         iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black87),
         title: Text(
           widget.title,
