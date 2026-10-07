@@ -422,27 +422,35 @@ class _AdminActivityLogsViewState extends State<AdminActivityLogsView> {
                                     value: "",
                                     child: Text("All managers"),
                                   ),
-                                  ...((_controller.filterOptions['users'] ??
-                                          _controller.filterOptions['managers'])
-                                          as List? ??
-                                      [])
-                                      .map(
-                                        (u) => DropdownMenuItem<String>(
-                                          value: u['id'].toString(),
-                                          child: Text(
-                                            u['display_name'] ??
-                                                u['name'] ??
-                                                u['email'] ??
-                                                'Unknown',
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
+                                  ..._controller.availableManagers.map(
+                                    (u) {
+                                      final name = (u['display_name'] ??
+                                              u['name'] ??
+                                              '')
+                                          .toString()
+                                          .trim();
+                                      final email =
+                                          (u['email'] ?? '').toString().trim();
+                                      final label = name.isNotEmpty
+                                          ? name
+                                          : (email.isNotEmpty
+                                              ? email
+                                              : 'Unknown');
+                                      return DropdownMenuItem<String>(
+                                        value: u['id'].toString(),
+                                        child: Text(
+                                          label,
+                                          overflow: TextOverflow.ellipsis,
                                         ),
-                                      ),
+                                      );
+                                    },
+                                  ),
                                 ],
                                 onChanged: (val) => setState(() =>
-                                    _selectedManager = (val != null && val.isNotEmpty)
-                                        ? val
-                                        : null),
+                                    _selectedManager =
+                                        (val != null && val.isNotEmpty)
+                                            ? val
+                                            : null),
                               ),
                               _buildModernDropdown(
                                 width: isMobile ? double.infinity : 150,
