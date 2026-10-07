@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'admin_support_controller.dart';
 import 'create_ticket_dialog.dart';
 import 'ticket_details_view.dart';
-import '../../../core/widgets/shimmer_loading.dart';
+import '../../../core/utils/date_helper.dart';
 import '../../../core/theme/app_theme.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:iconly/iconly.dart';
@@ -265,7 +265,7 @@ class _AdminSupportViewState extends State<AdminSupportView> {
               ),
               const SizedBox(width: 4),
               Text(
-                "Updated: ${ticket.lastMessageAt.split('T').first}",
+                "Updated: ${DateHelper.formatDate(ticket.lastMessageAt)}",
                 style: TextStyle(color: subtitleColor, fontSize: 12),
               ),
             ],

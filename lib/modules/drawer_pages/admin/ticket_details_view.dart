@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
 import 'admin_support_controller.dart';
 import '../../../../models/admin_support_model.dart';
-import '../../../core/widgets/shimmer_loading.dart';
+import '../../../core/utils/date_helper.dart';
 
 class TicketDetailsView extends StatefulWidget {
   final AdminSupportController controller;
@@ -27,6 +27,15 @@ class _TicketDetailsViewState extends State<TicketDetailsView> {
   void dispose() {
     _replyController.dispose();
     super.dispose();
+  }
+
+  String _formatTimestamp(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return '';
+    final trimmed = raw.trim();
+    if (RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(trimmed)) {
+      return DateHelper.formatDate(trimmed);
+    }
+    return DateHelper.formatToLocal(trimmed, includeTime: true);
   }
 
   Future<void> _sendReply() async {
@@ -70,10 +79,10 @@ class _TicketDetailsViewState extends State<TicketDetailsView> {
     Color fg = isDark ? Colors.white70 : Colors.grey.shade700;
     
     if (statusKey == 'open' || statusKey == 'in_progress') {
-      bg = isDark ? const Color(0xFF1E3A8A).withOpacity(0.5) : Colors.blue.shade50;
+      bg = isDark ? const Color(0xFF1E3A8A).withValues(alpha: 0.5) : Colors.blue.shade50;
       fg = isDark ? Colors.lightBlueAccent : Colors.blue.shade700;
     } else if (statusKey == 'resolved' || statusKey == 'closed') {
-      bg = isDark ? const Color(0xFF065F46).withOpacity(0.5) : Colors.green.shade50;
+      bg = isDark ? const Color(0xFF065F46).withValues(alpha: 0.5) : Colors.green.shade50;
       fg = isDark ? Colors.greenAccent : Colors.green.shade700;
     }
 
@@ -94,7 +103,7 @@ class _TicketDetailsViewState extends State<TicketDetailsView> {
         children: [
           CircleAvatar(
             backgroundColor: isSupport
-                ? (isDark ? const Color(0xFF1E3A8A).withOpacity(0.5) : Colors.blue.shade100)
+                ? (isDark ? const Color(0xFF1E3A8A).withValues(alpha: 0.5) : Colors.blue.shade100)
                 : (isDark ? const Color(0xFF162A42) : Colors.grey.shade200),
             child: Icon(
               isSupport ? IconlyLight.user_1 : IconlyLight.profile,
@@ -110,7 +119,13 @@ class _TicketDetailsViewState extends State<TicketDetailsView> {
                   children: [
                     Text(msg.senderName, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: isDark ? Colors.white : Colors.black87)),
                     const SizedBox(width: 8),
-                    Text(msg.createdAt.split('T').first, style: TextStyle(color: isDark ? Colors.white60 : Colors.grey.shade500, fontSize: 12)),
+                    Text(
+                      _formatTimestamp(msg.createdAt),
+                      style: TextStyle(
+                        color: isDark ? Colors.white60 : Colors.grey.shade500,
+                        fontSize: 12,
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -122,7 +137,7 @@ class _TicketDetailsViewState extends State<TicketDetailsView> {
                         : (isDark ? const Color(0xFF0F2C4A) : Colors.white),
                     border: Border.all(
                       color: isSupport
-                          ? (isDark ? Colors.blue.withOpacity(0.3) : Colors.blue.shade100)
+                          ? (isDark ? Colors.blue.withValues(alpha: 0.3) : Colors.blue.shade100)
                           : (isDark ? Colors.white12 : Colors.grey.shade300),
                     ),
                     borderRadius: BorderRadius.circular(12),
@@ -249,7 +264,7 @@ class _TicketDetailsViewState extends State<TicketDetailsView> {
                   decoration: BoxDecoration(
                     color: isDark ? const Color(0xFF0F2C4A) : Colors.white,
                     border: Border(top: BorderSide(color: isDark ? Colors.white12 : Colors.grey.shade200)),
-                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(isDark ? 0.2 : 0.05), blurRadius: 10, offset: const Offset(0, -4))],
+                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05), blurRadius: 10, offset: const Offset(0, -4))],
                   ),
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                   child: Center(
