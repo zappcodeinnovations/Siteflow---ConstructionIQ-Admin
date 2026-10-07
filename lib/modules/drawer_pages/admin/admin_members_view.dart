@@ -395,8 +395,7 @@ class _AdminMembersViewState extends State<AdminMembersView> {
               )
               .toList();
 
-          final totalMembers =
-              _controller.members.length; // Uses actual fetched count
+          final totalMembers = _controller.totalCount;
 
           return Column(
             children: [
@@ -496,7 +495,12 @@ class _AdminMembersViewState extends State<AdminMembersView> {
               // Members List
               Expanded(
                 child: _controller.isLoading && _controller.members.isEmpty
-                    ? const ShimmerLoadingList()
+                    ? const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(48.0),
+                          child: CircularProgressIndicator(),
+                        ),
+                      )
                     : _controller.errorMessage != null &&
                           _controller.members.isEmpty
                     ? Center(

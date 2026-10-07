@@ -33,11 +33,18 @@ class _JobSheetWebviewScreenState extends State<JobSheetWebviewScreen> {
             setState(() {
               _isLoading = true;
             });
+            _injectAutoFitScript();
           },
-          onPageFinished: (String url) {
+          onProgress: (int progress) {
+            if (progress > 60) {
+              _injectAutoFitScript();
+            }
+          },
+          onPageFinished: (String url) async {
             setState(() {
               _isLoading = false;
             });
+            await _injectAutoFitScript();
           },
           onWebResourceError: (WebResourceError error) {
             debugPrint('''
@@ -52,6 +59,177 @@ Page resource error:
       );
       
     _loadUrlWithAuth();
+  }
+
+  Future<void> _injectAutoFitScript() async {
+    const script = r"""
+(function() {
+  function fitFormToScreen() {
+    // 1. Set standard responsive viewport meta
+    var meta = document.querySelector('meta[name="viewport"]');
+    if (!meta) {
+      meta = document.createElement('meta');
+      meta.name = 'viewport';
+      document.head.appendChild(meta);
+    }
+    meta.setAttribute('content', 'width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=3.0, user-scalable=yes');
+
+    // 2. Remove old conflicting styles
+    var oldStyle = document.getElementById('siteflow-form-fit-style');
+    if (oldStyle) oldStyle.remove();
+    var oldLock = document.getElementById('siteflow-form-lock-style');
+    if (oldLock) oldLock.remove();
+    var oldAutofit = document.getElementById('siteflow-autofit-style');
+    if (oldAutofit) oldAutofit.remove();
+
+    // 3. Inject responsive styles so the form card fits the mobile screen edge-to-edge
+    var style = document.createElement('style');
+    style.id = 'siteflow-form-fit-style';
+    style.innerHTML = `
+      * {
+        box-sizing: border-box !important;
+      }
+      html {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background-color: #f8fafc !important;
+        overflow-x: hidden !important;
+      }
+      body {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        margin: 0 auto !important;
+        padding: 12px !important;
+        background-color: #f8fafc !important;
+        overflow-x: hidden !important;
+        -webkit-text-size-adjust: 100% !important;
+      }
+      .form-container, .container, .page, .card, form, table, .sheet-container, .sheet-card, .wrapper, main, [class*="container"], [class*="card"] {
+        max-width: 100% !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08) !important;
+        border-radius: 12px !important;
+      }
+      table {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        table-layout: auto !important;
+        word-break: break-word !important;
+      }
+      td, th {
+        word-break: break-word !important;
+      }
+      img {
+        max-width: 100% !important;
+        height: auto !important;
+      }
+    `;
+    document.head.appendChild(style);
+
+    // 4. Clean up any inline min-widths or fixed widths on DOM elements
+    var screenW = window.innerWidth || document.documentElement.clientWidth || 360;
+    var allElements = document.querySelectorAll('*');
+    for (var i = 0; i < allElements.length; i++) {
+      var el = allElements[i];
+      if (el.style) {
+        if (el.style.minWidth && parseInt(el.style.minWidth) > screenW) {
+          el.style.minWidth = '100%';
+        }
+        if (el.style.width && parseInt(el.style.width) > screenW) {
+          el.style.width = '100%';
+        }
+      }
+    }
+  }
+
+  function formatDateTimestamps() {
+    var isoRegex = /^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?$/;
+    var isoDateOnlyRegex = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+    function formatValue(val) {
+      if (!val || typeof val !== 'string') return null;
+      var trimmed = val.trim();
+      var m = trimmed.match(isoRegex);
+      if (m) {
+        return m[3] + '/' + m[2] + '/' + m[1] + ' ' + m[4] + ':' + m[5];
+      }
+      var mDate = trimmed.match(isoDateOnlyRegex);
+      if (mDate) {
+        return mDate[3] + '/' + mDate[2] + '/' + mDate[1];
+      }
+      return null;
+    }
+
+    // Format all leaf DOM elements (table cells, divs, spans, p, labels)
+    var nodes = document.querySelectorAll('td, th, span, div, p, li, label, strong, em, b, i');
+    for (var i = 0; i < nodes.length; i++) {
+      var node = nodes[i];
+      if (node.children.length === 0 && node.textContent) {
+        var formatted = formatValue(node.textContent);
+        if (formatted) {
+          node.textContent = formatted;
+        }
+      }
+    }
+
+    // Format input and textarea values
+    var inputs = document.querySelectorAll('input, textarea');
+    for (var j = 0; j < inputs.length; j++) {
+      var inp = inputs[j];
+      if (inp.value) {
+        var formattedVal = formatValue(inp.value);
+        if (formattedVal) {
+          inp.value = formattedVal;
+        }
+      }
+    }
+
+    // Format embedded timestamps within text nodes
+    var walk = document.createTreeWalker(document.body || document.documentElement, NodeFilter.SHOW_TEXT, null, false);
+    var textNode;
+    while ((textNode = walk.nextNode())) {
+      if (textNode.nodeValue && textNode.nodeValue.indexOf('202') !== -1) {
+        textNode.nodeValue = textNode.nodeValue.replace(
+          /\b(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?\b/g,
+          function(match, y, m, d, hh, mm) {
+            return d + '/' + m + '/' + y + ' ' + hh + ':' + mm;
+          }
+        );
+      }
+    }
+  }
+
+  function applyEnhancements() {
+    fitFormToScreen();
+    formatDateTimestamps();
+  }
+
+  applyEnhancements();
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', applyEnhancements);
+  }
+  window.addEventListener('load', applyEnhancements);
+  setTimeout(applyEnhancements, 100);
+  setTimeout(applyEnhancements, 300);
+  setTimeout(applyEnhancements, 600);
+  setTimeout(applyEnhancements, 1200);
+  window.addEventListener('resize', applyEnhancements);
+})();
+""";
+    try {
+      await _controller.runJavaScript(script);
+    } catch (e) {
+      debugPrint("Error injecting scale form script: $e");
+    }
   }
 
   Future<void> _loadUrlWithAuth() async {

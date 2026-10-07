@@ -1,13 +1,20 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:iconly/iconly.dart';
+import '../../../../core/network/api_client.dart';
+import '../../../../core/network/api_endpoints.dart';
 import '../../../../models/announcement_model.dart';
+import '../../../../models/project_model.dart';
 import 'admin_announcements_controller.dart';
 
 class EditAnnouncementDialog extends StatefulWidget {
   final Announcement announcement;
   final AdminAnnouncementsController controller;
-  
-  const EditAnnouncementDialog({super.key, required this.announcement, required this.controller});
+
+  const EditAnnouncementDialog({
+    super.key,
+    required this.announcement,
+    required this.controller,
+  });
 
   @override
   State<EditAnnouncementDialog> createState() => _EditAnnouncementDialogState();
@@ -17,15 +24,24 @@ class _EditAnnouncementDialogState extends State<EditAnnouncementDialog> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _titleController;
   late TextEditingController _messageController;
+  late int? _selectedProjectId;
   late bool _isActive;
-  bool _isLoading = false;
+
+  bool _isLoadingProjects = false;
+  bool _isSubmitting = false;
+  List<Project> _projects = [];
 
   @override
   void initState() {
     super.initState();
     _titleController = TextEditingController(text: widget.announcement.title);
     _messageController = TextEditingController(text: widget.announcement.message);
+    _selectedProjectId = widget.announcement.projectId != 0 ? widget.announcement.projectId : null;
     _isActive = widget.announcement.isActive;
+    _fetchProjects();
+    _messageController.addListener(() {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
@@ -35,24 +51,59 @@ class _EditAnnouncementDialogState extends State<EditAnnouncementDialog> {
     super.dispose();
   }
 
+  int _countWords(String text) {
+    if (text.trim().isEmpty) return 0;
+    return text.trim().split(RegExp(r'\s+')).length;
+  }
+
+  Future<void> _fetchProjects() async {
+    setState(() => _isLoadingProjects = true);
+    try {
+      final response = await ApiClient.get(ApiEndpoints.baseUrl + ApiEndpoints.projects);
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200 && data['status'] == true) {
+        final List<dynamic> list = data['data'] ?? [];
+        setState(() {
+          _projects = list.map((json) => Project.fromJson(json)).toList();
+        });
+      }
+    } catch (e) {
+      debugPrint("Error fetching projects for edit announcement: $e");
+    } finally {
+      if (mounted) setState(() => _isLoadingProjects = false);
+    }
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _isLoading = true);
+    final wordCount = _countWords(_messageController.text);
+    if (wordCount > 250) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Message exceeds the 250 words limit."),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
 
     final payload = {
       "title": _titleController.text.trim(),
       "message": _messageController.text.trim(),
       "is_active": _isActive,
+      if (_selectedProjectId != null) "project_id": _selectedProjectId,
     };
 
     final result = await widget.controller.updateAnnouncement(widget.announcement.id, payload);
 
     if (mounted) {
-      setState(() => _isLoading = false);
+      setState(() => _isSubmitting = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(result['message']),
+          content: Text(result['message'] ?? 'Action completed.'),
           backgroundColor: result['success'] == true ? Colors.green : Colors.red,
         ),
       );
@@ -64,77 +115,309 @@ class _EditAnnouncementDialogState extends State<EditAnnouncementDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? const Color(0xFF1F2E40) : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
+    final secondaryTextColor = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+    final borderColor = isDark ? const Color(0xFF2C3E50) : Colors.grey.shade300;
+    final inputBg = isDark ? const Color(0xFF152232) : Colors.grey.shade50;
+
+    final wordCount = _countWords(_messageController.text);
+
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
       child: Container(
-        width: 450,
-        padding: const EdgeInsets.all(24),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
+        constraints: const BoxConstraints(maxWidth: 480, maxHeight: 720),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: borderColor),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.1),
+              blurRadius: 24,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Header
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 12, 12),
+              child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text("Edit Announcement", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF0F2C4A))),
+                  Text(
+                    "Edit Announcement",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: textColor,
+                    ),
+                  ),
                   IconButton(
-                    icon: const Icon(IconlyLight.close_square, color: Colors.grey),
+                    icon: const Icon(Icons.close, size: 20),
+                    color: textColor.withValues(alpha: 0.7),
+                    splashRadius: 18,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
               ),
-              const Divider(),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _titleController,
-                decoration: _buildInputDecoration("Announcement Title", IconlyLight.document),
-                validator: (val) => val == null || val.isEmpty ? "Required" : null,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _messageController,
-                maxLines: 4,
-                decoration: _buildInputDecoration("Message", IconlyLight.message),
-                validator: (val) => val == null || val.isEmpty ? "Required" : null,
-              ),
-              const SizedBox(height: 16),
-              SwitchListTile(
-                title: const Text("Is Active", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87)),
-                subtitle: const Text("Make this announcement visible immediately", style: TextStyle(color: Colors.grey, fontSize: 12)),
-                value: _isActive,
-                activeColor: Colors.green,
-                contentPadding: EdgeInsets.zero,
-                onChanged: (val) => setState(() => _isActive = val),
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0D6EFD),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            Divider(color: isDark ? Colors.white12 : Colors.grey.shade200, height: 1),
+
+            // Scrollable Content
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // 1. * Project
+                      _buildFieldLabel("Project", isRequired: true, textColor: textColor),
+                      const SizedBox(height: 6),
+                      _isLoadingProjects
+                          ? Container(
+                              height: 48,
+                              padding: const EdgeInsets.symmetric(horizontal: 14),
+                              decoration: BoxDecoration(
+                                color: inputBg,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: borderColor),
+                              ),
+                              alignment: Alignment.centerLeft,
+                              child: const SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              ),
+                            )
+                          : DropdownButtonFormField<int?>(
+                              value: _selectedProjectId,
+                              isExpanded: true,
+                              decoration: _inputDecoration(
+                                hintText: "Select project",
+                                isDark: isDark,
+                                inputBg: inputBg,
+                                borderColor: borderColor,
+                              ),
+                              dropdownColor: bgColor,
+                              items: [
+                                DropdownMenuItem<int?>(
+                                  value: null,
+                                  child: Text(
+                                    "All Projects",
+                                    style: TextStyle(color: textColor, fontSize: 14),
+                                  ),
+                                ),
+                                ..._projects.map((p) {
+                                  return DropdownMenuItem<int?>(
+                                    value: p.id,
+                                    child: Text(
+                                      "${p.name} (${p.code})",
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(color: textColor, fontSize: 14),
+                                    ),
+                                  );
+                                }),
+                              ],
+                              onChanged: (val) => setState(() => _selectedProjectId = val),
+                            ),
+                      const SizedBox(height: 16),
+
+                      // 2. * Title
+                      _buildFieldLabel("Title", isRequired: true, textColor: textColor),
+                      const SizedBox(height: 6),
+                      TextFormField(
+                        controller: _titleController,
+                        style: TextStyle(color: textColor, fontSize: 14),
+                        decoration: _inputDecoration(
+                          hintText: "Enter announcement title",
+                          isDark: isDark,
+                          inputBg: inputBg,
+                          borderColor: borderColor,
+                        ),
+                        validator: (val) =>
+                            val == null || val.trim().isEmpty ? "Title is required" : null,
+                      ),
+                      const SizedBox(height: 16),
+
+                      // 3. * Message
+                      _buildFieldLabel("Message", isRequired: true, textColor: textColor),
+                      const SizedBox(height: 6),
+                      TextFormField(
+                        controller: _messageController,
+                        maxLines: 4,
+                        style: TextStyle(color: textColor, fontSize: 14),
+                        decoration: _inputDecoration(
+                          hintText: "Enter announcement message",
+                          isDark: isDark,
+                          inputBg: inputBg,
+                          borderColor: borderColor,
+                        ),
+                        validator: (val) =>
+                            val == null || val.trim().isEmpty ? "Message is required" : null,
+                      ),
+                      const SizedBox(height: 6),
+
+                      // Word count indicator
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          "$wordCount/250 words",
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: wordCount > 250 ? Colors.red : secondaryTextColor,
+                            fontWeight: wordCount > 250 ? FontWeight.bold : FontWeight.normal,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // 4. Active announcement checkbox
+                      InkWell(
+                        onTap: () => setState(() => _isActive = !_isActive),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Row(
+                          children: [
+                            SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: Checkbox(
+                                value: _isActive,
+                                activeColor: const Color(0xFF0D6EFD),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                onChanged: (val) => setState(() => _isActive = val ?? true),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              "Active announcement",
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: textColor,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                onPressed: _isLoading ? null : _submit,
-                child: _isLoading
-                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Text("Update Announcement", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
               ),
-            ],
-          ),
+            ),
+
+            Divider(color: isDark ? Colors.white12 : Colors.grey.shade200, height: 1),
+
+            // Footer Actions
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  TextButton(
+                    onPressed: _isSubmitting ? null : () => Navigator.pop(context),
+                    style: TextButton.styleFrom(
+                      foregroundColor: secondaryTextColor,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    ),
+                    child: const Text(
+                      "Cancel",
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  ElevatedButton(
+                    onPressed: _isSubmitting ? null : _submit,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0D6EFD),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: _isSubmitting
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Text(
+                            "Save Changes",
+                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                          ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  InputDecoration _buildInputDecoration(String hint, IconData icon) {
+  Widget _buildFieldLabel(String label, {required bool isRequired, required Color textColor}) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (isRequired) ...[
+          const Text(
+            "* ",
+            style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+          ),
+        ],
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: textColor,
+          ),
+        ),
+      ],
+    );
+  }
+
+  InputDecoration _inputDecoration({
+    required String hintText,
+    required bool isDark,
+    required Color inputBg,
+    required Color borderColor,
+  }) {
     return InputDecoration(
-      hintText: hint,
-      prefixIcon: Icon(icon, color: Colors.grey),
+      hintText: hintText,
+      hintStyle: TextStyle(
+        fontSize: 13,
+        color: isDark ? Colors.white38 : Colors.grey.shade400,
+      ),
       filled: true,
-      fillColor: Colors.grey.shade50,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
+      fillColor: inputBg,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: borderColor),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: borderColor),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Color(0xFF0D6EFD), width: 1.5),
+      ),
     );
   }
 }

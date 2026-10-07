@@ -65,6 +65,8 @@ class _InviteMemberDialogState extends State<InviteMemberDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Container(
@@ -80,14 +82,21 @@ class _InviteMemberDialogState extends State<InviteMemberDialog> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text("Invite Member", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF0F2C4A))),
+                    Text(
+                      "Invite Member",
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : const Color(0xFF0F2C4A),
+                      ),
+                    ),
                     IconButton(
-                      icon: const Icon(IconlyLight.close_square, color: Colors.grey),
+                      icon: Icon(IconlyLight.close_square, color: isDark ? Colors.white70 : Colors.grey),
                       onPressed: () => Navigator.pop(context),
                     ),
                   ],
                 ),
-                const Divider(),
+                Divider(color: isDark ? Colors.white24 : Colors.grey.shade300),
                 const SizedBox(height: 16),
 
                 Row(
@@ -141,7 +150,8 @@ class _InviteMemberDialogState extends State<InviteMemberDialog> {
 
                 DropdownButtonFormField<String>(
                   decoration: const InputDecoration(labelText: "Role", border: OutlineInputBorder()),
-                  value: _selectedRole,
+                  dropdownColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                  initialValue: _selectedRole,
                   items: const [
                     DropdownMenuItem(value: 'operative', child: Text("Operative")),
                     DropdownMenuItem(value: 'manager', child: Text("Manager")),
@@ -162,7 +172,10 @@ class _InviteMemberDialogState extends State<InviteMemberDialog> {
                 const SizedBox(height: 16),
 
                 SwitchListTile(
-                  title: const Text("OneTrace Pro Enabled"),
+                  title: Text(
+                    "OneTrace Pro Enabled",
+                    style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                  ),
                   value: _onetraceProEnabled,
                   onChanged: (val) => setState(() => _onetraceProEnabled = val),
                   contentPadding: EdgeInsets.zero,

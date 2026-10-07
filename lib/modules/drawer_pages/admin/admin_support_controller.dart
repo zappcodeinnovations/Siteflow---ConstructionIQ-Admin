@@ -143,14 +143,19 @@ class AdminSupportController extends ChangeNotifier {
 
     try {
       final url = '${ApiEndpoints.baseUrl}/admin/support/tickets/$id/reply/';
-      final payload = {"body": body};
+      final payload = {"body": body, "message": body};
       final response = await ApiClient.post(url, body: payload); 
       
       if (response.statusCode == 200 || response.statusCode == 201) {
         await fetchTicketDetails(id); // refresh messages
         return {"success": true, "message": "Reply sent."};
       }
-      return {"success": false, "message": "Failed to send reply."};
+      try {
+        final decoded = jsonDecode(response.body);
+        return {"success": false, "message": decoded['message'] ?? decoded['detail'] ?? "Failed to send reply."};
+      } catch (_) {
+        return {"success": false, "message": "Failed to send reply (${response.statusCode})."};
+      }
     } catch (e) {
       return {"success": false, "message": "An error occurred: $e"};
     } finally {

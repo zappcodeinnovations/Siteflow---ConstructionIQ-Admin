@@ -20,7 +20,7 @@ class AdminGuestsController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final url = '${ApiEndpoints.baseUrl}/admin/guests/';
+      final url = '${ApiEndpoints.baseUrl}/admin/guests/?page_size=1000';
       final response = await ApiClient.get(url);
       final decodedData = jsonDecode(response.body);
 

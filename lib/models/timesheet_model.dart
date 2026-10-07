@@ -36,6 +36,8 @@ class ProjectEntry {
   final String startLocation;
   final String endLocation;
   final String notes;
+  final String device;
+  final String flags;
 
   ProjectEntry({
     required this.projectName,
@@ -46,18 +48,46 @@ class ProjectEntry {
     required this.startLocation,
     required this.endLocation,
     required this.notes,
+    this.device = '',
+    this.flags = '',
   });
+
+  static String _extractString(dynamic val) {
+    if (val == null) return '';
+    if (val is String) return val.trim();
+    if (val is Map) return (val['name'] ?? val['model'] ?? val['title'] ?? val['label'] ?? val['value'] ?? '').toString().trim();
+    if (val is List) return val.map((e) => _extractString(e)).where((s) => s.isNotEmpty).join(', ');
+    return val.toString().trim();
+  }
 
   factory ProjectEntry.fromJson(Map<String, dynamic> json) {
     return ProjectEntry(
-      projectName: json['project_name'] ?? '',
-      projectCode: json['project_code'] ?? '',
-      clockInTime: json['clock_in_time'] ?? '',
-      clockOutTime: json['clock_out_time'] ?? '',
-      shiftHours: json['shift_hours'] ?? '',
-      startLocation: json['start_location'] ?? '',
-      endLocation: json['end_location'] ?? '',
-      notes: json['notes'] ?? '',
+      projectName: _extractString(json['project_name']),
+      projectCode: _extractString(json['project_code']),
+      clockInTime: _extractString(json['clock_in_time']),
+      clockOutTime: _extractString(json['clock_out_time']),
+      shiftHours: _extractString(json['shift_hours']),
+      startLocation: _extractString(json['start_location']),
+      endLocation: _extractString(json['end_location']),
+      notes: _extractString(json['notes']),
+      device: _extractString(
+        json['device'] ??
+            json['device_model'] ??
+            json['device_name'] ??
+            json['device_info'] ??
+            json['device_source'] ??
+            json['platform'] ??
+            json['device_type'] ??
+            json['model'],
+      ),
+      flags: _extractString(
+        json['flags'] ??
+            json['flag'] ??
+            json['validation_flags'] ??
+            json['validation_flag'] ??
+            json['attendance_flags'] ??
+            json['status'],
+      ),
     );
   }
 }
@@ -74,6 +104,8 @@ class TimesheetRecord {
   final String startLocation;
   final String endLocation;
   final String attendanceState;
+  final String device;
+  final String flags;
   final List<ProjectEntry> projectEntries;
 
   TimesheetRecord({
@@ -88,23 +120,51 @@ class TimesheetRecord {
     required this.startLocation,
     required this.endLocation,
     required this.attendanceState,
+    this.device = '',
+    this.flags = '',
     required this.projectEntries,
   });
+
+  static String _extractString(dynamic val) {
+    if (val == null) return '';
+    if (val is String) return val.trim();
+    if (val is Map) return (val['name'] ?? val['model'] ?? val['title'] ?? val['label'] ?? val['value'] ?? '').toString().trim();
+    if (val is List) return val.map((e) => _extractString(e)).where((s) => s.isNotEmpty).join(', ');
+    return val.toString().trim();
+  }
 
   factory TimesheetRecord.fromJson(Map<String, dynamic> json) {
     var entriesList = json['project_entries'] as List? ?? [];
     return TimesheetRecord(
-      operatorName: json['operator_name'] ?? '',
-      operatorCode: json['operator_code'] ?? '',
-      projectName: json['project_name'] ?? '',
-      projectCode: json['project_code'] ?? '',
-      date: json['date'] ?? '',
-      clockIn: json['clock_in'] ?? '',
-      clockOut: json['clock_out'] ?? '',
-      shiftHours: json['shift_hours'] ?? '',
-      startLocation: json['start_location'] ?? '',
-      endLocation: json['end_location'] ?? '',
-      attendanceState: json['attendance_state'] ?? '',
+      operatorName: _extractString(json['operator_name']),
+      operatorCode: _extractString(json['operator_code']),
+      projectName: _extractString(json['project_name']),
+      projectCode: _extractString(json['project_code']),
+      date: _extractString(json['date']),
+      clockIn: _extractString(json['clock_in']),
+      clockOut: _extractString(json['clock_out']),
+      shiftHours: _extractString(json['shift_hours']),
+      startLocation: _extractString(json['start_location']),
+      endLocation: _extractString(json['end_location']),
+      attendanceState: _extractString(json['attendance_state']),
+      device: _extractString(
+        json['device'] ??
+            json['device_model'] ??
+            json['device_name'] ??
+            json['device_info'] ??
+            json['device_source'] ??
+            json['platform'] ??
+            json['device_type'] ??
+            json['model'],
+      ),
+      flags: _extractString(
+        json['flags'] ??
+            json['flag'] ??
+            json['validation_flags'] ??
+            json['validation_flag'] ??
+            json['attendance_flags'] ??
+            json['status'],
+      ),
       projectEntries: entriesList.map((i) => ProjectEntry.fromJson(i)).toList(),
     );
   }

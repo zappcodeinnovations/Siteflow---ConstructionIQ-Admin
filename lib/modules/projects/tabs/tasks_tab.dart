@@ -2,14 +2,160 @@ import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
 import '../../../core/theme/app_theme.dart';
 
-class TasksTab extends StatelessWidget {
+class TasksTab extends StatefulWidget {
   final List<dynamic> tasks;
 
-  const TasksTab({Key? key, required this.tasks}) : super(key: key);
+  const TasksTab({super.key, required this.tasks});
+
+  @override
+  State<TasksTab> createState() => _TasksTabState();
+}
+
+class _TasksTabState extends State<TasksTab> {
+  String _selectedStatus = 'Status: All';
+
+  String _extractStatus(dynamic task) {
+    if (task is Map) {
+      return (task['status'] ?? task['status_label'] ?? task['state'] ?? task['status_display'] ?? '').toString().trim();
+    }
+    return '';
+  }
+
+  bool _isTaskClosed(String status, dynamic task) {
+    final s = status.toLowerCase();
+    if (s == 'completed' || s == 'closed' || s == 'done' || s == 'finished' || s == 'approved') {
+      return true;
+    }
+    if (task is Map && (task['is_closed'] == true || task['is_completed'] == true)) {
+      return true;
+    }
+    return false;
+  }
+
+  List<String> get _statusDropdownOptions {
+    final options = <String>['Status: All', 'Status: Open', 'Status: Closed'];
+    for (final t in widget.tasks) {
+      final s = _extractStatus(t);
+      if (s.isNotEmpty) {
+        final formatted = 'Status: ${s[0].toUpperCase()}${s.substring(1).toLowerCase()}';
+        if (!options.contains(formatted) && formatted != 'Status: Open' && formatted != 'Status: Closed' && formatted != 'Status: All') {
+          options.add(formatted);
+        }
+      }
+    }
+    return options;
+  }
+
+  List<dynamic> get _filteredTasks {
+    if (_selectedStatus == 'Status: All') {
+      return widget.tasks;
+    }
+    if (_selectedStatus == 'Status: Open') {
+      return widget.tasks.where((t) {
+        final status = _extractStatus(t);
+        return !_isTaskClosed(status, t);
+      }).toList();
+    }
+    if (_selectedStatus == 'Status: Closed') {
+      return widget.tasks.where((t) {
+        final status = _extractStatus(t);
+        return _isTaskClosed(status, t);
+      }).toList();
+    }
+    final target = _selectedStatus.replaceFirst('Status: ', '').toLowerCase().trim();
+    return widget.tasks.where((t) {
+      final status = _extractStatus(t).toLowerCase();
+      return status == target;
+    }).toList();
+  }
+
+  void _openFiltersBottomSheet() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: isDark ? AppTheme.corporateBlue : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    "Filter Tasks",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      setState(() {
+                        _selectedStatus = 'Status: All';
+                      });
+                      Navigator.pop(ctx);
+                    },
+                    child: const Text("Reset All"),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Text(
+                "Status",
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _statusDropdownOptions.map((opt) {
+                  final isSelected = _selectedStatus == opt;
+                  return ChoiceChip(
+                    label: Text(opt.replaceFirst('Status: ', '')),
+                    selected: isSelected,
+                    selectedColor: const Color(0xFF0D6EFD),
+                    labelStyle: TextStyle(
+                      color: isSelected ? Colors.white : (isDark ? Colors.white : Colors.black87),
+                      fontWeight: FontWeight.w600,
+                    ),
+                    onSelected: (selected) {
+                      if (selected) {
+                        setState(() {
+                          _selectedStatus = opt;
+                        });
+                        Navigator.pop(ctx);
+                      }
+                    },
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 24),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final options = _statusDropdownOptions;
+    if (!options.contains(_selectedStatus)) {
+      _selectedStatus = 'Status: All';
+    }
+    final displayedTasks = _filteredTasks;
 
     return Column(
       children: [
@@ -24,7 +170,7 @@ class TasksTab extends StatelessWidget {
                 border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade200),
                 boxShadow: [
                   BoxShadow(
-                      color: Colors.black.withOpacity(0.02),
+                      color: Colors.black.withValues(alpha: 0.02),
                       blurRadius: 10,
                       offset: const Offset(0, 4))
                 ]),
@@ -47,8 +193,8 @@ class TasksTab extends StatelessWidget {
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
                           dropdownColor: isDark ? AppTheme.corporateBlue : Colors.white,
-                          value: 'Status: All',
-                          items: ['Status: All', 'Status: Open', 'Status: Closed']
+                          value: _selectedStatus,
+                          items: options
                               .map((e) => DropdownMenuItem(
                                   value: e,
                                   child: Text(e,
@@ -57,7 +203,13 @@ class TasksTab extends StatelessWidget {
                                           fontWeight: FontWeight.w600,
                                           color: isDark ? Colors.white : Colors.black87))))
                               .toList(),
-                          onChanged: (val) {},
+                          onChanged: (val) {
+                            if (val != null) {
+                              setState(() {
+                                _selectedStatus = val;
+                              });
+                            }
+                          },
                           icon: Icon(IconlyLight.arrow_down_2,
                               color: isDark ? Colors.white70 : Colors.black54, size: 18),
                         ),
@@ -75,7 +227,7 @@ class TasksTab extends StatelessWidget {
                               borderRadius: BorderRadius.circular(20)),
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                         ),
-                        onPressed: () {},
+                        onPressed: _openFiltersBottomSheet,
                         icon: Icon(IconlyLight.filter, size: 16, color: isDark ? Colors.white : Colors.black87),
                         label: const Text("Filters",
                             style: TextStyle(fontWeight: FontWeight.w600)),
@@ -83,7 +235,7 @@ class TasksTab extends StatelessWidget {
                     ),
                   ],
                 ),
-                Text("Total: ${tasks.length}",
+                Text("Total: ${displayedTasks.length}",
                     style: TextStyle(
                         color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
                         fontSize: 14,
@@ -95,7 +247,7 @@ class TasksTab extends StatelessWidget {
 
         // Tasks List
         Expanded(
-          child: tasks.isEmpty
+          child: displayedTasks.isEmpty
               ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -114,11 +266,11 @@ class TasksTab extends StatelessWidget {
               : ListView.separated(
                   padding: const EdgeInsets.symmetric(
                       horizontal: 16.0, vertical: 8.0),
-                  itemCount: tasks.length,
+                  itemCount: displayedTasks.length,
                   separatorBuilder: (context, index) =>
                       const SizedBox(height: 16),
                   itemBuilder: (context, index) {
-                    final task = tasks[index];
+                    final task = displayedTasks[index];
                     return _buildTaskCard(
                       context,
                       taskNo: task['task_no']?.toString() ?? "N/A",
@@ -156,8 +308,8 @@ class TasksTab extends StatelessWidget {
     final statusColor = isCompleted ? Colors.green : const Color(0xFF0D6EFD);
     final statusBgColor =
         isCompleted 
-            ? (isDark ? Colors.green.withOpacity(0.2) : Colors.green.shade50) 
-            : (isDark ? Colors.blue.withOpacity(0.2) : Colors.blue.shade50);
+            ? (isDark ? Colors.green.withValues(alpha: 0.2) : Colors.green.shade50) 
+            : (isDark ? Colors.blue.withValues(alpha: 0.2) : Colors.blue.shade50);
 
     return Container(
       decoration: BoxDecoration(
@@ -166,7 +318,7 @@ class TasksTab extends StatelessWidget {
           border: Border.all(color: borderColor),
           boxShadow: [
             BoxShadow(
-                color: Colors.black.withOpacity(0.02),
+                color: Colors.black.withValues(alpha: 0.02),
                 blurRadius: 10,
                 offset: const Offset(0, 4))
           ]),
@@ -228,7 +380,7 @@ class TasksTab extends StatelessWidget {
                     Text(
                       status.toUpperCase(),
                       style: TextStyle(
-                        color: isDark ? Colors.white : statusColor.withOpacity(0.9),
+                        color: isDark ? Colors.white : statusColor.withValues(alpha: 0.9),
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 0.5,

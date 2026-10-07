@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/custom_date_picker_dialog.dart';
 import '../../../models/project_issue_models.dart';
 import '../project_issues_controller.dart';
 
@@ -220,7 +221,7 @@ class _RaiseSnagDialogState extends State<_RaiseSnagDialog> {
   }
 
   Future<void> _pickDueDate() async {
-    final picked = await showDatePicker(
+    final picked = await CustomDatePickerDialog.showCustomDatePicker(
       context: context,
       initialDate: DateTime.now(),
       firstDate: DateTime(2020),

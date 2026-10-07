@@ -55,7 +55,7 @@ class AttendanceLogsDialog extends StatelessWidget {
           color: bgColor,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20, offset: const Offset(0, 10))
+            BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 20, offset: const Offset(0, 10))
           ],
         ),
         child: Column(
@@ -90,6 +90,7 @@ class AttendanceLogsDialog extends StatelessWidget {
                 buildChip("Last Logout", record.clockOut),
                 buildChip("Total Worked", record.shiftHours),
                 buildChip("Projects Worked", record.projectEntries.length.toString()),
+                if (record.device.isNotEmpty) buildChip("Device", record.device),
               ],
             ),
             const SizedBox(height: 24),
@@ -104,6 +105,14 @@ class AttendanceLogsDialog extends StatelessWidget {
                   final entry = record.projectEntries[index];
                   final startLoc = entryStartAddresses[index] ?? entry.startLocation;
                   final endLoc = entryEndAddresses[index] ?? entry.endLocation;
+                  final deviceText = entry.device.isNotEmpty
+                      ? entry.device
+                      : (record.device.isNotEmpty ? record.device : "Mobile App");
+                  final flagText = entry.flags.isNotEmpty
+                      ? entry.flags
+                      : (record.flags.isNotEmpty
+                          ? record.flags
+                          : (record.attendanceState.isNotEmpty ? record.attendanceState : "Valid"));
                   
                   return Container(
                     padding: const EdgeInsets.all(16),
@@ -175,6 +184,46 @@ class AttendanceLogsDialog extends StatelessWidget {
                                 ],
                               ),
                             ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Divider(color: borderColor, height: 1),
+                        const SizedBox(height: 12),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Icon(Icons.smartphone_rounded, size: 16, color: isDark ? Colors.blue.shade300 : const Color(0xFF0D6EFD)),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text("Device", style: TextStyle(fontSize: 10, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600)),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    deviceText,
+                                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textColor),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (flagText.isNotEmpty)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.green.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+                                ),
+                                child: Text(
+                                  flagText,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.green,
+                                  ),
+                                ),
+                              ),
                           ],
                         ),
                       ],

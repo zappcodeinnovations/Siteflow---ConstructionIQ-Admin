@@ -58,25 +58,38 @@ class AdminMemberResponse {
   final bool status;
   final String message;
   final List<AdminMember> data;
+  final int? totalCount;
+  final int? assignedCount;
+  final int? invitedCount;
 
   AdminMemberResponse({
     required this.status,
     required this.message,
     required this.data,
+    this.totalCount,
+    this.assignedCount,
+    this.invitedCount,
   });
 
   factory AdminMemberResponse.fromJson(Map<String, dynamic> json) {
     var dataList = json['data'];
     List<AdminMember> members = [];
+    int? totalCount = json['total'] ?? json['count'] ?? json['total_count'] ?? json['total_members'];
+    int? assigned = json['assigned'] ?? json['assigned_count'] ?? json['assigned_seats'];
+    int? invited = json['invited'] ?? json['invited_count'] ?? json['invited_seats'];
+
     if (dataList is List) {
       members = dataList.map((i) => AdminMember.fromJson(i)).toList();
     } else if (dataList is Map<String, dynamic>) {
-      // Sometimes APIs might return pagination structure: {"results": [...]}
-      // We handle simple array here based on provided examples
+      totalCount ??= dataList['total'] ?? dataList['count'] ?? dataList['total_count'] ?? dataList['total_members'];
+      assigned ??= dataList['assigned'] ?? dataList['assigned_count'] ?? dataList['assigned_seats'];
+      invited ??= dataList['invited'] ?? dataList['invited_count'] ?? dataList['invited_seats'];
+
       if (dataList.containsKey('results') && dataList['results'] is List) {
         members = (dataList['results'] as List).map((i) => AdminMember.fromJson(i)).toList();
+      } else if (dataList.containsKey('members') && dataList['members'] is List) {
+        members = (dataList['members'] as List).map((i) => AdminMember.fromJson(i)).toList();
       } else {
-        // If it's a single item
         members.add(AdminMember.fromJson(dataList));
       }
     }
@@ -84,6 +97,9 @@ class AdminMemberResponse {
       status: json['status'] ?? false,
       message: json['message'] ?? '',
       data: members,
+      totalCount: totalCount,
+      assignedCount: assigned,
+      invitedCount: invited,
     );
   }
 }

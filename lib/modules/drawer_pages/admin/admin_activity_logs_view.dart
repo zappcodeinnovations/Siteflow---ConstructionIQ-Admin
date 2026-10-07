@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'admin_activity_logs_controller.dart';
 import 'activity_log_details_view.dart';
-import '../../../core/widgets/shimmer_loading.dart';
+import '../../../core/widgets/custom_date_picker_dialog.dart';
 import '../../../core/theme/app_theme.dart';
 import 'package:iconly/iconly.dart';
 
@@ -20,10 +20,11 @@ class _AdminActivityLogsViewState extends State<AdminActivityLogsView> {
   final _toDateController = TextEditingController();
 
   String? _selectedManager;
+  String? _selectedRole;
   String? _selectedModule;
   String? _selectedAction;
 
-  bool _isFilterExpanded = false;
+  bool _isFilterExpanded = true;
 
   @override
   void initState() {
@@ -43,6 +44,7 @@ class _AdminActivityLogsViewState extends State<AdminActivityLogsView> {
   void _applyFilters() {
     _controller.updateFilters(
       manager: _selectedManager,
+      role: _selectedRole,
       module: _selectedModule,
       action: _selectedAction,
       from: _fromDateController.text,
@@ -54,6 +56,7 @@ class _AdminActivityLogsViewState extends State<AdminActivityLogsView> {
   void _resetFilters() {
     setState(() {
       _selectedManager = null;
+      _selectedRole = null;
       _selectedModule = null;
       _selectedAction = null;
       _searchController.clear();
@@ -64,7 +67,7 @@ class _AdminActivityLogsViewState extends State<AdminActivityLogsView> {
   }
 
   Future<void> _selectDate(TextEditingController textController) async {
-    final DateTime? picked = await showDatePicker(
+    final DateTime? picked = await CustomDatePickerDialog.showCustomDatePicker(
       context: context,
       initialDate: DateTime.now(),
       firstDate: DateTime(2020),
@@ -73,7 +76,7 @@ class _AdminActivityLogsViewState extends State<AdminActivityLogsView> {
     if (picked != null) {
       setState(() {
         textController.text =
-            "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+            "${picked.day.toString().padLeft(2, '0')}-${picked.month.toString().padLeft(2, '0')}-${picked.year}";
       });
     }
   }
@@ -81,41 +84,62 @@ class _AdminActivityLogsViewState extends State<AdminActivityLogsView> {
   Widget _buildKpiCard(
     String title,
     String value, {
-    bool isMobile = false,
+    double? width,
     required Color cardColor,
     required Color borderColor,
     required Color textColor,
     required Color subtitleColor,
   }) {
     return Container(
-      width: isMobile ? 140 : 180,
-      padding: const EdgeInsets.all(16),
+      width: width,
       decoration: BoxDecoration(
         color: cardColor,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: borderColor),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              color: subtitleColor,
-              letterSpacing: 0.5,
+          Container(
+            height: 3,
+            decoration: const BoxDecoration(
+              color: Color(0xFFF59E0B),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(10)),
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: textColor,
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: subtitleColor,
+                    letterSpacing: 0.5,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: textColor,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -172,184 +196,238 @@ class _AdminActivityLogsViewState extends State<AdminActivityLogsView> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // Header & Export
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
+              isMobile
+                  ? Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          "Activity Logs",
-                          style: TextStyle(
-                            fontSize: isMobile ? 14 : 16,
-                            fontWeight: FontWeight.bold,
-                            color: textColor,
-                          ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              "Activity Logs",
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: textColor,
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 4),
                         Text(
                           "See who changed what, when, and from where.",
                           style: TextStyle(
                             color: subtitleColor,
-                            fontSize: isMobile ? 10 : 12,
+                            fontSize: 11,
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                  if (!isMobile)
-                    Row(
-                      children: [
-                        OutlinedButton.icon(
-                          onPressed: () => _controller.exportLogs('csv'),
-                          icon: const Icon(
-                            IconlyLight.category,
-                            size: 16,
-                            color: Colors.black87,
-                          ),
-                          label: const Text(
-                            "CSV",
-                            style: TextStyle(color: Colors.black87),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        OutlinedButton.icon(
-                          onPressed: () => _controller.exportLogs('excel'),
-                          icon: const Icon(
-                            IconlyLight.category,
-                            size: 16,
-                            color: Colors.black87,
-                          ),
-                          label: const Text(
-                            "Excel",
-                            style: TextStyle(color: Colors.black87),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        OutlinedButton.icon(
-                          onPressed: () => _controller.exportLogs('pdf'),
-                          icon: const Icon(
-                            IconlyLight.category,
-                            size: 16,
-                            color: Colors.black87,
-                          ),
-                          label: const Text(
-                            "PDF",
-                            style: TextStyle(color: Colors.black87),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(6),
-                            ),
+                        const SizedBox(height: 12),
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              _buildExportButton("CSV", 'csv', borderColor, cardColor),
+                              const SizedBox(width: 8),
+                              _buildExportButton("Excel", 'excel', borderColor, cardColor),
+                              const SizedBox(width: 8),
+                              _buildExportButton("PDF", 'pdf', borderColor, cardColor),
+                            ],
                           ),
                         ),
                       ],
                     )
-                  else
-                    PopupMenuButton<String>(
-                      icon: const Icon(IconlyLight.download),
-                      onSelected: (val) => _controller.exportLogs(val),
-                      itemBuilder: (context) => [
-                        const PopupMenuItem(
-                          value: 'csv',
-                          child: Text("Export CSV"),
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Activity Logs",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: textColor,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                "See who changed what, when, and from where.",
+                                style: TextStyle(
+                                  color: subtitleColor,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                        const PopupMenuItem(
-                          value: 'excel',
-                          child: Text("Export Excel"),
-                        ),
-                        const PopupMenuItem(
-                          value: 'pdf',
-                          child: Text("Export PDF"),
+                        Row(
+                          children: [
+                            _buildExportButton("CSV", 'csv', borderColor, cardColor),
+                            const SizedBox(width: 8),
+                            _buildExportButton("Excel", 'excel', borderColor, cardColor),
+                            const SizedBox(width: 8),
+                            _buildExportButton("PDF", 'pdf', borderColor, cardColor),
+                          ],
                         ),
                       ],
                     ),
-                ],
-              ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
 
               // KPIs
               AnimatedBuilder(
                 animation: _controller,
                 builder: (context, _) {
                   final kpi = _controller.kpi;
-                  return Wrap(
-                    spacing: 16,
-                    runSpacing: 16,
+                  if (isMobile) {
+                    return Column(
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildKpiCard(
+                                "TOTAL MANAGERS",
+                                kpi?.totalManagers.toString() ?? "0",
+                                cardColor: cardColor,
+                                borderColor: borderColor,
+                                textColor: textColor,
+                                subtitleColor: subtitleColor,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _buildKpiCard(
+                                "ACTIVE MANAGERS",
+                                kpi?.activeManagers.toString() ?? "0",
+                                cardColor: cardColor,
+                                borderColor: borderColor,
+                                textColor: textColor,
+                                subtitleColor: subtitleColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildKpiCard(
+                                "TODAY'S ACTIVITIES",
+                                kpi?.todayActivities.toString() ?? "0",
+                                cardColor: cardColor,
+                                borderColor: borderColor,
+                                textColor: textColor,
+                                subtitleColor: subtitleColor,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _buildKpiCard(
+                                "THIS MONTH",
+                                kpi?.thisMonth.toString() ?? "0",
+                                cardColor: cardColor,
+                                borderColor: borderColor,
+                                textColor: textColor,
+                                subtitleColor: subtitleColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildKpiCard(
+                                "FAILED LOGINS",
+                                kpi?.failedLogins.toString() ?? "0",
+                                cardColor: cardColor,
+                                borderColor: borderColor,
+                                textColor: textColor,
+                                subtitleColor: subtitleColor,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            const Expanded(child: SizedBox()),
+                          ],
+                        ),
+                      ],
+                    );
+                  }
+
+                  return Row(
                     children: [
-                      _buildKpiCard(
-                        "TOTAL LOGS",
-                        kpi?.totalLogs.toString() ?? "0",
-                        isMobile: isMobile,
-                        cardColor: cardColor,
-                        borderColor: borderColor,
-                        textColor: textColor,
-                        subtitleColor: subtitleColor,
+                      Expanded(
+                        child: _buildKpiCard(
+                          "TOTAL MANAGERS",
+                          kpi?.totalManagers.toString() ?? "0",
+                          cardColor: cardColor,
+                          borderColor: borderColor,
+                          textColor: textColor,
+                          subtitleColor: subtitleColor,
+                        ),
                       ),
-                      _buildKpiCard(
-                        "TODAY LOGINS",
-                        kpi?.todayLogins.toString() ?? "0",
-                        isMobile: isMobile,
-                        cardColor: cardColor,
-                        borderColor: borderColor,
-                        textColor: textColor,
-                        subtitleColor: subtitleColor,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildKpiCard(
+                          "ACTIVE MANAGERS",
+                          kpi?.activeManagers.toString() ?? "0",
+                          cardColor: cardColor,
+                          borderColor: borderColor,
+                          textColor: textColor,
+                          subtitleColor: subtitleColor,
+                        ),
                       ),
-                      _buildKpiCard(
-                        "TODAY CREATES",
-                        kpi?.todayCreates.toString() ?? "0",
-                        isMobile: isMobile,
-                        cardColor: cardColor,
-                        borderColor: borderColor,
-                        textColor: textColor,
-                        subtitleColor: subtitleColor,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildKpiCard(
+                          "TODAY'S ACTIVITIES",
+                          kpi?.todayActivities.toString() ?? "0",
+                          cardColor: cardColor,
+                          borderColor: borderColor,
+                          textColor: textColor,
+                          subtitleColor: subtitleColor,
+                        ),
                       ),
-                      _buildKpiCard(
-                        "TODAY ERRORS",
-                        kpi?.todayErrors.toString() ?? "0",
-                        isMobile: isMobile,
-                        cardColor: cardColor,
-                        borderColor: borderColor,
-                        textColor: textColor,
-                        subtitleColor: subtitleColor,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildKpiCard(
+                          "THIS MONTH",
+                          kpi?.thisMonth.toString() ?? "0",
+                          cardColor: cardColor,
+                          borderColor: borderColor,
+                          textColor: textColor,
+                          subtitleColor: subtitleColor,
+                        ),
                       ),
-                      _buildKpiCard(
-                        "UNIQUE USERS TODAY",
-                        kpi?.uniqueUsersToday.toString() ?? "0",
-                        isMobile: isMobile,
-                        cardColor: cardColor,
-                        borderColor: borderColor,
-                        textColor: textColor,
-                        subtitleColor: subtitleColor,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildKpiCard(
+                          "FAILED LOGINS",
+                          kpi?.failedLogins.toString() ?? "0",
+                          cardColor: cardColor,
+                          borderColor: borderColor,
+                          textColor: textColor,
+                          subtitleColor: subtitleColor,
+                        ),
                       ),
                     ],
                   );
                 },
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
 
               // Filter Bar
               Container(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: cardColor,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: borderColor),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.02),
+                      color: Colors.black.withValues(alpha: 0.02),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -373,7 +451,7 @@ class _AdminActivityLogsViewState extends State<AdminActivityLogsView> {
                               children: [
                                 const Icon(
                                   IconlyLight.filter,
-                                  size: 20,
+                                  size: 18,
                                   color: Color(0xFF0F2C4A),
                                 ),
                                 const SizedBox(width: 8),
@@ -382,7 +460,7 @@ class _AdminActivityLogsViewState extends State<AdminActivityLogsView> {
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 14,
-                                    color: subtitleColor,
+                                    color: textColor,
                                   ),
                                 ),
                               ],
@@ -391,8 +469,8 @@ class _AdminActivityLogsViewState extends State<AdminActivityLogsView> {
                               _isFilterExpanded
                                   ? IconlyLight.arrow_up_2
                                   : IconlyLight.arrow_down_2,
-                              size: 20,
-                              color: Colors.grey.shade600,
+                              size: 18,
+                              color: subtitleColor,
                             ),
                           ],
                         ),
@@ -409,89 +487,164 @@ class _AdminActivityLogsViewState extends State<AdminActivityLogsView> {
                           const SizedBox(height: 16),
                           Wrap(
                             spacing: 12,
-                            runSpacing: 16,
+                            runSpacing: 14,
                             children: [
                               _buildModernDropdown(
-                                width: isMobile ? double.infinity : 200,
+                                width: isMobile ? double.infinity : 180,
                                 hint: "All managers",
                                 value: _selectedManager,
-                                items:
-                                    (_controller.filterOptions['users']
-                                            as List?)
-                                        ?.map(
-                                          (u) => DropdownMenuItem<String>(
-                                            value: u['id'].toString(),
-                                            child: Text(
-                                              u['display_name'] ??
-                                                  u['email'] ??
-                                                  'Unknown',
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ),
-                                        )
-                                        .toList() ??
-                                    [],
-                                onChanged: (val) =>
-                                    setState(() => _selectedManager = val),
+                                items: [
+                                  const DropdownMenuItem<String>(
+                                    value: "",
+                                    child: Text("All managers"),
+                                  ),
+                                  ..._controller.availableManagers.map(
+                                    (u) {
+                                      final name = (u['display_name'] ??
+                                              u['name'] ??
+                                              '')
+                                          .toString()
+                                          .trim();
+                                      final email =
+                                          (u['email'] ?? '').toString().trim();
+                                      final label = name.isNotEmpty
+                                          ? name
+                                          : (email.isNotEmpty
+                                              ? email
+                                              : 'Unknown');
+                                      return DropdownMenuItem<String>(
+                                        value: u['id'].toString(),
+                                        child: Text(
+                                          label,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ],
+                                onChanged: (val) => setState(() =>
+                                    _selectedManager =
+                                        (val != null && val.isNotEmpty)
+                                            ? val
+                                            : null),
                               ),
                               _buildModernDropdown(
-                                width: isMobile ? double.infinity : 200,
+                                width: isMobile ? double.infinity : 150,
+                                hint: "Role",
+                                value: _selectedRole,
+                                items: const [
+                                  DropdownMenuItem<String>(
+                                    value: "",
+                                    child: Text("All roles"),
+                                  ),
+                                  DropdownMenuItem<String>(
+                                    value: "Manager",
+                                    child: Text("Manager"),
+                                  ),
+                                  DropdownMenuItem<String>(
+                                    value: "Super Admin",
+                                    child: Text("Super Admin"),
+                                  ),
+                                  DropdownMenuItem<String>(
+                                    value: "Admin",
+                                    child: Text("Admin"),
+                                  ),
+                                  DropdownMenuItem<String>(
+                                    value: "Operative",
+                                    child: Text("Operative"),
+                                  ),
+                                ],
+                                onChanged: (val) => setState(() =>
+                                    _selectedRole = (val != null && val.isNotEmpty)
+                                        ? val
+                                        : null),
+                              ),
+                              _buildModernDropdown(
+                                width: isMobile ? double.infinity : 160,
                                 hint: "All modules",
                                 value: _selectedModule,
-                                items:
-                                    (_controller.filterOptions['modules']
-                                            as List?)
-                                        ?.map(
-                                          (m) => DropdownMenuItem<String>(
-                                            value: m.toString(),
-                                            child: Text(
-                                              m.toString(),
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
+                                items: [
+                                  const DropdownMenuItem<String>(
+                                    value: "",
+                                    child: Text("All modules"),
+                                  ),
+                                  ...((_controller.filterOptions['modules']
+                                          as List?)
+                                      ?.map(
+                                        (m) => DropdownMenuItem<String>(
+                                          value: m.toString(),
+                                          child: Text(
+                                            m.toString(),
+                                            overflow: TextOverflow.ellipsis,
                                           ),
-                                        )
-                                        .toList() ??
-                                    [],
-                                onChanged: (val) =>
-                                    setState(() => _selectedModule = val),
+                                        ),
+                                      )
+                                      .toList() ??
+                                  []),
+                                ],
+                                onChanged: (val) => setState(() =>
+                                    _selectedModule = (val != null && val.isNotEmpty)
+                                        ? val
+                                        : null),
                               ),
                               _buildModernDropdown(
-                                width: isMobile ? double.infinity : 200,
+                                width: isMobile ? double.infinity : 160,
                                 hint: "All actions",
                                 value: _selectedAction,
-                                items:
-                                    (_controller.filterOptions['actions']
-                                            as List?)
-                                        ?.map(
-                                          (a) => DropdownMenuItem<String>(
-                                            value: a['type'].toString(),
+                                items: [
+                                  const DropdownMenuItem<String>(
+                                    value: "",
+                                    child: Text("All actions"),
+                                  ),
+                                  ...((_controller.filterOptions['actions']
+                                          as List?)
+                                      ?.map(
+                                        (a) {
+                                          final val = (a is Map
+                                                  ? (a['type'] ??
+                                                      a['value'] ??
+                                                      a['action'])
+                                                  : a)
+                                              .toString();
+                                          final label = (a is Map
+                                                  ? (a['label'] ??
+                                                      a['name'] ??
+                                                      a['type'])
+                                                  : a)
+                                              .toString();
+                                          return DropdownMenuItem<String>(
+                                            value: val,
                                             child: Text(
-                                              a['label'].toString(),
+                                              label,
                                               overflow: TextOverflow.ellipsis,
                                             ),
-                                          ),
-                                        )
-                                        .toList() ??
-                                    [],
-                                onChanged: (val) =>
-                                    setState(() => _selectedAction = val),
+                                          );
+                                        },
+                                      )
+                                      .toList() ??
+                                  []),
+                                ],
+                                onChanged: (val) => setState(() =>
+                                    _selectedAction = (val != null && val.isNotEmpty)
+                                        ? val
+                                        : null),
                               ),
                               SizedBox(
                                 width: isMobile
-                                    ? (constraints.maxWidth - 60) / 2
-                                    : 160,
+                                    ? (constraints.maxWidth - 52) / 2
+                                    : 150,
                                 child: InkWell(
                                   onTap: () => _selectDate(_fromDateController),
                                   child: TextField(
                                     controller: _fromDateController,
                                     enabled: false,
                                     decoration: InputDecoration(
-                                      hintText: "From Date",
+                                      hintText: "dd-mm-yyyy",
                                       filled: true,
                                       fillColor: fieldFillColor,
                                       contentPadding:
                                           const EdgeInsets.symmetric(
-                                            horizontal: 16,
+                                            horizontal: 14,
                                             vertical: 14,
                                           ),
                                       border: OutlineInputBorder(
@@ -509,20 +662,20 @@ class _AdminActivityLogsViewState extends State<AdminActivityLogsView> {
                               ),
                               SizedBox(
                                 width: isMobile
-                                    ? (constraints.maxWidth - 60) / 2
-                                    : 160,
+                                    ? (constraints.maxWidth - 52) / 2
+                                    : 150,
                                 child: InkWell(
                                   onTap: () => _selectDate(_toDateController),
                                   child: TextField(
                                     controller: _toDateController,
                                     enabled: false,
                                     decoration: InputDecoration(
-                                      hintText: "To Date",
+                                      hintText: "dd-mm-yyyy",
                                       filled: true,
                                       fillColor: fieldFillColor,
                                       contentPadding:
                                           const EdgeInsets.symmetric(
-                                            horizontal: 16,
+                                            horizontal: 14,
                                             vertical: 14,
                                           ),
                                       border: OutlineInputBorder(
@@ -540,28 +693,29 @@ class _AdminActivityLogsViewState extends State<AdminActivityLogsView> {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 14),
                           Wrap(
                             spacing: 12,
                             runSpacing: 12,
                             crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
                               SizedBox(
-                                width: isMobile ? double.infinity : 300,
+                                width: isMobile ? double.infinity : 280,
                                 child: TextField(
                                   controller: _searchController,
                                   style: TextStyle(color: textColor),
                                   decoration: InputDecoration(
-                                    hintText: "Search keyword...",
+                                    hintText: "Search keyword",
                                     hintStyle: TextStyle(color: subtitleColor),
                                     filled: true,
                                     fillColor: fieldFillColor,
                                     prefixIcon: Icon(
                                       IconlyLight.search,
                                       color: subtitleColor,
+                                      size: 18,
                                     ),
                                     contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
+                                      horizontal: 14,
                                       vertical: 14,
                                     ),
                                     border: OutlineInputBorder(
@@ -571,11 +725,11 @@ class _AdminActivityLogsViewState extends State<AdminActivityLogsView> {
                                   ),
                                 ),
                               ),
-                              ElevatedButton(
+                              ElevatedButton.icon(
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFF0D6EFD),
                                   padding: const EdgeInsets.symmetric(
-                                    horizontal: 24,
+                                    horizontal: 20,
                                     vertical: 14,
                                   ),
                                   shape: RoundedRectangleBorder(
@@ -584,26 +738,35 @@ class _AdminActivityLogsViewState extends State<AdminActivityLogsView> {
                                   elevation: 0,
                                 ),
                                 onPressed: _applyFilters,
-                                child: const Text(
-                                  "Apply Filters",
+                                icon: const Icon(
+                                  IconlyLight.search,
+                                  size: 16,
+                                  color: Colors.white,
+                                ),
+                                label: const Text(
+                                  "Search",
                                   style: TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
                               ),
-                              TextButton(
+                              OutlinedButton(
                                 onPressed: _resetFilters,
-                                style: TextButton.styleFrom(
+                                style: OutlinedButton.styleFrom(
+                                  side: BorderSide(color: borderColor),
                                   padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
+                                    horizontal: 18,
                                     vertical: 14,
                                   ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
                                 ),
-                                child: const Text(
+                                child: Text(
                                   "Reset",
                                   style: TextStyle(
-                                    color: Colors.grey,
+                                    color: textColor,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -620,7 +783,7 @@ class _AdminActivityLogsViewState extends State<AdminActivityLogsView> {
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
 
               // Table
               Container(
@@ -640,15 +803,64 @@ class _AdminActivityLogsViewState extends State<AdminActivityLogsView> {
                   animation: _controller,
                   builder: (context, _) {
                     if (_controller.isLoading) {
-                      return const ShimmerLoadingList();
+                      return const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(48.0),
+                          child: CircularProgressIndicator(),
+                        ),
+                      );
                     }
 
                     if (_controller.errorMessage != null &&
                         _controller.logs.isEmpty) {
                       return Center(
-                        child: Text(
-                          _controller.errorMessage!,
-                          style: const TextStyle(color: Colors.red),
+                        child: Padding(
+                          padding: const EdgeInsets.all(32.0),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                _controller.errorMessage!,
+                                style: const TextStyle(color: Colors.red),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 12),
+                              ElevatedButton.icon(
+                                onPressed: () => _controller.fetchLogs(),
+                                icon: const Icon(Icons.refresh, size: 16, color: Colors.white),
+                                label: const Text("Retry", style: TextStyle(color: Colors.white)),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF0D6EFD),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+
+                    if (_controller.logs.isEmpty) {
+                      return Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(48.0),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                IconlyLight.document,
+                                size: 48,
+                                color: subtitleColor.withValues(alpha: 0.5),
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                "No activity logs found",
+                                style: TextStyle(
+                                  color: subtitleColor,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       );
                     }
@@ -879,6 +1091,38 @@ class _AdminActivityLogsViewState extends State<AdminActivityLogsView> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildExportButton(
+    String label,
+    String format,
+    Color borderColor,
+    Color cardColor,
+  ) {
+    return OutlinedButton.icon(
+      onPressed: () => _controller.exportLogs(format),
+      icon: const Icon(
+        IconlyLight.download,
+        size: 15,
+        color: Color(0xFF0F2C4A),
+      ),
+      label: Text(
+        label,
+        style: const TextStyle(
+          color: Color(0xFF0F2C4A),
+          fontWeight: FontWeight.bold,
+          fontSize: 12,
+        ),
+      ),
+      style: OutlinedButton.styleFrom(
+        side: BorderSide(color: borderColor),
+        backgroundColor: cardColor,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+      ),
     );
   }
 

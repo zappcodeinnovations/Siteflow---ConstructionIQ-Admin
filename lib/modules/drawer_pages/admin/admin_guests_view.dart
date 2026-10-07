@@ -439,7 +439,12 @@ class _AdminGuestsViewState extends State<AdminGuestsView> {
               // Guests List
               Expanded(
                 child: _controller.isLoading && _controller.guests.isEmpty
-                    ? const ShimmerLoadingList()
+                    ? const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(48.0),
+                          child: CircularProgressIndicator(),
+                        ),
+                      )
                     : _controller.errorMessage != null &&
                           _controller.guests.isEmpty
                     ? Center(

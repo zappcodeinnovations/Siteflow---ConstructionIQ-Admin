@@ -14,19 +14,31 @@ class AdminMembersController extends ChangeNotifier {
   List<AdminMember> _members = [];
   List<AdminMember> get members => _members;
 
+  int? _totalCount;
+  int get totalCount => _totalCount ?? _members.length;
+
+  int? _assignedCount;
+  int? get assignedCount => _assignedCount;
+
+  int? _invitedCount;
+  int? get invitedCount => _invitedCount;
+
   Future<void> fetchMembers() async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      final url = '${ApiEndpoints.baseUrl}/admin/members/';
+      final url = '${ApiEndpoints.baseUrl}/admin/members/?page_size=1000';
       final response = await ApiClient.get(url);
       final decodedData = jsonDecode(response.body);
 
-      if (response.statusCode == 200 && decodedData['status'] == true) {
+      if (response.statusCode == 200 && (decodedData['status'] == true || decodedData is List || decodedData.containsKey('data'))) {
         final parsedResponse = AdminMemberResponse.fromJson(decodedData);
         _members = parsedResponse.data;
+        _totalCount = parsedResponse.totalCount ?? _members.length;
+        _assignedCount = parsedResponse.assignedCount;
+        _invitedCount = parsedResponse.invitedCount;
       } else {
         _errorMessage = decodedData['message'] ?? 'Failed to fetch members';
       }

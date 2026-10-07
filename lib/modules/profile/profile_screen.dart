@@ -31,104 +31,225 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final user = _controller.profile;
     if (user == null) return;
 
-    final firstNameController = TextEditingController(
-      text: user.firstName ?? '',
-    );
+    final formKey = GlobalKey<FormState>();
+    final firstNameController = TextEditingController(text: user.firstName ?? '');
     final lastNameController = TextEditingController(text: user.lastName ?? '');
     final phoneController = TextEditingController(text: user.phone ?? '');
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     showDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          title: const Text(
-            "Edit Profile",
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF0F2C4A),
-            ),
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: firstNameController,
-                  decoration: InputDecoration(
-                    labelText: "First Name",
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        bool isSubmitting = false;
+
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            InputDecoration buildInputDecoration({
+              required String label,
+              required IconData icon,
+            }) {
+              return InputDecoration(
+                labelText: label,
+                labelStyle: TextStyle(
+                  color: isDark ? Colors.white70 : Colors.grey.shade700,
+                  fontSize: 14,
+                ),
+                floatingLabelStyle: TextStyle(
+                  color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF0D6EFD),
+                  fontWeight: FontWeight.w600,
+                ),
+                prefixIcon: Icon(
+                  icon,
+                  size: 20,
+                  color: isDark ? Colors.white70 : const Color(0xFF0D6EFD),
+                ),
+                filled: true,
+                fillColor: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.grey.shade50,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(
+                    color: isDark ? Colors.white24 : Colors.grey.shade300,
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(
+                    color: Color(0xFF0D6EFD),
+                    width: 1.8,
+                  ),
+                ),
+                errorBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Colors.redAccent),
+                ),
+                focusedErrorBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Colors.redAccent, width: 1.8),
+                ),
+              );
+            }
+
+            return AlertDialog(
+              backgroundColor: isDark ? AppTheme.corporateBlue : Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(
+                  color: isDark ? Colors.white24 : Colors.grey.shade200,
+                ),
+              ),
+              title: Text(
+                "Edit Profile",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 20,
+                  color: isDark ? Colors.white : const Color(0xFF0F2C4A),
+                ),
+              ),
+              content: SizedBox(
+                width: MediaQuery.of(context).size.width > 400 ? 360 : double.maxFinite,
+                child: Form(
+                  key: formKey,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const SizedBox(height: 8),
+                        TextFormField(
+                          controller: firstNameController,
+                          style: TextStyle(
+                            color: isDark ? Colors.white : Colors.black87,
+                            fontSize: 15,
+                          ),
+                          decoration: buildInputDecoration(
+                            label: "First Name",
+                            icon: IconlyLight.profile,
+                          ),
+                          validator: (val) {
+                            if (val == null || val.trim().isEmpty) {
+                              return "Please enter first name";
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: lastNameController,
+                          style: TextStyle(
+                            color: isDark ? Colors.white : Colors.black87,
+                            fontSize: 15,
+                          ),
+                          decoration: buildInputDecoration(
+                            label: "Last Name",
+                            icon: IconlyLight.profile,
+                          ),
+                          validator: (val) {
+                            if (val == null || val.trim().isEmpty) {
+                              return "Please enter last name";
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: phoneController,
+                          keyboardType: TextInputType.phone,
+                          style: TextStyle(
+                            color: isDark ? Colors.white : Colors.black87,
+                            fontSize: 15,
+                          ),
+                          decoration: buildInputDecoration(
+                            label: "Mobile Number",
+                            icon: IconlyLight.call,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
                     ),
                   ),
                 ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: lastNameController,
-                  decoration: InputDecoration(
-                    labelText: "Last Name",
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
+              ),
+              actionsPadding: const EdgeInsets.only(left: 20, right: 20, bottom: 20),
+              actions: [
+                TextButton(
+                  onPressed: isSubmitting ? null : () => Navigator.pop(dialogContext),
+                  child: Text(
+                    "Cancel",
+                    style: TextStyle(
+                      color: isDark ? Colors.white70 : Colors.grey.shade600,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: phoneController,
-                  decoration: InputDecoration(
-                    labelText: "Mobile Number",
-                    border: OutlineInputBorder(
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0D6EFD),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          if (!formKey.currentState!.validate()) return;
+
+                          setDialogState(() {
+                            isSubmitting = true;
+                          });
+
+                          final success = await _controller.updateProfile({
+                            'first_name': firstNameController.text.trim(),
+                            'last_name': lastNameController.text.trim(),
+                            'phone': phoneController.text.trim(),
+                          });
+
+                          if (dialogContext.mounted) {
+                            if (success) {
+                              Navigator.pop(dialogContext);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text("Profile updated successfully"),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+                            } else {
+                              setDialogState(() {
+                                isSubmitting = false;
+                              });
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    _controller.errorMessage ?? "Failed to update profile",
+                                  ),
+                                  backgroundColor: Colors.redAccent,
+                                ),
+                              );
+                            }
+                          }
+                        },
+                  child: isSubmitting
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text(
+                          "Save Changes",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                 ),
               ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0D6EFD),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              onPressed: () async {
-                final success = await _controller.updateProfile({
-                  'first_name': firstNameController.text.trim(),
-                  'last_name': lastNameController.text.trim(),
-                  'phone': phoneController.text.trim(),
-                });
-                if (success && context.mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("Profile updated successfully"),
-                    ),
-                  );
-                } else if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        _controller.errorMessage ?? "Failed to update profile",
-                      ),
-                    ),
-                  );
-                }
-              },
-              child: const Text(
-                "Save Changes",
-                style: TextStyle(color: Colors.white),
-              ),
-            ),
-          ],
+            );
+          },
         );
       },
     );
@@ -234,7 +355,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final textColor = isDark ? Colors.white : Colors.black87;
         final subtitleColor = isDark ? Colors.white70 : Colors.grey.shade600;
         
-        if (_controller.isLoading) return const ShimmerLoadingDashboard();
+        if (_controller.isLoading) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(48.0),
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
         if (_controller.errorMessage != null && _controller.profile == null) {
           return Center(
             child: Text(

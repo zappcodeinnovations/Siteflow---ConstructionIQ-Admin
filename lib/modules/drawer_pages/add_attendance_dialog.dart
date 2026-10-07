@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'timesheet_controller.dart';
 import 'package:iconly/iconly.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/widgets/custom_date_picker_dialog.dart';
 
 class AddAttendanceDialog extends StatefulWidget {
   final TimesheetController controller;
@@ -32,7 +33,7 @@ class _AddAttendanceDialogState extends State<AddAttendanceDialog> {
 
   Future<void> _selectDateTime(bool isClockIn) async {
     final now = DateTime.now();
-    final pickedDate = await showDatePicker(
+    final pickedDate = await CustomDatePickerDialog.showCustomDatePicker(
       context: context,
       initialDate: now,
       firstDate: DateTime(2000),

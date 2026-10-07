@@ -9,10 +9,10 @@ import 'timesheet_controller.dart';
 import 'add_attendance_dialog.dart';
 import 'attendance_logs_dialog.dart';
 import '../../models/timesheet_model.dart';
-import '../../core/widgets/shimmer_loading.dart';
 import 'package:iconly/iconly.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/background_stripes_painter.dart';
+import '../../core/widgets/custom_date_picker_dialog.dart';
 
 class TimesheetScreen extends StatefulWidget {
   const TimesheetScreen({super.key});
@@ -37,15 +37,10 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
   }
 
   Future<void> _selectDateRange(BuildContext context) async {
-    final initialDate = DateTime.now();
-    final DateTimeRange? picked = await showDateRangePicker(
+    final DateTimeRange? picked = await CustomDatePickerDialog.showCustomDateRangePicker(
       context: context,
       firstDate: DateTime(2000),
       lastDate: DateTime(2101),
-      initialDateRange: DateTimeRange(
-        start: initialDate.subtract(const Duration(days: 30)),
-        end: initialDate,
-      ),
     );
     if (picked != null) {
       final startStr = "${picked.start.year}-${picked.start.month.toString().padLeft(2, '0')}-${picked.start.day.toString().padLeft(2, '0')}";
@@ -451,7 +446,12 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
                   const SizedBox(height: 16),
 
                   if (_controller.isLoading && _controller.data == null)
-                    const ShimmerLoadingList()
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(48.0),
+                        child: CircularProgressIndicator(),
+                      ),
+                    )
                   else if (_controller.errorMessage != null && _controller.data == null)
                     Center(child: Text(_controller.errorMessage!, style: const TextStyle(color: Colors.red)))
                   else if (_controller.data != null)

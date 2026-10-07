@@ -5,6 +5,7 @@ import '../../core/widgets/shimmer_loading.dart';
 import 'package:iconly/iconly.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/background_stripes_painter.dart';
+import '../../core/widgets/custom_date_picker_dialog.dart';
 import 'package:intl/intl.dart';
 
 class ManagerAttendanceScreen extends StatefulWidget {
@@ -40,15 +41,10 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
   }
 
   Future<void> _selectDateRange(BuildContext context) async {
-    final initialDate = DateTime.now();
-    final DateTimeRange? picked = await showDateRangePicker(
+    final DateTimeRange? picked = await CustomDatePickerDialog.showCustomDateRangePicker(
       context: context,
       firstDate: DateTime(2000),
       lastDate: DateTime(2101),
-      initialDateRange: DateTimeRange(
-        start: initialDate.subtract(const Duration(days: 30)),
-        end: initialDate,
-      ),
     );
     if (picked != null) {
       final startStr =
@@ -606,7 +602,12 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
                       const SizedBox(height: 16),
 
                       if (_controller.isLoading && _controller.data == null)
-                        const ShimmerLoadingList()
+                        const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(48.0),
+                            child: CircularProgressIndicator(),
+                          ),
+                        )
                       else if (_controller.errorMessage != null &&
                           _controller.data == null)
                         Center(

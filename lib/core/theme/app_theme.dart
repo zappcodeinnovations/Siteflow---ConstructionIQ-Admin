@@ -48,6 +48,19 @@ class AppTheme {
         borderSide: const BorderSide(color: corporateBlue, width: 2),
       ),
     ),
+    dialogTheme: DialogThemeData(
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      titleTextStyle: const TextStyle(
+        color: Color(0xFF0F2C4A),
+        fontWeight: FontWeight.bold,
+        fontSize: 16,
+      ),
+      contentTextStyle: const TextStyle(
+        color: Colors.black87,
+        fontSize: 14,
+      ),
+    ),
   );
 
   static ThemeData darkTheme = ThemeData(
@@ -62,6 +75,23 @@ class AppTheme {
       brightness: Brightness.dark,
     ).copyWith(surface: const Color(0xFF1E1E1E)),
     textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
+
+    dialogTheme: DialogThemeData(
+      backgroundColor: const Color(0xFF0F2C4A),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: Colors.white24),
+      ),
+      titleTextStyle: const TextStyle(
+        color: Colors.white,
+        fontWeight: FontWeight.bold,
+        fontSize: 20,
+      ),
+      contentTextStyle: const TextStyle(
+        color: Colors.white,
+        fontSize: 14,
+      ),
+    ),
 
     appBarTheme: const AppBarTheme(
       backgroundColor: corporateBlue,
@@ -86,22 +116,23 @@ class AppTheme {
 
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: Colors.white.withOpacity(0.12),
+      fillColor: const Color(0xFF162A42),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide.none,
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Colors.white24),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide.none,
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Colors.white24),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: Colors.white, width: 1.2),
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Colors.white, width: 1.5),
       ),
-      hintStyle: const TextStyle(color: Colors.white70),
-      prefixIconColor: Colors.white,
-      suffixIconColor: Colors.white,
+      labelStyle: const TextStyle(color: Colors.white70),
+      hintStyle: const TextStyle(color: Colors.white60),
+      prefixIconColor: Colors.white70,
+      suffixIconColor: Colors.white70,
     ),
   );
 }

@@ -22,7 +22,48 @@ class AdminActivityLogsController extends ChangeNotifier {
   Map<String, dynamic> _filterOptions = {};
   Map<String, dynamic> get filterOptions => _filterOptions;
 
+  List<Map<String, dynamic>> _managers = [];
+  List<Map<String, dynamic>> get managers => _managers;
+
+  List<Map<String, dynamic>> get availableManagers {
+    if (_managers.isNotEmpty) {
+      return _managers;
+    }
+
+    if (_filterOptions['managers'] is List &&
+        (_filterOptions['managers'] as List).isNotEmpty) {
+      return (_filterOptions['managers'] as List)
+          .whereType<Map<String, dynamic>>()
+          .toList();
+    }
+
+    if (_filterOptions['users'] is List) {
+      final usersList = (_filterOptions['users'] as List)
+          .whereType<Map<String, dynamic>>()
+          .toList();
+      final filtered = usersList.where((u) {
+        final role = (u['role'] ??
+                u['role_name'] ??
+                u['role_display_name'] ??
+                u['user_type'] ??
+                '')
+            .toString()
+            .toLowerCase();
+        if (role.isNotEmpty) {
+          return role.contains('manager') && !role.contains('operative');
+        }
+        return true;
+      }).toList();
+
+      if (filtered.isNotEmpty) return filtered;
+      return usersList;
+    }
+
+    return [];
+  }
+
   String? selectedManager;
+  String? selectedRole;
   String? selectedModule;
   String? selectedAction;
   String? fromDate;
@@ -30,9 +71,16 @@ class AdminActivityLogsController extends ChangeNotifier {
   String searchQuery = "";
 
   Future<void> initializeData() async {
-    await fetchKPIs();
-    await fetchFilterOptions();
-    await fetchLogs();
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    await Future.wait([
+      fetchKPIs(),
+      fetchFilterOptions(),
+      fetchManagers(),
+      fetchLogs(isInitial: true),
+    ]);
   }
 
   Future<void> fetchKPIs() async {
@@ -53,7 +101,7 @@ class AdminActivityLogsController extends ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      print("Error fetching Activity Log KPIs: $e");
+      debugPrint("Error fetching Activity Log KPIs: $e");
     }
   }
 
@@ -75,12 +123,69 @@ class AdminActivityLogsController extends ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      print("Error fetching Activity Log filters: $e");
+      debugPrint("Error fetching Activity Log filters: $e");
+    }
+  }
+
+  Future<void> fetchManagers() async {
+    try {
+      final url = '${ApiEndpoints.baseUrl}/admin/members/?page_size=1000';
+      final response = await ApiClient.get(url);
+      if (response.statusCode == 200) {
+        final decodedData = jsonDecode(response.body);
+        List<dynamic> list = [];
+        if (decodedData is List) {
+          list = decodedData;
+        } else if (decodedData is Map<String, dynamic>) {
+          if (decodedData['data'] is List) {
+            list = decodedData['data'];
+          } else if (decodedData['results'] is List) {
+            list = decodedData['results'];
+          } else if (decodedData['members'] is List) {
+            list = decodedData['members'];
+          }
+        }
+
+        final filteredManagers = list.where((item) {
+          if (item is! Map) return false;
+          final role = (item['role'] ??
+                  item['role_name'] ??
+                  item['role_display_name'] ??
+                  '')
+              .toString()
+              .toLowerCase();
+          // Exclude operatives and non-managers
+          return (role.contains('manager') || role == 'admin' || role == 'superadmin') &&
+              !role.contains('operative') &&
+              !role.contains('guest');
+        }).map((item) {
+          final first = item['first_name']?.toString() ?? '';
+          final last = item['last_name']?.toString() ?? '';
+          final fullName = '$first $last'.trim();
+          final displayName = item['display_name']?.toString() ?? '';
+          final name = displayName.isNotEmpty ? displayName : (fullName.isNotEmpty ? fullName : item['email']?.toString() ?? '');
+          return {
+            'id': item['id'],
+            'display_name': name,
+            'name': name,
+            'email': item['email'] ?? '',
+            'role': item['role'] ?? item['role_name'] ?? 'Manager',
+          };
+        }).toList();
+
+        if (filteredManagers.isNotEmpty) {
+          _managers = filteredManagers;
+          notifyListeners();
+        }
+      }
+    } catch (e) {
+      debugPrint("Error fetching managers for activity logs: $e");
     }
   }
 
   void updateFilters({
     String? manager,
+    String? role,
     String? module,
     String? action,
     String? from,
@@ -88,6 +193,7 @@ class AdminActivityLogsController extends ChangeNotifier {
     String? search,
   }) {
     if (manager != null) selectedManager = manager.isEmpty ? null : manager;
+    if (role != null) selectedRole = role.isEmpty ? null : role;
     if (module != null) selectedModule = module.isEmpty ? null : module;
     if (action != null) selectedAction = action.isEmpty ? null : action;
     if (from != null) fromDate = from.isEmpty ? null : from;
@@ -99,6 +205,7 @@ class AdminActivityLogsController extends ChangeNotifier {
 
   void resetFilters() {
     selectedManager = null;
+    selectedRole = null;
     selectedModule = null;
     selectedAction = null;
     fromDate = null;
@@ -107,24 +214,27 @@ class AdminActivityLogsController extends ChangeNotifier {
     fetchLogs();
   }
 
-  Future<void> fetchLogs() async {
-    _isLoading = true;
-    _errorMessage = null;
-    _logs = [];
-    notifyListeners();
+  Future<void> fetchLogs({bool isInitial = false}) async {
+    if (!isInitial) {
+      _isLoading = true;
+      _errorMessage = null;
+      notifyListeners();
+    }
 
     try {
-      String url = '${ApiEndpoints.baseUrl}/admin/activity-logs/?';
       List<String> queryParams = [];
       
-      if (selectedManager != null) queryParams.add('user_id=$selectedManager');
-      if (selectedModule != null) queryParams.add('module=$selectedModule');
-      if (selectedAction != null) queryParams.add('action_type=$selectedAction');
-      if (fromDate != null) queryParams.add('from=$fromDate');
-      if (toDate != null) queryParams.add('to=$toDate');
+      if (selectedManager != null && selectedManager!.isNotEmpty) queryParams.add('user_id=$selectedManager');
+      if (selectedRole != null && selectedRole!.isNotEmpty) queryParams.add('role=$selectedRole');
+      if (selectedModule != null && selectedModule!.isNotEmpty) queryParams.add('module=$selectedModule');
+      if (selectedAction != null && selectedAction!.isNotEmpty) queryParams.add('action_type=$selectedAction');
+      if (fromDate != null && fromDate!.isNotEmpty) queryParams.add('from=$fromDate');
+      if (toDate != null && toDate!.isNotEmpty) queryParams.add('to=$toDate');
       if (searchQuery.isNotEmpty) queryParams.add('search=$searchQuery');
 
-      url += queryParams.join('&');
+      final String url = queryParams.isNotEmpty
+          ? '${ApiEndpoints.baseUrl}/admin/activity-logs/?${queryParams.join('&')}'
+          : '${ApiEndpoints.baseUrl}/admin/activity-logs/';
 
       final response = await ApiClient.get(url);
       
@@ -134,15 +244,19 @@ class AdminActivityLogsController extends ChangeNotifier {
 
         if (decoded is List) {
           dataList = decoded;
-        } else if (decoded is Map<String, dynamic> && decoded.containsKey('data')) {
-          dataList = decoded['data'];
-        } else if (decoded is Map<String, dynamic> && decoded.containsKey('results')) {
-          dataList = decoded['results'];
+        } else if (decoded is Map<String, dynamic>) {
+          final data = decoded['data'] ?? decoded['results'] ?? decoded['logs'];
+          if (data is List) {
+            dataList = data;
+          } else if (data is Map<String, dynamic>) {
+            dataList = (data['results'] ?? data['logs'] ?? data['data']) as List? ?? [];
+          }
         }
 
-        _logs = dataList.map((i) => ActivityLog.fromJson(i)).toList();
+        _logs = dataList.map((i) => ActivityLog.fromJson(i as Map<String, dynamic>)).toList();
+        _errorMessage = null;
       } else {
-        _errorMessage = 'Failed to load activity logs.';
+        _errorMessage = 'Failed to load activity logs (${response.statusCode}).';
       }
     } catch (e) {
       _errorMessage = 'An error occurred: $e';
@@ -155,20 +269,22 @@ class AdminActivityLogsController extends ChangeNotifier {
   Future<void> exportLogs(String format) async {
     try {
       String url = '${ApiEndpoints.baseUrl}/admin/activity-logs/export/?format=$format';
-      if (selectedManager != null) url += '&user_id=$selectedManager';
-      if (selectedModule != null) url += '&module=$selectedModule';
-      if (selectedAction != null) url += '&action_type=$selectedAction';
-      if (fromDate != null) url += '&from=$fromDate';
-      if (toDate != null) url += '&to=$toDate';
+      if (selectedManager != null && selectedManager!.isNotEmpty) url += '&user_id=$selectedManager';
+      if (selectedRole != null && selectedRole!.isNotEmpty) url += '&role=$selectedRole';
+      if (selectedModule != null && selectedModule!.isNotEmpty) url += '&module=$selectedModule';
+      if (selectedAction != null && selectedAction!.isNotEmpty) url += '&action_type=$selectedAction';
+      if (fromDate != null && fromDate!.isNotEmpty) url += '&from=$fromDate';
+      if (toDate != null && toDate!.isNotEmpty) url += '&to=$toDate';
+      if (searchQuery.isNotEmpty) url += '&search=$searchQuery';
 
       final uri = Uri.parse(url);
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
       } else {
-        print("Could not launch $url");
+        debugPrint("Could not launch $url");
       }
     } catch (e) {
-      print("Export error: $e");
+      debugPrint("Export error: $e");
     }
   }
 
@@ -186,7 +302,7 @@ class AdminActivityLogsController extends ChangeNotifier {
         }
       }
     } catch (e) {
-      print("Error fetching log detail: $e");
+      debugPrint("Error fetching log detail: $e");
     }
     return null;
   }

@@ -20,7 +20,7 @@ class AdminAnnouncementsController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final url = '${ApiEndpoints.baseUrl}/admin/announcements/';
+      final url = '${ApiEndpoints.baseUrl}/admin/announcements/?page_size=1000';
       final response = await ApiClient.get(url);
       final decodedData = jsonDecode(response.body);
 

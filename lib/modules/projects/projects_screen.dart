@@ -1,8 +1,13 @@
 import 'dart:convert';
+import 'dart:io';
+import 'dart:ui' as ui;
 import 'package:euroside_admin/core/widgets/shimmer_loading.dart';
 import 'package:euroside_admin/models/project_model.dart';
 import 'package:flutter/material.dart';
+import 'package:iconly/iconly.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../core/widgets/status_chip.dart';
 import 'project_controller.dart';
 import 'project_details_screen.dart';
@@ -59,36 +64,54 @@ class ProjectsScreenState extends State<ProjectsScreen> {
     showDialog(
       context: context,
       builder: (context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final dialogBg = isDark ? const Color(0xFF0F2C4A) : Colors.white;
+        final titleColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
+        final textColor = isDark ? Colors.white : Colors.black87;
+        final hintColor = isDark ? Colors.white54 : Colors.grey;
+        final inputBorderColor = isDark ? Colors.white24 : Colors.grey.shade300;
+        final inputFillColor = isDark ? Colors.white.withOpacity(0.08) : Colors.transparent;
+
         return AlertDialog(
-          backgroundColor: Colors.white,
+          backgroundColor: dialogBg,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
+            side: isDark ? const BorderSide(color: Colors.white24) : BorderSide.none,
           ),
-          title: const Text(
+          title: Text(
             "Create Project",
             style: TextStyle(
               fontWeight: FontWeight.bold,
-              color: Color(0xFF0F2C4A),
+              fontSize: 16,
+              color: titleColor,
             ),
           ),
           content: TextField(
             controller: nameController,
+            style: TextStyle(color: textColor),
             decoration: InputDecoration(
               hintText: "Project Name",
+              hintStyle: TextStyle(color: hintColor),
+              filled: true,
+              fillColor: inputFillColor,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: Colors.grey),
+                borderSide: BorderSide(color: inputBorderColor),
               ),
-              focusedBorder: OutlineInputBorder(
+              enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: Color(0xFF0D6EFD)),
+                borderSide: BorderSide(color: inputBorderColor),
+              ),
+              focusedBorder: const OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(8)),
+                borderSide: BorderSide(color: Color(0xFF0D6EFD), width: 1.5),
               ),
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
+              child: Text("Cancel", style: TextStyle(color: isDark ? Colors.white70 : Colors.grey)),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -130,22 +153,29 @@ class ProjectsScreenState extends State<ProjectsScreen> {
     showDialog(
       context: context,
       builder: (context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final dialogBg = isDark ? const Color(0xFF0F2C4A) : Colors.white;
+        final titleColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
+        final textColor = isDark ? Colors.white70 : Colors.black87;
+
         return AlertDialog(
-          backgroundColor: Colors.white,
+          backgroundColor: dialogBg,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
+            side: isDark ? const BorderSide(color: Colors.white24) : BorderSide.none,
           ),
-          title: const Text(
+          title: Text(
             "Delete Projects",
-            style: TextStyle(fontWeight: FontWeight.bold),
+            style: TextStyle(fontWeight: FontWeight.bold, color: titleColor),
           ),
           content: Text(
             "Are you sure you want to delete ${_controller.selectedProjectIds.length} selected project(s)?",
+            style: TextStyle(color: textColor),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
+              child: Text("Cancel", style: TextStyle(color: isDark ? Colors.white70 : Colors.grey)),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -279,18 +309,63 @@ class ProjectsScreenState extends State<ProjectsScreen> {
             child: TextField(
               controller: _searchController,
               onSubmitted: (value) => _controller.searchProjects(value),
+              onChanged: (value) {
+                _controller.searchProjects(value);
+                setState(() {});
+              },
               style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 14),
               decoration: InputDecoration(
                 hintText: "Search projects...",
                 hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
                 prefixIcon: Icon(Icons.search, color: Colors.grey.shade400, size: 20),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: Icon(
+                          Icons.close,
+                          size: 18,
+                          color: isDark ? Colors.white70 : Colors.grey.shade600,
+                        ),
+                        onPressed: () {
+                          _searchController.clear();
+                          _controller.searchProjects('');
+                          setState(() {});
+                        },
+                      )
+                    : null,
                 border: InputBorder.none,
                 contentPadding: const EdgeInsets.symmetric(vertical: 12),
               ),
             ),
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 8),
+        // Reset Filter Button
+        Container(
+          width: 46,
+          height: 46,
+          decoration: BoxDecoration(
+            color: cardColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: borderColor),
+          ),
+          child: IconButton(
+            icon: Icon(
+              Icons.restart_alt,
+              color: isDark ? Colors.white70 : Colors.grey.shade700,
+              size: 20,
+            ),
+            tooltip: "Reset Filters",
+            onPressed: () {
+              _searchController.clear();
+              setState(() {
+                _selectedStatusTab = "All";
+              });
+              _controller.searchProjects('');
+              _controller.fetchProjects();
+            },
+          ),
+        ),
+        const SizedBox(width: 8),
         Container(
           width: 46,
           height: 46,
@@ -301,6 +376,7 @@ class ProjectsScreenState extends State<ProjectsScreen> {
           ),
           child: IconButton(
             icon: Icon(Icons.tune, color: isDark ? Colors.grey.shade300 : Colors.grey.shade600, size: 20),
+            tooltip: "Filter",
             onPressed: () {
               // Custom dialog / filter trigger
             },
@@ -385,7 +461,12 @@ class ProjectsScreenState extends State<ProjectsScreen> {
       animation: _controller,
       builder: (context, child) {
         if (_controller.isLoading && _controller.filteredProjects.isEmpty) {
-          return const ShimmerLoadingList();
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(48.0),
+              child: CircularProgressIndicator(),
+            ),
+          );
         }
 
         if (_controller.errorMessage != null && _controller.filteredProjects.isEmpty) {
@@ -431,9 +512,7 @@ class ProjectsScreenState extends State<ProjectsScreen> {
             final clientName = project.client?.name ?? 'N/A';
             final statusLabel = project.statusLabel.isNotEmpty ? project.statusLabel : "In Progress";
             final budget = project.budget != null ? "£${project.budget}" : '';
-            final priority = project.priority ?? '';
-            final hasQr = project.qrToken != null || project.qrPayload != null;
-
+            final priority = project.priority;
             return _buildProjectCardItem(
               context,
               isDark: isDark,
@@ -461,7 +540,7 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                   ),
                 );
               },
-              onViewQr: hasQr ? () => _showQrCode(context, project) : null,
+              onViewQr: () => _showQrCode(context, project),
             );
           },
         );
@@ -469,67 +548,225 @@ class ProjectsScreenState extends State<ProjectsScreen> {
     );
   }
 
+  Future<void> _downloadQrCode(BuildContext context, String qrData, Project project) async {
+    try {
+      final painter = QrPainter(
+        data: qrData,
+        version: QrVersions.auto,
+        color: const Color(0xFF000000),
+        emptyColor: const Color(0xFFFFFFFF),
+        gapless: true,
+      );
+      final picData = await painter.toImageData(1024, format: ui.ImageByteFormat.png);
+      if (picData == null) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Failed to generate QR image")),
+          );
+        }
+        return;
+      }
+
+      final tempDir = await getTemporaryDirectory();
+      final sanitizedCode = (project.code.isNotEmpty ? project.code : 'PROJ_${project.id}')
+          .replaceAll(RegExp(r'[^a-zA-Z0-9_\-]'), '_');
+      final file = File('${tempDir.path}/QR_$sanitizedCode.png');
+      await file.writeAsBytes(picData.buffer.asUint8List());
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("QR Code exported ($sanitizedCode.png)"),
+          ),
+        );
+      }
+
+      await Share.shareXFiles([XFile(file.path)], text: 'Project QR Code: ${project.name} ($sanitizedCode)');
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error saving QR Code: $e")),
+        );
+      }
+    }
+  }
+
   void _showQrCode(BuildContext context, Project project) {
-    if (project.qrPayload == null && project.qrToken == null) return;
-    
-    // Use the exact payload from the backend. 
-    // We generate the image locally because the backend provides data (JSON), not an image file.
-    final qrData = project.qrPayload != null 
-        ? jsonEncode(project.qrPayload) 
-        : project.qrToken!;
+    String qrData = '';
+    if (project.qrPayload != null && project.qrPayload!.isNotEmpty) {
+      try {
+        qrData = jsonEncode(project.qrPayload);
+      } catch (_) {
+        qrData = project.qrPayload.toString();
+      }
+    } else if (project.qrToken != null && project.qrToken!.trim().isNotEmpty) {
+      qrData = project.qrToken!.trim();
+    } else {
+      qrData = jsonEncode({
+        "project_id": project.id,
+        "project_code": project.code.isNotEmpty ? project.code : "PROJ-${project.id}",
+        "project_name": project.name,
+      });
+    }
 
     showDialog(
       context: context,
-      builder: (context) {
-        final isDark = Theme.of(context).brightness == Brightness.dark;
+      builder: (dialogContext) {
+        final isDark = Theme.of(dialogContext).brightness == Brightness.dark;
         final bgColor = isDark ? const Color(0xFF1F2E40) : Colors.white;
         final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
         final secondaryTextColor = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
         final borderColor = isDark ? const Color(0xFF2C3E50) : Colors.grey.shade200;
 
-        return AlertDialog(
-          backgroundColor: bgColor,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: Text(
-            "Project QR Code",
-            textAlign: TextAlign.center,
-            style: TextStyle(fontWeight: FontWeight.bold, color: textColor),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white, // Keep QR code background white for scannability
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: borderColor),
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 360),
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: borderColor),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.1),
+                  blurRadius: 24,
+                  offset: const Offset(0, 8),
                 ),
-                child: QrImageView(
-                  data: qrData,
-                  version: QrVersions.auto,
-                  size: 200.0,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                project.name,
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: textColor),
-              ),
-              Text(
-                project.code,
-                style: TextStyle(color: secondaryTextColor, fontSize: 14),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text("Close", style: TextStyle(color: secondaryTextColor)),
+              ],
             ),
-          ],
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Header with Title and Dismiss Cross (x) Icon
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const SizedBox(width: 32),
+                    Expanded(
+                      child: Text(
+                        "Project QR Code",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: textColor,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 22),
+                      color: textColor.withValues(alpha: 0.7),
+                      splashRadius: 20,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      onPressed: () => Navigator.pop(dialogContext),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                // QR Code Display
+                Center(
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: borderColor),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: QrImageView(
+                      data: qrData,
+                      version: QrVersions.auto,
+                      size: 200.0,
+                      backgroundColor: Colors.white,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  project.name,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: textColor,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  project.code.isNotEmpty ? project.code : 'PROJ-${project.id}',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: secondaryTextColor,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                // Bottom Actions: Close and Download QR
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(dialogContext),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: textColor,
+                          side: BorderSide(
+                            color: isDark ? Colors.white24 : Colors.grey.shade300,
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text(
+                          "Close",
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          _downloadQrCode(context, qrData, project);
+                        },
+                        icon: const Icon(IconlyLight.download, size: 18),
+                        label: const Text(
+                          "Download QR",
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF0D6EFD),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         );
       },
     );
@@ -676,6 +913,7 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                     children: [
                       // Client
                       Expanded(
+                        flex: 4,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -691,19 +929,27 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                             ),
                             const SizedBox(height: 6),
                             Text(
-                              clientName,
-                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: primaryTextColor),
-                              maxLines: 1,
+                              clientName.isNotEmpty ? clientName : "-",
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: primaryTextColor,
+                                height: 1.25,
+                              ),
+                              maxLines: 2,
                               overflow: TextOverflow.ellipsis,
+                              softWrap: true,
                             ),
                           ],
                         ),
                       ),
+                      const SizedBox(width: 12),
                       VerticalDivider(width: 1, color: isDark ? const Color(0xFF1F2E40) : Colors.grey.shade100, thickness: 1),
-                      const SizedBox(width: 16),
+                      const SizedBox(width: 12),
                       
                       // Budget
                       Expanded(
+                        flex: 3,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -719,19 +965,26 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                             ),
                             const SizedBox(height: 6),
                             Text(
-                              budget,
-                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: primaryTextColor),
-                              maxLines: 1,
+                              budget.isNotEmpty ? budget : "-",
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: primaryTextColor,
+                                height: 1.25,
+                              ),
+                              maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ],
                         ),
                       ),
+                      const SizedBox(width: 12),
                       VerticalDivider(width: 1, color: isDark ? const Color(0xFF1F2E40) : Colors.grey.shade100, thickness: 1),
-                      const SizedBox(width: 16),
+                      const SizedBox(width: 12),
 
                       // Priority
                       Expanded(
+                        flex: 3,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -739,7 +992,7 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                               "Priority",
                               style: TextStyle(fontSize: 11, color: Colors.grey.shade400, fontWeight: FontWeight.bold),
                             ),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: 6),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                               decoration: BoxDecoration(
