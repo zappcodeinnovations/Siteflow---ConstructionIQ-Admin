@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
 import 'tabs/dynamic_tab.dart';
+import 'tabs/specifications_tab.dart';
 import 'tabs/project_setup_tab.dart';
 import 'tabs/tasks_tab.dart';
 import 'tabs/job_sheets_tab.dart';
@@ -165,10 +166,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                 as List?,
       ),
       DynamicTab(title: "Locations", data: _allInOneData?.locations ?? []),
-      DynamicTab(
-        title: "Specifications",
-        data: _allInOneData?.specifications ?? [],
-      ),
+      SpecificationsTab(projectId: widget.project.id),
       ProjectTemplateTab(projectId: widget.project.id),
       MaterialsTab(projectId: widget.project.id),
       DocsFilesTab(

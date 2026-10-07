@@ -31,6 +31,18 @@ class ApiEndpoints {
   static String projectApprovalStageReorder(int projectId) => '/projects/$projectId/approval-stages/reorder/';
   static String projectFormApprovals(int projectId) => '/projects/$projectId/form-approvals/';
 
+  static String projectSpecifications(int projectId) => '/projects/$projectId/specifications/';
+  static String projectSpecificationDetail(int projectId, int specId) => '/projects/$projectId/specifications/$specId/';
+  static String projectSpecificationAttributes(int projectId, int specId) => '/projects/$projectId/specifications/$specId/attributes/';
+  static String projectSpecificationFiles(int projectId, int specId) => '/projects/$projectId/specifications/$specId/files/';
+  static String projectSpecificationFileDetail(int projectId, int specId, int fileId) => '/projects/$projectId/specifications/$specId/files/$fileId/';
+  static String projectSpecificationMaterials(int projectId, int specId) => '/projects/$projectId/specifications/$specId/materials/';
+  static String projectSpecificationMaterialDetail(int projectId, int specId, int materialId) => '/projects/$projectId/specifications/$specId/materials/$materialId/';
+  static String projectSpecificationPriceItems(int projectId, int specId) => '/projects/$projectId/specifications/$specId/price-items/';
+  static String projectSpecificationPriceItemDetail(int projectId, int specId, int itemId) => '/projects/$projectId/specifications/$specId/price-items/$itemId/';
+  static String projectSpecificationAttributeDefinitions(int projectId) => '/projects/$projectId/specification-attribute-definitions/';
+  static String projectSpecificationAttributeDefinitionDetail(int projectId, int definitionId) => '/projects/$projectId/specification-attribute-definitions/$definitionId/';
+
   // Library (global catalog)
   static const String libraryForms = '/library/forms/';
   static const String libraryMaterials = '/library/materials/';
