@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/date_helper.dart';
+import '../../../models/job_sheet_model.dart';
+import '../../drawer_pages/job_sheet_details_screen.dart';
 
 class JobSheetsTab extends StatelessWidget {
   final List<dynamic> jobSheets;

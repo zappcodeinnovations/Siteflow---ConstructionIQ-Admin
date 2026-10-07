@@ -11,8 +11,6 @@ import '../drawer_pages/job_sheet_details_screen.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/background_stripes_painter.dart';
 import '../../core/services/auth_service.dart';
-import '../../models/admin_task_model.dart';
-import 'admin_tasks_controller.dart';
 
 class TasksScreen extends StatefulWidget {
   const TasksScreen({super.key});
@@ -50,20 +48,6 @@ class _TasksScreenState extends State<TasksScreen> {
     _controller.addListener(_onControllerUpdate);
     _controller.fetchJobSheets();
     _loadPermissions();
-    _controller.addListener(_onControllerChanged);
-    _controller.fetchTasks();
-  }
-
-  void _onControllerChanged() {
-    if (mounted) setState(() {});
-  }
-
-  @override
-  void dispose() {
-    _controller.removeListener(_onControllerChanged);
-    _controller.dispose();
-    _verticalScrollController.dispose();
-    super.dispose();
   }
 
   void _onControllerUpdate() {

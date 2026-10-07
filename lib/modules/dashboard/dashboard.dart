@@ -163,6 +163,14 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                           if (mounted) _dashboardController.fetchDashboard(silent: true);
                         }),
                       ),
+                      ModernKpiCard(
+                        title: "Not Clocked In Today",
+                        value: "${kpis?.attendance['not_clocked_in_today'] ?? 0}",
+                        icon: IconlyLight.profile,
+                        bgColor: const Color(0xffB91C1C), // Red
+                        topAction: "View",
+                        onTap: () => _showAttendanceListDialog(context),
+                      ),
                       if (_showAllKpis)
                         ModernKpiCard(
                           title: "Clocked In Today",
@@ -269,6 +277,77 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
         ],
       ),
     ),
+  );
+}
+
+void _showAttendanceListDialog(BuildContext context) {
+  final data = _dashboardController.dashboardData;
+  final present = data?.presentOperativesToday ?? [];
+  final absent = data?.absentOperativesToday ?? [];
+
+  showDialog(
+    context: context,
+    builder: (dialogContext) {
+      final isDark = Theme.of(dialogContext).brightness == Brightness.dark;
+      return AlertDialog(
+        title: const Text("Today's Attendance"),
+        content: SizedBox(
+          width: 420,
+          height: 420,
+          child: DefaultTabController(
+            length: 2,
+            child: Column(
+              children: [
+                TabBar(
+                  labelColor: isDark ? Colors.white : const Color(0xFF0D6EFD),
+                  unselectedLabelColor: isDark ? Colors.white54 : Colors.grey,
+                  tabs: [
+                    Tab(text: "Present (${present.length})"),
+                    Tab(text: "Absent (${absent.length})"),
+                  ],
+                ),
+                Expanded(
+                  child: TabBarView(
+                    children: [
+                      _buildAttendanceList(present, isDark, emptyText: "No one has clocked in yet today."),
+                      _buildAttendanceList(absent, isDark, emptyText: "Everyone has clocked in today."),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text("Close")),
+        ],
+      );
+    },
+  );
+}
+
+Widget _buildAttendanceList(List<AttendanceOperative> people, bool isDark, {required String emptyText}) {
+  if (people.isEmpty) {
+    return Center(
+      child: Text(emptyText, style: TextStyle(color: isDark ? Colors.white60 : Colors.grey.shade600)),
+    );
+  }
+  return ListView.separated(
+    itemCount: people.length,
+    separatorBuilder: (_, __) => const Divider(height: 1),
+    itemBuilder: (context, index) {
+      final person = people[index];
+      return ListTile(
+        leading: const Icon(IconlyLight.profile),
+        title: Text(person.name.isEmpty ? '-' : person.name),
+        subtitle: Text(
+          [
+            if (person.employeeId.isNotEmpty) person.employeeId,
+            person.roleLabel,
+          ].where((s) => s.isNotEmpty).join(' · '),
+        ),
+      );
+    },
   );
 }
 }
@@ -607,72 +686,13 @@ class ProjectProgressChart extends StatelessWidget {
                         );
                       },
                     ),
-                    leftTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        interval: interval,
-                        reservedSize: 28,
-                        getTitlesWidget: (value, meta) => Text(
-                          value.toInt().toString(),
-                          style: const TextStyle(
-                            color: Colors.grey,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    ),
-                    topTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    rightTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
                   ),
-                  gridData: FlGridData(
-                    show: true,
-                    drawVerticalLine: false,
-                    horizontalInterval: interval,
-                    getDrawingHorizontalLine: (value) => FlLine(
-                      color: Colors.grey.withOpacity(0.1),
-                      strokeWidth: 1,
-                    ),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
                   ),
-                  borderData: FlBorderData(show: false),
-                  barGroups: [
-                    BarChartGroupData(
-                      x: 0,
-                      barRods: [
-                        BarChartRodData(
-                          toY: pendingTasks,
-                          color: const Color(0xffEAB308), // Yellow
-                          width: 36,
-                          borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
-                        ),
-                      ],
-                    ),
-                    BarChartGroupData(
-                      x: 1,
-                      barRods: [
-                        BarChartRodData(
-                          toY: inProgress,
-                          color: const Color(0xff0F2C59), // Dark Blue
-                          width: 36,
-                          borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
-                        ),
-                      ],
-                    ),
-                    BarChartGroupData(
-                      x: 2,
-                      barRods: [
-                        BarChartRodData(
-                          toY: completed,
-                          color: const Color(0xff10B981), // Green
-                          width: 36,
-                          borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
-                        ),
-                      ],
-                    ),
-                  ],
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
                 ),
                 gridData: FlGridData(
                   show: true,
@@ -920,78 +940,12 @@ class AttendanceTrendChart extends StatelessWidget {
                       },
                     ),
                   ),
-                  titlesData: FlTitlesData(
-                    show: true,
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        interval: 1,
-                        reservedSize: 32,
-                        getTitlesWidget: (value, meta) {
-                          const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Today'];
-                          final idx = value.toInt();
-                          if (idx >= 0 && idx < days.length && (value - idx).abs() < 0.01) {
-                            return Padding(
-                              padding: const EdgeInsets.only(top: 8.0),
-                              child: Text(
-                                days[idx],
-                                style: const TextStyle(
-                                  color: Colors.grey,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            );
-                          }
-                          return const SizedBox.shrink();
-                        },
-                      ),
-                    ),
-                    leftTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        interval: yInterval,
-                        reservedSize: 28,
-                        getTitlesWidget: (value, meta) => Text(
-                          value.toInt().toString(),
-                          style: const TextStyle(
-                            color: Colors.grey,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    ),
-                    topTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    rightTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
                   ),
-                  borderData: FlBorderData(show: false),
-                  lineBarsData: [
-                    LineChartBarData(
-                      spots: clockedInSpots,
-                      isCurved: true,
-                      color: const Color(0xff2563EB),
-                      barWidth: 3,
-                      isStrokeCapRound: true,
-                      dotData: const FlDotData(show: true),
-                      belowBarData: BarAreaData(
-                        show: true,
-                        color: const Color(0xff2563EB).withOpacity(0.08),
-                      ),
-                    ),
-                    LineChartBarData(
-                      spots: exceptionsSpots,
-                      isCurved: true,
-                      color: const Color(0xffF59E0B),
-                      barWidth: 3,
-                      isStrokeCapRound: true,
-                      dotData: const FlDotData(show: true),
-                      belowBarData: BarAreaData(show: false),
-                    ),
-                  ],
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
                 ),
                 borderData: FlBorderData(show: false),
                 lineBarsData: [
