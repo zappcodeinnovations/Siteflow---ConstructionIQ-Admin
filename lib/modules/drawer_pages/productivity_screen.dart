@@ -8,6 +8,7 @@ import 'productivity_controller.dart';
 import 'package:iconly/iconly.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/background_stripes_painter.dart';
+import '../../core/widgets/custom_date_picker_dialog.dart';
 
 class ProductivityScreen extends StatefulWidget {
   const ProductivityScreen({super.key});
@@ -32,15 +33,10 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
   }
 
   Future<void> _selectDateRange(BuildContext context) async {
-    final initialDate = DateTime.now();
-    final DateTimeRange? picked = await showDateRangePicker(
+    final DateTimeRange? picked = await CustomDatePickerDialog.showCustomDateRangePicker(
       context: context,
       firstDate: DateTime(2000),
       lastDate: DateTime(2101),
-      initialDateRange: DateTimeRange(
-        start: initialDate.subtract(const Duration(days: 30)),
-        end: initialDate,
-      ),
     );
     if (picked != null) {
       final startStr = "${picked.start.day.toString().padLeft(2, '0')}/${picked.start.month.toString().padLeft(2, '0')}/${picked.start.year}";

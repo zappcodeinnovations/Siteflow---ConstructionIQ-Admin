@@ -124,16 +124,78 @@ Page resource error:
     document.head.appendChild(style);
   }
 
-  scaleFormToFit();
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', scaleFormToFit);
+  function formatDateTimestamps() {
+    var isoRegex = /^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?$/;
+    var isoDateOnlyRegex = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+    function formatValue(val) {
+      if (!val || typeof val !== 'string') return null;
+      var trimmed = val.trim();
+      var m = trimmed.match(isoRegex);
+      if (m) {
+        return m[3] + '/' + m[2] + '/' + m[1] + ' ' + m[4] + ':' + m[5];
+      }
+      var mDate = trimmed.match(isoDateOnlyRegex);
+      if (mDate) {
+        return mDate[3] + '/' + mDate[2] + '/' + mDate[1];
+      }
+      return null;
+    }
+
+    // Format all leaf DOM elements (table cells, divs, spans, p, labels)
+    var nodes = document.querySelectorAll('td, th, span, div, p, li, label, strong, em, b, i');
+    for (var i = 0; i < nodes.length; i++) {
+      var node = nodes[i];
+      if (node.children.length === 0 && node.textContent) {
+        var formatted = formatValue(node.textContent);
+        if (formatted) {
+          node.textContent = formatted;
+        }
+      }
+    }
+
+    // Format input and textarea values
+    var inputs = document.querySelectorAll('input, textarea');
+    for (var j = 0; j < inputs.length; j++) {
+      var inp = inputs[j];
+      if (inp.value) {
+        var formattedVal = formatValue(inp.value);
+        if (formattedVal) {
+          inp.value = formattedVal;
+        }
+      }
+    }
+
+    // Format embedded timestamps within text nodes
+    var walk = document.createTreeWalker(document.body || document.documentElement, NodeFilter.SHOW_TEXT, null, false);
+    var textNode;
+    while ((textNode = walk.nextNode())) {
+      if (textNode.nodeValue && textNode.nodeValue.indexOf('202') !== -1) {
+        textNode.nodeValue = textNode.nodeValue.replace(
+          /\b(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?\b/g,
+          function(match, y, m, d, hh, mm) {
+            return d + '/' + m + '/' + y + ' ' + hh + ':' + mm;
+          }
+        );
+      }
+    }
   }
-  window.addEventListener('load', scaleFormToFit);
-  setTimeout(scaleFormToFit, 100);
-  setTimeout(scaleFormToFit, 300);
-  setTimeout(scaleFormToFit, 600);
-  setTimeout(scaleFormToFit, 1200);
-  window.addEventListener('resize', scaleFormToFit);
+
+  function applyEnhancements() {
+    formatDateTimestamps();
+    scaleFormToFit();
+  }
+
+  applyEnhancements();
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', applyEnhancements);
+  }
+  window.addEventListener('load', applyEnhancements);
+  setTimeout(applyEnhancements, 100);
+  setTimeout(applyEnhancements, 300);
+  setTimeout(applyEnhancements, 600);
+  setTimeout(applyEnhancements, 1200);
+  window.addEventListener('resize', applyEnhancements);
 })();
 """;
     try {

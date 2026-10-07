@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'admin_activity_logs_controller.dart';
 import 'activity_log_details_view.dart';
 import '../../../core/widgets/shimmer_loading.dart';
+import '../../../core/widgets/custom_date_picker_dialog.dart';
 import '../../../core/theme/app_theme.dart';
 import 'package:iconly/iconly.dart';
 
@@ -64,7 +65,7 @@ class _AdminActivityLogsViewState extends State<AdminActivityLogsView> {
   }
 
   Future<void> _selectDate(TextEditingController textController) async {
-    final DateTime? picked = await showDatePicker(
+    final DateTime? picked = await CustomDatePickerDialog.showCustomDatePicker(
       context: context,
       initialDate: DateTime.now(),
       firstDate: DateTime(2020),
