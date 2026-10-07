@@ -108,7 +108,7 @@ class _ApprovalsTabState extends State<ApprovalsTab> {
                   ),
                   onPressed: () {
                     Navigator.of(context).push(MaterialPageRoute(
-                      builder: (context) => const ApprovalStagesScreen(),
+                      builder: (context) => ApprovalStagesScreen(controller: _controller),
                     ));
                   },
                   child: const Text("Setup Approvals", style: TextStyle(fontWeight: FontWeight.bold)),

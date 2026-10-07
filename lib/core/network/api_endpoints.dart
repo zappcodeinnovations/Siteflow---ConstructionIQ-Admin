@@ -26,6 +26,10 @@ class ApiEndpoints {
   static String myApprovals({int? projectId}) =>
       projectId == null ? '/my-approvals/' : '/my-approvals/?project_id=$projectId';
   static String projectJobCreate(int projectId) => '/operative/projects/$projectId/jobs/create/';
+  static String projectApprovalStages(int projectId) => '/projects/$projectId/approval-stages/';
+  static String projectApprovalStageDetail(int projectId, int stageId) => '/projects/$projectId/approval-stages/$stageId/';
+  static String projectApprovalStageReorder(int projectId) => '/projects/$projectId/approval-stages/reorder/';
+  static String projectFormApprovals(int projectId) => '/projects/$projectId/form-approvals/';
 
   // Library (global catalog)
   static const String libraryForms = '/library/forms/';
