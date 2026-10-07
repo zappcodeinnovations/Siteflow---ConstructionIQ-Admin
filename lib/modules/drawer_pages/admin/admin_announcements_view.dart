@@ -16,9 +16,18 @@ class AdminAnnouncementsView extends StatefulWidget {
 }
 
 class _AdminAnnouncementsViewState extends State<AdminAnnouncementsView> {
-  final AdminAnnouncementsController _controller =
-      AdminAnnouncementsController();
-  String _searchQuery = "";
+  final AdminAnnouncementsController _controller = AdminAnnouncementsController();
+
+  final TextEditingController _searchController = TextEditingController();
+  String _appliedSearchQuery = "";
+  String _selectedStatusFilter = "Active Announcements";
+  String _appliedStatusFilter = "Active Announcements";
+
+  final List<String> _statusFilterOptions = [
+    "Active Announcements",
+    "All Announcements",
+    "Inactive Announcements",
+  ];
 
   @override
   void initState() {
@@ -28,8 +37,25 @@ class _AdminAnnouncementsViewState extends State<AdminAnnouncementsView> {
 
   @override
   void dispose() {
+    _searchController.dispose();
     _controller.dispose();
     super.dispose();
+  }
+
+  void _applyFilters() {
+    setState(() {
+      _appliedSearchQuery = _searchController.text.trim().toLowerCase();
+      _appliedStatusFilter = _selectedStatusFilter;
+    });
+  }
+
+  void _resetFilters() {
+    setState(() {
+      _searchController.clear();
+      _appliedSearchQuery = "";
+      _selectedStatusFilter = "Active Announcements";
+      _appliedStatusFilter = "Active Announcements";
+    });
   }
 
   void _showAddDialog() {
@@ -106,6 +132,7 @@ class _AdminAnnouncementsViewState extends State<AdminAnnouncementsView> {
     required Color subtitleColor,
   }) {
     final iconColor = _getIconColor(announcement.id);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -113,6 +140,13 @@ class _AdminAnnouncementsViewState extends State<AdminAnnouncementsView> {
         color: cardColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: borderColor),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Material(
         color: Colors.transparent,
@@ -130,61 +164,41 @@ class _AdminAnnouncementsViewState extends State<AdminAnnouncementsView> {
                   controller: _controller,
                 );
               },
-              transitionBuilder:
-                  (context, animation, secondaryAnimation, child) {
-                    return ScaleTransition(
-                      scale: CurvedAnimation(
-                        parent: animation,
-                        curve: Curves.easeOutBack,
-                      ),
-                      child: FadeTransition(opacity: animation, child: child),
-                    );
-                  },
+              transitionBuilder: (context, animation, secondaryAnimation, child) {
+                return ScaleTransition(
+                  scale: CurvedAnimation(
+                    parent: animation,
+                    curve: Curves.easeOutBack,
+                  ),
+                  child: FadeTransition(opacity: animation, child: child),
+                );
+              },
             );
           },
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Top row: Title + Active chip
+                Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Stack(
-                      children: [
-                        Container(
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            color: iconColor.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          alignment: Alignment.center,
-                          child: Icon(
-                            IconlyLight.notification,
-                            color: iconColor,
-                          ),
-                        ),
-                        if (announcement.isActive)
-                          Positioned(
-                            bottom: -4,
-                            right: -4,
-                            child: Container(
-                              width: 14,
-                              height: 14,
-                              decoration: BoxDecoration(
-                                color: Colors.green,
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: Colors.white,
-                                  width: 2,
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: iconColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      alignment: Alignment.center,
+                      child: Icon(
+                        IconlyLight.notification,
+                        color: iconColor,
+                        size: 20,
+                      ),
                     ),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -193,104 +207,94 @@ class _AdminAnnouncementsViewState extends State<AdminAnnouncementsView> {
                             announcement.title,
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              fontSize: 14,
+                              fontSize: 15,
                               color: textColor,
                             ),
                           ),
                           const SizedBox(height: 2),
-                          Text(
-                            announcement.message,
-                            style: TextStyle(
-                              color: subtitleColor,
-                              fontSize: 11,
+                          if (announcement.projectName.isNotEmpty)
+                            Text(
+                              "${announcement.projectName}${announcement.projectCode.isNotEmpty ? ' (${announcement.projectCode})' : ''}${announcement.clientName.isNotEmpty ? ' · ${announcement.clientName}' : ''}",
+                              style: TextStyle(
+                                color: subtitleColor,
+                                fontSize: 13,
+                              ),
                             ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
                         ],
                       ),
                     ),
-                    PopupMenuButton<String>(
-                      icon: const Icon(
-                        IconlyLight.more_circle,
-                        color: Colors.grey,
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: announcement.isActive
+                            ? Colors.green.withValues(alpha: 0.12)
+                            : Colors.grey.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(20),
                       ),
-                      onSelected: (val) {
-                        if (val == 'edit') _editAnnouncement(announcement);
-                        if (val == 'delete') _deleteAnnouncement(announcement);
-                      },
-                      itemBuilder: (context) => [
-                        const PopupMenuItem(
-                          value: 'edit',
-                          child: Text("Edit Announcement"),
+                      child: Text(
+                        announcement.isActive ? "Active" : "Inactive",
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: announcement.isActive ? Colors.green : Colors.grey,
                         ),
-                        const PopupMenuItem(
-                          value: 'delete',
-                          child: Text(
-                            "Delete Announcement",
-                            style: TextStyle(color: Colors.red),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   ],
                 ),
-              ),
-              const Divider(height: 1),
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Wrap(
-                  spacing: 32,
-                  runSpacing: 16,
+                const SizedBox(height: 12),
+                // Message snippet
+                if (announcement.message.isNotEmpty)
+                  Text(
+                    announcement.message,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: textColor.withValues(alpha: 0.85),
+                      height: 1.4,
+                    ),
+                  ),
+                const SizedBox(height: 12),
+                Divider(color: borderColor, height: 1),
+                const SizedBox(height: 10),
+                // Bottom row: Updated info + Edit Action
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          "PROJECT",
-                          style: TextStyle(
-                            fontSize: 9,
-                            color: Colors.grey,
-                            fontWeight: FontWeight.bold,
-                          ),
+                    Expanded(
+                      child: Text(
+                        "Updated ${announcement.updatedAt.isNotEmpty ? announcement.updatedAt : announcement.createdAt}${announcement.updatedByName.isNotEmpty ? ' · ${announcement.updatedByName}' : (announcement.createdByName.isNotEmpty ? ' · ${announcement.createdByName}' : '')}",
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: subtitleColor,
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          announcement.projectName.isNotEmpty
-                              ? announcement.projectName
-                              : "General",
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: textColor,
-                          ),
-                        ),
-                      ],
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          "AUTHOR",
-                          style: TextStyle(
-                            fontSize: 9,
-                            color: Colors.grey,
-                            fontWeight: FontWeight.bold,
-                          ),
+                    OutlinedButton.icon(
+                      onPressed: () => _editAnnouncement(announcement),
+                      icon: const Icon(IconlyLight.edit, size: 14),
+                      label: const Text(
+                        "Edit",
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF0D6EFD),
+                        side: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          announcement.createdByName,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: textColor,
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   ],
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -300,154 +304,279 @@ class _AdminAnnouncementsViewState extends State<AdminAnnouncementsView> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
-    final headerBg = isDark ? AppTheme.corporateBlue : Colors.grey.shade50;
+    final cardColor = isDark ? const Color(0xFF1F2E40) : Colors.white;
+    final headerBg = isDark ? AppTheme.corporateBlue : Colors.white;
     final headerTitle = isDark ? Colors.white : const Color(0xFF0F2C4A);
-    final textColor = isDark ? Colors.white : Colors.black87;
-    final subtitleColor = isDark ? Colors.white70 : Colors.grey.shade600;
-    final borderColor = isDark ? Colors.white12 : Colors.grey.shade300;
-    final searchFillColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
+    final subtitleColor = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+    final borderColor = isDark ? const Color(0xFF2C3E50) : Colors.grey.shade300;
+    final searchFillColor = isDark ? const Color(0xFF152232) : Colors.grey.shade50;
 
     return Scaffold(
-      backgroundColor: isDark ? AppTheme.corporateBlue : null,
+      backgroundColor: isDark ? AppTheme.corporateBlue : const Color(0xFFF8FAFC),
       body: AnimatedBuilder(
         animation: _controller,
         builder: (context, _) {
-          final filteredAnnouncements = _controller.announcements
-              .where(
-                (a) =>
-                    a.title.toLowerCase().contains(_searchQuery) ||
-                    a.projectName.toLowerCase().contains(_searchQuery) ||
-                    a.message.toLowerCase().contains(_searchQuery),
-              )
-              .toList();
+          final filteredAnnouncements = _controller.announcements.where((a) {
+            // Search text match
+            if (_appliedSearchQuery.isNotEmpty) {
+              final query = _appliedSearchQuery;
+              final match = a.title.toLowerCase().contains(query) ||
+                  a.projectName.toLowerCase().contains(query) ||
+                  a.message.toLowerCase().contains(query);
+              if (!match) return false;
+            }
 
-          final totalAnnouncements = _controller.announcements.length;
+            // Status filter match
+            if (_appliedStatusFilter == "Active Announcements") {
+              if (!a.isActive) return false;
+            } else if (_appliedStatusFilter == "Inactive Announcements") {
+              if (a.isActive) return false;
+            }
+            return true;
+          }).toList();
 
           return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Header & Search
+              // Header & Structured Filter Toolbar
               Container(
                 color: headerBg,
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                "Announcements",
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: headerTitle,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                "$totalAnnouncements Total",
-                                style: TextStyle(
-                                  color: subtitleColor,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        InkWell(
-                          onTap: _showAddDialog,
-                          borderRadius: BorderRadius.circular(10),
-                          child: Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF0D6EFD),
-                              borderRadius: BorderRadius.circular(10),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(
-                                    0xFF0D6EFD,
-                                  ).withValues(alpha: 0.3),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: const Icon(
-                              IconlyLight.plus,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                          ),
-                        ),
-                      ],
+                    Text(
+                      "Announcements",
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: headerTitle,
+                      ),
                     ),
-                    const SizedBox(height: 20),
-                    // Search Bar
+                    const SizedBox(height: 2),
+                    Text(
+                      "Create project announcements for operative users",
+                      style: TextStyle(
+                        color: subtitleColor,
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Filter Toolbar Row 1: Search announcements
                     TextField(
-                      style: TextStyle(color: textColor),
+                      controller: _searchController,
+                      style: TextStyle(color: textColor, fontSize: 13),
                       decoration: InputDecoration(
                         hintText: "Search announcements...",
-                        hintStyle: TextStyle(color: subtitleColor),
+                        hintStyle: TextStyle(color: subtitleColor, fontSize: 13),
                         prefixIcon: Icon(
                           IconlyLight.search,
                           color: subtitleColor,
+                          size: 18,
                         ),
                         filled: true,
                         fillColor: searchFillColor,
-                        contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
                         border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(10),
                           borderSide: BorderSide(color: borderColor),
                         ),
                         enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(10),
                           borderSide: BorderSide(color: borderColor),
                         ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: Color(0xFF0D6EFD)),
+                        ),
                       ),
-                      onChanged: (val) =>
-                          setState(() => _searchQuery = val.toLowerCase()),
+                      onSubmitted: (_) => _applyFilters(),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Filter Toolbar Row 2: Status Dropdown, Apply, Reset, + Add Announcement
+                    Row(
+                      children: [
+                        // Status filter dropdown
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            value: _selectedStatusFilter,
+                            isExpanded: true,
+                            decoration: InputDecoration(
+                              filled: true,
+                              fillColor: searchFillColor,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: BorderSide(color: borderColor),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: BorderSide(color: borderColor),
+                              ),
+                            ),
+                            dropdownColor: cardColor,
+                            style: TextStyle(color: textColor, fontSize: 12),
+                            items: _statusFilterOptions.map((opt) {
+                              return DropdownMenuItem(
+                                value: opt,
+                                child: Text(
+                                  opt,
+                                  style: TextStyle(color: textColor, fontSize: 12),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: (val) {
+                              if (val != null) {
+                                setState(() => _selectedStatusFilter = val);
+                              }
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+
+                        // Apply button
+                        ElevatedButton(
+                          onPressed: _applyFilters,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF0D6EFD),
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          child: const Text(
+                            "Apply",
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+
+                        // Reset button
+                        IconButton(
+                          onPressed: _resetFilters,
+                          icon: const Icon(Icons.refresh, size: 20),
+                          color: subtitleColor,
+                          style: IconButton.styleFrom(
+                            backgroundColor: searchFillColor,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              side: BorderSide(color: borderColor),
+                            ),
+                            padding: const EdgeInsets.all(10),
+                          ),
+                          tooltip: "Reset Filters",
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+
+                    // + Add Announcement button
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: _showAddDialog,
+                        icon: const Icon(IconlyLight.plus, size: 16, color: Colors.white),
+                        label: const Text(
+                          "Add Announcement",
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF0D6EFD),
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ),
               ),
 
+              Divider(color: borderColor, height: 1),
+
               // Announcements List
               Expanded(
-                child:
-                    _controller.isLoading && _controller.announcements.isEmpty
+                child: _controller.isLoading && _controller.announcements.isEmpty
                     ? const Center(
                         child: Padding(
                           padding: EdgeInsets.all(48.0),
                           child: CircularProgressIndicator(),
                         ),
                       )
-                    : _controller.errorMessage != null &&
-                          _controller.announcements.isEmpty
-                    ? Center(
-                        child: Text(
-                          _controller.errorMessage!,
-                          style: const TextStyle(color: Colors.red),
-                        ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: filteredAnnouncements.length,
-                        itemBuilder: (context, index) {
-                          return _buildAnnouncementCard(
-                            filteredAnnouncements[index],
-                            cardColor: cardColor,
-                            borderColor: borderColor,
-                            textColor: textColor,
-                            subtitleColor: subtitleColor,
-                          );
-                        },
-                      ),
+                    : _controller.errorMessage != null && _controller.announcements.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  _controller.errorMessage!,
+                                  style: const TextStyle(color: Colors.red),
+                                ),
+                                const SizedBox(height: 12),
+                                ElevatedButton(
+                                  onPressed: _controller.fetchAnnouncements,
+                                  child: const Text("Retry"),
+                                ),
+                              ],
+                            ),
+                          )
+                        : filteredAnnouncements.isEmpty
+                            ? Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(32.0),
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        IconlyLight.notification,
+                                        size: 48,
+                                        color: subtitleColor.withValues(alpha: 0.5),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Text(
+                                        "No announcements found",
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                          color: textColor,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        "Try adjusting your search or filters.",
+                                        style: TextStyle(
+                                          color: subtitleColor,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              )
+                            : RefreshIndicator(
+                                onRefresh: _controller.fetchAnnouncements,
+                                child: ListView.builder(
+                                  padding: const EdgeInsets.all(16),
+                                  itemCount: filteredAnnouncements.length,
+                                  itemBuilder: (context, index) {
+                                    return _buildAnnouncementCard(
+                                      filteredAnnouncements[index],
+                                      cardColor: cardColor,
+                                      borderColor: borderColor,
+                                      textColor: textColor,
+                                      subtitleColor: subtitleColor,
+                                    );
+                                  },
+                                ),
+                              ),
               ),
             ],
           );
