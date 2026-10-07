@@ -14,6 +14,7 @@ import 'tabs/site_manager_tab.dart';
 import 'tabs/project_template_tab.dart';
 import 'tabs/materials_tab.dart';
 import 'widgets/create_task_dialog.dart';
+import 'widgets/schedule_jobs_dialog.dart';
 import '../../models/project_model.dart';
 import '../../models/project_all_in_one_model.dart';
 import 'project_controller.dart';
@@ -74,6 +75,16 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
       builder: (_) => CreateTaskDialog(projectId: widget.project.id),
     );
     if (created == true) {
+      await _fetchData();
+    }
+  }
+
+  Future<void> _showScheduleJobsDialog() async {
+    final scheduled = await showDialog<bool>(
+      context: context,
+      builder: (_) => ScheduleJobsDialog(projectId: widget.project.id),
+    );
+    if (scheduled == true) {
       await _fetchData();
     }
   }
@@ -139,6 +150,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
       SnagsTab(projectId: widget.project.id),
       InspectionsTab(projectId: widget.project.id),
       DrawingsTab(
+        projectId: widget.project.id,
         rawBlocks:
             _allInOneData
                     ?.projectSetup?['dropdown_options']?['available_blocks']
@@ -243,12 +255,34 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                       ),
                     ),
                   ),
+                  const SizedBox(width: 8),
+                  Center(
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      onPressed: _showScheduleJobsDialog,
+                      label: const Text("Schedule Jobs"),
+                      icon: const Icon(IconlyLight.calendar, size: 18),
+                    ),
+                  ),
                   const SizedBox(width: 24),
                 ] else ...[
                   IconButton(
                     icon: const Icon(IconlyLight.plus),
                     onPressed: _showCreateTaskDialog,
                     color: const Color(0xFF0D6EFD),
+                  ),
+                  IconButton(
+                    icon: const Icon(IconlyLight.calendar),
+                    onPressed: _showScheduleJobsDialog,
+                    tooltip: "Schedule Jobs",
                   ),
                 ],
               ]

@@ -141,6 +141,44 @@ class CreateTaskController extends ChangeNotifier {
     }
   }
 
+  Future<Map<String, dynamic>> scheduleJobs({
+    required int projectId,
+    required String reference,
+    required List<String> operativeIds,
+    required List<String> scheduledDates,
+    List<String> formNames = const [],
+    bool withoutSheet = false,
+    String? siteContact,
+    String? instructions,
+  }) async {
+    isSubmitting = true;
+    notifyListeners();
+    try {
+      final url = '${ApiEndpoints.baseUrl}/admin/projects/$projectId/jobs/schedule/';
+      final body = <String, dynamic>{
+        'reference': reference,
+        'operative_ids': operativeIds,
+        'scheduled_dates': scheduledDates,
+        'recording_method': withoutSheet ? 'without_sheet' : 'with_sheet',
+        if (!withoutSheet) 'form_names': formNames,
+        if (siteContact != null && siteContact.isNotEmpty) 'site_contact': siteContact,
+        if (instructions != null && instructions.isNotEmpty) 'instructions': instructions,
+      };
+
+      final response = await ApiClient.post(url, body: body);
+      final decoded = jsonDecode(response.body);
+      if (response.statusCode == 200 && decoded['status'] == true) {
+        return {'success': true, 'message': decoded['message']?.toString() ?? 'Jobs scheduled successfully.'};
+      }
+      return {'success': false, 'message': decoded['message']?.toString() ?? 'Failed to schedule jobs.'};
+    } catch (e) {
+      return {'success': false, 'message': 'An error occurred: $e'};
+    } finally {
+      isSubmitting = false;
+      notifyListeners();
+    }
+  }
+
   Future<Map<String, dynamic>> createTask({
     required int projectId,
     required String reference,

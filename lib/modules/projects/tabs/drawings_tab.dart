@@ -3,12 +3,14 @@ import 'package:iconly/iconly.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_theme.dart';
+import 'drawing_pin_viewer_screen.dart';
 
 class DrawingsTab extends StatelessWidget {
+  final int? projectId;
   final List<dynamic>? rawBlocks;
   final List<dynamic>? drawings;
 
-  const DrawingsTab({Key? key, this.rawBlocks, this.drawings}) : super(key: key);
+  const DrawingsTab({Key? key, this.projectId, this.rawBlocks, this.drawings}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -276,6 +278,32 @@ class DrawingsTab extends StatelessWidget {
                               icon: const Icon(IconlyLight.show, size: 16),
                               label: const Text("View File",
                                   style: TextStyle(fontWeight: FontWeight.bold)),
+                            ),
+                            const SizedBox(width: 8),
+                            OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: Colors.deepPurple),
+                                foregroundColor: Colors.deepPurple,
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8)),
+                              ),
+                              onPressed: projectId == null
+                                  ? null
+                                  : () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => DrawingPinViewerScreen(
+                                            projectId: projectId!,
+                                            blockName: blockName,
+                                            levelName: levelName,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                              icon: const Icon(IconlyLight.location, size: 16),
+                              label: const Text("Pins",
+                                  style: TextStyle(fontWeight: FontWeight.w600)),
                             ),
                           ],
                         )
