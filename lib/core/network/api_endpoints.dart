@@ -43,6 +43,14 @@ class ApiEndpoints {
   static String projectSpecificationAttributeDefinitions(int projectId) => '/projects/$projectId/specification-attribute-definitions/';
   static String projectSpecificationAttributeDefinitionDetail(int projectId, int definitionId) => '/projects/$projectId/specification-attribute-definitions/$definitionId/';
 
+  static const String adminMaterials = '/admin/materials/';
+  static const String adminMaterialsBulk = '/admin/materials/bulk/';
+  static String adminMaterialDetail(int materialId) => '/admin/materials/$materialId/';
+  static String adminMaterialRateSets(int materialId) => '/admin/materials/$materialId/rate-sets/';
+  static String adminMaterialRateSetDetail(int materialId, int rateSetId) => '/admin/materials/$materialId/rate-sets/$rateSetId/';
+  static String adminMaterialAttachments(int materialId) => '/admin/materials/$materialId/attachments/';
+  static String adminMaterialAttachmentDetail(int materialId, int attachmentId) => '/admin/materials/$materialId/attachments/$attachmentId/';
+
   // Library (global catalog)
   static const String libraryForms = '/library/forms/';
   static const String libraryMaterials = '/library/materials/';

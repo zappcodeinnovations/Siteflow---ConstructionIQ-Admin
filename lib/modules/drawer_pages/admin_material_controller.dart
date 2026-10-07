@@ -1,0 +1,222 @@
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import '../../core/network/api_client.dart';
+import '../../core/network/api_endpoints.dart';
+
+/// Full CRUD for Library > Materials - the existing LibraryController's
+/// materials list is a read-only catalog; this backs the real admin
+/// create/edit/bulk/rate-set/attachment management the web has.
+class AdminMaterialController extends ChangeNotifier {
+  bool isLoading = false;
+  String? error;
+  List<Map<String, dynamic>> materials = [];
+  String statusFilter = 'active';
+
+  Future<void> fetchMaterials({String? search, String? groupId}) async {
+    isLoading = true;
+    error = null;
+    notifyListeners();
+    try {
+      final params = {'status': statusFilter, if (search != null && search.isNotEmpty) 'search': search, if (groupId != null) 'group': groupId};
+      final query = params.entries.map((e) => '${e.key}=${Uri.encodeQueryComponent(e.value)}').join('&');
+      final url = '${ApiEndpoints.baseUrl}${ApiEndpoints.adminMaterials}?$query';
+      final response = await ApiClient.get(url);
+      final decoded = jsonDecode(response.body);
+      if (response.statusCode == 200 && decoded['status'] == true) {
+        materials = (decoded['data'] as List? ?? []).whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
+      } else {
+        error = decoded['message']?.toString() ?? 'Failed to fetch materials.';
+      }
+    } catch (e) {
+      error = 'An error occurred: $e';
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<Map<String, dynamic>> createMaterial({
+    required String name,
+    required String inputType,
+    required int materialGroupId,
+    String manufacturer = '',
+    String productCode = '',
+  }) async {
+    try {
+      final url = '${ApiEndpoints.baseUrl}${ApiEndpoints.adminMaterials}';
+      final response = await ApiClient.post(url, body: {
+        "name": name,
+        "input_type": inputType,
+        "material_group": materialGroupId,
+        "manufacturer": manufacturer,
+        "product_code": productCode,
+      });
+      final decoded = jsonDecode(response.body);
+      if (response.statusCode == 201) {
+        await fetchMaterials();
+        return {"success": true, "message": decoded['message'] ?? 'Material created successfully.', "data": decoded['data']};
+      }
+      return {"success": false, "message": decoded['message'] ?? 'Failed to create material.'};
+    } catch (e) {
+      return {"success": false, "message": "An error occurred: $e"};
+    }
+  }
+
+  Future<Map<String, dynamic>> bulkAction({required String action, required List<int> materialIds, int? materialGroupId}) async {
+    try {
+      final url = '${ApiEndpoints.baseUrl}${ApiEndpoints.adminMaterialsBulk}';
+      final response = await ApiClient.post(url, body: {
+        "action": action,
+        "material_ids": materialIds,
+        if (materialGroupId != null) "material_group_id": materialGroupId,
+      });
+      final decoded = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        await fetchMaterials();
+        return {"success": true, "message": decoded['message'] ?? 'Done.'};
+      }
+      return {"success": false, "message": decoded['message'] ?? 'Bulk action failed.'};
+    } catch (e) {
+      return {"success": false, "message": "An error occurred: $e"};
+    }
+  }
+}
+
+class AdminMaterialDetailController extends ChangeNotifier {
+  final int materialId;
+  AdminMaterialDetailController(this.materialId);
+
+  bool isLoading = false;
+  String? error;
+  Map<String, dynamic>? material;
+
+  Future<void> fetchDetail() async {
+    isLoading = true;
+    error = null;
+    notifyListeners();
+    try {
+      final url = '${ApiEndpoints.baseUrl}${ApiEndpoints.adminMaterialDetail(materialId)}';
+      final response = await ApiClient.get(url);
+      final decoded = jsonDecode(response.body);
+      if (response.statusCode == 200 && decoded['status'] == true) {
+        material = (decoded['data'] as Map).cast<String, dynamic>();
+      } else {
+        error = decoded['message']?.toString() ?? 'Failed to fetch material.';
+      }
+    } catch (e) {
+      error = 'An error occurred: $e';
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<Map<String, dynamic>> updateCore(Map<String, dynamic> fields) async {
+    try {
+      final url = '${ApiEndpoints.baseUrl}${ApiEndpoints.adminMaterialDetail(materialId)}';
+      final response = await ApiClient.patch(url, body: fields);
+      final decoded = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        material = (decoded['data'] as Map).cast<String, dynamic>();
+        notifyListeners();
+        return {"success": true, "message": decoded['message'] ?? 'Updated.'};
+      }
+      return {"success": false, "message": decoded['message'] ?? 'Failed to update.'};
+    } catch (e) {
+      return {"success": false, "message": "An error occurred: $e"};
+    }
+  }
+
+  List<Map<String, dynamic>> rateSets = [];
+
+  Future<void> fetchRateSets({String? category}) async {
+    try {
+      var url = '${ApiEndpoints.baseUrl}${ApiEndpoints.adminMaterialRateSets(materialId)}';
+      if (category != null) url += '?category=$category';
+      final response = await ApiClient.get(url);
+      final decoded = jsonDecode(response.body);
+      if (response.statusCode == 200 && decoded['status'] == true) {
+        rateSets = (decoded['data'] as List? ?? []).whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
+        notifyListeners();
+      }
+    } catch (_) {}
+  }
+
+  Future<Map<String, dynamic>> createRateSet({required String name, required String category, bool isDefault = false}) async {
+    try {
+      final url = '${ApiEndpoints.baseUrl}${ApiEndpoints.adminMaterialRateSets(materialId)}';
+      final response = await ApiClient.post(url, body: {"name": name, "category": category, "is_default": isDefault});
+      final decoded = jsonDecode(response.body);
+      if (response.statusCode == 201) {
+        await fetchRateSets(category: category);
+        return {"success": true, "message": decoded['message'] ?? 'Rate set created.'};
+      }
+      return {"success": false, "message": decoded['message'] ?? 'Failed to create rate set.'};
+    } catch (e) {
+      return {"success": false, "message": "An error occurred: $e"};
+    }
+  }
+
+  Future<Map<String, dynamic>> saveRateSetTiers(int rateSetId, String category, List<Map<String, dynamic>> tiers, {bool? isDefault}) async {
+    try {
+      final url = '${ApiEndpoints.baseUrl}${ApiEndpoints.adminMaterialRateSetDetail(materialId, rateSetId)}';
+      final body = <String, dynamic>{"tiers": tiers};
+      if (isDefault != null) body["is_default"] = isDefault;
+      final response = await ApiClient.patch(url, body: body);
+      final decoded = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        await fetchRateSets(category: category);
+        return {"success": true, "message": decoded['message'] ?? 'Rate set updated.'};
+      }
+      return {"success": false, "message": decoded['message'] ?? 'Failed to update rate set.'};
+    } catch (e) {
+      return {"success": false, "message": "An error occurred: $e"};
+    }
+  }
+
+  Future<Map<String, dynamic>> deleteRateSet(int rateSetId, String category) async {
+    try {
+      final url = '${ApiEndpoints.baseUrl}${ApiEndpoints.adminMaterialRateSetDetail(materialId, rateSetId)}';
+      final response = await ApiClient.delete(url);
+      final decoded = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        await fetchRateSets(category: category);
+        return {"success": true, "message": decoded['message'] ?? 'Rate set deleted.'};
+      }
+      return {"success": false, "message": decoded['message'] ?? 'Failed to delete rate set.'};
+    } catch (e) {
+      return {"success": false, "message": "An error occurred: $e"};
+    }
+  }
+
+  Future<Map<String, dynamic>> uploadAttachment(String filePath) async {
+    try {
+      final url = '${ApiEndpoints.baseUrl}${ApiEndpoints.adminMaterialAttachments(materialId)}';
+      final response = await ApiClient.postMultipart(url, filePath: filePath, fileFieldName: 'attachments', fields: const {});
+      final decoded = jsonDecode(response.body);
+      if (response.statusCode == 201) {
+        material = (decoded['data'] as Map).cast<String, dynamic>();
+        notifyListeners();
+        return {"success": true, "message": decoded['message'] ?? 'Uploaded.'};
+      }
+      return {"success": false, "message": decoded['message'] ?? 'Failed to upload.'};
+    } catch (e) {
+      return {"success": false, "message": "An error occurred: $e"};
+    }
+  }
+
+  Future<Map<String, dynamic>> deleteAttachment(int attachmentId) async {
+    try {
+      final url = '${ApiEndpoints.baseUrl}${ApiEndpoints.adminMaterialAttachmentDetail(materialId, attachmentId)}';
+      final response = await ApiClient.delete(url);
+      final decoded = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        await fetchDetail();
+        return {"success": true, "message": decoded['message'] ?? 'Removed.'};
+      }
+      return {"success": false, "message": decoded['message'] ?? 'Failed to remove.'};
+    } catch (e) {
+      return {"success": false, "message": "An error occurred: $e"};
+    }
+  }
+}
