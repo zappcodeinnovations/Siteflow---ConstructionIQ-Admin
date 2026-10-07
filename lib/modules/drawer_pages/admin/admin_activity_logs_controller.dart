@@ -23,6 +23,7 @@ class AdminActivityLogsController extends ChangeNotifier {
   Map<String, dynamic> get filterOptions => _filterOptions;
 
   String? selectedManager;
+  String? selectedRole;
   String? selectedModule;
   String? selectedAction;
   String? fromDate;
@@ -59,7 +60,7 @@ class AdminActivityLogsController extends ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      print("Error fetching Activity Log KPIs: $e");
+      debugPrint("Error fetching Activity Log KPIs: $e");
     }
   }
 
@@ -81,12 +82,13 @@ class AdminActivityLogsController extends ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      print("Error fetching Activity Log filters: $e");
+      debugPrint("Error fetching Activity Log filters: $e");
     }
   }
 
   void updateFilters({
     String? manager,
+    String? role,
     String? module,
     String? action,
     String? from,
@@ -94,6 +96,7 @@ class AdminActivityLogsController extends ChangeNotifier {
     String? search,
   }) {
     if (manager != null) selectedManager = manager.isEmpty ? null : manager;
+    if (role != null) selectedRole = role.isEmpty ? null : role;
     if (module != null) selectedModule = module.isEmpty ? null : module;
     if (action != null) selectedAction = action.isEmpty ? null : action;
     if (from != null) fromDate = from.isEmpty ? null : from;
@@ -105,6 +108,7 @@ class AdminActivityLogsController extends ChangeNotifier {
 
   void resetFilters() {
     selectedManager = null;
+    selectedRole = null;
     selectedModule = null;
     selectedAction = null;
     fromDate = null;
@@ -123,11 +127,12 @@ class AdminActivityLogsController extends ChangeNotifier {
     try {
       List<String> queryParams = [];
       
-      if (selectedManager != null) queryParams.add('user_id=$selectedManager');
-      if (selectedModule != null) queryParams.add('module=$selectedModule');
-      if (selectedAction != null) queryParams.add('action_type=$selectedAction');
-      if (fromDate != null) queryParams.add('from=$fromDate');
-      if (toDate != null) queryParams.add('to=$toDate');
+      if (selectedManager != null && selectedManager!.isNotEmpty) queryParams.add('user_id=$selectedManager');
+      if (selectedRole != null && selectedRole!.isNotEmpty) queryParams.add('role=$selectedRole');
+      if (selectedModule != null && selectedModule!.isNotEmpty) queryParams.add('module=$selectedModule');
+      if (selectedAction != null && selectedAction!.isNotEmpty) queryParams.add('action_type=$selectedAction');
+      if (fromDate != null && fromDate!.isNotEmpty) queryParams.add('from=$fromDate');
+      if (toDate != null && toDate!.isNotEmpty) queryParams.add('to=$toDate');
       if (searchQuery.isNotEmpty) queryParams.add('search=$searchQuery');
 
       final String url = queryParams.isNotEmpty
@@ -167,20 +172,22 @@ class AdminActivityLogsController extends ChangeNotifier {
   Future<void> exportLogs(String format) async {
     try {
       String url = '${ApiEndpoints.baseUrl}/admin/activity-logs/export/?format=$format';
-      if (selectedManager != null) url += '&user_id=$selectedManager';
-      if (selectedModule != null) url += '&module=$selectedModule';
-      if (selectedAction != null) url += '&action_type=$selectedAction';
-      if (fromDate != null) url += '&from=$fromDate';
-      if (toDate != null) url += '&to=$toDate';
+      if (selectedManager != null && selectedManager!.isNotEmpty) url += '&user_id=$selectedManager';
+      if (selectedRole != null && selectedRole!.isNotEmpty) url += '&role=$selectedRole';
+      if (selectedModule != null && selectedModule!.isNotEmpty) url += '&module=$selectedModule';
+      if (selectedAction != null && selectedAction!.isNotEmpty) url += '&action_type=$selectedAction';
+      if (fromDate != null && fromDate!.isNotEmpty) url += '&from=$fromDate';
+      if (toDate != null && toDate!.isNotEmpty) url += '&to=$toDate';
+      if (searchQuery.isNotEmpty) url += '&search=$searchQuery';
 
       final uri = Uri.parse(url);
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
       } else {
-        print("Could not launch $url");
+        debugPrint("Could not launch $url");
       }
     } catch (e) {
-      print("Export error: $e");
+      debugPrint("Export error: $e");
     }
   }
 
@@ -198,7 +205,7 @@ class AdminActivityLogsController extends ChangeNotifier {
         }
       }
     } catch (e) {
-      print("Error fetching log detail: $e");
+      debugPrint("Error fetching log detail: $e");
     }
     return null;
   }
