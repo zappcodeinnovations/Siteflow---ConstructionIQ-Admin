@@ -41,6 +41,24 @@ class AdminPermissionsController extends ChangeNotifier {
   List<PermissionItem> _menuKeys = [];
   List<PermissionItem> get menuKeys => _menuKeys;
 
+  static const List<Map<String, String>> _fallbackMenuKeys = [
+    {'key': 'dashboard', 'label': 'Dashboard'},
+    {'key': 'clients', 'label': 'Clients'},
+    {'key': 'projects', 'label': 'Projects'},
+    {'key': 'tasks', 'label': 'Tasks'},
+    {'key': 'job_sheets', 'label': 'Job Sheets'},
+    {'key': 'daily_reports', 'label': 'Daily Reports'},
+    {'key': 'weekly_diary', 'label': 'Weekly Diary'},
+    {'key': 'productivity', 'label': 'Productivity'},
+    {'key': 'timesheets', 'label': 'Timesheets'},
+    {'key': 'manager_attendance', 'label': 'Authority Attendance'},
+    {'key': 'library', 'label': 'Library'},
+    {'key': 'notifications', 'label': 'Notifications'},
+    {'key': 'settings', 'label': 'Settings'},
+    {'key': 'admin', 'label': 'Admin'},
+    {'key': 'settings/teams', 'label': 'Settings / Teams'},
+  ];
+
   Future<void> initializeData() async {
     await fetchMenuKeys();
     await fetchRoles();
@@ -69,6 +87,19 @@ class AdminPermissionsController extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint("Error fetching menu keys: $e");
+    }
+
+    if (_menuKeys.isEmpty) {
+      _menuKeys = _fallbackMenuKeys.map((item) {
+        return PermissionItem(
+          menuKey: item['key'] ?? '',
+          label: item['label'] ?? '',
+          canView: false,
+          canCreate: false,
+          canEdit: false,
+          canDelete: false,
+        );
+      }).toList();
     }
   }
 
@@ -121,10 +152,46 @@ class AdminPermissionsController extends ChangeNotifier {
     fetchPermissions(role);
   }
 
+  bool _parseBool(dynamic val) {
+    if (val == null) return false;
+    if (val is bool) return val;
+    if (val is num) return val == 1;
+    if (val is String) {
+      final lower = val.toLowerCase().trim();
+      return lower == 'true' || lower == '1' || lower == 'yes';
+    }
+    return false;
+  }
+
+  String _formatLabel(String key) {
+    if (key.isEmpty) return '';
+    return key
+        .replaceAll('_', ' ')
+        .replaceAll('/', ' / ')
+        .split(' ')
+        .map((word) => word.isNotEmpty
+            ? '${word[0].toUpperCase()}${word.substring(1)}'
+            : '')
+        .join(' ');
+  }
+
   Future<void> fetchPermissions(AdminRole role) async {
     _isLoading = true;
     _errorMessage = null;
     
+    if (_menuKeys.isEmpty) {
+      _menuKeys = _fallbackMenuKeys.map((item) {
+        return PermissionItem(
+          menuKey: item['key'] ?? '',
+          label: item['label'] ?? '',
+          canView: false,
+          canCreate: false,
+          canEdit: false,
+          canDelete: false,
+        );
+      }).toList();
+    }
+
     // Initialize permissions from menu keys to show all options as false by default
     _permissions = _menuKeys.map((k) => PermissionItem(
        menuKey: k.menuKey,
@@ -145,18 +212,63 @@ class AdminPermissionsController extends ChangeNotifier {
         final decodedData = jsonDecode(response.body);
         
         if (decodedData['status'] == true && decodedData['data'] != null) {
-           final permsMap = decodedData['data'] as Map<String, dynamic>;
+          final permsData = decodedData['data'];
+          Map<String, dynamic> permsMap = {};
+          if (permsData is Map<String, dynamic>) {
+            if (permsData['permissions'] is Map<String, dynamic>) {
+              permsMap = permsData['permissions'] as Map<String, dynamic>;
+            } else {
+              permsMap = permsData;
+            }
+          } else if (decodedData['permissions'] is Map<String, dynamic>) {
+            permsMap = decodedData['permissions'] as Map<String, dynamic>;
+          }
+
+          dynamic getPermEntry(String key) {
+            if (permsMap.containsKey(key)) return permsMap[key];
+            final altKey1 = key.replaceAll('_', '/');
+            if (permsMap.containsKey(altKey1)) return permsMap[altKey1];
+            final altKey2 = key.replaceAll('/', '_');
+            if (permsMap.containsKey(altKey2)) return permsMap[altKey2];
+            
+            for (var entry in permsMap.entries) {
+              if (entry.key.toLowerCase().replaceAll('_', '').replaceAll('/', '') ==
+                  key.toLowerCase().replaceAll('_', '').replaceAll('/', '')) {
+                return entry.value;
+              }
+            }
+            return null;
+          }
            
-           for (int i = 0; i < _permissions.length; i++) {
-             final key = _permissions[i].menuKey;
-             if (permsMap.containsKey(key)) {
-               final item = permsMap[key];
-               _permissions[i].canView = item['view'] ?? false;
-               _permissions[i].canCreate = item['create'] ?? false;
-               _permissions[i].canEdit = item['edit'] ?? false;
-               _permissions[i].canDelete = item['delete'] ?? false;
-             }
-           }
+          for (int i = 0; i < _permissions.length; i++) {
+            final key = _permissions[i].menuKey;
+            final item = getPermEntry(key);
+            if (item != null && item is Map) {
+              _permissions[i].canView = _parseBool(item['view']);
+              _permissions[i].canCreate = _parseBool(item['create']);
+              _permissions[i].canEdit = _parseBool(item['edit']);
+              _permissions[i].canDelete = _parseBool(item['delete']);
+            }
+          }
+
+          for (var entry in permsMap.entries) {
+            final key = entry.key;
+            if (entry.value is! Map) continue;
+            final item = entry.value as Map;
+            final alreadyExists = _permissions.any((p) =>
+                p.menuKey.toLowerCase().replaceAll('_', '').replaceAll('/', '') ==
+                key.toLowerCase().replaceAll('_', '').replaceAll('/', ''));
+            if (!alreadyExists) {
+              _permissions.add(PermissionItem(
+                menuKey: key,
+                label: _formatLabel(key),
+                canView: _parseBool(item['view']),
+                canCreate: _parseBool(item['create']),
+                canEdit: _parseBool(item['edit']),
+                canDelete: _parseBool(item['delete']),
+              ));
+            }
+          }
         }
       } else {
         _errorMessage = 'Failed to fetch permissions.';
@@ -173,10 +285,21 @@ class AdminPermissionsController extends ChangeNotifier {
     if (index < 0 || index >= _permissions.length) return;
     final item = _permissions[index];
     switch (field) {
-      case 'view': item.canView = value; break;
-      case 'create': item.canCreate = value; break;
-      case 'edit': item.canEdit = value; break;
-      case 'delete': item.canDelete = value; break;
+      case 'view':
+        item.canView = value;
+        break;
+      case 'create':
+        item.canCreate = value;
+        if (value) item.canView = true;
+        break;
+      case 'edit':
+        item.canEdit = value;
+        if (value) item.canView = true;
+        break;
+      case 'delete':
+        item.canDelete = value;
+        if (value) item.canView = true;
+        break;
     }
     notifyListeners();
   }
