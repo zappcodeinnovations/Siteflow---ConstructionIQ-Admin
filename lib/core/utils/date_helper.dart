@@ -41,21 +41,35 @@ class DateHelper {
     return _cachedTimezone!;
   }
 
-  /// Formats a date string to the user's local timezone (dd/MM/yyyy hh:mm a).
-  static String formatToLocal(String? rawDate, {bool includeTime = true}) {
+  /// Converts a UTC DateTime to Europe/London (GMT / BST) DateTime.
+  static DateTime toUkDateTime(DateTime dt) {
+    final utc = dt.isUtc ? dt : dt.toUtc();
+    final year = utc.year;
+
+    // Last Sunday of March at 01:00 UTC (BST starts)
+    final march31 = DateTime.utc(year, 3, 31);
+    final lastSundayMarch = 31 - (march31.weekday % 7);
+    final bstStart = DateTime.utc(year, 3, lastSundayMarch, 1, 0, 0);
+
+    // Last Sunday of October at 01:00 UTC (BST ends)
+    final oct31 = DateTime.utc(year, 10, 31);
+    final lastSundayOct = 31 - (oct31.weekday % 7);
+    final bstEnd = DateTime.utc(year, 10, lastSundayOct, 1, 0, 0);
+
+    final isBst = (utc.isAfter(bstStart) || utc.isAtSameMomentAs(bstStart)) && utc.isBefore(bstEnd);
+    final offsetHours = isBst ? 1 : 0;
+    return utc.add(Duration(hours: offsetHours));
+  }
+
+  /// Formats a date string to the configured UK operational timezone (Europe/London: GMT/BST).
+  static String formatToUkTime(String? rawDate, {bool includeTime = true}) {
     if (rawDate == null || rawDate.trim().isEmpty || rawDate == 'null' || rawDate == '-') {
       return '-';
     }
 
     final trimmed = rawDate.trim();
 
-    // 1. If it's already in dd/MM/yyyy hh:mm a format (e.g. "03/10/2026 11:30 AM")
-    final formattedPattern = RegExp(r'^\d{2}/\d{2}/\d{4}\s+\d{1,2}:\d{2}\s*(AM|PM|am|pm)', caseSensitive: false);
-    if (formattedPattern.hasMatch(trimmed)) {
-      return trimmed;
-    }
-
-    // 2. If it contains explicit UTC / timezone offset (e.g. "2026-10-05T13:24:00Z" or "...+05:30")
+    // 1. If it has explicit UTC or timezone offset
     final hasExplicitOffset = trimmed.endsWith('Z') ||
         trimmed.endsWith('z') ||
         RegExp(r'[+-]\d{2}:?\d{2}$').hasMatch(trimmed);
@@ -64,30 +78,29 @@ class DateHelper {
       try {
         final parsed = DateTime.tryParse(trimmed);
         if (parsed != null) {
-          final local = parsed.toLocal();
+          final uk = toUkDateTime(parsed);
           final format = includeTime ? DateFormat('dd/MM/yyyy hh:mm a') : DateFormat('dd/MM/yyyy');
-          return format.format(local);
+          return format.format(uk);
         }
       } catch (_) {}
     }
 
-    // 3. Try parsing custom formatted strings (e.g. "05 Oct 2026 06:54 pm" or "05 Oct 2026 18:54:00")
+    // 2. Try parsing custom formatted strings as UTC
     final patterns = [
+      'yyyy-MM-dd HH:mm:ss',
+      'yyyy-MM-dd HH:mm',
+      'yyyy-MM-ddTHH:mm:ss',
       'dd MMM yyyy hh:mm:ss a',
       'dd MMM yyyy hh:mm a',
       'dd MMM yyyy HH:mm:ss',
       'dd MMM yyyy HH:mm',
       'dd MMMM yyyy hh:mm a',
       'dd MMMM yyyy HH:mm',
-      'dd MMM yyyy',
-      'dd MMMM yyyy',
-      'yyyy-MM-dd HH:mm:ss',
-      'yyyy-MM-dd HH:mm',
-      'yyyy-MM-ddTHH:mm:ss',
-      'dd-MM-yyyy HH:mm:ss',
-      'dd-MM-yyyy HH:mm',
       'dd/MM/yyyy HH:mm:ss',
       'dd/MM/yyyy HH:mm',
+      'dd/MM/yyyy hh:mm a',
+      'dd-MM-yyyy HH:mm:ss',
+      'dd-MM-yyyy HH:mm',
       'yyyy-MM-dd',
       'dd/MM/yyyy',
       'dd-MM-yyyy',
@@ -96,22 +109,36 @@ class DateHelper {
     for (final pattern in patterns) {
       try {
         final date = DateFormat(pattern, 'en_US').parse(trimmed);
+        final uk = toUkDateTime(DateTime.utc(
+          date.year,
+          date.month,
+          date.day,
+          date.hour,
+          date.minute,
+          date.second,
+        ));
         final format = includeTime ? DateFormat('dd/MM/yyyy hh:mm a') : DateFormat('dd/MM/yyyy');
-        return format.format(date);
+        return format.format(uk);
       } catch (_) {}
     }
 
-    // 4. Try parsing standard ISO string without explicit offset
+    // 3. Try parsing ISO string
     try {
       final isoStr = trimmed.replaceAll(' ', 'T');
       final parsed = DateTime.tryParse(isoStr) ?? DateTime.tryParse(trimmed);
       if (parsed != null) {
+        final uk = toUkDateTime(parsed);
         final format = includeTime ? DateFormat('dd/MM/yyyy hh:mm a') : DateFormat('dd/MM/yyyy');
-        return format.format(parsed);
+        return format.format(uk);
       }
     } catch (_) {}
 
     return trimmed;
+  }
+
+  /// Formats a date string to the configured operational timezone (dd/MM/yyyy hh:mm a).
+  static String formatToLocal(String? rawDate, {bool includeTime = true}) {
+    return formatToUkTime(rawDate, includeTime: includeTime);
   }
 
   /// Formats a date string (e.g. "yyyy-MM-dd" or ISO format) to "dd/MM/yyyy".
