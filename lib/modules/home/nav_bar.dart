@@ -22,10 +22,15 @@ class BottomNavScreen extends StatefulWidget {
 class _BottomNavScreenState extends State<BottomNavScreen> {
   int currentIndex = 0;
   bool _roleLoaded = false;
+  final GlobalKey<ClientsScreenState> clientsScreenKey =
+      GlobalKey<ClientsScreenState>();
+  final GlobalKey<ProjectsScreenState> projectsScreenKey =
+      GlobalKey<ProjectsScreenState>();
 
   late List<Widget> pages;
   late List<String> titles;
   late List<IconData> icons;
+  int? _clientsIndex;
   int? _projectsIndex;
   int? _tasksIndex;
 
@@ -72,10 +77,11 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
       );
     }
     if (allowed[1]) {
+      _clientsIndex = pages.length;
       addTab(
         'Clients',
         IconlyLight.user_1,
-        const ClientsScreen(),
+        ClientsScreen(key: clientsScreenKey),
       );
     }
     if (allowed[2]) {
@@ -83,7 +89,7 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
       addTab(
         'Projects',
         IconlyLight.folder,
-        const ProjectsScreen(),
+        ProjectsScreen(key: projectsScreenKey),
       );
     }
     if (allowed[3]) {
@@ -126,11 +132,25 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
         actions: [
           IconButton(
             icon: const Icon(IconlyLight.search),
-            tooltip: "Search everything",
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const GlobalSearchScreen()),
-            ),
+            tooltip: currentIndex == _clientsIndex
+                ? "Search & Filter Clients"
+                : currentIndex == _projectsIndex
+                ? "Search & Filter Projects"
+                : "Search everything",
+            onPressed: () {
+              if (currentIndex == _clientsIndex) {
+                clientsScreenKey.currentState?.toggleSearch();
+              } else if (currentIndex == _projectsIndex) {
+                projectsScreenKey.currentState?.toggleSearch();
+              } else {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const GlobalSearchScreen(),
+                  ),
+                );
+              }
+            },
           ),
         ],
       ),
