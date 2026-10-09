@@ -197,8 +197,8 @@ class JobSheetsTab extends StatelessWidget {
     final statusColor = isCompleted ? Colors.green : const Color(0xFF0D6EFD);
     final statusBgColor =
         isCompleted 
-            ? (isDark ? Colors.green.withOpacity(0.2) : Colors.green.shade50) 
-            : (isDark ? Colors.blue.withOpacity(0.2) : Colors.blue.shade50);
+            ? (isDark ? Colors.green.withValues(alpha: 0.2) : Colors.green.shade50) 
+            : (isDark ? Colors.blue.withValues(alpha: 0.2) : Colors.blue.shade50);
 
     return Container(
       decoration: BoxDecoration(
@@ -207,7 +207,7 @@ class JobSheetsTab extends StatelessWidget {
           border: Border.all(color: borderColor),
           boxShadow: [
             BoxShadow(
-                color: Colors.black.withOpacity(0.02),
+                color: Colors.black.withValues(alpha: 0.02),
                 blurRadius: 10,
                 offset: const Offset(0, 4))
           ]),
@@ -268,7 +268,7 @@ class JobSheetsTab extends StatelessWidget {
                     Text(
                       status.toUpperCase(),
                       style: TextStyle(
-                        color: isDark ? Colors.white : statusColor.withOpacity(0.9),
+                        color: isDark ? Colors.white : statusColor.withValues(alpha: 0.9),
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 0.5,
@@ -285,27 +285,54 @@ class JobSheetsTab extends StatelessWidget {
             child: Divider(height: 1, color: isDark ? Colors.white12 : Colors.grey.shade200),
           ),
 
+          // 2-Column Metadata Row for OPERATIVE and FORM
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                flex: 4,
                 child: _buildInfoColumn(
                     context, "OPERATIVE", operativeName, IconlyLight.profile),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 16),
               Expanded(
-                flex: 3,
                 child: _buildInfoColumn(context, "FORM", form, IconlyLight.paper),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                flex: 3,
-                child: _buildInfoColumn(
-                    context, "LOCATION", location, IconlyLight.location),
               ),
             ],
           ),
+
+          if (location.isNotEmpty && location != '-' && location != 'null' && location != 'N/A') ...[
+            const SizedBox(height: 12),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Icon(IconlyLight.location, size: 14, color: textSecondary),
+                const SizedBox(width: 6),
+                Text(
+                  "LOCATION: ",
+                  style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: textSecondary,
+                      letterSpacing: 0.5),
+                ),
+                Expanded(
+                  child: Tooltip(
+                    message: location,
+                    child: Text(
+                      location,
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: textColor),
+                      softWrap: true,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
 
           const SizedBox(height: 16),
 
@@ -374,16 +401,19 @@ class JobSheetsTab extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 6),
-        Text(
-          value,
-          style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: textColor,
-              height: 1.25),
-          softWrap: true,
-          maxLines: 3,
-          overflow: TextOverflow.ellipsis,
+        Tooltip(
+          message: value,
+          child: Text(
+            value.isNotEmpty ? value : "-",
+            style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: textColor,
+                height: 1.25),
+            softWrap: true,
+            maxLines: 4,
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
       ],
     );
