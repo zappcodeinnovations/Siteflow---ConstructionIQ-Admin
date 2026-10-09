@@ -6,6 +6,7 @@ import '../../models/project_model.dart';
 import '../../models/project_all_in_one_model.dart';
 import '../../models/announcement_model.dart';
 import '../../models/client_model.dart';
+import '../../core/utils/app_logger.dart';
 
 class ProjectController extends ChangeNotifier {
   bool _isLoading = false;
@@ -139,14 +140,43 @@ class ProjectController extends ChangeNotifier {
     }
   }
 
-  Future<bool> createProject(String name, {int? clientId, String? description, String? priority}) async {
+  List<Client> _availableClients = [];
+  List<Client> get availableClients => _availableClients;
+
+  Future<List<Client>> fetchAvailableClients() async {
+    try {
+      final response = await ApiClient.get(ApiEndpoints.baseUrl + ApiEndpoints.clients);
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200 && data['status'] == true) {
+        final List<dynamic> clientList = data['data'];
+        _availableClients = clientList.map((json) => Client.fromJson(json)).toList();
+        notifyListeners();
+        return _availableClients;
+      }
+    } catch (e) {
+      AppLogger.w("Failed to fetch clients: $e");
+    }
+    return [];
+  }
+
+  Future<bool> createProject(
+    String name, {
+    int? clientId,
+    String? newClientName,
+    String? description,
+    String? priority,
+  }) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
       final Map<String, dynamic> body = {'name': name};
-      if (clientId != null) body['client_id'] = clientId;
+      if (clientId != null) {
+        body['client_id'] = clientId;
+      } else if (newClientName != null && newClientName.trim().isNotEmpty) {
+        body['new_client_name'] = newClientName.trim();
+      }
       if (description != null && description.isNotEmpty) body['description'] = description;
       if (priority != null && priority.isNotEmpty) body['priority'] = priority;
 

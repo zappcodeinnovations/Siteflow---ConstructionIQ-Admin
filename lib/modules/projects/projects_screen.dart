@@ -61,90 +61,292 @@ class ProjectsScreenState extends State<ProjectsScreen> {
   }
 
   void _showCreateProjectDialog() {
-    final nameController = TextEditingController(); 
+    final nameController = TextEditingController();
+    final newClientController = TextEditingController();
+    int? selectedClientId = widget.filterClient?.id;
+    bool isCreatingNewClient = false;
+    String selectedPriority = 'medium';
+
+    // Pre-fetch clients if not already loaded
+    if (_controller.availableClients.isEmpty) {
+      _controller.fetchAvailableClients();
+    }
+
     showDialog(
       context: context,
-      builder: (context) {
-        final isDark = Theme.of(context).brightness == Brightness.dark;
-        final dialogBg = isDark ? AppTheme.darkSurfaceRaised : Colors.white;
-        final titleColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
-        final textColor = isDark ? Colors.white : Colors.black87;
-        final hintColor = isDark ? Colors.white54 : Colors.grey;
-        final inputBorderColor = isDark ? AppTheme.darkBorder : Colors.grey.shade300;
-        final inputFillColor = isDark ? Colors.white.withOpacity(0.08) : Colors.transparent;
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final isDark = Theme.of(context).brightness == Brightness.dark;
+            final dialogBg = isDark ? AppTheme.darkSurfaceRaised : Colors.white;
+            final titleColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
+            final textColor = isDark ? Colors.white : Colors.black87;
+            final hintColor = isDark ? Colors.white54 : Colors.grey;
+            final inputBorderColor = isDark ? AppTheme.darkBorder : Colors.grey.shade300;
+            final inputFillColor = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.transparent;
 
-        return AlertDialog(
-          backgroundColor: dialogBg,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: isDark ? const BorderSide(color: AppTheme.darkBorder) : BorderSide.none,
-          ),
-          title: Text(
-            "Create Project",
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-              color: titleColor,
-            ),
-          ),
-          content: TextField(
-            controller: nameController,
-            style: TextStyle(color: textColor),
-            decoration: InputDecoration(
-              hintText: "Project Name",
-              hintStyle: TextStyle(color: hintColor),
-              filled: true,
-              fillColor: inputFillColor,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: inputBorderColor),
+            final clients = _controller.availableClients;
+
+            return AlertDialog(
+              backgroundColor: dialogBg,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: isDark ? const BorderSide(color: AppTheme.darkBorder) : BorderSide.none,
               ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: inputBorderColor),
-              ),
-              focusedBorder: const OutlineInputBorder(
-                borderRadius: BorderRadius.all(Radius.circular(8)),
-                borderSide: BorderSide(color: Color(0xFF0D6EFD), width: 1.5),
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text("Cancel", style: TextStyle(color: isDark ? Colors.white70 : Colors.grey)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0D6EFD),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+              title: Text(
+                "Create Project",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  color: titleColor,
                 ),
               ),
-              onPressed: () async {
-                final name = nameController.text.trim();
-                if (name.isNotEmpty) {
-                  final success = await _controller.createProject(name);
-                  if (success && context.mounted) {
-                    Navigator.pop(context);
-                  } else if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          _controller.errorMessage ??
-                              "Failed to create project",
+              content: SingleChildScrollView(
+                child: SizedBox(
+                  width: double.maxFinite,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Project Name
+                      Text(
+                        "Project Name *",
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
                         ),
                       ),
-                    );
-                  }
-                }
-              },
-              child: const Text(
-                "Create",
-                style: TextStyle(color: Colors.white),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: nameController,
+                        style: TextStyle(color: textColor, fontSize: 14),
+                        decoration: InputDecoration(
+                          hintText: "Enter project name",
+                          hintStyle: TextStyle(color: hintColor, fontSize: 14),
+                          filled: true,
+                          fillColor: inputFillColor,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: inputBorderColor),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: inputBorderColor),
+                          ),
+                          focusedBorder: const OutlineInputBorder(
+                            borderRadius: BorderRadius.all(Radius.circular(8)),
+                            borderSide: BorderSide(color: Color(0xFF0D6EFD), width: 1.5),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Client Header & Switcher
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            "Client *",
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () {
+                              setDialogState(() {
+                                isCreatingNewClient = !isCreatingNewClient;
+                                if (isCreatingNewClient) {
+                                  selectedClientId = null;
+                                }
+                              });
+                            },
+                            child: Text(
+                              isCreatingNewClient ? "Select Existing" : "+ New Client",
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF0D6EFD),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+
+                      if (isCreatingNewClient)
+                        TextField(
+                          controller: newClientController,
+                          style: TextStyle(color: textColor, fontSize: 14),
+                          decoration: InputDecoration(
+                            hintText: "Enter new client name",
+                            hintStyle: TextStyle(color: hintColor, fontSize: 14),
+                            filled: true,
+                            fillColor: inputFillColor,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: inputBorderColor),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: inputBorderColor),
+                            ),
+                            focusedBorder: const OutlineInputBorder(
+                              borderRadius: BorderRadius.all(Radius.circular(8)),
+                              borderSide: BorderSide(color: Color(0xFF0D6EFD), width: 1.5),
+                            ),
+                          ),
+                        )
+                      else
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          decoration: BoxDecoration(
+                            color: inputFillColor,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: inputBorderColor),
+                          ),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<int>(
+                              isExpanded: true,
+                              value: selectedClientId,
+                              dropdownColor: dialogBg,
+                              hint: Text("Select a client", style: TextStyle(color: hintColor, fontSize: 14)),
+                              icon: Icon(Icons.arrow_drop_down, color: isDark ? Colors.white70 : Colors.grey.shade700),
+                              items: clients.map((client) {
+                                return DropdownMenuItem<int>(
+                                  value: client.id,
+                                  child: Text(
+                                    client.name,
+                                    style: TextStyle(color: textColor, fontSize: 14),
+                                  ),
+                                );
+                              }).toList(),
+                              onChanged: (val) {
+                                setDialogState(() {
+                                  selectedClientId = val;
+                                });
+                              },
+                            ),
+                          ),
+                        ),
+                      const SizedBox(height: 16),
+
+                      // Priority Selection
+                      Text(
+                        "Priority",
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: inputFillColor,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: inputBorderColor),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            isExpanded: true,
+                            value: selectedPriority,
+                            dropdownColor: dialogBg,
+                            icon: Icon(Icons.arrow_drop_down, color: isDark ? Colors.white70 : Colors.grey.shade700),
+                            items: const [
+                              DropdownMenuItem(value: 'low', child: Text('Low')),
+                              DropdownMenuItem(value: 'medium', child: Text('Medium')),
+                              DropdownMenuItem(value: 'high', child: Text('High')),
+                              DropdownMenuItem(value: 'urgent', child: Text('Urgent')),
+                            ],
+                            onChanged: (val) {
+                              if (val != null) {
+                                setDialogState(() {
+                                  selectedPriority = val;
+                                });
+                              }
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ),
-          ],
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: Text("Cancel", style: TextStyle(color: isDark ? Colors.white70 : Colors.grey)),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0D6EFD),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  onPressed: () async {
+                    final name = nameController.text.trim();
+                    if (name.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("Please enter a project name")),
+                      );
+                      return;
+                    }
+
+                    if (!isCreatingNewClient && selectedClientId == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("Please select a client or click '+ New Client'")),
+                      );
+                      return;
+                    }
+
+                    if (isCreatingNewClient && newClientController.text.trim().isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("Please enter the new client name")),
+                      );
+                      return;
+                    }
+
+                    final success = await _controller.createProject(
+                      name,
+                      clientId: selectedClientId,
+                      newClientName: isCreatingNewClient ? newClientController.text.trim() : null,
+                      priority: selectedPriority,
+                    );
+
+                    if (success && context.mounted) {
+                      Navigator.pop(dialogContext);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text("Project created successfully!"),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    } else if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            _controller.errorMessage ?? "Failed to create project",
+                          ),
+                          backgroundColor: Colors.redAccent,
+                        ),
+                      );
+                    }
+                  },
+                  child: const Text(
+                    "Create",
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            );
+          },
         );
       },
     );
