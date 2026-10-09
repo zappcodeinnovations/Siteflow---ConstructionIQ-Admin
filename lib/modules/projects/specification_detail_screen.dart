@@ -201,13 +201,14 @@ class _AttributesTabState extends State<_AttributesTab> {
             TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text("Cancel")),
             ElevatedButton(
               onPressed: () async {
+                final messenger = ScaffoldMessenger.of(context);
                 final name = nameController.text.trim();
                 if (name.isEmpty) return;
                 final options = optionsController.text.split('\n').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
                 Navigator.pop(dialogContext);
                 final result = await widget.controller.createAttributeDefinition(name: name, attributeType: type, options: options);
                 if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
+                messenger.showSnackBar(
                   SnackBar(content: Text(result['message'] ?? ''), backgroundColor: result['success'] == true ? Colors.green : Colors.red),
                 );
               },
@@ -372,79 +373,431 @@ class _MaterialsTab extends StatelessWidget {
     final linked = ((controller.spec?['materials'] as List?) ?? []).cast<Map>().map((m) => m['material_id'] as int).toSet();
     final available = controller.availableMaterials.where((m) => !linked.contains(m['id'])).toList();
 
+    final Set<int> selectedMaterialIds = {};
+    String searchQuery = '';
+    bool isSubmitting = false;
+
     await showDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text("Add Material"),
-        content: SizedBox(
-          width: 360,
-          height: 400,
-          child: available.isEmpty
-              ? const Center(child: Text("No more materials to add."))
-              : ListView.builder(
-                  itemCount: available.length,
-                  itemBuilder: (context, index) {
-                    final material = available[index];
-                    return ListTile(
-                      title: Text(material['name']?.toString() ?? ''),
-                      onTap: () async {
-                        Navigator.pop(dialogContext);
-                        final result = await controller.addMaterial(material['id'] as int);
-                        if (!context.mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(result['message'] ?? ''), backgroundColor: result['success'] == true ? Colors.green : Colors.red),
-                        );
-                      },
-                    );
-                  },
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            final isDark = Theme.of(ctx).brightness == Brightness.dark;
+            final bg = isDark ? AppTheme.darkSurfaceRaised : Colors.white;
+            final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
+            final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+            final borderColor = isDark ? AppTheme.darkBorder : Colors.grey.shade200;
+
+            final filteredMaterials = available.where((m) {
+              if (searchQuery.isEmpty) return true;
+              final q = searchQuery.toLowerCase();
+              final name = (m['name'] ?? '').toString().toLowerCase();
+              final code = (m['code'] ?? '').toString().toLowerCase();
+              return name.contains(q) || code.contains(q);
+            }).toList();
+
+            return Dialog(
+              backgroundColor: bg,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 420, maxHeight: 580),
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Header Row: Title & Close Button
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Add Material",
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: textColor,
+                                fontFamily: 'Inter',
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              "Select materials to link to specification",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: textSecondary,
+                                fontFamily: 'Inter',
+                              ),
+                            ),
+                          ],
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, size: 20),
+                          color: textSecondary,
+                          splashRadius: 18,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                          onPressed: () => Navigator.pop(dialogContext),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Search Bar
+                    if (available.length > 3) ...[
+                      TextField(
+                        style: TextStyle(color: textColor, fontSize: 13),
+                        decoration: InputDecoration(
+                          hintText: "Search materials...",
+                          hintStyle: TextStyle(color: textSecondary, fontSize: 13),
+                          prefixIcon: const Icon(IconlyLight.search, size: 18),
+                          filled: true,
+                          fillColor: isDark ? Colors.white10 : const Color(0xFFF8FAFC),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: BorderSide(color: borderColor),
+                          ),
+                          isDense: true,
+                        ),
+                        onChanged: (val) {
+                          setDialogState(() {
+                            searchQuery = val.trim();
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+
+                    Divider(height: 1, color: borderColor),
+                    const SizedBox(height: 12),
+
+                    // Material Items List
+                    Expanded(
+                      child: filteredMaterials.isEmpty
+                          ? Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(24.0),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(IconlyLight.document, size: 36, color: textSecondary),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      available.isEmpty ? "All available materials are already linked." : "No matching materials found.",
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(color: textSecondary, fontSize: 13),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            )
+                          : ListView.separated(
+                              itemCount: filteredMaterials.length,
+                              separatorBuilder: (_, __) => const SizedBox(height: 8),
+                              itemBuilder: (context, index) {
+                                final material = filteredMaterials[index];
+                                final int matId = material['id'] is int ? material['id'] : (int.tryParse('${material['id']}') ?? 0);
+                                final isSelected = selectedMaterialIds.contains(matId);
+                                final matName = material['name']?.toString() ?? 'Material';
+                                final matCode = material['code']?.toString() ?? '';
+
+                                return Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    onTap: () {
+                                      setDialogState(() {
+                                        if (isSelected) {
+                                          selectedMaterialIds.remove(matId);
+                                        } else {
+                                          selectedMaterialIds.add(matId);
+                                        }
+                                      });
+                                    },
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                      decoration: BoxDecoration(
+                                        color: isSelected
+                                            ? const Color(0xFF0D6EFD).withValues(alpha: isDark ? 0.18 : 0.08)
+                                            : (isDark ? Colors.white.withValues(alpha: 0.04) : const Color(0xFFF8FAFC)),
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(
+                                          color: isSelected ? const Color(0xFF0D6EFD) : borderColor,
+                                          width: isSelected ? 1.5 : 1.0,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          // Material Icon Box
+                                          Container(
+                                            padding: const EdgeInsets.all(8),
+                                            decoration: BoxDecoration(
+                                              color: isSelected
+                                                  ? const Color(0xFF0D6EFD).withValues(alpha: 0.15)
+                                                  : (isDark ? Colors.white10 : Colors.grey.shade200),
+                                              borderRadius: BorderRadius.circular(8),
+                                            ),
+                                            child: Icon(
+                                              IconlyLight.document,
+                                              size: 18,
+                                              color: isSelected ? const Color(0xFF0D6EFD) : textColor,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+
+                                          // Material Name and Code
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  matName,
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.w600,
+                                                    fontSize: 14,
+                                                    color: textColor,
+                                                    fontFamily: 'Inter',
+                                                  ),
+                                                ),
+                                                if (matCode.isNotEmpty) ...[
+                                                  const SizedBox(height: 2),
+                                                  Text(
+                                                    matCode,
+                                                    style: TextStyle(
+                                                      fontSize: 11,
+                                                      color: textSecondary,
+                                                      fontFamily: 'Inter',
+                                                    ),
+                                                  ),
+                                                ],
+                                              ],
+                                            ),
+                                          ),
+
+                                          // Selection Indicator (Checkbox pill)
+                                          Container(
+                                            width: 22,
+                                            height: 22,
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              color: isSelected ? const Color(0xFF0D6EFD) : Colors.transparent,
+                                              border: Border.all(
+                                                color: isSelected ? const Color(0xFF0D6EFD) : (isDark ? Colors.white38 : Colors.grey.shade400),
+                                                width: 1.5,
+                                              ),
+                                            ),
+                                            child: isSelected
+                                                ? const Icon(Icons.check, size: 14, color: Colors.white)
+                                                : null,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+
+                    const SizedBox(height: 12),
+                    Divider(height: 1, color: borderColor),
+                    const SizedBox(height: 12),
+
+                    // Action Footer: Close and Add Selected
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        TextButton(
+                          onPressed: isSubmitting ? null : () => Navigator.pop(dialogContext),
+                          child: Text(
+                            "Cancel",
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                              fontFamily: 'Inter',
+                            ),
+                          ),
+                        ),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF0D6EFD),
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          onPressed: (selectedMaterialIds.isEmpty || isSubmitting)
+                              ? null
+                              : () async {
+                                  setDialogState(() => isSubmitting = true);
+                                  int successCount = 0;
+                                  for (final id in selectedMaterialIds) {
+                                    final res = await controller.addMaterial(id);
+                                    if (res['success'] == true) successCount++;
+                                  }
+                                  if (!context.mounted) return;
+                                  Navigator.pop(dialogContext);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text("Linked $successCount material${successCount > 1 ? 's' : ''} successfully."),
+                                      backgroundColor: Colors.green,
+                                    ),
+                                  );
+                                },
+                          child: isSubmitting
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                )
+                              : Text(
+                                  selectedMaterialIds.isEmpty
+                                      ? "Add Material"
+                                      : "Add Selected (${selectedMaterialIds.length})",
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, fontFamily: 'Inter'),
+                                ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-        ),
-        actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text("Close"))],
-      ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final materials = ((controller.spec?['materials'] as List?) ?? []).cast<Map>();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
+    final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
+    final borderColor = isDark ? AppTheme.darkBorder : Colors.grey.shade200;
 
     return Column(
       children: [
         Expanded(
           child: materials.isEmpty
-              ? const Center(child: Text("No materials linked yet."))
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(IconlyLight.document, size: 48, color: textSecondary),
+                        const SizedBox(height: 12),
+                        Text(
+                          "No materials linked yet.",
+                          style: TextStyle(color: textColor, fontSize: 15, fontWeight: FontWeight.bold, fontFamily: 'Inter'),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          "Tap '+ Add Material' below to select and link materials from the library.",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: textSecondary, fontSize: 13, fontFamily: 'Inter'),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
               : ListView.builder(
                   padding: const EdgeInsets.all(16),
                   itemCount: materials.length,
                   itemBuilder: (context, index) {
                     final link = materials[index];
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      child: ListTile(
-                        title: Text(link['material_name']?.toString() ?? ''),
-                        trailing: IconButton(
-                          icon: const Icon(IconlyLight.delete, size: 18, color: Colors.red),
-                          onPressed: () async {
-                            final result = await controller.removeMaterial(link['material_id'] as int);
-                            if (!context.mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text(result['message'] ?? ''), backgroundColor: result['success'] == true ? Colors.green : Colors.red),
-                            );
-                          },
+                    final name = link['material_name']?.toString() ?? 'Material';
+                    final matId = link['material_id'] as int;
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      decoration: BoxDecoration(
+                        color: cardColor,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: borderColor),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF0D6EFD).withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(IconlyLight.document, color: Color(0xFF0D6EFD), size: 18),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                name,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                  color: textColor,
+                                  fontFamily: 'Inter',
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(IconlyLight.delete, size: 18, color: Colors.redAccent),
+                              tooltip: "Remove Material",
+                              onPressed: () async {
+                                final result = await controller.removeMaterial(matId);
+                                if (!context.mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(result['message'] ?? ''),
+                                    backgroundColor: result['success'] == true ? Colors.green : Colors.red,
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
                         ),
                       ),
                     );
                   },
                 ),
         ),
-        Padding(
+        Container(
           padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: isDark ? AppTheme.darkSurface : Colors.white,
+            border: Border(top: BorderSide(color: borderColor)),
+          ),
           child: SizedBox(
             width: double.infinity,
-            child: OutlinedButton.icon(
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0D6EFD),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
               onPressed: () => _showAddMaterialDialog(context),
-              icon: const Icon(IconlyLight.plus, size: 16),
-              label: const Text("Add Material"),
+              icon: const Icon(IconlyLight.plus, size: 18),
+              label: const Text(
+                "Add Material",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, fontFamily: 'Inter'),
+              ),
             ),
           ),
         ),
