@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
-import 'tabs/dynamic_tab.dart';
 import 'tabs/specifications_tab.dart';
 import 'tabs/project_setup_tab.dart';
 import 'tabs/tasks_tab.dart';
@@ -160,12 +159,23 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
         drawings: _allInOneData?.drawings,
       ),
       SiteManagerTab(
+        projectId: widget.project.id,
         rawBlocks:
             _allInOneData
                     ?.projectSetup?['dropdown_options']?['available_blocks']
                 as List?,
+        drawings: _allInOneData?.drawings,
+        onChanged: _fetchData,
       ),
-      DynamicTab(title: "Locations", data: _allInOneData?.locations ?? []),
+      SiteManagerTab(
+        projectId: widget.project.id,
+        rawBlocks:
+            _allInOneData
+                    ?.projectSetup?['dropdown_options']?['available_blocks']
+                as List?,
+        drawings: _allInOneData?.drawings,
+        onChanged: _fetchData,
+      ),
       SpecificationsTab(projectId: widget.project.id),
       ProjectTemplateTab(projectId: widget.project.id),
       MaterialsTab(projectId: widget.project.id),
