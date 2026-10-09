@@ -1,3 +1,5 @@
+import '../core/utils/date_helper.dart';
+
 class IncidentModel {
   final int id;
   final String referenceNo;
@@ -143,6 +145,10 @@ class InspectionModel {
   final String drawingLocationReference;
   final DateTime? scheduledDate;
   final DateTime? completedAt;
+  final DateTime? createdAt;
+  final String? rawScheduledDate;
+  final String? rawCompletedAt;
+  final String? rawCreatedAt;
   final String notes;
 
   InspectionModel({
@@ -156,27 +162,86 @@ class InspectionModel {
     required this.drawingLocationReference,
     required this.scheduledDate,
     required this.completedAt,
+    this.createdAt,
+    this.rawScheduledDate,
+    this.rawCompletedAt,
+    this.rawCreatedAt,
     required this.notes,
   });
 
+  String get formattedTimeText {
+    if (rawCompletedAt != null && rawCompletedAt!.isNotEmpty && rawCompletedAt != 'null') {
+      final formatted = DateHelper.formatToLocal(rawCompletedAt);
+      return 'Completed $formatted';
+    } else if (completedAt != null) {
+      final formatted = DateHelper.formatToLocal(completedAt!.toIso8601String());
+      return 'Completed $formatted';
+    }
+
+    if (rawScheduledDate != null && rawScheduledDate!.isNotEmpty && rawScheduledDate != 'null') {
+      final formatted = DateHelper.formatToLocal(rawScheduledDate);
+      return 'Scheduled: $formatted';
+    } else if (scheduledDate != null) {
+      final formatted = DateHelper.formatToLocal(scheduledDate!.toIso8601String());
+      return 'Scheduled: $formatted';
+    }
+
+    if (rawCreatedAt != null && rawCreatedAt!.isNotEmpty && rawCreatedAt != 'null') {
+      final formatted = DateHelper.formatToLocal(rawCreatedAt);
+      return 'Logged $formatted';
+    } else if (createdAt != null) {
+      final formatted = DateHelper.formatToLocal(createdAt!.toIso8601String());
+      return 'Logged $formatted';
+    }
+
+    return '';
+  }
+
   factory InspectionModel.fromJson(Map<String, dynamic> json) {
-    final rawChecklist = json['checklist_items'];
+    final rawChecklist = json['checklist_items'] ?? json['items'];
+
+    String inspector = json['inspector_name']?.toString() ?? '';
+    if (inspector.isEmpty && json['inspector'] != null) {
+      if (json['inspector'] is Map) {
+        inspector = json['inspector']['name'] ?? json['inspector']['display_name'] ?? json['inspector']['username'] ?? '';
+      } else {
+        inspector = json['inspector'].toString();
+      }
+    }
+    if (inspector.isEmpty && json['created_by_name'] != null) {
+      inspector = json['created_by_name'].toString();
+    }
+
+    String pinRef = json['drawing_location_reference']?.toString() ??
+        json['linked_pin']?.toString() ??
+        json['drawing_pin']?.toString() ??
+        json['pin']?.toString() ??
+        '';
+
+    final rawScheduled = json['scheduled_date']?.toString() ?? json['scheduled_at']?.toString() ?? json['inspection_date']?.toString();
+    final rawCompleted = json['completed_at']?.toString() ?? json['completed_date']?.toString();
+    final rawCreated = json['created_at']?.toString() ?? json['created_date']?.toString();
+
     return InspectionModel(
       id: json['id'] is int ? json['id'] : int.tryParse('${json['id']}') ?? 0,
-      referenceNo: json['reference_no']?.toString() ?? '',
+      referenceNo: json['reference_no']?.toString() ?? json['reference']?.toString() ?? json['code']?.toString() ?? '',
       title: json['title']?.toString() ?? '',
-      status: json['status']?.toString() ?? '',
-      statusLabel: json['status_label']?.toString() ?? '',
+      status: json['status']?.toString() ?? 'pending',
+      statusLabel: json['status_label']?.toString() ?? json['status']?.toString() ?? 'Pending',
       checklistItems: rawChecklist is List
           ? rawChecklist
               .whereType<Map>()
               .map((e) => InspectionChecklistItem.fromJson(e.cast<String, dynamic>()))
               .toList()
           : [],
-      inspectorName: json['inspector_name']?.toString() ?? '',
-      drawingLocationReference: json['drawing_location_reference']?.toString() ?? '',
-      scheduledDate: DateTime.tryParse(json['scheduled_date']?.toString() ?? ''),
-      completedAt: DateTime.tryParse(json['completed_at']?.toString() ?? ''),
+      inspectorName: inspector,
+      drawingLocationReference: pinRef,
+      scheduledDate: rawScheduled != null ? DateTime.tryParse(rawScheduled) : null,
+      completedAt: rawCompleted != null ? DateTime.tryParse(rawCompleted) : null,
+      createdAt: rawCreated != null ? DateTime.tryParse(rawCreated) : null,
+      rawScheduledDate: rawScheduled,
+      rawCompletedAt: rawCompleted,
+      rawCreatedAt: rawCreated,
       notes: json['notes']?.toString() ?? '',
     );
   }

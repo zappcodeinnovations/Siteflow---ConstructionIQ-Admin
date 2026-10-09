@@ -193,4 +193,23 @@ class ProjectIssuesController extends ChangeNotifier {
       return {'success': false, 'message': 'An error occurred: $e'};
     }
   }
+
+  Future<Map<String, dynamic>> deleteInspection(int inspectionId) async {
+    try {
+      final url = ApiEndpoints.baseUrl + ApiEndpoints.projectInspectionDetail(projectId, inspectionId);
+      var response = await ApiClient.delete(url);
+      if (response.statusCode != 200 && response.statusCode != 204) {
+        final fallbackUrl = ApiEndpoints.baseUrl + ApiEndpoints.inspectionDetail(inspectionId);
+        response = await ApiClient.delete(fallbackUrl);
+      }
+      final decoded = response.body.isNotEmpty ? jsonDecode(response.body) : {};
+      if (response.statusCode == 200 || response.statusCode == 204 || decoded['status'] == true) {
+        await fetchInspections();
+        return {'success': true, 'message': decoded['message'] ?? 'Inspection deleted successfully.'};
+      }
+      return {'success': false, 'message': decoded['message'] ?? 'Failed to delete inspection.'};
+    } catch (e) {
+      return {'success': false, 'message': 'An error occurred: $e'};
+    }
+  }
 }

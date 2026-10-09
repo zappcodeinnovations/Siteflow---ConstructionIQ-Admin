@@ -21,6 +21,8 @@ class ApiEndpoints {
   static String projectSnagDetail(int projectId, int snagId) => '/projects/$projectId/snags/$snagId/';
   static String snagDetail(int snagId) => '/snags/$snagId/';
   static String projectInspections(int projectId) => '/projects/$projectId/inspections/';
+  static String projectInspectionDetail(int projectId, int inspectionId) => '/projects/$projectId/inspections/$inspectionId/';
+  static String inspectionDetail(int inspectionId) => '/inspections/$inspectionId/';
   static String inspectionComplete(int inspectionId) => '/inspections/$inspectionId/complete/';
   static String projectTemplateDetail(int projectId) => '/projects/$projectId/template/';
   static String projectMaterials(int projectId) => '/projects/$projectId/materials/';
