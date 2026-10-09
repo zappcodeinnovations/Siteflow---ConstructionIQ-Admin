@@ -91,19 +91,19 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
       ),
       floatingActionButton: _tabController.index == 0
           ? FloatingActionButton.extended(
-              onPressed: () => _showAddFormDialog(context),
+              onPressed: () => _showAddFormDialog(),
               icon: const Icon(Icons.add),
               label: const Text("Add Form"),
             )
           : _tabController.index == 3
               ? FloatingActionButton.extended(
-                  onPressed: () => _showAddWorkTypeDialog(context),
+                  onPressed: () => _showAddWorkTypeDialog(),
                   icon: const Icon(Icons.add),
                   label: const Text("Add Work Type"),
                 )
               : (_tabController.index == 1 && !_materialSelectMode)
                   ? FloatingActionButton.extended(
-                      onPressed: () => _showAddMaterialDialog(context),
+                      onPressed: () => _showAddMaterialDialog(),
                       icon: const Icon(Icons.add),
                       label: const Text("Add Material"),
                     )
@@ -111,7 +111,7 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
     );
   }
 
-  Future<void> _showAddMaterialDialog(BuildContext context) async {
+  Future<void> _showAddMaterialDialog() async {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
     final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
@@ -138,7 +138,7 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
       }
     } catch (_) {}
 
-    if (!context.mounted) return;
+    if (!mounted) return;
     if (groups.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Create a material group first (Settings > Materials).")),
@@ -165,7 +165,7 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) {
+        builder: (builderContext, setDialogState) {
           Widget buildLabel(String text, {bool isRequired = false}) {
             return Padding(
               padding: const EdgeInsets.only(bottom: 6),
@@ -199,7 +199,7 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
             child: ConstrainedBox(
               constraints: BoxConstraints(
                 maxWidth: 520,
-                maxHeight: MediaQuery.of(context).size.height * 0.85,
+                maxHeight: MediaQuery.of(builderContext).size.height * 0.85,
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -484,13 +484,13 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
                               : () async {
                                   final name = nameController.text.trim();
                                   if (name.isEmpty) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
+                                    ScaffoldMessenger.of(builderContext).showSnackBar(
                                       const SnackBar(content: Text("Material Name is required.")),
                                     );
                                     return;
                                   }
                                   if (selectedGroupId == null) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
+                                    ScaffoldMessenger.of(builderContext).showSnackBar(
                                       const SnackBar(content: Text("Group is required.")),
                                     );
                                     return;
@@ -517,7 +517,7 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
                                   Navigator.pop(dialogContext);
 
                                   if (!mounted) return;
-                                  ScaffoldMessenger.of(context).showSnackBar(
+                                  ScaffoldMessenger.of(this.context).showSnackBar(
                                     SnackBar(
                                       content: Text(result['message'] ?? ''),
                                       backgroundColor: result['success'] == true ? Colors.green : Colors.red,
@@ -529,7 +529,7 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
                                     final created = (result['data'] as Map?)?.cast<String, dynamic>();
                                     if (created != null && mounted) {
                                       Navigator.push(
-                                        context,
+                                        this.context,
                                         MaterialPageRoute(
                                           builder: (_) => MaterialDetailScreen(materialId: created['id'] as int),
                                         ),
@@ -560,7 +560,7 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
     );
   }
 
-  Future<void> _showAddWorkTypeDialog(BuildContext context) async {
+  Future<void> _showAddWorkTypeDialog() async {
     final nameController = TextEditingController();
     await showDialog(
       context: context,
@@ -580,7 +580,7 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
               Navigator.pop(dialogContext);
               final result = await _controller.createWorkType(name);
               if (!mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
+              ScaffoldMessenger.of(this.context).showSnackBar(
                 SnackBar(content: Text(result['message'] ?? ''), backgroundColor: result['success'] == true ? Colors.green : Colors.red),
               );
             },
@@ -591,7 +591,7 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
     );
   }
 
-  Future<void> _showRenameWorkTypeDialog(BuildContext context, Map<String, dynamic> workType) async {
+  Future<void> _showRenameWorkTypeDialog(Map<String, dynamic> workType) async {
     final nameController = TextEditingController(text: workType['name']?.toString() ?? '');
     await showDialog(
       context: context,
@@ -611,7 +611,7 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
               Navigator.pop(dialogContext);
               final result = await _controller.renameWorkType(workType['id'] as int, name);
               if (!mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
+              ScaffoldMessenger.of(this.context).showSnackBar(
                 SnackBar(content: Text(result['message'] ?? ''), backgroundColor: result['success'] == true ? Colors.green : Colors.red),
               );
             },
@@ -622,7 +622,7 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
     );
   }
 
-  Future<void> _confirmDeleteWorkType(BuildContext context, Map<String, dynamic> workType) async {
+  Future<void> _confirmDeleteWorkType(Map<String, dynamic> workType) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -640,7 +640,7 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
     if (confirmed != true || !mounted) return;
     final result = await _controller.deleteWorkType(workType['id'] as int);
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
+    ScaffoldMessenger.of(this.context).showSnackBar(
       SnackBar(content: Text(result['message'] ?? ''), backgroundColor: result['success'] == true ? Colors.green : Colors.red),
     );
   }
@@ -683,11 +683,11 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
                 ),
                 IconButton(
                   icon: const Icon(IconlyLight.edit, size: 18),
-                  onPressed: () => _showRenameWorkTypeDialog(context, workType),
+                  onPressed: () => _showRenameWorkTypeDialog(workType),
                 ),
                 IconButton(
                   icon: const Icon(IconlyLight.delete, size: 18, color: Colors.red),
-                  onPressed: () => _confirmDeleteWorkType(context, workType),
+                  onPressed: () => _confirmDeleteWorkType(workType),
                 ),
               ],
             ),
@@ -769,7 +769,7 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
     );
   }
 
-  Future<void> _showAddFormDialog(BuildContext context) async {
+  Future<void> _showAddFormDialog() async {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
     final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
@@ -783,7 +783,7 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
     await showDialog(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) {
+        builder: (dialogBodyContext, setDialogState) {
           return Dialog(
             backgroundColor: cardColor,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -1011,7 +1011,7 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
-                    onPressed: () => _showAddFormDialog(context),
+                    onPressed: () => _showAddFormDialog(),
                     icon: const Icon(Icons.add, size: 16),
                     label: const Text("Add Form", style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                   ),
