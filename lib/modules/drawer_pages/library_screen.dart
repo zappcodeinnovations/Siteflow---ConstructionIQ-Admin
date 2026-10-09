@@ -517,7 +517,7 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
                                   Navigator.pop(dialogContext);
 
                                   if (!mounted) return;
-                                  ScaffoldMessenger.of(this.context).showSnackBar(
+                                  ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
                                       content: Text(result['message'] ?? ''),
                                       backgroundColor: result['success'] == true ? Colors.green : Colors.red,
@@ -529,7 +529,7 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
                                     final created = (result['data'] as Map?)?.cast<String, dynamic>();
                                     if (created != null && mounted) {
                                       Navigator.push(
-                                        this.context,
+                                        context,
                                         MaterialPageRoute(
                                           builder: (_) => MaterialDetailScreen(materialId: created['id'] as int),
                                         ),
@@ -580,7 +580,7 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
               Navigator.pop(dialogContext);
               final result = await _controller.createWorkType(name);
               if (!mounted) return;
-              ScaffoldMessenger.of(this.context).showSnackBar(
+              ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text(result['message'] ?? ''), backgroundColor: result['success'] == true ? Colors.green : Colors.red),
               );
             },
@@ -611,7 +611,7 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
               Navigator.pop(dialogContext);
               final result = await _controller.renameWorkType(workType['id'] as int, name);
               if (!mounted) return;
-              ScaffoldMessenger.of(this.context).showSnackBar(
+              ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text(result['message'] ?? ''), backgroundColor: result['success'] == true ? Colors.green : Colors.red),
               );
             },
@@ -640,7 +640,7 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
     if (confirmed != true || !mounted) return;
     final result = await _controller.deleteWorkType(workType['id'] as int);
     if (!mounted) return;
-    ScaffoldMessenger.of(this.context).showSnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(result['message'] ?? ''), backgroundColor: result['success'] == true ? Colors.green : Colors.red),
     );
   }
