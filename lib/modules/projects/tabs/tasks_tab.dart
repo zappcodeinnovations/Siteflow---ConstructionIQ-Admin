@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
+import 'package:intl/intl.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
@@ -25,6 +26,63 @@ class _TasksTabState extends State<TasksTab> {
   ];
 
   List<String> get _statusDropdownOptions => _statusOptions;
+
+  String _formatTaskDate(dynamic raw) {
+    if (raw == null) return "N/A";
+    final str = raw.toString().trim();
+    if (str.isEmpty || str == 'null' || str == '-') return "N/A";
+
+    final dMonYPattern = RegExp(r'^\d{1,2}\s+[A-Za-z]{3}\s+\d{4}$');
+    if (dMonYPattern.hasMatch(str)) {
+      return str;
+    }
+
+    try {
+      final parsed = DateTime.tryParse(str);
+      if (parsed != null) {
+        return DateFormat('dd MMM yyyy').format(parsed.toLocal());
+      }
+    } catch (_) {}
+
+    final formats = [
+      'yyyy-MM-dd',
+      'yyyy-MM-dd HH:mm:ss',
+      'yyyy-MM-ddTHH:mm:ssZ',
+      'yyyy-MM-ddTHH:mm:ss.SSSZ',
+      'dd/MM/yyyy',
+      'dd-MM-yyyy',
+      'dd/MM/yyyy HH:mm:ss',
+      'dd-MM-yyyy HH:mm:ss',
+      'MM/dd/yyyy',
+      'MMM dd, yyyy',
+      'dd MMM yyyy',
+    ];
+
+    for (final fmt in formats) {
+      try {
+        final d = DateFormat(fmt, 'en_US').parseLoose(str);
+        return DateFormat('dd MMM yyyy').format(d);
+      } catch (_) {}
+    }
+
+    return str;
+  }
+
+  String _getTaskDate(dynamic task) {
+    if (task is Map) {
+      final raw = task['date'] ??
+          task['task_date'] ??
+          task['scheduled_date'] ??
+          task['submission_date'] ??
+          task['assigned_date'] ??
+          task['created_at'] ??
+          task['created'] ??
+          task['created_date'] ??
+          task['timestamp'];
+      return _formatTaskDate(raw);
+    }
+    return "N/A";
+  }
 
   String _normalizeStatus(dynamic task) {
     if (task is Map) {
@@ -278,6 +336,7 @@ class _TasksTabState extends State<TasksTab> {
                           task['operative_name']?.toString() ?? "N/A",
                       form: task['form']?.toString() ?? "N/A",
                       sheets: task['sheets']?.toString() ?? "N/A",
+                      date: _getTaskDate(task),
                     );
                   },
                 ),
@@ -295,6 +354,7 @@ class _TasksTabState extends State<TasksTab> {
     required String operativeName,
     required String form,
     required String sheets,
+    required String date,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
@@ -432,6 +492,32 @@ class _TasksTabState extends State<TasksTab> {
             ],
           ),
 
+          const SizedBox(height: 14),
+
+          // Date Row
+          Row(
+            children: [
+              Icon(IconlyLight.calendar, size: 14, color: textSecondary),
+              const SizedBox(width: 6),
+              Text(
+                "Date: ",
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: textSecondary,
+                ),
+              ),
+              Text(
+                date,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: textColor,
+                ),
+              ),
+            ],
+          ),
+
           const SizedBox(height: 16),
 
           // Footer Actions
@@ -525,6 +611,7 @@ class _TasksTabState extends State<TasksTab> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
+              _detailRow("Date", _getTaskDate(map)),
               _detailRow("Reference", map['reference']?.toString()),
               _detailRow("Status", map['status']?.toString()),
               _detailRow("Operative", map['operative_name']?.toString()),
