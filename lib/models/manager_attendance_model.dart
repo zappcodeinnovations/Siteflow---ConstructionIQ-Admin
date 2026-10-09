@@ -12,11 +12,20 @@ class ManagerAttendanceKPI {
   });
 
   factory ManagerAttendanceKPI.fromJson(Map<String, dynamic> json) {
+    final status = json['current_status']?.toString() ?? "Clocked Out";
+    final since = json['clocked_in_since'] ??
+        json['clock_in_since'] ??
+        json['active_since'] ??
+        json['clocked_in_at'] ??
+        json['last_clock_in'] ??
+        json['clock_in'];
     return ManagerAttendanceKPI(
-      entries: json['entries'] ?? 0,
-      completedHours: json['completed_hours'] ?? "00:00",
-      currentStatus: json['current_status'] ?? "Clocked Out",
-      clockedInSince: json['clocked_in_since'],
+      entries: json['entries'] is int
+          ? json['entries'] as int
+          : int.tryParse('${json['entries']}') ?? 0,
+      completedHours: json['completed_hours']?.toString() ?? "00:00",
+      currentStatus: status,
+      clockedInSince: since?.toString(),
     );
   }
 }
@@ -143,5 +152,33 @@ class ManagerAttendanceResponse {
       pagination: json['pagination'] ?? {},
       data: dataList.map((i) => ManagerAttendanceRecord.fromJson(i)).toList(),
     );
+  }
+
+  String get effectiveActiveSince {
+    if (kpi != null) {
+      if (kpi!.currentStatus != 'Clocked In') {
+        return 'Clocked Out';
+      }
+      if (kpi!.clockedInSince != null &&
+          kpi!.clockedInSince!.trim().isNotEmpty &&
+          kpi!.clockedInSince != 'N/A') {
+        return kpi!.clockedInSince!;
+      }
+    }
+    for (final record in data) {
+      if (record.isOpenSession) {
+        for (final log in record.logEntries) {
+          if (log.isOpen && log.clockIn.isNotEmpty) {
+            return log.clockIn;
+          }
+        }
+        if (record.clockIn.isNotEmpty) return record.clockIn;
+        if (record.summaryFirstLogin.isNotEmpty) return record.summaryFirstLogin;
+      }
+    }
+    if (kpi?.currentStatus == 'Clocked In') {
+      return 'Active Now';
+    }
+    return 'Clocked Out';
   }
 }
