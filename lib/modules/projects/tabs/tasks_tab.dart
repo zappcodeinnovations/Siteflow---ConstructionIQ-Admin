@@ -17,59 +17,53 @@ class TasksTab extends StatefulWidget {
 class _TasksTabState extends State<TasksTab> {
   String _selectedStatus = 'Status: All';
 
-  String _extractStatus(dynamic task) {
+  static const List<String> _statusOptions = [
+    'Status: All',
+    'Awaiting',
+    'In Progress',
+    'Completed',
+  ];
+
+  List<String> get _statusDropdownOptions => _statusOptions;
+
+  String _normalizeStatus(dynamic task) {
     if (task is Map) {
-      return (task['status'] ?? task['status_label'] ?? task['state'] ?? task['status_display'] ?? '').toString().trim();
+      final raw = (task['status'] ?? task['status_label'] ?? task['state'] ?? task['status_display'] ?? '')
+          .toString()
+          .trim()
+          .toLowerCase()
+          .replaceAll('-', '_')
+          .replaceAll(' ', '_');
+
+      if (raw == 'in_progress' || raw == 'open' || raw == 'active') {
+        return 'in_progress';
+      }
+      if (raw == 'awaiting' || raw == 'pending') {
+        return 'awaiting';
+      }
+      if (raw == 'completed' || raw == 'closed' || raw == 'done' || raw == 'finished' || raw == 'approved' ||
+          task['is_closed'] == true || task['is_completed'] == true) {
+        return 'completed';
+      }
+      return raw;
     }
     return '';
-  }
-
-  bool _isTaskClosed(String status, dynamic task) {
-    final s = status.toLowerCase();
-    if (s == 'completed' || s == 'closed' || s == 'done' || s == 'finished' || s == 'approved') {
-      return true;
-    }
-    if (task is Map && (task['is_closed'] == true || task['is_completed'] == true)) {
-      return true;
-    }
-    return false;
-  }
-
-  List<String> get _statusDropdownOptions {
-    final options = <String>['Status: All', 'Status: Open', 'Status: Closed'];
-    for (final t in widget.tasks) {
-      final s = _extractStatus(t);
-      if (s.isNotEmpty) {
-        final formatted = 'Status: ${s[0].toUpperCase()}${s.substring(1).toLowerCase()}';
-        if (!options.contains(formatted) && formatted != 'Status: Open' && formatted != 'Status: Closed' && formatted != 'Status: All') {
-          options.add(formatted);
-        }
-      }
-    }
-    return options;
   }
 
   List<dynamic> get _filteredTasks {
     if (_selectedStatus == 'Status: All') {
       return widget.tasks;
     }
-    if (_selectedStatus == 'Status: Open') {
-      return widget.tasks.where((t) {
-        final status = _extractStatus(t);
-        return !_isTaskClosed(status, t);
-      }).toList();
+    if (_selectedStatus == 'Awaiting') {
+      return widget.tasks.where((t) => _normalizeStatus(t) == 'awaiting').toList();
     }
-    if (_selectedStatus == 'Status: Closed') {
-      return widget.tasks.where((t) {
-        final status = _extractStatus(t);
-        return _isTaskClosed(status, t);
-      }).toList();
+    if (_selectedStatus == 'In Progress') {
+      return widget.tasks.where((t) => _normalizeStatus(t) == 'in_progress').toList();
     }
-    final target = _selectedStatus.replaceFirst('Status: ', '').toLowerCase().trim();
-    return widget.tasks.where((t) {
-      final status = _extractStatus(t).toLowerCase();
-      return status == target;
-    }).toList();
+    if (_selectedStatus == 'Completed') {
+      return widget.tasks.where((t) => _normalizeStatus(t) == 'completed').toList();
+    }
+    return widget.tasks;
   }
 
   void _openFiltersBottomSheet() {
@@ -125,7 +119,7 @@ class _TasksTabState extends State<TasksTab> {
                 children: _statusDropdownOptions.map((opt) {
                   final isSelected = _selectedStatus == opt;
                   return ChoiceChip(
-                    label: Text(opt.replaceFirst('Status: ', '')),
+                    label: Text(opt.startsWith('Status: ') ? opt.replaceFirst('Status: ', '') : opt),
                     selected: isSelected,
                     selectedColor: const Color(0xFF0D6EFD),
                     labelStyle: TextStyle(
@@ -308,13 +302,27 @@ class _TasksTabState extends State<TasksTab> {
     final textColor = isDark ? Colors.white : Colors.black87;
     final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
 
-    final isCompleted = status.toLowerCase() == 'completed' ||
-        status.toLowerCase() == 'closed';
-    final statusColor = isCompleted ? Colors.green : const Color(0xFF0D6EFD);
-    final statusBgColor =
-        isCompleted 
-            ? (isDark ? Colors.green.withValues(alpha: 0.2) : Colors.green.shade50) 
-            : (isDark ? Colors.blue.withValues(alpha: 0.2) : Colors.blue.shade50);
+    final normStatus = status.toLowerCase().replaceAll('-', '_').replaceAll(' ', '_');
+    final isCompleted = normStatus == 'completed' || normStatus == 'closed' || normStatus == 'done';
+    final isAwaiting = normStatus == 'awaiting' || normStatus == 'pending';
+    
+    Color statusColor = const Color(0xFF0D6EFD);
+    Color statusBgColor = isDark ? Colors.blue.withValues(alpha: 0.2) : Colors.blue.shade50;
+    String displayStatus = status.replaceAll('_', ' ').replaceAll('-', ' ').toUpperCase();
+
+    if (isCompleted) {
+      statusColor = Colors.green;
+      statusBgColor = isDark ? Colors.green.withValues(alpha: 0.2) : Colors.green.shade50;
+      displayStatus = 'COMPLETED';
+    } else if (isAwaiting) {
+      statusColor = Colors.orange.shade700;
+      statusBgColor = isDark ? Colors.orange.withValues(alpha: 0.2) : Colors.orange.shade50;
+      displayStatus = 'AWAITING';
+    } else if (normStatus == 'in_progress' || normStatus == 'open') {
+      statusColor = const Color(0xFF0D6EFD);
+      statusBgColor = isDark ? Colors.blue.withValues(alpha: 0.2) : Colors.blue.shade50;
+      displayStatus = 'IN PROGRESS';
+    }
 
     return Container(
       decoration: BoxDecoration(
@@ -383,7 +391,7 @@ class _TasksTabState extends State<TasksTab> {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      status.toUpperCase(),
+                      displayStatus,
                       style: TextStyle(
                         color: isDark ? Colors.white : statusColor.withValues(alpha: 0.9),
                         fontSize: 12,
