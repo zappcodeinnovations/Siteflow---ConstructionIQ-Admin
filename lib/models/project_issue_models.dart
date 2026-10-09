@@ -56,11 +56,14 @@ class SnagModel {
   final String referenceNo;
   final String category;
   final String categoryLabel;
+  final String? categorySpecify;
+  final String? linkedPin;
   final String severity;
   final String severityLabel;
   final String title;
   final String description;
   final DateTime? dueDate;
+  final int? assignedToId;
   final String assignedToName;
   final String status;
   final String statusLabel;
@@ -72,11 +75,14 @@ class SnagModel {
     required this.referenceNo,
     required this.category,
     required this.categoryLabel,
+    this.categorySpecify,
+    this.linkedPin,
     required this.severity,
     required this.severityLabel,
     required this.title,
     required this.description,
     required this.dueDate,
+    this.assignedToId,
     required this.assignedToName,
     required this.status,
     required this.statusLabel,
@@ -87,19 +93,27 @@ class SnagModel {
   factory SnagModel.fromJson(Map<String, dynamic> json) {
     return SnagModel(
       id: json['id'] is int ? json['id'] : int.tryParse('${json['id']}') ?? 0,
-      referenceNo: json['reference_no']?.toString() ?? '',
+      referenceNo: json['reference_no']?.toString() ?? json['reference']?.toString() ?? json['code']?.toString() ?? '',
       category: json['category']?.toString() ?? 'other',
-      categoryLabel: json['category_label']?.toString() ?? '',
+      categoryLabel: json['category_label']?.toString() ?? json['category']?.toString() ?? 'Other',
+      categorySpecify: json['category_specify']?.toString() ?? json['specify_category']?.toString(),
+      linkedPin: json['linked_pin']?.toString() ?? json['drawing_pin']?.toString() ?? json['pin_reference']?.toString(),
       severity: json['severity']?.toString() ?? 'low',
-      severityLabel: json['severity_label']?.toString() ?? '',
+      severityLabel: json['severity_label']?.toString() ?? json['severity']?.toString() ?? 'Low',
       title: json['title']?.toString() ?? '',
       description: json['description']?.toString() ?? '',
       dueDate: DateTime.tryParse(json['due_date']?.toString() ?? ''),
-      assignedToName: json['assigned_to_name']?.toString() ?? '',
-      status: json['status']?.toString() ?? '',
-      statusLabel: json['status_label']?.toString() ?? '',
+      assignedToId: json['assigned_to_id'] is int ? json['assigned_to_id'] : int.tryParse('${json['assigned_to_id'] ?? (json['assigned_to'] is Map ? json['assigned_to']['id'] : null)}'),
+      assignedToName: json['assigned_to_name']?.toString() ??
+          (json['assigned_to'] is Map
+              ? (json['assigned_to']['name'] ?? json['assigned_to']['display_name'] ?? json['assigned_to']['email'])
+              : (json['assigned_to'] is String ? json['assigned_to'] : '')) ??
+          '',
+      status: json['status']?.toString() ?? 'open',
+      statusLabel: json['status_label']?.toString() ?? json['status']?.toString() ?? 'Open',
       reportedByName: json['reported_by_name']?.toString() ?? '',
-      photoUrls: (json['photo_urls'] as List?)?.map((e) => e.toString()).toList() ?? [],
+      photoUrls: (json['photo_urls'] as List?)?.map((e) => e.toString()).toList() ??
+          ((json['photos'] as List?)?.map((e) => e.toString()).toList() ?? []),
     );
   }
 }

@@ -18,6 +18,8 @@ class ApiEndpoints {
   static String projectAssignments(int id) => '/projects/$id/assignments/';
   static String projectIncidents(int projectId) => '/projects/$projectId/incidents/';
   static String projectSnags(int projectId) => '/projects/$projectId/snags/';
+  static String projectSnagDetail(int projectId, int snagId) => '/projects/$projectId/snags/$snagId/';
+  static String snagDetail(int snagId) => '/snags/$snagId/';
   static String projectInspections(int projectId) => '/projects/$projectId/inspections/';
   static String inspectionComplete(int inspectionId) => '/inspections/$inspectionId/complete/';
   static String projectTemplateDetail(int projectId) => '/projects/$projectId/template/';

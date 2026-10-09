@@ -102,6 +102,44 @@ class ProjectIssuesController extends ChangeNotifier {
     }
   }
 
+  Future<Map<String, dynamic>> deleteSnag(int snagId) async {
+    try {
+      final url = ApiEndpoints.baseUrl + ApiEndpoints.projectSnagDetail(projectId, snagId);
+      var response = await ApiClient.delete(url);
+      if (response.statusCode != 200 && response.statusCode != 204) {
+        final fallbackUrl = ApiEndpoints.baseUrl + ApiEndpoints.snagDetail(snagId);
+        response = await ApiClient.delete(fallbackUrl);
+      }
+      final decoded = response.body.isNotEmpty ? jsonDecode(response.body) : {};
+      if (response.statusCode == 200 || response.statusCode == 204 || decoded['status'] == true) {
+        await fetchSnags();
+        return {'success': true, 'message': decoded['message'] ?? 'Snag deleted successfully.'};
+      }
+      return {'success': false, 'message': decoded['message'] ?? 'Failed to delete snag.'};
+    } catch (e) {
+      return {'success': false, 'message': 'An error occurred: $e'};
+    }
+  }
+
+  Future<Map<String, dynamic>> updateSnagStatus(int snagId, String newStatus) async {
+    try {
+      final url = ApiEndpoints.baseUrl + ApiEndpoints.projectSnagDetail(projectId, snagId);
+      var response = await ApiClient.patch(url, body: {'status': newStatus});
+      if (response.statusCode != 200) {
+        final fallbackUrl = ApiEndpoints.baseUrl + ApiEndpoints.snagDetail(snagId);
+        response = await ApiClient.patch(fallbackUrl, body: {'status': newStatus});
+      }
+      final decoded = response.body.isNotEmpty ? jsonDecode(response.body) : {};
+      if (response.statusCode == 200 || decoded['status'] == true) {
+        await fetchSnags();
+        return {'success': true, 'message': decoded['message'] ?? 'Snag status updated.'};
+      }
+      return {'success': false, 'message': decoded['message'] ?? 'Failed to update snag status.'};
+    } catch (e) {
+      return {'success': false, 'message': 'An error occurred: $e'};
+    }
+  }
+
   Future<void> fetchInspections() async {
     isLoadingInspections = true;
     inspectionsError = null;
