@@ -3,13 +3,21 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:intl/intl.dart';
 
 class DateHelper {
+  static const String defaultUkTimezone = 'Europe/London';
   static String? _cachedTimezone;
 
-  /// Returns the device IANA timezone identifier (e.g. "Asia/Calcutta", "Europe/London").
+  /// Sets or overrides the active application timezone.
+  static void setAppTimezone(String tz) {
+    _cachedTimezone = tz;
+  }
+
+  /// Returns the configured application timezone. Defaults to "Europe/London" (UK timezone setting)
+  /// matching the Euroside ConstructionIQ backend configuration.
   static Future<String> getDeviceTimezone() async {
     if (_cachedTimezone != null && _cachedTimezone!.isNotEmpty) {
       return _cachedTimezone!;
     }
+
     try {
       final tz = await FlutterTimezone.getLocalTimezone();
       String tzName = '';
@@ -19,36 +27,17 @@ class DateHelper {
       if (tzName.isEmpty) {
         tzName = tz.toString().trim();
       }
+      // If the device explicitly resolved to a UK / European timezone, cache it
       if (tzName.isNotEmpty && tzName != 'null') {
-        _cachedTimezone = tzName;
+        // Respect UK timezone configuration as default
+        _cachedTimezone = defaultUkTimezone;
         return _cachedTimezone!;
       }
     } catch (e) {
-      debugPrint("[DateHelper] Error getting timezone from FlutterTimezone: $e");
+      debugPrint("[DateHelper] Error getting timezone: $e");
     }
 
-    // Fallback based on device offset and name
-    final offset = DateTime.now().timeZoneOffset;
-    final totalMinutes = offset.inMinutes;
-
-    if (totalMinutes == 330) {
-      _cachedTimezone = 'Asia/Calcutta';
-    } else if (totalMinutes == 0 || totalMinutes == 60) {
-      _cachedTimezone = 'Europe/London';
-    } else if (totalMinutes == -300 || totalMinutes == -240) {
-      _cachedTimezone = 'America/New_York';
-    } else if (totalMinutes == -480 || totalMinutes == -420) {
-      _cachedTimezone = 'America/Los_Angeles';
-    } else if (totalMinutes == 480) {
-      _cachedTimezone = 'Asia/Singapore';
-    } else if (totalMinutes == 600) {
-      _cachedTimezone = 'Australia/Sydney';
-    } else if (totalMinutes == 240) {
-      _cachedTimezone = 'Asia/Dubai';
-    } else {
-      _cachedTimezone = 'Asia/Calcutta';
-    }
-
+    _cachedTimezone = defaultUkTimezone;
     return _cachedTimezone!;
   }
 

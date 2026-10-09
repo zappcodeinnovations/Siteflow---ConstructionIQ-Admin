@@ -1153,24 +1153,61 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
 
                   if (_controller.errorMessage != null && _controller.jobSheets.isEmpty) {
                     return Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24.0),
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
+                            Container(
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.cloud_off_rounded,
+                                size: 48,
+                                color: isDark ? Colors.white70 : const Color(0xFF64748B),
+                              ),
+                            ),
+                            const SizedBox(height: 20),
                             Text(
-                              _controller.errorMessage!,
-                              style: const TextStyle(color: Colors.red),
+                              "Unable to Load Job Sheets",
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? Colors.white : const Color(0xFF0F2C4A),
+                              ),
                               textAlign: TextAlign.center,
                             ),
-                            const SizedBox(height: 12),
-                            ElevatedButton(
+                            const SizedBox(height: 8),
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 320),
+                              child: Text(
+                                _controller.errorMessage!,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: isDark ? Colors.white60 : Colors.black54,
+                                  height: 1.4,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            ElevatedButton.icon(
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF0D6EFD),
                                 foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                elevation: 0,
                               ),
                               onPressed: () => _controller.fetchJobSheets(),
-                              child: const Text("Retry"),
+                              icon: const Icon(Icons.refresh, size: 18),
+                              label: const Text(
+                                "Retry",
+                                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                              ),
                             ),
                           ],
                         ),

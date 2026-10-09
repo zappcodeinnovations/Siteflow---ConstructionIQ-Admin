@@ -122,6 +122,37 @@ class JobSheetController extends ChangeNotifier {
     });
   }
 
+  String _parseFriendlyError(dynamic e) {
+    final str = e.toString().toLowerCase();
+    if (str.contains('connection abort') ||
+        str.contains('socketexception') ||
+        str.contains('connection reset') ||
+        str.contains('connection refused') ||
+        str.contains('failed host lookup') ||
+        str.contains('network is unreachable') ||
+        str.contains('clientexception') ||
+        str.contains('handshakeexception')) {
+      return 'Unable to load job sheets. Please check your connection and tap Retry.';
+    }
+    if (str.contains('timeoutexception') || str.contains('timed out')) {
+      return 'Request timed out while loading job sheets. Please tap Retry.';
+    }
+    if (str.contains('formatexception') || str.contains('syntaxerror')) {
+      return 'Unexpected response from server. Please tap Retry.';
+    }
+    return 'Unable to load job sheets. Please check your connection and tap Retry.';
+  }
+
+  bool _isRetryableNetworkError(dynamic e) {
+    final str = e.toString().toLowerCase();
+    return str.contains('connection abort') ||
+        str.contains('socketexception') ||
+        str.contains('timeoutexception') ||
+        str.contains('timed out') ||
+        str.contains('clientexception') ||
+        str.contains('connection reset');
+  }
+
   Future<void> fetchJobSheets({String? projectId, bool silent = false, bool keepPreviousData = false}) async {
     if (!silent && !keepPreviousData && _jobSheets.isEmpty) {
       _isLoading = true;
@@ -134,7 +165,21 @@ class JobSheetController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await ApiClient.get(await _buildUrl(page: 1, projectId: projectId));
+      final url = await _buildUrl(page: 1, projectId: projectId);
+      
+      // Attempt request with 1 automatic retry on transient socket/connection drops
+      dynamic response;
+      try {
+        response = await ApiClient.get(url).timeout(const Duration(seconds: 40));
+      } catch (firstErr) {
+        if (_isRetryableNetworkError(firstErr)) {
+          await Future.delayed(const Duration(milliseconds: 600));
+          response = await ApiClient.get(url).timeout(const Duration(seconds: 40));
+        } else {
+          rethrow;
+        }
+      }
+
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200 && data['status'] == true) {
@@ -153,12 +198,15 @@ class JobSheetController extends ChangeNotifier {
         }
       } else {
         if (_jobSheets.isEmpty) {
-          _errorMessage = data['message'] ?? 'Failed to fetch job sheets';
+          final serverMsg = data['message']?.toString();
+          _errorMessage = (serverMsg != null && serverMsg.isNotEmpty)
+              ? serverMsg
+              : 'Unable to load job sheets. Please tap Retry.';
         }
       }
     } catch (e) {
       if (_jobSheets.isEmpty) {
-        _errorMessage = 'An error occurred: $e';
+        _errorMessage = _parseFriendlyError(e);
       }
     } finally {
       _isLoading = false;
