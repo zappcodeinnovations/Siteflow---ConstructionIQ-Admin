@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
+import 'package:intl/intl.dart';
 
 import '../../core/network/api_client.dart';
 import '../../core/network/api_endpoints.dart';
@@ -26,6 +27,30 @@ class _WorkforcePlannerScreenState extends State<WorkforcePlannerScreen> {
   List<Project> _projects = [];
   int? _selectedProjectId;
   String? _currentWeekStart;
+
+  String _formatDate(dynamic raw) {
+    if (raw == null) return '';
+    final str = raw.toString().trim();
+    if (str.isEmpty || str == '-' || str == 'null') return '';
+    try {
+      final parsed = DateTime.tryParse(str);
+      if (parsed != null) {
+        return DateFormat('dd/MM/yyyy').format(parsed);
+      }
+    } catch (_) {}
+    return str;
+  }
+
+  String _formatDateRange(dynamic start, dynamic end) {
+    final startFormatted = _formatDate(start);
+    final endFormatted = _formatDate(end);
+    if (startFormatted.isNotEmpty && endFormatted.isNotEmpty) {
+      return '$startFormatted — $endFormatted';
+    } else if (startFormatted.isNotEmpty) {
+      return startFormatted;
+    }
+    return '';
+  }
 
   @override
   void initState() {
@@ -470,7 +495,7 @@ class _WorkforcePlannerScreenState extends State<WorkforcePlannerScreen> {
                               ),
                               const SizedBox(height: 5),
                               Text(
-                                '${_data['week_start'] ?? ''} — ${_data['week_end'] ?? ''}',
+                                _formatDateRange(_data['week_start'], _data['week_end']),
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: isDark
@@ -578,7 +603,7 @@ class _WorkforcePlannerScreenState extends State<WorkforcePlannerScreen> {
                         size: 20,
                       ),
                       title: Text(
-                        cell['date']?.toString() ?? '',
+                        _formatDate(cell['date']),
                         style: TextStyle(
                           color: textColor,
                           fontWeight: FontWeight.w600,
