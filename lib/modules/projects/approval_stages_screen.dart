@@ -146,7 +146,7 @@ class _ApprovalStagesScreenState extends State<ApprovalStagesScreen> {
                               border: Border.all(color: colors.outlineVariant),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.02),
+                                  color: Colors.black.withValues(alpha: 0.02),
                                   blurRadius: 8,
                                   offset: const Offset(0, 2),
                                 )
@@ -187,7 +187,7 @@ class _ApprovalStagesScreenState extends State<ApprovalStagesScreen> {
                                       ),
                                       const SizedBox(height: 12),
                                       Text(
-                                        "Users: $signerNames",
+                                        "Signers: $signerNames",
                                         style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12, fontWeight: FontWeight.w600),
                                       ),
                                     ],
@@ -290,7 +290,7 @@ class _AddApprovalStageDialogState extends State<AddApprovalStageDialog> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final dialogBg = isDark ? AppTheme.darkSurfaceRaised : Colors.white;
     final titleColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
-    final fieldFillColor = isDark ? Colors.white.withOpacity(0.08) : Colors.grey.shade50;
+    final fieldFillColor = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.grey.shade50;
     final fieldBorderColor = isDark ? AppTheme.darkBorder : Colors.grey.shade200;
     final labelColor = isDark ? Colors.white70 : Colors.grey.shade700;
     final hintColor = isDark ? Colors.white38 : Colors.grey.shade400;
@@ -422,7 +422,7 @@ class _AddApprovalStageDialogState extends State<AddApprovalStageDialog> {
                                 },
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                  color: isSelected ? Colors.blue.withOpacity(0.12) : Colors.transparent,
+                                  color: isSelected ? Colors.blue.withValues(alpha: 0.12) : Colors.transparent,
                                   child: Row(
                                     children: [
                                       Icon(
