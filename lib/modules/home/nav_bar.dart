@@ -22,15 +22,10 @@ class BottomNavScreen extends StatefulWidget {
 class _BottomNavScreenState extends State<BottomNavScreen> {
   int currentIndex = 0;
   bool _roleLoaded = false;
-  final GlobalKey<ClientsScreenState> clientsScreenKey =
-      GlobalKey<ClientsScreenState>();
-  final GlobalKey<ProjectsScreenState> projectsScreenKey =
-      GlobalKey<ProjectsScreenState>();
 
   late List<Widget> pages;
   late List<String> titles;
   late List<IconData> icons;
-  int? _clientsIndex;
   int? _projectsIndex;
   int? _tasksIndex;
 
@@ -77,11 +72,10 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
       );
     }
     if (allowed[1]) {
-      _clientsIndex = pages.length;
       addTab(
         'Clients',
         IconlyLight.user_1,
-        ClientsScreen(key: clientsScreenKey),
+        const ClientsScreen(),
       );
     }
     if (allowed[2]) {
@@ -89,7 +83,7 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
       addTab(
         'Projects',
         IconlyLight.folder,
-        ProjectsScreen(key: projectsScreenKey),
+        const ProjectsScreen(),
       );
     }
     if (allowed[3]) {
@@ -130,25 +124,6 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
       appBar: CustomAppBar(
         title: titles[currentIndex],
         actions: [
-          ...currentIndex == _clientsIndex
-              ? [
-                  IconButton(
-                    icon: const Icon(IconlyLight.search),
-                    onPressed: () {
-                      clientsScreenKey.currentState?.toggleSearch();
-                    },
-                  ),
-                ]
-              : currentIndex == _projectsIndex
-              ? [
-                  IconButton(
-                    icon: const Icon(IconlyLight.search),
-                    onPressed: () {
-                      projectsScreenKey.currentState?.toggleSearch();
-                    },
-                  ),
-                ]
-              : [],
           IconButton(
             icon: const Icon(IconlyLight.search),
             tooltip: "Search everything",
