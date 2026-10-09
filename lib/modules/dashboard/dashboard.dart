@@ -122,7 +122,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? AppTheme.corporateBlue : const Color(0xffF5F7FB);
+    final bgColor = isDark ? AppTheme.darkBackground : const Color(0xffF5F7FB);
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -802,12 +802,17 @@ class AttendanceTrendChart extends StatelessWidget {
       (i) => FlSpot(i.toDouble(), exceptionsValues[i]),
     );
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
+    final borderColor = isDark ? AppTheme.darkBorder : Colors.grey.withOpacity(0.1);
+    final titleTextColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
+
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.withOpacity(0.1)),
+        border: Border.all(color: borderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -819,13 +824,17 @@ class AttendanceTrendChart extends StatelessWidget {
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
+                  children: [
                     Text(
                       "Attendance Trend",
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: titleTextColor,
+                      ),
                     ),
-                    SizedBox(height: 4),
-                    Text(
+                    const SizedBox(height: 4),
+                    const Text(
                       "Clock-in coverage for current operations",
                       style: TextStyle(color: Colors.grey, fontSize: 13),
                     ),
@@ -1032,8 +1041,8 @@ class RecentProjectsList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
-    final borderColor = isDark ? Colors.white24 : Colors.grey.withOpacity(0.1);
+    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
+    final borderColor = isDark ? AppTheme.darkBorder : Colors.grey.withOpacity(0.1);
     final textColor = isDark ? Colors.white : Colors.black87;
     final displayProjects = projects.take(5).toList();
 
@@ -1180,8 +1189,8 @@ class RecentTasksList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
-    final borderColor = isDark ? Colors.white24 : Colors.grey.withOpacity(0.1);
+    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
+    final borderColor = isDark ? AppTheme.darkBorder : Colors.grey.withOpacity(0.1);
     final textColor = isDark ? Colors.white : Colors.black87;
 
     return Container(
@@ -1264,8 +1273,8 @@ class RecentJobSheetsList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
-    final borderColor = isDark ? Colors.white24 : Colors.grey.withOpacity(0.1);
+    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
+    final borderColor = isDark ? AppTheme.darkBorder : Colors.grey.withOpacity(0.1);
     final textColor = isDark ? Colors.white : Colors.black87;
 
     return Container(
