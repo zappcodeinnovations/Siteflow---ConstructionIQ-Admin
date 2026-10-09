@@ -525,24 +525,6 @@ class ProjectsScreenState extends State<ProjectsScreen> {
     }
   }
 
-  String _timeAgo(String? dateTimeStr) {
-    if (dateTimeStr == null || dateTimeStr.isEmpty) return 'N/A';
-    try {
-      final dateTime = DateTime.parse(dateTimeStr);
-      final diff = DateTime.now().difference(dateTime);
-      if (diff.inDays > 0) {
-        return '${diff.inDays} days, ${diff.inHours % 24} hours ago';
-      } else if (diff.inHours > 0) {
-        return '${diff.inHours} hours, ${diff.inMinutes % 60} minutes ago';
-      } else if (diff.inMinutes > 0) {
-        return '${diff.inMinutes} minutes ago';
-      } else {
-        return 'Just now';
-      }
-    } catch (e) {
-      return dateTimeStr.split('T').first;
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -991,7 +973,7 @@ class ProjectsScreenState extends State<ProjectsScreen> {
               statusLabel: statusLabel,
               budget: budget,
               priority: priority,
-              startDate: _timeAgo(project.createdAt),
+              lastActivity: project.displayActivity,
               isSelected: isSelected,
               onSelectChanged: (val) {
                 _controller.toggleSelection(project.id);
@@ -1262,7 +1244,7 @@ class ProjectsScreenState extends State<ProjectsScreen> {
     required String statusLabel,
     required String budget,
     required String priority,
-    required String startDate,
+    required String lastActivity,
     required bool isSelected,
     required ValueChanged<bool?> onSelectChanged,
     required VoidCallback onTap,
@@ -1491,13 +1473,13 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                 Divider(height: 1, color: isDark ? const Color(0xFF1F2E40) : Colors.grey.shade100),
                 const SizedBox(height: 16),
 
-                // Bottom Row 1: Date
+                // Bottom Row 1: Last Activity
                 Row(
                   children: [
-                    Icon(Icons.calendar_today_outlined, size: 14, color: Colors.grey.shade400),
+                    Icon(Icons.access_time, size: 14, color: Colors.grey.shade400),
                     const SizedBox(width: 6),
                     Text(
-                      "Created: $startDate",
+                      "Last Activity: $lastActivity",
                       style: TextStyle(fontSize: 12, color: secondaryTextColor, fontFamily: 'Inter'),
                     ),
                   ],
