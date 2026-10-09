@@ -56,6 +56,15 @@ class _DrawingPinViewerScreenState extends State<DrawingPinViewerScreen> {
     return val.toString();
   }
 
+  double _parseDouble(dynamic val) {
+    if (val == null) return 0.0;
+    if (val is num) return val.toDouble();
+    if (val is String) {
+      return double.tryParse(val.trim()) ?? 0.0;
+    }
+    return 0.0;
+  }
+
   String _resolveUrl(String? url) {
     if (url == null || url.trim().isEmpty) return '';
     final clean = url.trim();
@@ -232,7 +241,7 @@ class _DrawingPinViewerScreenState extends State<DrawingPinViewerScreen> {
                   label: Text(e.key.replaceAll('_', ' ')),
                   onPressed: () async {
                     Navigator.pop(sheetContext);
-                    final pinId = pin['id'] as int?;
+                    final pinId = pin['id'] is int ? pin['id'] as int : int.tryParse('${pin['id']}');
                     if (pinId != null) {
                       await _updatePinStatus(pinId, e.key);
                     }
@@ -464,8 +473,8 @@ class _DrawingPinViewerScreenState extends State<DrawingPinViewerScreen> {
                     ),
                   ),
                   ...pins.map((pin) {
-                    double x = (pin['x_coordinate'] ?? pin['x'] ?? pin['coordinate_x'] ?? pin['x_coord'] as num?)?.toDouble() ?? 0;
-                    double y = (pin['y_coordinate'] ?? pin['y'] ?? pin['coordinate_y'] ?? pin['y_coord'] as num?)?.toDouble() ?? 0;
+                    double x = _parseDouble(pin['x_coordinate'] ?? pin['x'] ?? pin['coordinate_x'] ?? pin['x_coord']);
+                    double y = _parseDouble(pin['y_coordinate'] ?? pin['y'] ?? pin['coordinate_y'] ?? pin['y_coord']);
 
                     if (x > 1.0 && x <= 100.0) x = x / 100.0;
                     if (y > 1.0 && y <= 100.0) y = y / 100.0;
