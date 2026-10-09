@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
+import 'package:file_picker/file_picker.dart';
 import '../../core/widgets/custom_drawer.dart';
 import '../../core/widgets/background_stripes_painter.dart';
 import '../../core/theme/app_theme.dart';
@@ -101,14 +102,32 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
   }
 
   Future<void> _showAddMaterialDialog(BuildContext context) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
+    final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+    final borderColor = isDark ? AppTheme.darkBorder : Colors.grey.shade300;
+    final inputFill = isDark ? AppTheme.darkSurfaceRaised : const Color(0xFFF9FAFB);
+
     List<Map<String, dynamic>> groups = [];
+    List<Map<String, dynamic>> projects = [];
+
     try {
-      final response = await ApiClient.get('${ApiEndpoints.baseUrl}/admin/material-groups/');
-      final decoded = jsonDecode(response.body);
-      if (decoded['status'] == true) {
-        groups = (decoded['data'] as List).whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
+      final resGroups = await ApiClient.get('${ApiEndpoints.baseUrl}/admin/material-groups/');
+      final decodedGroups = jsonDecode(resGroups.body);
+      if (decodedGroups['status'] == true && decodedGroups['data'] is List) {
+        groups = (decodedGroups['data'] as List).whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
       }
     } catch (_) {}
+
+    try {
+      final resProjects = await ApiClient.get('${ApiEndpoints.baseUrl}${ApiEndpoints.projects}');
+      final decodedProjects = jsonDecode(resProjects.body);
+      if (decodedProjects['status'] == true && decodedProjects['data'] is List) {
+        projects = (decodedProjects['data'] as List).whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
+      }
+    } catch (_) {}
+
     if (!context.mounted) return;
     if (groups.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -118,65 +137,415 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
     }
 
     final nameController = TextEditingController();
-    int groupId = groups.first['id'] as int;
-    String inputType = 'quantity';
+    final tagsController = TextEditingController(text: 'Euro');
+    final manufacturerController = TextEditingController();
+    final productCodeController = TextEditingController();
+    final certRefController = TextEditingController();
+
+    int? selectedGroupId = groups.isNotEmpty ? groups.first['id'] as int : null;
+    String selectedInputType = 'quantity';
+    int? selectedProjectId;
+    bool addToAllProjects = false;
+    bool addToAllTemplates = false;
+    PlatformFile? certDocFile;
+    List<PlatformFile> attachedFiles = [];
+    bool isSubmitting = false;
 
     await showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text("Add Material"),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(controller: nameController, autofocus: true, decoration: const InputDecoration(labelText: "Name", border: OutlineInputBorder())),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<int>(
-                initialValue: groupId,
-                decoration: const InputDecoration(labelText: "Material Group", border: OutlineInputBorder()),
-                items: groups.map((g) => DropdownMenuItem(value: g['id'] as int, child: Text(g['name']?.toString() ?? ''))).toList(),
-                onChanged: (val) => setDialogState(() => groupId = val ?? groupId),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: inputType,
-                decoration: const InputDecoration(labelText: "Input Type", border: OutlineInputBorder()),
-                items: const [
-                  DropdownMenuItem(value: 'quantity', child: Text("Quantity")),
-                  DropdownMenuItem(value: 'linear_metres', child: Text("Linear Metres")),
-                  DropdownMenuItem(value: 'square_metres_width_height', child: Text("Square Metres (W x H)")),
-                  DropdownMenuItem(value: 'quantity_and_diameter_mm', child: Text("Quantity & Diameter (mm)")),
-                  DropdownMenuItem(value: 'square_metres_4_sides_width_height', child: Text("Square Metres (4 sides)")),
-                  DropdownMenuItem(value: 'linear_metres_and_joint_size_mm', child: Text("Linear Metres & Joint Size (mm)")),
+        builder: (context, setDialogState) {
+          Widget buildLabel(String text, {bool isRequired = false}) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                children: [
+                  Text(
+                    text,
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: textColor),
+                  ),
+                  if (isRequired)
+                    const Text(" *", style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.red)),
                 ],
-                onChanged: (val) => setDialogState(() => inputType = val ?? inputType),
               ),
-            ],
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text("Cancel")),
-            ElevatedButton(
-              onPressed: () async {
-                final name = nameController.text.trim();
-                if (name.isEmpty) return;
-                Navigator.pop(dialogContext);
-                final result = await _materialController.createMaterial(name: name, inputType: inputType, materialGroupId: groupId);
-                if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(result['message'] ?? ''), backgroundColor: result['success'] == true ? Colors.green : Colors.red),
-                );
-                if (result['success'] == true) {
-                  await _controller.fetchMaterials();
-                  final created = (result['data'] as Map?)?.cast<String, dynamic>();
-                  if (created != null && mounted) {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => MaterialDetailScreen(materialId: created['id'] as int)));
-                  }
-                }
-              },
-              child: const Text("Create"),
+            );
+          }
+
+          final inputDecoration = InputDecoration(
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            filled: true,
+            fillColor: inputFill,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: borderColor)),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: borderColor)),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF0F62FE), width: 1.5)),
+          );
+
+          return Dialog(
+            backgroundColor: cardColor,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: 520,
+                maxHeight: MediaQuery.of(context).size.height * 0.85,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Modal Header
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 12, 12),
+                    child: Row(
+                      children: [
+                        Text(
+                          "Add Material",
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: textColor),
+                        ),
+                        const Spacer(),
+                        IconButton(
+                          icon: Icon(Icons.close, size: 20, color: textSecondary),
+                          splashRadius: 18,
+                          onPressed: isSubmitting ? null : () => Navigator.pop(dialogContext),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Divider(height: 1, color: borderColor),
+
+                  // Scrollable Form Body
+                  Flexible(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Material Name *
+                          buildLabel("Material Name", isRequired: true),
+                          TextField(
+                            controller: nameController,
+                            autofocus: true,
+                            style: TextStyle(color: textColor, fontSize: 14),
+                            decoration: inputDecoration.copyWith(hintText: "Enter material name"),
+                          ),
+                          const SizedBox(height: 14),
+
+                          // Input Type
+                          buildLabel("Input Type"),
+                          DropdownButtonFormField<String>(
+                            initialValue: selectedInputType,
+                            dropdownColor: cardColor,
+                            style: TextStyle(color: textColor, fontSize: 14),
+                            decoration: inputDecoration,
+                            items: const [
+                              DropdownMenuItem(value: 'quantity', child: Text("Quantity")),
+                              DropdownMenuItem(value: 'linear_metres', child: Text("Linear Metres")),
+                              DropdownMenuItem(value: 'square_metres_width_height', child: Text("Square Metres (W x H)")),
+                              DropdownMenuItem(value: 'quantity_and_diameter_mm', child: Text("Quantity & Diameter (mm)")),
+                              DropdownMenuItem(value: 'square_metres_4_sides_width_height', child: Text("Square Metres (4 sides)")),
+                              DropdownMenuItem(value: 'linear_metres_and_joint_size_mm', child: Text("Linear Metres & Joint Size (mm)")),
+                            ],
+                            onChanged: isSubmitting ? null : (val) => setDialogState(() => selectedInputType = val ?? selectedInputType),
+                          ),
+                          const SizedBox(height: 14),
+
+                          // Group *
+                          buildLabel("Group", isRequired: true),
+                          DropdownButtonFormField<int>(
+                            initialValue: selectedGroupId,
+                            dropdownColor: cardColor,
+                            style: TextStyle(color: textColor, fontSize: 14),
+                            decoration: inputDecoration,
+                            items: groups
+                                .map((g) => DropdownMenuItem(
+                                      value: g['id'] as int,
+                                      child: Text(g['name']?.toString() ?? '', overflow: TextOverflow.ellipsis),
+                                    ))
+                                .toList(),
+                            onChanged: isSubmitting ? null : (val) => setDialogState(() => selectedGroupId = val),
+                          ),
+                          const SizedBox(height: 14),
+
+                          // Tags
+                          buildLabel("Tags"),
+                          TextField(
+                            controller: tagsController,
+                            style: TextStyle(color: textColor, fontSize: 14),
+                            decoration: inputDecoration.copyWith(hintText: "e.g. Euro"),
+                          ),
+                          const SizedBox(height: 14),
+
+                          // Manufacturer
+                          buildLabel("Manufacturer"),
+                          TextField(
+                            controller: manufacturerController,
+                            style: TextStyle(color: textColor, fontSize: 14),
+                            decoration: inputDecoration.copyWith(hintText: "e.g. Nullifire"),
+                          ),
+                          const SizedBox(height: 14),
+
+                          // Product Code
+                          buildLabel("Product Code"),
+                          TextField(
+                            controller: productCodeController,
+                            style: TextStyle(color: textColor, fontSize: 14),
+                            decoration: inputDecoration.copyWith(hintText: "e.g. FS702"),
+                          ),
+                          const SizedBox(height: 14),
+
+                          // Certification Reference
+                          buildLabel("Certification Reference"),
+                          TextField(
+                            controller: certRefController,
+                            style: TextStyle(color: textColor, fontSize: 14),
+                            decoration: inputDecoration.copyWith(hintText: "e.g. BS EN 1366-3"),
+                          ),
+                          const SizedBox(height: 14),
+
+                          // Certification Document
+                          buildLabel("Certification Document"),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: inputFill,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: borderColor),
+                            ),
+                            child: Row(
+                              children: [
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+                                    foregroundColor: textColor,
+                                    elevation: 0,
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                                  ),
+                                  onPressed: isSubmitting
+                                      ? null
+                                      : () async {
+                                          final result = await FilePicker.platform.pickFiles();
+                                          if (result != null && result.files.isNotEmpty) {
+                                            setDialogState(() => certDocFile = result.files.first);
+                                          }
+                                        },
+                                  child: const Text("Choose File", style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    certDocFile?.name ?? "No file chosen",
+                                    style: TextStyle(fontSize: 12, color: certDocFile != null ? textColor : textSecondary),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (certDocFile != null)
+                                  IconButton(
+                                    icon: const Icon(Icons.close, size: 16, color: Colors.red),
+                                    splashRadius: 14,
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                    onPressed: isSubmitting ? null : () => setDialogState(() => certDocFile = null),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+
+                          // Attachments
+                          buildLabel("Attachments"),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: inputFill,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: borderColor),
+                            ),
+                            child: Row(
+                              children: [
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+                                    foregroundColor: textColor,
+                                    elevation: 0,
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                                  ),
+                                  onPressed: isSubmitting
+                                      ? null
+                                      : () async {
+                                          final result = await FilePicker.platform.pickFiles(allowMultiple: true);
+                                          if (result != null && result.files.isNotEmpty) {
+                                            setDialogState(() => attachedFiles = result.files);
+                                          }
+                                        },
+                                  child: const Text("Choose Files", style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    attachedFiles.isEmpty
+                                        ? "No file chosen"
+                                        : "${attachedFiles.length} file${attachedFiles.length == 1 ? '' : 's'} chosen",
+                                    style: TextStyle(fontSize: 12, color: attachedFiles.isNotEmpty ? textColor : textSecondary),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (attachedFiles.isNotEmpty)
+                                  IconButton(
+                                    icon: const Icon(Icons.close, size: 16, color: Colors.red),
+                                    splashRadius: 14,
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                    onPressed: isSubmitting ? null : () => setDialogState(() => attachedFiles.clear()),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+
+                          // Assign to Project
+                          buildLabel("Assign to Project"),
+                          DropdownButtonFormField<int?>(
+                            initialValue: selectedProjectId,
+                            dropdownColor: cardColor,
+                            style: TextStyle(color: textColor, fontSize: 14),
+                            decoration: inputDecoration,
+                            items: [
+                              const DropdownMenuItem<int?>(
+                                value: null,
+                                child: Text("Not assigned yet"),
+                              ),
+                              ...projects.map((p) => DropdownMenuItem<int?>(
+                                    value: p['id'] as int,
+                                    child: Text(p['name']?.toString() ?? 'Project #${p['id']}', overflow: TextOverflow.ellipsis),
+                                  )),
+                            ],
+                            onChanged: isSubmitting ? null : (val) => setDialogState(() => selectedProjectId = val),
+                          ),
+                          const SizedBox(height: 12),
+
+                          // Bulk Assignment Checkboxes
+                          CheckboxListTile(
+                            contentPadding: EdgeInsets.zero,
+                            dense: true,
+                            controlAffinity: ListTileControlAffinity.leading,
+                            title: Text("Add to all existing projects", style: TextStyle(fontSize: 13, color: textColor)),
+                            value: addToAllProjects,
+                            onChanged: isSubmitting ? null : (val) => setDialogState(() => addToAllProjects = val ?? false),
+                          ),
+                          CheckboxListTile(
+                            contentPadding: EdgeInsets.zero,
+                            dense: true,
+                            controlAffinity: ListTileControlAffinity.leading,
+                            title: Text("Add to all existing templates", style: TextStyle(fontSize: 13, color: textColor)),
+                            value: addToAllTemplates,
+                            onChanged: isSubmitting ? null : (val) => setDialogState(() => addToAllTemplates = val ?? false),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  Divider(height: 1, color: borderColor),
+
+                  // Modal Footer Actions
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Row(
+                      children: [
+                        TextButton(
+                          onPressed: isSubmitting ? null : () => Navigator.pop(dialogContext),
+                          child: Text("Cancel", style: TextStyle(color: textSecondary, fontWeight: FontWeight.w600)),
+                        ),
+                        const Spacer(),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF0F62FE),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                            elevation: 0,
+                          ),
+                          onPressed: isSubmitting
+                              ? null
+                              : () async {
+                                  final name = nameController.text.trim();
+                                  if (name.isEmpty) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text("Material Name is required.")),
+                                    );
+                                    return;
+                                  }
+                                  if (selectedGroupId == null) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text("Group is required.")),
+                                    );
+                                    return;
+                                  }
+
+                                  setDialogState(() => isSubmitting = true);
+
+                                  final result = await _materialController.createMaterial(
+                                    name: name,
+                                    inputType: selectedInputType,
+                                    materialGroupId: selectedGroupId!,
+                                    tags: tagsController.text.trim(),
+                                    manufacturer: manufacturerController.text.trim(),
+                                    productCode: productCodeController.text.trim(),
+                                    certificationReference: certRefController.text.trim(),
+                                    projectId: selectedProjectId,
+                                    addToAllProjects: addToAllProjects,
+                                    addToAllTemplates: addToAllTemplates,
+                                    certificationDocumentPath: certDocFile?.path,
+                                    attachmentPaths: attachedFiles.map((f) => f.path).whereType<String>().toList(),
+                                  );
+
+                                  if (!dialogContext.mounted) return;
+                                  Navigator.pop(dialogContext);
+
+                                  if (!mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(result['message'] ?? ''),
+                                      backgroundColor: result['success'] == true ? Colors.green : Colors.red,
+                                    ),
+                                  );
+
+                                  if (result['success'] == true) {
+                                    await _controller.fetchMaterials();
+                                    final created = (result['data'] as Map?)?.cast<String, dynamic>();
+                                    if (created != null && mounted) {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => MaterialDetailScreen(materialId: created['id'] as int),
+                                        ),
+                                      );
+                                    }
+                                  }
+                                },
+                          child: isSubmitting
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                )
+                              : const Text(
+                                  "Add Material",
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white),
+                                ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
