@@ -38,7 +38,9 @@ class ProjectController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await ApiClient.get('${ApiEndpoints.baseUrl}${ApiEndpoints.projects}?page=1&page_size=25');
+      final tz = await DateHelper.getDeviceTimezone();
+      final tzParam = tz.isNotEmpty ? '&tz=${Uri.encodeComponent(tz)}' : '';
+      final response = await ApiClient.get('${ApiEndpoints.baseUrl}${ApiEndpoints.projects}?page=1&page_size=25$tzParam');
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200 && data['status'] == true) {
@@ -65,8 +67,10 @@ class ProjectController extends ChangeNotifier {
     _isLoadingMore = true;
     notifyListeners();
     try {
+      final tz = await DateHelper.getDeviceTimezone();
+      final tzParam = tz.isNotEmpty ? '&tz=${Uri.encodeComponent(tz)}' : '';
       final response = await ApiClient.get(
-        '${ApiEndpoints.baseUrl}${ApiEndpoints.projects}?page=${_currentPage + 1}&page_size=25',
+        '${ApiEndpoints.baseUrl}${ApiEndpoints.projects}?page=${_currentPage + 1}&page_size=25$tzParam',
       );
       final data = jsonDecode(response.body);
       if (response.statusCode == 200 && data['status'] == true) {
@@ -91,7 +95,9 @@ class ProjectController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await ApiClient.get(ApiEndpoints.baseUrl + ApiEndpoints.projectDetails(id));
+      final tz = await DateHelper.getDeviceTimezone();
+      final queryParam = tz.isNotEmpty ? '?tz=${Uri.encodeComponent(tz)}' : '';
+      final response = await ApiClient.get(ApiEndpoints.baseUrl + ApiEndpoints.projectDetails(id) + queryParam);
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200 && data['status'] == true) {
@@ -120,7 +126,9 @@ class ProjectController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await ApiClient.get(ApiEndpoints.baseUrl + ApiEndpoints.projectAllInOneDetails(id));
+      final tz = await DateHelper.getDeviceTimezone();
+      final queryParam = tz.isNotEmpty ? '?tz=${Uri.encodeComponent(tz)}' : '';
+      final response = await ApiClient.get(ApiEndpoints.baseUrl + ApiEndpoints.projectAllInOneDetails(id) + queryParam);
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200 && data['status'] == true) {
