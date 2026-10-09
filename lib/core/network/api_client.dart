@@ -75,20 +75,17 @@ class ApiClient {
         await AuthService.clearTokens();
         if (navigatorKey.currentState != null) {
           final context = navigatorKey.currentState!.context;
-          String errorMsg = 'Session expired. Please login again.';
-          
-          try {
-            final data = jsonDecode(response.body);
-            if (data['detail'] != null) {
-              errorMsg = data['detail'];
-            }
-          } catch (_) {}
+          const String userFriendlyErrorMsg = 'Your session has expired. Please log in again to continue.';
 
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(errorMsg),
+            const SnackBar(
+              content: Text(
+                userFriendlyErrorMsg,
+                style: TextStyle(fontWeight: FontWeight.w500),
+              ),
               backgroundColor: Colors.redAccent,
               behavior: SnackBarBehavior.floating,
+              duration: Duration(seconds: 4),
             ),
           );
 

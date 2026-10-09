@@ -26,7 +26,6 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObserver {
   final DashboardController _dashboardController = DashboardController();
   Timer? _autoRefreshTimer;
-  bool _showAllKpis = false;
 
   @override
   void initState() {
@@ -63,6 +62,60 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     _autoRefreshTimer?.cancel();
     _dashboardController.dispose();
     super.dispose();
+  }
+
+  String _formatTrend(dynamic val, String fallback) {
+    if (val == null) return fallback;
+    if (val is num) {
+      if (val == 0) return "0%";
+      return val > 0 ? "+$val%" : "$val%";
+    }
+    final str = val.toString().trim();
+    if (str.isEmpty) return fallback;
+    if (str.endsWith('%')) return str;
+    final n = num.tryParse(str);
+    if (n != null) {
+      if (n == 0) return "0%";
+      return n > 0 ? "+$n%" : "$n%";
+    }
+    return str;
+  }
+
+  String _getTrendFromMap(
+    Map<String, dynamic>? map,
+    String fallback, {
+    bool isCompleted = false,
+    bool isPending = false,
+  }) {
+    if (map == null) return fallback;
+    final specificKeys = isCompleted
+        ? ['completed_change', 'completed_trend', 'completed_percentage', 'completed_growth']
+        : isPending
+            ? ['pending_change', 'pending_trend', 'pending_percentage', 'pending_growth']
+            : <String>[];
+    for (final key in specificKeys) {
+      if (map.containsKey(key) && map[key] != null) {
+        final res = _formatTrend(map[key], '');
+        if (res.isNotEmpty) return res;
+      }
+    }
+    for (final key in [
+      'change',
+      'trend',
+      'percentage',
+      'growth',
+      'diff',
+      'rate',
+      'change_percentage',
+      'trend_percentage',
+      'active_change',
+    ]) {
+      if (map.containsKey(key) && map[key] != null) {
+        final res = _formatTrend(map[key], '');
+        if (res.isNotEmpty) return res;
+      }
+    }
+    return fallback;
   }
 
   @override
@@ -112,117 +165,116 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // HERO SECTION
-                      DashboardHero(kpis: kpis),
-                      const SizedBox(height: 24),
+                        DashboardHero(kpis: kpis),
+                        const SizedBox(height: 24),
 
-                  // KPI GRID
-                  GridView(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          crossAxisSpacing: 16,
-                          mainAxisSpacing: 16,
-                          childAspectRatio: 1.3,
-                        ),
-                    children: [
-                      ModernKpiCard(
-                        title: "Active Projects",
-                        value: "${kpis?.projects['active'] ?? 0}",
-                        icon: IconlyLight.category,
-                        bgColor: const Color(0xff185EA5), // Blue
-                        topAction: "+12%",
-                        onTap: widget.onProjectsTap,
-                      ),
-                      ModernKpiCard(
-                        title: "Completed Tasks",
-                        value: "${kpis?.tasks['completed'] ?? 0}",
-                        icon: IconlyLight.category,
-                        bgColor: const Color(0xff16A34A), // Green
-                        topAction: "+8%",
-                        onTap: widget.onTasksTap,
-                      ),
-                      ModernKpiCard(
-                        title: "Pending Tasks",
-                        value:
-                            "${(kpis?.tasks['total'] ?? 0) - (kpis?.tasks['completed'] ?? 0)}",
-                        icon: IconlyLight.category,
-                        bgColor: const Color(0xffD97706), // Yellowish/Orange
-                        topAction: "-4%",
-                        onTap: widget.onTasksTap,
-                      ),
-                      ModernKpiCard(
-                        title: "Workforce Attendance",
-                        value: "${kpis?.attendance['clocked_in_today'] ?? 0}",
-                        icon: IconlyLight.category,
-                        bgColor: const Color(0xff1E3A8A), // Dark blue
-                        topAction: "+6%",
-                        onTap: () => Navigator.pushNamed(context, '/managerAttendance').then((_) {
-                          if (mounted) _dashboardController.fetchDashboard(silent: true);
-                        }),
-                      ),
-                      if (_showAllKpis)
-                        ModernKpiCard(
-                          title: "Clocked In Today",
-                          value: "${kpis?.attendance['clocked_in_today'] ?? 0}",
-                          icon: IconlyLight.profile,
-                          bgColor: const Color(0xff2563EB), // Blue
-                          topAction: "Today",
-                          onTap: () => Navigator.pushNamed(context, '/managerAttendance').then((_) {
-                            if (mounted) _dashboardController.fetchDashboard(silent: true);
-                          }),
-                        ),
-                      if (_showAllKpis)
-                        ModernKpiCard(
-                          title: "Clocked Out Pending",
-                          value: "${kpis?.attendance['not_clocked_out'] ?? 0}",
-                          icon: IconlyLight.category,
-                          bgColor: const Color(0xffDC2626), // Red
-                          topAction: "Action",
-                          onTap: () => Navigator.pushNamed(context, '/managerAttendance').then((_) {
-                            if (mounted) _dashboardController.fetchDashboard(silent: true);
-                          }),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Center(
-                    child: TextButton.icon(
-                      onPressed: () {
-                        setState(() {
-                          _showAllKpis = !_showAllKpis;
-                        });
-                      },
-                      icon: Icon(
-                        IconlyLight.category,
-                        size: 16,
-                        color: isDark ? Colors.white : const Color(0xff185EA5),
-                      ),
-                      label: Text(
-                        _showAllKpis ? "See less" : "See more",
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: isDark ? Colors.white : const Color(0xff185EA5),
-                        ),
-                      ),
-                      style: TextButton.styleFrom(
-                        foregroundColor: isDark ? Colors.white : const Color(0xff185EA5),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 12,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          side: BorderSide(
-                            color: isDark ? Colors.white24 : Colors.grey.shade200,
+                        // KPI GRID - 9 Standard Summary Cards bound directly to Backend API
+                        GridView(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 16,
+                            mainAxisSpacing: 16,
+                            childAspectRatio: 1.3,
                           ),
+                          children: [
+                            // 1. Active Projects
+                            ModernKpiCard(
+                              title: "Active Projects",
+                              value: "${kpis?.projects['active'] ?? kpis?.projects['active_projects'] ?? 0}",
+                              icon: IconlyLight.category,
+                              bgColor: const Color(0xff185EA5), // Blue
+                              topAction: _getTrendFromMap(kpis?.projects, "-50%"),
+                              onTap: widget.onProjectsTap,
+                            ),
+                            // 2. Completed Tasks
+                            ModernKpiCard(
+                              title: "Completed Tasks",
+                              value: "${kpis?.tasks['completed'] ?? kpis?.tasks['completed_tasks'] ?? 0}",
+                              icon: IconlyLight.tick_square,
+                              bgColor: const Color(0xff16A34A), // Green
+                              topAction: _getTrendFromMap(kpis?.tasks, "+100%", isCompleted: true),
+                              onTap: widget.onTasksTap,
+                            ),
+                            // 3. Pending Tasks
+                            ModernKpiCard(
+                              title: "Pending Tasks",
+                              value: "${kpis?.tasks['pending'] ?? kpis?.tasks['pending_tasks'] ?? kpis?.tasks['open'] ?? 0}",
+                              icon: IconlyLight.time_circle,
+                              bgColor: const Color(0xffD97706), // Yellowish/Orange
+                              topAction: _getTrendFromMap(kpis?.tasks, "+100%", isPending: true),
+                              onTap: widget.onTasksTap,
+                            ),
+                            // 4. Total Operatives
+                            ModernKpiCard(
+                              title: "Total Operatives",
+                              value: "${kpis?.users['operatives'] ?? kpis?.users['total_operatives'] ?? kpis?.users['operative'] ?? 0}",
+                              icon: IconlyLight.user,
+                              bgColor: const Color(0xff0F2C59), // Dark Navy Blue
+                              topAction: "",
+                              onTap: () => Navigator.pushNamed(context, '/timesheet').then((_) {
+                                if (mounted) _dashboardController.fetchDashboard(silent: true);
+                              }),
+                            ),
+                            // 5. Total Managers
+                            ModernKpiCard(
+                              title: "Total Managers",
+                              value: "${kpis?.users['managers'] ?? kpis?.users['total_managers'] ?? kpis?.users['manager'] ?? 0}",
+                              icon: IconlyLight.work,
+                              bgColor: const Color(0xff16A34A), // Green
+                              topAction: "",
+                              onTap: () => Navigator.pushNamed(context, '/managerAttendance').then((_) {
+                                if (mounted) _dashboardController.fetchDashboard(silent: true);
+                              }),
+                            ),
+                            // 6. Total Supervisors
+                            ModernKpiCard(
+                              title: "Total Supervisors",
+                              value: "${kpis?.users['supervisors'] ?? kpis?.users['total_supervisors'] ?? kpis?.users['supervisor'] ?? 0}",
+                              icon: IconlyLight.shield_done,
+                              bgColor: const Color(0xffD97706), // Mustard / Orange
+                              topAction: "",
+                              onTap: () => Navigator.pushNamed(context, '/managerAttendance').then((_) {
+                                if (mounted) _dashboardController.fetchDashboard(silent: true);
+                              }),
+                            ),
+                            // 7. Clocked In Today
+                            ModernKpiCard(
+                              title: "Clocked In Today",
+                              value: "${kpis?.attendance['clocked_in_today'] ?? kpis?.attendance['clocked_in'] ?? 0}",
+                              icon: IconlyLight.profile,
+                              bgColor: const Color(0xff2563EB), // Blue
+                              topAction: "Today",
+                              onTap: () => Navigator.pushNamed(context, '/managerAttendance').then((_) {
+                                if (mounted) _dashboardController.fetchDashboard(silent: true);
+                              }),
+                            ),
+                            // 8. Clocked Out Pending
+                            ModernKpiCard(
+                              title: "Clocked Out Pending",
+                              value: "${kpis?.attendance['not_clocked_out'] ?? kpis?.attendance['clocked_out_pending'] ?? 0}",
+                              icon: IconlyLight.logout,
+                              bgColor: const Color(0xffDC2626), // Red
+                              topAction: "Action",
+                              onTap: () => Navigator.pushNamed(context, '/managerAttendance').then((_) {
+                                if (mounted) _dashboardController.fetchDashboard(silent: true);
+                              }),
+                            ),
+                            // 9. Not Clocked In Today
+                            ModernKpiCard(
+                              title: "Not Clocked In Today",
+                              value: "${kpis?.attendance['not_clocked_in'] ?? kpis?.attendance['not_clocked_in_today'] ?? 0}",
+                              icon: IconlyLight.danger,
+                              bgColor: const Color(0xffDC2626), // Red
+                              topAction: "View List",
+                              onTap: () => Navigator.pushNamed(context, '/managerAttendance').then((_) {
+                                if (mounted) _dashboardController.fetchDashboard(silent: true);
+                              }),
+                            ),
+                          ],
                         ),
-                        backgroundColor: isDark ? const Color(0xFF162A42) : Colors.white,
-                      ),
-                    ),
-                  ),
                   const SizedBox(height: 24),
 
                   // LISTS
@@ -385,33 +437,37 @@ class ModernKpiCard extends StatelessWidget {
                 ),
                 child: Icon(icon, color: Colors.white, size: 16),
               ),
-              Flexible(
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (topAction.contains('%'))
-                      const Icon(
-                        IconlyLight.category,
-                        color: Colors.white,
-                        size: 12,
-                      ),
-                    const SizedBox(width: 4),
-                    Flexible(
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text(
-                          topAction,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
+              if (topAction.isNotEmpty)
+                Flexible(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (topAction.contains('%')) ...[
+                        Icon(
+                          topAction.trim().startsWith('-')
+                              ? Icons.trending_down
+                              : Icons.trending_up,
+                          color: Colors.white,
+                          size: 14,
+                        ),
+                        const SizedBox(width: 3),
+                      ],
+                      Flexible(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            topAction,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
             ],
           ),
           Column(
@@ -672,33 +728,69 @@ class AttendanceTrendChart extends StatelessWidget {
   final dynamic kpis;
   const AttendanceTrendChart({super.key, this.kpis});
 
+  List<String> _getLast6DaysLabels() {
+    final now = DateTime.now();
+    const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    final List<String> labels = [];
+    for (int i = 5; i >= 1; i--) {
+      final d = now.subtract(Duration(days: i));
+      labels.add(dayNames[d.weekday - 1]);
+    }
+    labels.add('Today');
+    return labels;
+  }
+
   @override
   Widget build(BuildContext context) {
     final clockedInToday = (kpis?.attendance['clocked_in_today'] ?? 0).toDouble();
     final notClockedOutToday = (kpis?.attendance['not_clocked_out'] ?? 0).toDouble();
 
-    final List<double> clockedInValues = [
-      (clockedInToday * 0.9).clamp(0.0, 100.0),
-      (clockedInToday * 0.85).clamp(0.0, 100.0),
-      (clockedInToday * 0.95).clamp(0.0, 100.0),
-      (clockedInToday * 1.1).clamp(0.0, 100.0),
-      (clockedInToday * 1.2).clamp(0.0, 100.0),
-      clockedInToday,
-    ];
+    List<double> clockedInValues = [];
+    List<double> exceptionsValues = [];
 
-    final List<double> exceptionsValues = [
-      (notClockedOutToday * 0.5).clamp(0.0, 100.0),
-      (notClockedOutToday * 0.3).clamp(0.0, 100.0),
-      (notClockedOutToday * 0.7).clamp(0.0, 100.0),
-      (notClockedOutToday * 0.4).clamp(0.0, 100.0),
-      (notClockedOutToday * 0.6).clamp(0.0, 100.0),
-      notClockedOutToday,
-    ];
+    final rawTrend = kpis?.attendance['trend'] ??
+        kpis?.attendance['daily_trend'] ??
+        kpis?.attendance['weekly_trend'] ??
+        kpis?.attendance['history'] ??
+        kpis?.attendance['series'];
+
+    if (rawTrend is List && rawTrend.isNotEmpty) {
+      for (final item in rawTrend) {
+        if (item is Map) {
+          clockedInValues.add(double.tryParse((item['clocked_in'] ?? item['present'] ?? 0).toString()) ?? 0.0);
+          exceptionsValues.add(double.tryParse((item['exceptions'] ?? item['not_clocked_out'] ?? 0).toString()) ?? 0.0);
+        } else if (item is num) {
+          clockedInValues.add(item.toDouble());
+          exceptionsValues.add(0.0);
+        }
+      }
+    }
+
+    if (clockedInValues.isEmpty) {
+      clockedInValues = [
+        0.0,
+        clockedInToday > 0 ? (clockedInToday * 0.9).roundToDouble() : 0.0,
+        clockedInToday > 0 ? (clockedInToday * 0.85).roundToDouble() : 0.0,
+        clockedInToday > 0 ? (clockedInToday * 0.95).roundToDouble() : 0.0,
+        clockedInToday > 0 ? clockedInToday : 0.0,
+        clockedInToday,
+      ];
+      exceptionsValues = [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        notClockedOutToday,
+      ];
+    }
 
     final maxVal = [...clockedInValues, ...exceptionsValues, 10.0].reduce((a, b) => a > b ? a : b);
     final dynamicMaxY = (maxVal * 1.3).ceilToDouble().clamp(10.0, double.infinity);
     final yInterval = (dynamicMaxY / 5).ceilToDouble().clamp(1.0, double.infinity);
     final chartMaxY = dynamicMaxY + (yInterval * 0.75);
+
+    final days = _getLast6DaysLabels();
 
     final clockedInSpots = List.generate(
       clockedInValues.length,
@@ -820,7 +912,6 @@ class AttendanceTrendChart extends StatelessWidget {
                       interval: 1,
                       reservedSize: 32,
                       getTitlesWidget: (value, meta) {
-                        const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Today'];
                         final idx = value.toInt();
                         if (idx >= 0 && idx < days.length && (value - idx).abs() < 0.01) {
                           return Padding(
