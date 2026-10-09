@@ -99,19 +99,25 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
               icon: const Icon(Icons.add),
               label: const Text("Add Form"),
             )
-          : _tabController.index == 3
+          : _tabController.index == 2
               ? FloatingActionButton.extended(
-                  onPressed: () => _showAddWorkTypeDialog(),
+                  onPressed: () => _showAddTemplateDialog(),
                   icon: const Icon(Icons.add),
-                  label: const Text("Add Work Type"),
+                  label: const Text("Add Template"),
                 )
-              : (_tabController.index == 1 && !_materialSelectMode)
+              : _tabController.index == 3
                   ? FloatingActionButton.extended(
-                      onPressed: () => _showAddMaterialDialog(),
+                      onPressed: () => _showAddWorkTypeDialog(),
                       icon: const Icon(Icons.add),
-                      label: const Text("Add Material"),
+                      label: const Text("Add Work Type"),
                     )
-                  : null,
+                  : (_tabController.index == 1 && !_materialSelectMode)
+                      ? FloatingActionButton.extended(
+                          onPressed: () => _showAddMaterialDialog(),
+                          icon: const Icon(Icons.add),
+                          label: const Text("Add Material"),
+                        )
+                      : null,
     );
   }
 
@@ -1486,9 +1492,21 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
                 ],
               ),
               const SizedBox(height: 10),
-              // Pagination Record Indicator
+              // Sub toolbar: + Add Template button & pagination record indicator
               Row(
                 children: [
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0F62FE),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onPressed: () => _showAddTemplateDialog(),
+                    icon: const Icon(Icons.add, size: 16),
+                    label: const Text("Add Template", style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  ),
                   const Spacer(),
                   Text(
                     _controller.templates.isEmpty
@@ -1531,7 +1549,7 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
               : _controller.templatesError != null
                   ? _errorState(_controller.templatesError!, _controller.fetchTemplates)
                   : _controller.templates.isEmpty
-                      ? _emptyState(isDark, "No project templates found.", "Try adjusting filters or searching a different term.")
+                      ? _emptyState(isDark, "No project templates found.", "Try adjusting filters or tap '+ Add Template' above.")
                       : RefreshIndicator(
                           onRefresh: _controller.fetchTemplates,
                           child: ListView.separated(
@@ -1553,7 +1571,7 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
                                     ).then((_) => _controller.fetchTemplates());
                                   },
                                   child: Container(
-                                    padding: const EdgeInsets.all(14),
+                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                                     decoration: BoxDecoration(
                                       color: cardColor,
                                       borderRadius: BorderRadius.circular(12),
@@ -1586,7 +1604,31 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
                                             ],
                                           ),
                                         ),
-                                        Icon(IconlyLight.arrow_right_2, size: 18, color: textSecondary),
+                                        IconButton(
+                                          icon: Icon(IconlyLight.show, size: 20, color: textColor),
+                                          tooltip: "View workspace",
+                                          splashRadius: 18,
+                                          onPressed: () {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (_) => ProjectTemplateWorkspaceScreen(template: template),
+                                              ),
+                                            ).then((_) => _controller.fetchTemplates());
+                                          },
+                                        ),
+                                        IconButton(
+                                          icon: Icon(IconlyLight.edit, size: 18, color: textColor),
+                                          tooltip: "Edit template",
+                                          splashRadius: 18,
+                                          onPressed: () => _showEditTemplateDialog(template),
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(IconlyLight.delete, size: 18, color: Colors.red),
+                                          tooltip: "Delete template",
+                                          splashRadius: 18,
+                                          onPressed: () => _confirmDeleteTemplate(template),
+                                        ),
                                       ],
                                     ),
                                   ),
@@ -1597,6 +1639,343 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
                         ),
         ),
       ],
+    );
+  }
+
+  Future<void> _showAddTemplateDialog() async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
+    final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+    final borderColor = isDark ? AppTheme.darkBorder : Colors.grey.shade300;
+    final inputFill = isDark ? AppTheme.darkSurfaceRaised : const Color(0xFFF9FAFB);
+
+    final nameController = TextEditingController();
+    final descController = TextEditingController();
+    String selectedStatus = 'Active';
+    bool isSubmitting = false;
+
+    await showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return Dialog(
+            backgroundColor: cardColor,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 440),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 12, 12),
+                    child: Row(
+                      children: [
+                        Text("New Project Template", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: textColor)),
+                        const Spacer(),
+                        IconButton(
+                          icon: Icon(Icons.close, size: 20, color: textSecondary),
+                          onPressed: isSubmitting ? null : () => Navigator.pop(dialogContext),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Divider(height: 1, color: borderColor),
+                  Flexible(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text("Template Name *", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: textColor)),
+                          const SizedBox(height: 6),
+                          TextField(
+                            controller: nameController,
+                            autofocus: true,
+                            style: TextStyle(fontSize: 14, color: textColor),
+                            decoration: InputDecoration(
+                              isDense: true,
+                              hintText: "e.g. Fire Stopping",
+                              filled: true,
+                              fillColor: inputFill,
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: borderColor)),
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          Text("Status", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: textColor)),
+                          const SizedBox(height: 6),
+                          DropdownButtonFormField<String>(
+                            initialValue: selectedStatus,
+                            dropdownColor: cardColor,
+                            style: TextStyle(fontSize: 14, color: textColor),
+                            decoration: InputDecoration(
+                              isDense: true,
+                              filled: true,
+                              fillColor: inputFill,
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: borderColor)),
+                            ),
+                            items: const [
+                              DropdownMenuItem(value: 'Active', child: Text("Active")),
+                              DropdownMenuItem(value: 'Archived', child: Text("Archived")),
+                            ],
+                            onChanged: (val) => setDialogState(() => selectedStatus = val ?? selectedStatus),
+                          ),
+                          const SizedBox(height: 14),
+                          Text("Description", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: textColor)),
+                          const SizedBox(height: 6),
+                          TextField(
+                            controller: descController,
+                            maxLines: 3,
+                            style: TextStyle(fontSize: 14, color: textColor),
+                            decoration: InputDecoration(
+                              isDense: true,
+                              hintText: "Enter template description",
+                              filled: true,
+                              fillColor: inputFill,
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: borderColor)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Divider(height: 1, color: borderColor),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Row(
+                      children: [
+                        TextButton(
+                          onPressed: isSubmitting ? null : () => Navigator.pop(dialogContext),
+                          child: Text("Cancel", style: TextStyle(color: textSecondary, fontWeight: FontWeight.w600)),
+                        ),
+                        const Spacer(),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF0F62FE),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          ),
+                          onPressed: isSubmitting
+                              ? null
+                              : () async {
+                                  final name = nameController.text.trim();
+                                  if (name.isEmpty) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text("Template Name is required.")),
+                                    );
+                                    return;
+                                  }
+                                  setDialogState(() => isSubmitting = true);
+                                  final result = await _controller.createTemplate(
+                                    name: name,
+                                    description: descController.text.trim(),
+                                    status: selectedStatus,
+                                  );
+                                  if (!dialogContext.mounted) return;
+                                  Navigator.pop(dialogContext);
+
+                                  if (!mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(result['message'] ?? ''),
+                                      backgroundColor: result['success'] == true ? Colors.green : Colors.red,
+                                    ),
+                                  );
+                                },
+                          child: isSubmitting
+                              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                              : const Text("Create Template", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _showEditTemplateDialog(LibraryTemplateModel template) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
+    final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+    final borderColor = isDark ? AppTheme.darkBorder : Colors.grey.shade300;
+    final inputFill = isDark ? AppTheme.darkSurfaceRaised : const Color(0xFFF9FAFB);
+
+    final nameController = TextEditingController(text: template.name);
+    final descController = TextEditingController(text: template.description);
+    String selectedStatus = template.statusLabel;
+    bool isSubmitting = false;
+
+    await showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return Dialog(
+            backgroundColor: cardColor,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 440),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 12, 12),
+                    child: Row(
+                      children: [
+                        Text("Edit Template", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: textColor)),
+                        const Spacer(),
+                        IconButton(
+                          icon: Icon(Icons.close, size: 20, color: textSecondary),
+                          onPressed: isSubmitting ? null : () => Navigator.pop(dialogContext),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Divider(height: 1, color: borderColor),
+                  Flexible(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text("Template Name *", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: textColor)),
+                          const SizedBox(height: 6),
+                          TextField(
+                            controller: nameController,
+                            style: TextStyle(fontSize: 14, color: textColor),
+                            decoration: InputDecoration(
+                              isDense: true,
+                              filled: true,
+                              fillColor: inputFill,
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: borderColor)),
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          Text("Status", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: textColor)),
+                          const SizedBox(height: 6),
+                          DropdownButtonFormField<String>(
+                            initialValue: selectedStatus,
+                            dropdownColor: cardColor,
+                            style: TextStyle(fontSize: 14, color: textColor),
+                            decoration: InputDecoration(
+                              isDense: true,
+                              filled: true,
+                              fillColor: inputFill,
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: borderColor)),
+                            ),
+                            items: const [
+                              DropdownMenuItem(value: 'Active', child: Text("Active")),
+                              DropdownMenuItem(value: 'Archived', child: Text("Archived")),
+                            ],
+                            onChanged: (val) => setDialogState(() => selectedStatus = val ?? selectedStatus),
+                          ),
+                          const SizedBox(height: 14),
+                          Text("Description", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: textColor)),
+                          const SizedBox(height: 6),
+                          TextField(
+                            controller: descController,
+                            maxLines: 3,
+                            style: TextStyle(fontSize: 14, color: textColor),
+                            decoration: InputDecoration(
+                              isDense: true,
+                              filled: true,
+                              fillColor: inputFill,
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: borderColor)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Divider(height: 1, color: borderColor),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Row(
+                      children: [
+                        TextButton(
+                          onPressed: isSubmitting ? null : () => Navigator.pop(dialogContext),
+                          child: Text("Cancel", style: TextStyle(color: textSecondary, fontWeight: FontWeight.w600)),
+                        ),
+                        const Spacer(),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF0F62FE),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          ),
+                          onPressed: isSubmitting
+                              ? null
+                              : () async {
+                                  final name = nameController.text.trim();
+                                  if (name.isEmpty) return;
+                                  setDialogState(() => isSubmitting = true);
+                                  final result = await _controller.updateTemplate(
+                                    template.id,
+                                    name: name,
+                                    description: descController.text.trim(),
+                                    status: selectedStatus,
+                                  );
+                                  if (!dialogContext.mounted) return;
+                                  Navigator.pop(dialogContext);
+
+                                  if (!mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(result['message'] ?? ''),
+                                      backgroundColor: result['success'] == true ? Colors.green : Colors.red,
+                                    ),
+                                  );
+                                },
+                          child: isSubmitting
+                              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                              : const Text("Save Changes", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _confirmDeleteTemplate(LibraryTemplateModel template) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text("Delete Template"),
+        content: Text('Are you sure you want to delete "${template.name}"?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text("Cancel")),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text("Delete", style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final result = await _controller.deleteTemplate(template.id);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(result['message'] ?? ''),
+        backgroundColor: result['success'] == true ? Colors.green : Colors.red,
+      ),
     );
   }
 }

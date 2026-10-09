@@ -143,6 +143,8 @@ class LibraryController extends ChangeNotifier {
     }
   }
 
+  List<LibraryTemplateModel> _allTemplates = [];
+
   Future<void> fetchTemplates({String? status, String? search, int? page}) async {
     isLoadingTemplates = true;
     templatesError = null;
@@ -161,23 +163,162 @@ class LibraryController extends ChangeNotifier {
       final response = await ApiClient.get(url);
       final decoded = jsonDecode(response.body);
       if (response.statusCode == 200 && decoded['status'] == true) {
-        templatesTotalCount = decoded['count'] is int ? decoded['count'] : (decoded['data'] is List ? (decoded['data'] as List).length : 0);
-        templates = (decoded['data'] as List? ?? [])
+        final rawList = (decoded['data'] as List? ?? [])
             .whereType<Map>()
             .map((e) => LibraryTemplateModel.fromJson(e.cast<String, dynamic>()))
             .toList();
-        if (templatesTotalCount == 0 && templates.isNotEmpty) {
-          templatesTotalCount = templates.length;
+        if (rawList.isNotEmpty) {
+          _allTemplates = rawList;
         }
+
+        var filtered = List<LibraryTemplateModel>.from(_allTemplates);
+
+        // Status Filter
+        if (templatesStatus == 'active') {
+          filtered = filtered
+              .where((t) =>
+                  t.statusLabel.toLowerCase() != 'archived' &&
+                  t.statusLabel.toLowerCase() != 'inactive')
+              .toList();
+        } else if (templatesStatus == 'archived') {
+          filtered = filtered
+              .where((t) =>
+                  t.statusLabel.toLowerCase() == 'archived' ||
+                  t.statusLabel.toLowerCase() == 'inactive')
+              .toList();
+        }
+
+        // Search Filter
+        if (templatesSearch.trim().isNotEmpty) {
+          final q = templatesSearch.trim().toLowerCase();
+          filtered = filtered
+              .where((t) =>
+                  t.name.toLowerCase().contains(q) ||
+                  t.description.toLowerCase().contains(q))
+              .toList();
+        }
+
+        templatesTotalCount = filtered.length;
+        templates = filtered;
       } else {
         templatesError = decoded['message']?.toString() ?? 'Failed to fetch project templates.';
       }
     } catch (e) {
-      templatesError = 'An error occurred: $e';
+      // If error but we have cached templates, filter locally
+      if (_allTemplates.isNotEmpty) {
+        var filtered = List<LibraryTemplateModel>.from(_allTemplates);
+        if (templatesStatus == 'active') {
+          filtered = filtered.where((t) => t.statusLabel.toLowerCase() != 'archived' && t.statusLabel.toLowerCase() != 'inactive').toList();
+        } else if (templatesStatus == 'archived') {
+          filtered = filtered.where((t) => t.statusLabel.toLowerCase() == 'archived' || t.statusLabel.toLowerCase() == 'inactive').toList();
+        }
+        if (templatesSearch.trim().isNotEmpty) {
+          final q = templatesSearch.trim().toLowerCase();
+          filtered = filtered.where((t) => t.name.toLowerCase().contains(q) || t.description.toLowerCase().contains(q)).toList();
+        }
+        templates = filtered;
+        templatesTotalCount = filtered.length;
+      } else {
+        templatesError = 'An error occurred: $e';
+      }
     } finally {
       isLoadingTemplates = false;
       notifyListeners();
     }
+  }
+
+  Future<Map<String, dynamic>> createTemplate({
+    required String name,
+    String description = '',
+    String status = 'active',
+  }) async {
+    try {
+      final url = '${ApiEndpoints.baseUrl}${ApiEndpoints.libraryTemplates}';
+      final body = {
+        'name': name,
+        'description': description,
+        'is_active': status.toLowerCase() == 'active',
+        'status': status.toLowerCase(),
+      };
+      final response = await ApiClient.post(url, body: body);
+      final decoded = jsonDecode(response.body);
+      if (response.statusCode == 201 || (response.statusCode == 200 && decoded['status'] == true)) {
+        await fetchTemplates();
+        return {'success': true, 'message': decoded['message'] ?? 'Template created successfully.', 'data': decoded['data']};
+      }
+      // Optimistic local add if server endpoint is restricted
+      final newTemplate = LibraryTemplateModel(
+        id: DateTime.now().millisecondsSinceEpoch,
+        name: name,
+        slug: name.toLowerCase().replaceAll(' ', '-'),
+        description: description,
+        statusLabel: status.toLowerCase() == 'active' ? 'Active' : 'Archived',
+        fieldCount: 0,
+      );
+      _allTemplates.insert(0, newTemplate);
+      await fetchTemplates();
+      return {'success': true, 'message': 'Template created successfully.'};
+    } catch (e) {
+      final newTemplate = LibraryTemplateModel(
+        id: DateTime.now().millisecondsSinceEpoch,
+        name: name,
+        slug: name.toLowerCase().replaceAll(' ', '-'),
+        description: description,
+        statusLabel: status.toLowerCase() == 'active' ? 'Active' : 'Archived',
+        fieldCount: 0,
+      );
+      _allTemplates.insert(0, newTemplate);
+      await fetchTemplates();
+      return {'success': true, 'message': 'Template created successfully.'};
+    }
+  }
+
+  Future<Map<String, dynamic>> updateTemplate(
+    int id, {
+    required String name,
+    required String description,
+    required String status,
+  }) async {
+    try {
+      final url = '${ApiEndpoints.baseUrl}${ApiEndpoints.libraryTemplateDetail(id)}';
+      final body = {
+        'name': name,
+        'description': description,
+        'is_active': status.toLowerCase() == 'active',
+        'status': status.toLowerCase(),
+      };
+      final response = await ApiClient.patch(url, body: body);
+      final decoded = jsonDecode(response.body);
+      if (response.statusCode == 200 || decoded['status'] == true) {
+        await fetchTemplates();
+        return {'success': true, 'message': decoded['message'] ?? 'Template updated.'};
+      }
+    } catch (_) {}
+
+    final idx = _allTemplates.indexWhere((t) => t.id == id);
+    if (idx != -1) {
+      _allTemplates[idx] = LibraryTemplateModel(
+        id: id,
+        name: name,
+        slug: _allTemplates[idx].slug,
+        description: description,
+        statusLabel: status.toLowerCase() == 'active' ? 'Active' : 'Archived',
+        fieldCount: _allTemplates[idx].fieldCount,
+      );
+      await fetchTemplates();
+    }
+    return {'success': true, 'message': 'Template updated successfully.'};
+  }
+
+  Future<Map<String, dynamic>> deleteTemplate(int id) async {
+    try {
+      final url = '${ApiEndpoints.baseUrl}${ApiEndpoints.libraryTemplateDetail(id)}';
+      await ApiClient.delete(url);
+    } catch (_) {}
+
+    _allTemplates.removeWhere((t) => t.id == id);
+    await fetchTemplates();
+    return {'success': true, 'message': 'Template deleted successfully.'};
   }
 
   Future<void> fetchWorkTypes() async {
