@@ -78,7 +78,14 @@ class LibraryController extends ChangeNotifier {
         await fetchForms();
         return {"success": true, "message": decoded['message'] ?? 'Form created successfully.', "data": decoded['data']};
       }
-      return {"success": false, "message": decoded['message'] ?? 'Failed to create form.'};
+      if (response.statusCode == 405) {
+        return {
+          "success": false,
+          "message": "Form creation is not supported via mobile API (HTTP 405). Forms must be designed and configured using the Web Admin Form Builder."
+        };
+      }
+      final errMsg = decoded['message'] ?? decoded['detail'] ?? decoded['error'] ?? 'Failed to create form.';
+      return {"success": false, "message": errMsg.toString()};
     } catch (e) {
       return {"success": false, "message": "An error occurred: $e"};
     }
@@ -93,7 +100,14 @@ class LibraryController extends ChangeNotifier {
         await fetchForms();
         return {"success": true, "message": decoded['message'] ?? 'Form deleted successfully.'};
       }
-      return {"success": false, "message": decoded['message'] ?? 'Failed to delete form.'};
+      if (response.statusCode == 405) {
+        return {
+          "success": false,
+          "message": "Form deletion is not supported via mobile API (HTTP 405). Please manage forms in the Web Admin."
+        };
+      }
+      final errMsg = decoded['message'] ?? decoded['detail'] ?? decoded['error'] ?? 'Failed to delete form.';
+      return {"success": false, "message": errMsg.toString()};
     } catch (e) {
       return {"success": false, "message": "An error occurred: $e"};
     }
