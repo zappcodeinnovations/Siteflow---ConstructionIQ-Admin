@@ -18,11 +18,34 @@ class ProductivityController extends ChangeNotifier {
   String _currentView = 'member';
   String get currentView => _currentView;
 
-  // Filters
+  // Date range: either a named period ('today', 'this_week', 'this_month',
+  // 'this_year') or 'custom' with explicit fromDate/toDate. Defaults to
+  // "This Month" to match the web admin portal's default preset.
+  String _period = 'this_month';
+  String get period => _period;
+
   String? _fromDate;
-  String get fromDate => _fromDate ?? "01/06/2026";
+  String get fromDate => _fromDate ?? '';
   String? _toDate;
-  String get toDate => _toDate ?? "22/06/2026";
+  String get toDate => _toDate ?? '';
+
+  static const Map<String, String> periodLabels = {
+    'today': 'Today',
+    'this_week': 'This Week',
+    'this_month': 'This Month',
+    'this_year': 'This Year',
+    'custom': 'Custom',
+  };
+
+  String get periodLabel {
+    if (_period == 'custom' && _fromDate != null && _toDate != null) {
+      return '$_fromDate - $_toDate';
+    }
+    return periodLabels[_period] ?? 'This Month';
+  }
+
+  String? _selectedClient;
+  String? get selectedClient => _selectedClient;
 
   String? _selectedTeam;
   String? get selectedTeam => _selectedTeam;
@@ -42,12 +65,17 @@ class ProductivityController extends ChangeNotifier {
       String url = ApiEndpoints.baseUrl + '/productivity/?';
       List<String> queryParams = [];
 
-      if (_fromDate != null) queryParams.add('from=$_fromDate');
-      if (_toDate != null) queryParams.add('to=$_toDate');
+      if (_period == 'custom' && _fromDate != null && _toDate != null) {
+        queryParams.add('from=$_fromDate');
+        queryParams.add('to=$_toDate');
+      } else {
+        queryParams.add('period=$_period');
+      }
+      if (_selectedClient != null && _selectedClient!.isNotEmpty) queryParams.add('client=$_selectedClient');
       if (_selectedTeam != null && _selectedTeam!.isNotEmpty) queryParams.add('team=$_selectedTeam');
       if (_selectedMember != null && _selectedMember!.isNotEmpty) queryParams.add('member=$_selectedMember');
       if (_selectedProject != null && _selectedProject!.isNotEmpty) queryParams.add('project=$_selectedProject');
-      
+
       url += queryParams.join('&');
 
       final response = await ApiClient.get(url);
@@ -73,9 +101,24 @@ class ProductivityController extends ChangeNotifier {
     }
   }
 
+  void setPeriod(String period) {
+    _period = period;
+    if (period != 'custom') {
+      _fromDate = null;
+      _toDate = null;
+    }
+    notifyListeners();
+  }
+
   void setDateRange(String from, String to) {
+    _period = 'custom';
     _fromDate = from;
     _toDate = to;
+    notifyListeners();
+  }
+
+  void setClient(String? client) {
+    _selectedClient = client;
     notifyListeners();
   }
 

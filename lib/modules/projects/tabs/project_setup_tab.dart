@@ -113,8 +113,12 @@ class _ProjectSetupTabState extends State<ProjectSetupTab> {
     final setup = widget.projectSetup!;
     final metadata = setup['basic_metadata'] ?? {};
     final dropdowns = setup['dropdown_options'] ?? {};
+    final assignments = setup['assignments'] ?? {};
     final availableTeams = dropdowns['available_teams'] as List? ?? [];
     final availableWorkers = dropdowns['available_workers'] as List? ?? [];
+    // The people actually assigned to this project (not the full list of
+    // everyone eligible to be assigned - that's `available_managers`).
+    final assignedManagers = (assignments['contractors'] as List?) ?? [];
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24.0),
@@ -322,13 +326,20 @@ class _ProjectSetupTabState extends State<ProjectSetupTab> {
                       title: "Assignments",
                       icon: IconlyLight.profile,
                       children: [
+                        if (assignedManagers.isEmpty)
+                          Text(
+                            "No managers assigned to this project yet.",
+                            style: TextStyle(
+                              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                              fontSize: 13,
+                            ),
+                          ),
                         Align(
                           alignment: Alignment.centerLeft,
                           child: Wrap(
                             spacing: 8,
                             runSpacing: 8,
-                            children:
-                                (dropdowns['available_managers'] as List? ?? [])
+                            children: assignedManagers
                                     .map((m) {
                                       return Chip(
                                         avatar: CircleAvatar(

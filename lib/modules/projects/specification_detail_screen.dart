@@ -160,6 +160,21 @@ class _AttributesTab extends StatefulWidget {
 class _AttributesTabState extends State<_AttributesTab> {
   final Map<int, dynamic> _pendingValues = {};
 
+  String _attributeTypeLabel(String type) {
+    switch (type) {
+      case 'number':
+        return 'Number';
+      case 'yes_no':
+        return 'Yes / No';
+      case 'select':
+        return 'Select';
+      case 'multiselect':
+        return 'Multiselect';
+      default:
+        return 'Text';
+    }
+  }
+
   Future<void> _showAddDefinitionDialog() async {
     final nameController = TextEditingController();
     final optionsController = TextEditingController();
@@ -278,7 +293,18 @@ class _AttributesTabState extends State<_AttributesTab> {
                           children: [
                             Row(
                               children: [
-                                Expanded(child: Text(def['name']?.toString() ?? '', style: const TextStyle(fontWeight: FontWeight.bold))),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(def['name']?.toString() ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                      Text(
+                                        _attributeTypeLabel(type),
+                                        style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                                 IconButton(
                                   icon: const Icon(IconlyLight.delete, size: 16, color: Colors.red),
                                   onPressed: () => _confirmDeleteDefinition(defId, def['name']?.toString() ?? ''),
@@ -296,9 +322,13 @@ class _AttributesTabState extends State<_AttributesTab> {
                             else if (type == 'select')
                               DropdownButtonFormField<String>(
                                 initialValue: options.contains(currentValue) ? currentValue as String : null,
-                                decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true),
+                                decoration: InputDecoration(
+                                  border: const OutlineInputBorder(),
+                                  isDense: true,
+                                  hintText: options.isEmpty ? 'No options configured' : 'Select ${def['name'] ?? 'value'}',
+                                ),
                                 items: options.map((o) => DropdownMenuItem(value: o, child: Text(o))).toList(),
-                                onChanged: (val) => setState(() => _pendingValues[defId] = val),
+                                onChanged: options.isEmpty ? null : (val) => setState(() => _pendingValues[defId] = val),
                               )
                             else if (type == 'multiselect')
                               Wrap(
@@ -327,7 +357,11 @@ class _AttributesTabState extends State<_AttributesTab> {
                                 initialValue: currentValue?.toString() ?? '',
                                 keyboardType: type == 'number' ? TextInputType.number : TextInputType.text,
                                 maxLines: def['use_large_text_input'] == true ? 3 : 1,
-                                decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true),
+                                decoration: InputDecoration(
+                                  border: const OutlineInputBorder(),
+                                  isDense: true,
+                                  hintText: type == 'number' ? 'Enter a number' : 'Enter ${def['name'] ?? 'value'}',
+                                ),
                                 onChanged: (val) => _pendingValues[defId] = val,
                               ),
                           ],
@@ -381,20 +415,41 @@ class _MaterialsTab extends StatelessWidget {
           height: 400,
           child: available.isEmpty
               ? const Center(child: Text("No more materials to add."))
-              : ListView.builder(
+              : ListView.separated(
                   itemCount: available.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
                   itemBuilder: (context, index) {
                     final material = available[index];
-                    return ListTile(
-                      title: Text(material['name']?.toString() ?? ''),
-                      onTap: () async {
-                        Navigator.pop(dialogContext);
-                        final result = await controller.addMaterial(material['id'] as int);
-                        if (!context.mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(result['message'] ?? ''), backgroundColor: result['success'] == true ? Colors.green : Colors.red),
-                        );
-                      },
+                    return Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade300),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        borderRadius: BorderRadius.circular(10),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(10),
+                          onTap: () async {
+                            Navigator.pop(dialogContext);
+                            final result = await controller.addMaterial(material['id'] as int);
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(result['message'] ?? ''), backgroundColor: result['success'] == true ? Colors.green : Colors.red),
+                            );
+                          },
+                          child: ListTile(
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            leading: CircleAvatar(
+                              radius: 16,
+                              backgroundColor: const Color(0xFF0D6EFD).withOpacity(0.1),
+                              child: const Icon(IconlyLight.bag, size: 16, color: Color(0xFF0D6EFD)),
+                            ),
+                            title: Text(material['name']?.toString() ?? ''),
+                            trailing: const Icon(IconlyLight.plus, size: 18),
+                          ),
+                        ),
+                      ),
                     );
                   },
                 ),
@@ -457,15 +512,16 @@ class _PriceTab extends StatelessWidget {
   final SpecificationDetailController controller;
   const _PriceTab({required this.controller});
 
-  Future<void> _showAddItemDialog(BuildContext context) async {
-    final nameController = TextEditingController();
-    final quantityController = TextEditingController(text: '1');
-    final unitPriceController = TextEditingController(text: '0.00');
+  Future<void> _showItemDialog(BuildContext context, {Map? existing}) async {
+    final isEdit = existing != null;
+    final nameController = TextEditingController(text: existing?['name']?.toString() ?? '');
+    final quantityController = TextEditingController(text: existing?['quantity']?.toString() ?? '1');
+    final unitPriceController = TextEditingController(text: existing?['unit_price']?.toString() ?? '0.00');
 
     await showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text("Add Price Item"),
+        title: Text(isEdit ? "Edit Price Item" : "Add Price Item"),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -483,17 +539,24 @@ class _PriceTab extends StatelessWidget {
               final name = nameController.text.trim();
               if (name.isEmpty) return;
               Navigator.pop(dialogContext);
-              final result = await controller.addPriceItem(
-                name: name,
-                quantity: quantityController.text.trim(),
-                unitPrice: unitPriceController.text.trim(),
-              );
+              final result = isEdit
+                  ? await controller.updatePriceItem(
+                      itemId: existing['id'] as int,
+                      name: name,
+                      quantity: quantityController.text.trim(),
+                      unitPrice: unitPriceController.text.trim(),
+                    )
+                  : await controller.addPriceItem(
+                      name: name,
+                      quantity: quantityController.text.trim(),
+                      unitPrice: unitPriceController.text.trim(),
+                    );
               if (!context.mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text(result['message'] ?? ''), backgroundColor: result['success'] == true ? Colors.green : Colors.red),
               );
             },
-            child: const Text("Add"),
+            child: Text(isEdit ? "Save" : "Add"),
           ),
         ],
       ),
@@ -525,7 +588,13 @@ class _PriceTab extends StatelessWidget {
                           children: [
                             Text("£${item['total']}", style: const TextStyle(fontWeight: FontWeight.bold)),
                             IconButton(
+                              icon: const Icon(IconlyLight.edit, size: 16, color: Color(0xFF0D6EFD)),
+                              tooltip: 'Edit',
+                              onPressed: () => _showItemDialog(context, existing: item),
+                            ),
+                            IconButton(
                               icon: const Icon(IconlyLight.delete, size: 16, color: Colors.red),
+                              tooltip: 'Delete',
                               onPressed: () async {
                                 final result = await controller.deletePriceItem(item['id'] as int);
                                 if (!context.mounted) return;
@@ -556,7 +625,7 @@ class _PriceTab extends StatelessWidget {
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
-                  onPressed: () => _showAddItemDialog(context),
+                  onPressed: () => _showItemDialog(context),
                   icon: const Icon(IconlyLight.plus, size: 16),
                   label: const Text("Add Item"),
                 ),

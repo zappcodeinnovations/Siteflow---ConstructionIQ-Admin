@@ -1277,8 +1277,6 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
                                         _buildDetailItem("CLIENT", sheet.clientName),
                                         const SizedBox(height: 16),
                                         _buildOperativeItem(sheet.operative),
-                                        const SizedBox(height: 16),
-                                        _buildDetailItem("MATERIAL COST", sheet.materialCost.isNotEmpty ? "\$${sheet.materialCost}" : "\$0.00", isBold: true),
                                       ],
                                     ),
                                   ),
@@ -1291,8 +1289,6 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
                                         _buildDetailItem("JOB NO/REF", "${sheet.jobNo} / ${sheet.jobReference}"),
                                         const SizedBox(height: 16),
                                         _buildDetailItem("LOCATION", sheet.location),
-                                        const SizedBox(height: 16),
-                                        _buildDetailItem("CHARGE", sheet.charge.isNotEmpty ? "\$${sheet.charge}" : "\$0.00", isBold: true, color: isDark ? Colors.white : const Color(0xFF0D6EFD)),
                                       ],
                                     ),
                                   ),
@@ -1308,7 +1304,13 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    "Created: ${DateHelper.formatToLocal(sheet.created)}",
+                                    // sheet.created is already localized to the
+                                    // device timezone server-side (the request
+                                    // sends tz=<device tz>) - re-running it
+                                    // through DateHelper here would treat this
+                                    // already-local string as UTC and shift it
+                                    // a second time.
+                                    "Created: ${sheet.created}",
                                     style: TextStyle(fontSize: 12, color: textSecondary),
                                   ),
                                   const SizedBox(height: 4),
@@ -1317,7 +1319,7 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
                                       Icon(IconlyLight.time_circle, size: 12, color: textSecondary),
                                       const SizedBox(width: 4),
                                       Text(
-                                        "Updated: ${DateHelper.formatToLocal(sheet.lastUpdated)}",
+                                        "Updated: ${sheet.lastUpdated}",
                                         style: TextStyle(fontSize: 12, color: textSecondary),
                                       ),
                                     ],

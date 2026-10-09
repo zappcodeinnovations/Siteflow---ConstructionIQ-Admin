@@ -80,7 +80,11 @@ class JobSheetController extends ChangeNotifier {
       queryParams.add('project=${Uri.encodeComponent(_selectedProject!)}');
     }
 
-    var statusVal = _selectedStatus.replaceAll('Status: ', '').toLowerCase().trim();
+    var statusVal = _selectedStatus
+        .replaceAll('Status: ', '')
+        .toLowerCase()
+        .trim()
+        .replaceAll(' ', '_');
     if (statusVal.isEmpty) statusVal = 'all';
     queryParams.add('status=${Uri.encodeComponent(statusVal)}');
     if (_selectedSheetNo?.isNotEmpty == true) queryParams.add('sheet_no=${Uri.encodeComponent(_selectedSheetNo!)}');

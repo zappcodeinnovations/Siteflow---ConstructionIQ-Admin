@@ -1,6 +1,10 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'timesheet_controller.dart';
 import 'package:iconly/iconly.dart';
+import '../../core/network/api_client.dart';
+import '../../core/network/api_endpoints.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/custom_date_picker_dialog.dart';
 
@@ -17,15 +21,71 @@ class _AddAttendanceDialogState extends State<AddAttendanceDialog> {
   String? _selectedOperatorId;
   String? _selectedProjectId;
   String? _selectedJobId;
-  String? _selectedTaskSheet;
 
   DateTime? _clockIn;
   DateTime? _clockOut;
-  
+
   final TextEditingController _notesController = TextEditingController();
   final TextEditingController _signatureController = TextEditingController();
 
   bool _isSubmitting = false;
+
+  // Real job options for the cascading Operative -> Project -> Task
+  // dropdowns, loaded from /api/timesheets/entry-options/. Each entry
+  // carries operator_id/project_id so the client can filter locally,
+  // mirroring the web admin's "Add Attendance" modal.
+  bool _loadingJobs = true;
+  List<Map<String, dynamic>> _entryJobs = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadEntryOptions();
+  }
+
+  Future<void> _loadEntryOptions() async {
+    try {
+      final response = await ApiClient.get('${ApiEndpoints.baseUrl}/timesheets/entry-options/');
+      final body = jsonDecode(response.body);
+      if (response.statusCode == 200 && body['status'] == true) {
+        final jobs = (body['data']?['jobs'] as List?) ?? [];
+        if (mounted) {
+          setState(() {
+            _entryJobs = jobs.map((e) => Map<String, dynamic>.from(e)).toList();
+          });
+        }
+      }
+    } catch (_) {
+      // Non-fatal: the Task dropdown just stays empty (project/job remain
+      // optional on submit per the backend's /timesheets/add/ contract).
+    } finally {
+      if (mounted) setState(() => _loadingJobs = false);
+    }
+  }
+
+  List<Map<String, dynamic>> get _jobsForSelectedOperator {
+    if (_selectedOperatorId == null) return [];
+    return _entryJobs.where((job) => job['operator_id'].toString() == _selectedOperatorId).toList();
+  }
+
+  List<Map<String, dynamic>> get _projectsForSelectedOperator {
+    final seen = <String>{};
+    final result = <Map<String, dynamic>>[];
+    for (final job in _jobsForSelectedOperator) {
+      final id = job['project_id'].toString();
+      if (seen.add(id)) {
+        result.add({'id': id, 'name': job['project_name'], 'code': job['project_code']});
+      }
+    }
+    return result;
+  }
+
+  List<Map<String, dynamic>> get _jobsForSelectedOperatorAndProject {
+    if (_selectedProjectId == null) return [];
+    return _jobsForSelectedOperator
+        .where((job) => job['project_id'].toString() == _selectedProjectId)
+        .toList();
+  }
 
   String _formatDateTime(DateTime dt) {
     return "${dt.day.toString().padLeft(2, '0')}-${dt.month.toString().padLeft(2, '0')}-${dt.year} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}";
@@ -74,12 +134,12 @@ class _AddAttendanceDialogState extends State<AddAttendanceDialog> {
 
     final payload = {
       "operator": int.parse(_selectedOperatorId!),
-      "project": _selectedProjectId != null ? int.parse(_selectedProjectId ?? "N/A") : null,
-      "job": _selectedJobId!= null? int.parse(_selectedJobId ?? "N/A") : null,
+      "project": _selectedProjectId != null ? int.parse(_selectedProjectId!) : null,
+      "job": _selectedJobId != null ? int.parse(_selectedJobId!) : null,
       "clock_in": _clockIn!.toIso8601String().split('.').first,
       "clock_out": _clockOut!.toIso8601String().split('.').first,
-      "location_latitude": "51.5074", // Mock location
-      "location_longitude": "-0.1278",
+      // location_latitude/longitude intentionally omitted: the backend
+      // falls back to the selected project's own location automatically.
       "notes": _notesController.text,
     };
 
@@ -158,36 +218,57 @@ class _AddAttendanceDialogState extends State<AddAttendanceDialog> {
                       children: [
                         Expanded(
                           child: _buildPremiumDropdown(
-                            "Operative *", 
-                            _selectedOperatorId, 
+                            "Operative *",
+                            _selectedOperatorId,
                             operators.map((o) => DropdownMenuItem(value: o['id'].toString(), child: Text(o['name'].toString(), overflow: TextOverflow.ellipsis))).toList(),
-                            (val) => setState(() => _selectedOperatorId = val),
+                            (val) => setState(() {
+                              _selectedOperatorId = val;
+                              _selectedProjectId = null;
+                              _selectedJobId = null;
+                            }),
                           ),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
                           child: _buildPremiumDropdown(
-                            "Project",
-                            _selectedProjectId, 
-                            projects.map((p) => DropdownMenuItem(value: p['id'].toString(), child: Text(p['name'].toString(), overflow: TextOverflow.ellipsis))).toList(),
-                            (val) => setState(() => _selectedProjectId = val),
+                            _selectedOperatorId == null ? "Project (select operative first)" : "Project",
+                            _selectedProjectId,
+                            _projectsForSelectedOperator
+                                .map((p) => DropdownMenuItem(
+                                      value: p['id'].toString(),
+                                      child: Text(
+                                        p['code'] != null && p['code'].toString().isNotEmpty
+                                            ? "${p['name']} (${p['code']})"
+                                            : p['name'].toString(),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ))
+                                .toList(),
+                            _selectedOperatorId == null
+                                ? null
+                                : (val) => setState(() {
+                                      _selectedProjectId = val;
+                                      _selectedJobId = null;
+                                    }),
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 16),
                     _buildPremiumDropdown(
-                      "Task Name (Job) *", 
-                      _selectedJobId, 
-                      const [DropdownMenuItem(value: "22", child: Text("Job 22 (Mocked for API)"))],
-                      (val) => setState(() => _selectedJobId = val),
-                    ),
-                    const SizedBox(height: 16),
-                    _buildPremiumDropdown(
-                      "Task Sheet *", 
-                      _selectedTaskSheet, 
-                      const [DropdownMenuItem(value: "drilling", child: Text("Drilling Form"))],
-                      (val) => setState(() => _selectedTaskSheet = val),
+                      _loadingJobs
+                          ? "Task Name (Job) - loading…"
+                          : _selectedProjectId == null
+                              ? "Task Name (Job) - select project first"
+                              : "Task Name (Job)",
+                      _selectedJobId,
+                      _jobsForSelectedOperatorAndProject
+                          .map((job) => DropdownMenuItem(
+                                value: job['id'].toString(),
+                                child: Text(job['label'].toString(), overflow: TextOverflow.ellipsis),
+                              ))
+                          .toList(),
+                      _selectedProjectId == null ? null : (val) => setState(() => _selectedJobId = val),
                     ),
                     const SizedBox(height: 16),
                     Row(
@@ -200,19 +281,6 @@ class _AddAttendanceDialogState extends State<AddAttendanceDialog> {
                           child: _buildDateTimeField("Clocked out *", _clockOut, () => _selectDateTime(false)),
                         ),
                       ],
-                    ),
-                    const SizedBox(height: 16),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          side: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        onPressed: () {},
-                        icon: Icon(IconlyLight.location, size: 16, color: isDark ? Colors.white : Colors.black87),
-                        label: Text("Use Current Location", style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
-                      ),
                     ),
                     const SizedBox(height: 16),
                     _buildPremiumTextField("Notes", _notesController, maxLines: 3),
@@ -261,7 +329,7 @@ class _AddAttendanceDialogState extends State<AddAttendanceDialog> {
     );
   }
 
-  Widget _buildPremiumDropdown(String label, String? value, List<DropdownMenuItem<String>> items, Function(String?) onChanged) {
+  Widget _buildPremiumDropdown(String label, String? value, List<DropdownMenuItem<String>> items, Function(String?)? onChanged) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final boxBgColor = isDark ? const Color(0xFF1F2E40) : Colors.grey.shade50;
     final borderColor = isDark ? Colors.white24 : Colors.grey.shade200;

@@ -247,6 +247,27 @@ class SpecificationDetailController extends ChangeNotifier {
     }
   }
 
+  Future<Map<String, dynamic>> updatePriceItem({
+    required int itemId,
+    required String name,
+    required String quantity,
+    required String unitPrice,
+  }) async {
+    try {
+      final url = '${ApiEndpoints.baseUrl}${ApiEndpoints.projectSpecificationPriceItemDetail(projectId, specId, itemId)}';
+      final response = await ApiClient.patch(url, body: {"name": name, "quantity": quantity, "unit_price": unitPrice});
+      final decoded = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        await _fetchSpec();
+        notifyListeners();
+        return {"success": true, "message": decoded['message'] ?? 'Updated.'};
+      }
+      return {"success": false, "message": decoded['message'] ?? 'Failed to update item.'};
+    } catch (e) {
+      return {"success": false, "message": "An error occurred: $e"};
+    }
+  }
+
   Future<Map<String, dynamic>> deletePriceItem(int itemId) async {
     try {
       final url = '${ApiEndpoints.baseUrl}${ApiEndpoints.projectSpecificationPriceItemDetail(projectId, specId, itemId)}';

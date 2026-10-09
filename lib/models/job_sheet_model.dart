@@ -1,5 +1,6 @@
 class JobSheet {
   final int id;
+  final String source;
   final String sheetNo;
   final String status;
   final String statusLabel;
@@ -20,9 +21,14 @@ class JobSheet {
   final String lastUpdated;
   final String formHtmlUrl;
   final String viewFormInBrowserUrl;
+  final String rejectionReason;
+  final String reviewedBy;
+  final String reviewed;
+  final int resubmissionCount;
 
   JobSheet({
     required this.id,
+    required this.source,
     required this.sheetNo,
     required this.status,
     required this.statusLabel,
@@ -43,11 +49,22 @@ class JobSheet {
     required this.lastUpdated,
     required this.formHtmlUrl,
     required this.viewFormInBrowserUrl,
+    required this.rejectionReason,
+    required this.reviewedBy,
+    required this.reviewed,
+    required this.resubmissionCount,
   });
+
+  // Reviewable from mobile (approve / reject / request rectification) only
+  // for Library-Form-based submissions (Daily Diary and other "Without Job
+  // Sheet" forms) that are currently awaiting review - matches what
+  // MyApprovalDecisionAPIView accepts server-side.
+  bool get isReviewable => source == 'user_form' && status == 'submitted';
 
   factory JobSheet.fromJson(Map<String, dynamic> json) {
     return JobSheet(
       id: json['id'] ?? 0,
+      source: json['source']?.toString() ?? '',
       sheetNo: json['sheet_no'] ?? '',
       status: json['status'] ?? 'Unknown',
       statusLabel: json['status_label'] ?? 'Unknown',
@@ -68,6 +85,10 @@ class JobSheet {
       lastUpdated: json['last_updated'] ?? '',
       formHtmlUrl: json['form_html_url'] ?? '',
       viewFormInBrowserUrl: json['view_form_in_browser_url'] ?? '',
+      rejectionReason: json['rejection_reason']?.toString() ?? '',
+      reviewedBy: json['reviewed_by']?.toString() ?? '',
+      reviewed: json['reviewed']?.toString() ?? '',
+      resubmissionCount: json['resubmission_count'] is int ? json['resubmission_count'] : 0,
     );
   }
 }

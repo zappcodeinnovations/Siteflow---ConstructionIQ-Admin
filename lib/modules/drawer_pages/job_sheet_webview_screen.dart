@@ -56,8 +56,30 @@ Page resource error:
           ''');
           },
         ),
-      );
-      
+      )
+      // Without this, a form's JavaScript alert() falls back to the WebView
+      // engine's own raw browser-chrome dialog instead of looking native.
+      ..setOnJavaScriptAlertDialog((request) async {
+        if (!mounted) return;
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        await showDialog<void>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            backgroundColor: isDark ? AppTheme.darkSurface : Colors.white,
+            content: Text(
+              request.message,
+              style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      });
+
     _loadUrlWithAuth();
   }
 

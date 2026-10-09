@@ -6,6 +6,7 @@ import 'package:iconly/iconly.dart';
 import '../../core/network/api_client.dart';
 import '../../core/network/api_endpoints.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/date_helper.dart';
 import '../../core/widgets/background_stripes_painter.dart';
 import '../../core/widgets/custom_drawer.dart';
 
@@ -20,6 +21,7 @@ class _WorkforcePlannerScreenState extends State<WorkforcePlannerScreen> {
   bool _loading = true;
   String? _error;
   Map<String, dynamic> _data = {};
+  int? _selectedProjectId;
 
   @override
   void initState() {
@@ -27,14 +29,20 @@ class _WorkforcePlannerScreenState extends State<WorkforcePlannerScreen> {
     _load();
   }
 
-  Future<void> _load() async {
+  Future<void> _load({int? projectId}) async {
+    setState(() => _loading = true);
     try {
+      final query = projectId != null ? '?project_id=$projectId' : '';
       final response = await ApiClient.get(
-        '${ApiEndpoints.baseUrl}/workforce-planner/',
+        '${ApiEndpoints.baseUrl}/workforce-planner/$query',
       );
       final body = jsonDecode(response.body);
       if (response.statusCode == 200 && body['status'] == true) {
         _data = Map<String, dynamic>.from(body['data'] ?? {});
+        final project = _data['project'] as Map?;
+        _selectedProjectId = project != null
+            ? int.tryParse(project['id'].toString())
+            : null;
         _error = null;
       } else {
         _error =
@@ -49,6 +57,7 @@ class _WorkforcePlannerScreenState extends State<WorkforcePlannerScreen> {
   @override
   Widget build(BuildContext context) {
     final rows = _data['rows'] as List? ?? [];
+    final projects = _data['projects'] as List? ?? [];
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardColor = isDark ? AppTheme.darkSurfaceRaised : Colors.white;
     final textColor = isDark ? AppTheme.darkText : const Color(0xFF0F2C4A);
@@ -62,6 +71,40 @@ class _WorkforcePlannerScreenState extends State<WorkforcePlannerScreen> {
           'Workforce Planner',
           style: TextStyle(fontWeight: FontWeight.w700),
         ),
+        actions: [
+          if (projects.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Center(
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<int>(
+                    value: _selectedProjectId,
+                    hint: const Text(
+                      'Select project',
+                      style: TextStyle(color: Colors.white70, fontSize: 13),
+                    ),
+                    dropdownColor: isDark
+                        ? AppTheme.darkSurfaceRaised
+                        : Colors.white,
+                    iconEnabledColor: Colors.white,
+                    style: const TextStyle(color: Colors.white, fontSize: 13),
+                    items: [
+                      for (final project in projects)
+                        DropdownMenuItem<int>(
+                          value: int.tryParse(project['id'].toString()),
+                          child: Text(project['name']?.toString() ?? '-'),
+                        ),
+                    ],
+                    onChanged: (value) {
+                      if (value == null) return;
+                      setState(() => _selectedProjectId = value);
+                      _load(projectId: value);
+                    },
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
       drawer: const CustomDrawer(),
       body: Stack(
@@ -128,7 +171,7 @@ class _WorkforcePlannerScreenState extends State<WorkforcePlannerScreen> {
                                     ),
                                     const SizedBox(height: 5),
                                     Text(
-                                      '${_data['week_start'] ?? ''} — ${_data['week_end'] ?? ''}',
+                                      '${DateHelper.formatDate(_data['week_start']?.toString())} — ${DateHelper.formatDate(_data['week_end']?.toString())}',
                                       style: TextStyle(
                                         fontSize: 12,
                                         color: isDark
@@ -234,7 +277,7 @@ class _WorkforcePlannerScreenState extends State<WorkforcePlannerScreen> {
                         size: 20,
                       ),
                       title: Text(
-                        cell['date']?.toString() ?? '',
+                        DateHelper.formatDate(cell['date']?.toString()),
                         style: TextStyle(
                           color: textColor,
                           fontWeight: FontWeight.w600,

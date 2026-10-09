@@ -20,11 +20,107 @@ class ProductivityScreen extends StatefulWidget {
 
 class _ProductivityScreenState extends State<ProductivityScreen> {
   final ProductivityController _controller = ProductivityController();
+  String _searchQuery = '';
+  List<FileSystemEntity> _recentReports = [];
 
   @override
   void initState() {
     super.initState();
     _controller.fetchProductivity();
+    _loadRecentReports();
+  }
+
+  Future<void> _loadRecentReports() async {
+    try {
+      final directory = await getTemporaryDirectory();
+      final files = directory
+          .listSync()
+          .whereType<File>()
+          .where((f) => f.path.contains('Productivity_Report_'))
+          .toList()
+        ..sort((a, b) => b.statSync().modified.compareTo(a.statSync().modified));
+      if (mounted) setState(() => _recentReports = files.take(10).toList());
+    } catch (_) {
+      // Non-fatal: "My Reports" just stays empty.
+    }
+  }
+
+  void _showMyReports() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        return DraggableScrollableSheet(
+          initialChildSize: 0.5,
+          maxChildSize: 0.85,
+          minChildSize: 0.3,
+          expand: false,
+          builder: (context, scrollController) => Container(
+            decoration: BoxDecoration(
+              color: isDark ? AppTheme.darkSurface : Colors.white,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'My Reports',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : const Color(0xFF0F2C4A),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(IconlyLight.close_square),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: _recentReports.isEmpty
+                      ? Center(
+                          child: Text(
+                            'No recent reports',
+                            style: TextStyle(
+                              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                            ),
+                          ),
+                        )
+                      : ListView.separated(
+                          controller: scrollController,
+                          itemCount: _recentReports.length,
+                          separatorBuilder: (_, __) => const Divider(height: 1),
+                          itemBuilder: (context, index) {
+                            final file = _recentReports[index] as File;
+                            final name = file.path.split(Platform.pathSeparator).last;
+                            return ListTile(
+                              leading: const Icon(IconlyLight.document, color: Color(0xFF15803D)),
+                              title: Text(
+                                name,
+                                style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              trailing: IconButton(
+                                icon: const Icon(IconlyLight.send),
+                                onPressed: () => Share.shareXFiles([XFile(file.path)], text: name),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -47,10 +143,54 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
     }
   }
 
+  Future<void> _showPeriodMenu(BuildContext context) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final RenderBox button = context.findRenderObject() as RenderBox;
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final position = RelativeRect.fromRect(
+      Rect.fromPoints(
+        button.localToGlobal(Offset.zero, ancestor: overlay),
+        button.localToGlobal(button.size.bottomRight(Offset.zero), ancestor: overlay),
+      ),
+      Offset.zero & overlay.size,
+    );
+    final selected = await showMenu<String>(
+      context: context,
+      position: position,
+      color: isDark ? AppTheme.darkSurfaceRaised : Colors.white,
+      items: [
+        for (final entry in ProductivityController.periodLabels.entries)
+          if (entry.key != 'custom')
+            PopupMenuItem<String>(
+              value: entry.key,
+              child: Text(
+                entry.value,
+                style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+              ),
+            ),
+        PopupMenuItem<String>(
+          value: 'custom',
+          child: Text(
+            'Custom range…',
+            style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+          ),
+        ),
+      ],
+    );
+    if (selected == null) return;
+    if (selected == 'custom') {
+      if (mounted) await _selectDateRange(context);
+    } else {
+      _controller.setPeriod(selected);
+      _controller.fetchProductivity();
+    }
+  }
+
   void _showFilterDialog() {
     if (_controller.data == null) return;
     
     final options = _controller.data!.filterOptions;
+    final clients = (options['clients'] as List?)?.map((e) => e.toString()).toList() ?? [];
     final teams = (options['teams'] as List?)?.map((e) => e.toString()).toList() ?? [];
     final members = (options['members'] as List?)?.map((e) => e.toString()).toList() ?? [];
     final projects = (options['projects'] as List?)?.map((e) => e.toString()).toList() ?? [];
@@ -58,6 +198,7 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
     showDialog(
       context: context,
       builder: (context) {
+        String? tempClient = _controller.selectedClient;
         String? tempTeam = _controller.selectedTeam;
         String? tempMember = _controller.selectedMember;
         String? tempProject = _controller.selectedProject;
@@ -101,6 +242,10 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
                         ],
                       ),
                       const SizedBox(height: 24),
+                      _buildPremiumDropdown("Client", tempClient, ["All Clients", ...clients], (val) {
+                        setState(() => tempClient = val == "All Clients" ? null : val);
+                      }),
+                      const SizedBox(height: 16),
                       _buildPremiumDropdown("Team", tempTeam, ["All Teams", ...teams], (val) {
                         setState(() => tempTeam = val == "All Teams" ? null : val);
                       }),
@@ -124,6 +269,7 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
                               ),
                               onPressed: () {
                                 setState(() {
+                                  tempClient = null;
                                   tempTeam = null;
                                   tempMember = null;
                                   tempProject = null;
@@ -144,6 +290,7 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                               ),
                               onPressed: () {
+                                _controller.setClient(tempClient);
                                 _controller.setTeam(tempTeam);
                                 _controller.setMember(tempMember);
                                 _controller.setProject(tempProject);
@@ -202,8 +349,13 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
     final baseUrl = '${ApiEndpoints.baseUrl}/productivity/?export=excel';
     
     List<String> queryParams = [];
-    if (_controller.fromDate.isNotEmpty) queryParams.add('from=${_controller.fromDate}');
-    if (_controller.toDate.isNotEmpty) queryParams.add('to=${_controller.toDate}');
+    if (_controller.period == 'custom' && _controller.fromDate.isNotEmpty && _controller.toDate.isNotEmpty) {
+      queryParams.add('from=${_controller.fromDate}');
+      queryParams.add('to=${_controller.toDate}');
+    } else {
+      queryParams.add('period=${_controller.period}');
+    }
+    if (_controller.selectedClient != null && _controller.selectedClient!.isNotEmpty) queryParams.add('client=${_controller.selectedClient}');
     if (_controller.selectedTeam != null && _controller.selectedTeam!.isNotEmpty) queryParams.add('team=${_controller.selectedTeam}');
     if (_controller.selectedMember != null && _controller.selectedMember!.isNotEmpty) queryParams.add('member=${_controller.selectedMember}');
     if (_controller.selectedProject != null && _controller.selectedProject!.isNotEmpty) queryParams.add('project=${_controller.selectedProject}');
@@ -223,6 +375,7 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
         final file = File('${directory.path}/Productivity_Report_$timestamp.xlsx');
         await file.writeAsBytes(response.bodyBytes);
         
+        await _loadRecentReports();
         if (mounted) {
           ScaffoldMessenger.of(context).hideCurrentSnackBar();
           await Share.shareXFiles([XFile(file.path)], text: "Productivity Report");
@@ -372,25 +525,63 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
             ],
           ),
         ),
-        ListView.separated(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: itemCount,
-          separatorBuilder: (context, index) => const SizedBox(height: 16),
-          itemBuilder: (context, index) => _buildListCard(index),
-        ),
+        if (itemCount == 0)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 32.0),
+            child: Center(
+              child: Text(
+                _searchQuery.trim().isEmpty
+                    ? "No productivity data."
+                    : "No results for \"$_searchQuery\".",
+                style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+              ),
+            ),
+          )
+        else
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: itemCount,
+            separatorBuilder: (context, index) => const SizedBox(height: 16),
+            itemBuilder: (context, index) => _buildListCard(index),
+          ),
       ],
     );
   }
 
-  int _getListItemCount() {
+  bool _matchesSearch(String name) {
+    if (_searchQuery.trim().isEmpty) return true;
+    return name.toLowerCase().contains(_searchQuery.trim().toLowerCase());
+  }
+
+  List<int> _filteredIndices() {
+    final count = _rawListItemCount();
+    final indices = <int>[];
+    for (var index = 0; index < count; index++) {
+      final name = _itemNameAt(index);
+      if (_matchesSearch(name)) indices.add(index);
+    }
+    return indices;
+  }
+
+  String _itemNameAt(int index) {
+    if (_controller.currentView == 'member') return _controller.data!.byMember[index].name;
+    if (_controller.currentView == 'team') return _controller.data!.byTeam[index].team;
+    if (_controller.currentView == 'project') return _controller.data!.byProject[index].name;
+    return '';
+  }
+
+  int _rawListItemCount() {
     if (_controller.currentView == 'member') return _controller.data!.byMember.length;
     if (_controller.currentView == 'team') return _controller.data!.byTeam.length;
     if (_controller.currentView == 'project') return _controller.data!.byProject.length;
     return 0;
   }
 
-  Widget _buildListCard(int index) {
+  int _getListItemCount() => _filteredIndices().length;
+
+  Widget _buildListCard(int displayIndex) {
+    final index = _filteredIndices()[displayIndex];
     String title = "";
     String subtitle = "";
     String initials = "";
@@ -610,47 +801,62 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          // Date Selector
+                          // Date / Period Selector
                           InkWell(
-                            onTap: () => _selectDateRange(context),
+                            onTap: () => _showPeriodMenu(context),
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                               decoration: BoxDecoration(
-                                color: Colors.white,
-                                border: Border.all(color: Colors.grey.shade200),
+                                color: isDark ? AppTheme.darkSurfaceRaised : Colors.white,
+                                border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade200),
                                 borderRadius: BorderRadius.circular(24),
-                                boxShadow: [
-                                  BoxShadow(color: Colors.grey.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2))
-                                ]
+                                boxShadow: isDark
+                                    ? null
+                                    : [
+                                        BoxShadow(color: Colors.grey.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2))
+                                      ],
                               ),
                               child: Row(
                                 children: [
-                                  Icon(IconlyLight.calendar, size: 14, color: Colors.blue.shade700),
+                                  Icon(IconlyLight.calendar, size: 14, color: isDark ? Colors.white70 : Colors.blue.shade700),
                                   const SizedBox(width: 8),
-                                  const Text("This Month", style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                                  Text(
+                                    _controller.periodLabel,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13,
+                                      color: isDark ? Colors.white : Colors.black87,
+                                    ),
+                                  ),
                                   const SizedBox(width: 4),
-                                  Icon(IconlyLight.arrow_down_2, size: 16, color: Colors.grey.shade600),
+                                  Icon(IconlyLight.arrow_down_2, size: 16, color: isDark ? Colors.white54 : Colors.grey.shade600),
                                 ],
                               ),
                             ),
                           ),
-                          
+
                           // Quick Actions
                           Row(
                             children: [
                               IconButton(
-                                icon: const Icon(IconlyLight.filter, color: Colors.black87),
+                                icon: Icon(IconlyLight.document, color: isDark ? Colors.white : Colors.black87),
+                                onPressed: _showMyReports,
+                                tooltip: 'My Reports',
+                              ),
+                              IconButton(
+                                icon: Icon(IconlyLight.filter, color: isDark ? Colors.white : Colors.black87),
                                 onPressed: _showFilterDialog,
                                 tooltip: 'Filters',
                               ),
                               IconButton(
-                                icon: const Icon(IconlyLight.download, color: Colors.black87),
+                                icon: Icon(IconlyLight.download, color: isDark ? Colors.white : Colors.black87),
                                 onPressed: _downloadReport,
                                 tooltip: 'Download Report',
                               ),
                               IconButton(
-                                icon: const Icon(IconlyLight.swap, color: Colors.black87),
+                                icon: Icon(IconlyLight.swap, color: isDark ? Colors.white : Colors.black87),
                                 onPressed: () {
+                                  _controller.setClient(null);
                                   _controller.setTeam(null);
                                   _controller.setMember(null);
                                   _controller.setProject(null);
@@ -662,8 +868,35 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
                           ),
                         ],
                       ),
+                      const SizedBox(height: 12),
+
+                      // Search Bar
+                      TextField(
+                        onChanged: (value) => setState(() => _searchQuery = value),
+                        style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 14),
+                        decoration: InputDecoration(
+                          hintText: 'Search by name',
+                          hintStyle: TextStyle(color: isDark ? Colors.white54 : Colors.grey.shade500),
+                          prefixIcon: Icon(IconlyLight.search, size: 18, color: isDark ? Colors.white54 : Colors.grey.shade600),
+                          filled: true,
+                          fillColor: isDark ? AppTheme.darkSurfaceRaised : Colors.white,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade200),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: const BorderSide(color: Color(0xFF0D6EFD)),
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                      ),
                       const SizedBox(height: 16),
-                      
+
                       // Bottom Row: View Toggles
                       SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
