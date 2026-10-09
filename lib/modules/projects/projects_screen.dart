@@ -951,47 +951,47 @@ class ProjectsScreenState extends State<ProjectsScreen> {
               itemCount: filteredList.length,
               separatorBuilder: (context, index) => const SizedBox(height: 16),
               itemBuilder: (context, index) {
-            final project = filteredList[index];
-            final isSelected = _controller.selectedProjectIds.contains(project.id);
-            
-            // Format labels
-            final projectCode = project.code.isNotEmpty ? project.code : 'PROJ-${project.id}';
-            final projectName = project.name;
-            final clientName = project.client?.name ?? 'N/A';
-            final statusLabel = project.statusLabel.isNotEmpty ? project.statusLabel : "In Progress";
-            final budget = project.budget != null ? "£${project.budget}" : '';
-            final priority = project.priority;
-            return _buildProjectCardItem(
-              context,
-              isDark: isDark,
-              cardColor: cardColor,
-              borderColor: isSelected ? const Color(0xFF0D6EFD) : borderColor,
-              borderWidth: isSelected ? 2.0 : 1.0,
-              primaryTextColor: primaryTextColor,
-              secondaryTextColor: secondaryTextColor,
-              projectCode: projectCode,
-              projectName: projectName,
-              clientName: clientName,
-              statusLabel: statusLabel,
-              budget: budget,
-              priority: priority,
-              lastActivity: project.displayActivity,
-              isSelected: isSelected,
-              onSelectChanged: (val) {
-                _controller.toggleSelection(project.id);
-              },
-              onTap: () {
-                Navigator.push(
+                final project = filteredList[index];
+                final isSelected = _controller.selectedProjectIds.contains(project.id);
+                
+                // Format labels with web portal parity
+                final projectTitle = project.displayNameWithCode;
+                final clientName = project.client?.name ?? 'N/A';
+                final ownerName = project.ownerDisplay;
+                final locationsCount = project.locationsCount;
+                final statusLabel = project.statusLabel.isNotEmpty 
+                    ? project.statusLabel 
+                    : (project.status.isNotEmpty ? project.status : "Active");
+                return _buildProjectCardItem(
                   context,
-                  MaterialPageRoute(
-                    builder: (context) => ProjectDetailsScreen(project: project),
-                  ),
+                  isDark: isDark,
+                  cardColor: cardColor,
+                  borderColor: isSelected ? const Color(0xFF0D6EFD) : borderColor,
+                  borderWidth: isSelected ? 2.0 : 1.0,
+                  primaryTextColor: primaryTextColor,
+                  secondaryTextColor: secondaryTextColor,
+                  projectTitle: projectTitle,
+                  clientName: clientName,
+                  ownerName: ownerName,
+                  locationsCount: locationsCount,
+                  statusLabel: statusLabel,
+                  lastActivity: project.displayActivity,
+                  isSelected: isSelected,
+                  onSelectChanged: (val) {
+                    _controller.toggleSelection(project.id);
+                  },
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ProjectDetailsScreen(project: project),
+                      ),
+                    );
+                  },
+                  onAssignTeam: () => _showAssignTeamDialog(context, project),
+                  onViewTeam: () => _showViewTeamDialog(context, project),
+                  onViewQr: () => _showQrCode(context, project),
                 );
-              },
-              onAssignTeam: () => _showAssignTeamDialog(context, project),
-              onViewTeam: () => _showViewTeamDialog(context, project),
-              onViewQr: () => _showQrCode(context, project),
-            );
               },
             ),
             if (_controller.isLoadingMore)
@@ -2094,6 +2094,21 @@ class ProjectsScreenState extends State<ProjectsScreen> {
     );
   }
 
+  String _getInitials(String nameOrEmail) {
+    final clean = nameOrEmail.trim();
+    if (clean.isEmpty) return '?';
+    if (clean.contains('@')) {
+      final handle = clean.split('@').first;
+      if (handle.length <= 2) return handle.toUpperCase();
+      return handle.substring(0, 2).toUpperCase();
+    }
+    final parts = clean.split(RegExp(r'\s+'));
+    if (parts.length >= 2) {
+      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    }
+    return clean.length >= 2 ? clean.substring(0, 2).toUpperCase() : clean.toUpperCase();
+  }
+
   Widget _buildProjectCardItem(
     BuildContext context, {
     required bool isDark,
@@ -2102,12 +2117,11 @@ class ProjectsScreenState extends State<ProjectsScreen> {
     required double borderWidth,
     required Color primaryTextColor,
     required Color secondaryTextColor,
-    required String projectCode,
-    required String projectName,
+    required String projectTitle,
     required String clientName,
+    required String ownerName,
+    required int locationsCount,
     required String statusLabel,
-    required String budget,
-    required String priority,
     required String lastActivity,
     required bool isSelected,
     required ValueChanged<bool?> onSelectChanged,
@@ -2116,31 +2130,21 @@ class ProjectsScreenState extends State<ProjectsScreen> {
     required VoidCallback? onViewTeam,
     required VoidCallback? onViewQr,
   }) {
-    // Priority badge styles
-    Color priorityColor = Colors.orange;
-    Color priorityBg = Colors.orange.shade50;
-    if (priority.toLowerCase() == 'high') {
-      priorityColor = Colors.red;
-      priorityBg = Colors.red.shade50;
-    } else if (priority.toLowerCase() == 'low') {
-      priorityColor = Colors.green;
-      priorityBg = Colors.green.shade50;
-    }
-    if (isDark) {
-      priorityBg = priorityColor.withValues(alpha: 0.15);
-    }
-
-    // Status badge styles matching mockup
-    Color statusColor = Colors.green;
-    Color statusBg = Colors.green.withValues(alpha: 0.1);
-    if (statusLabel.toLowerCase() == 'completed') {
-      statusColor = const Color(0xFF0D6EFD);
-      statusBg = const Color(0xFF0D6EFD).withValues(alpha: 0.1);
-    } else if (statusLabel.toLowerCase() == 'on hold' || statusLabel.toLowerCase() == 'draft') {
+    // Status badge styles matching web portal
+    Color statusColor = const Color(0xFF10B981); // Emerald / Green
+    Color statusBg = const Color(0xFF10B981).withValues(alpha: 0.12);
+    final lowerStatus = statusLabel.toLowerCase();
+    if (lowerStatus == 'completed') {
+      statusColor = const Color(0xFF10B981);
+      statusBg = const Color(0xFF10B981).withValues(alpha: 0.12);
+    } else if (lowerStatus == 'active' || lowerStatus == 'in progress') {
+      statusColor = const Color(0xFF10B981);
+      statusBg = const Color(0xFF10B981).withValues(alpha: 0.12);
+    } else if (lowerStatus == 'archived') {
+      statusColor = const Color(0xFF10B981);
+      statusBg = const Color(0xFF10B981).withValues(alpha: 0.12);
+    } else if (lowerStatus == 'on hold' || lowerStatus == 'draft') {
       statusColor = Colors.orange.shade800;
-      statusBg = Colors.orange.shade50;
-    }
-    if (isDark && (statusLabel.toLowerCase() == 'on hold' || statusLabel.toLowerCase() == 'draft')) {
       statusBg = Colors.orange.withValues(alpha: 0.15);
     }
 
@@ -2168,7 +2172,7 @@ class ProjectsScreenState extends State<ProjectsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Top Row: Icon, Name/Code, Status Pill
+                // Top Row: Icon, Combined Project Name & Code, Status Pill
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -2184,46 +2188,46 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            projectCode.toUpperCase(),
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: secondaryTextColor,
-                              letterSpacing: 0.5,
-                              fontFamily: 'Inter',
-                            ),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            projectName,
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: primaryTextColor,
-                              fontFamily: 'Inter',
-                            ),
-                          ),
-                        ],
+                      child: Text(
+                        projectTitle,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: primaryTextColor,
+                          fontFamily: 'Inter',
+                          height: 1.3,
+                        ),
                       ),
                     ),
+                    const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
                         color: statusBg,
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Text(
-                        statusLabel,
-                        style: TextStyle(
-                          color: statusColor,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          fontFamily: 'Inter',
-                        ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: BoxDecoration(
+                              color: statusColor,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            statusLabel,
+                            style: TextStyle(
+                              color: statusColor,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              fontFamily: 'Inter',
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -2231,9 +2235,10 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                 
                 const SizedBox(height: 20),
                 
-                // Details Grid (Client, Budget, Priority) with vertical divider lines
+                // Details Grid (Client, Owner, Locations) with vertical divider lines
                 IntrinsicHeight(
                   child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Client
                       Expanded(
@@ -2243,7 +2248,7 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                           children: [
                             Row(
                               children: [
-                                Icon(Icons.person_outline, size: 14, color: Colors.grey.shade400),
+                                Icon(Icons.business_outlined, size: 14, color: Colors.grey.shade400),
                                 const SizedBox(width: 4),
                                 Text(
                                   "Client",
@@ -2267,11 +2272,72 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                           ],
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      VerticalDivider(width: 1, color: isDark ? const Color(0xFF1F2E40) : Colors.grey.shade100, thickness: 1),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 10),
+                      VerticalDivider(width: 1, color: isDark ? const Color(0xFF1F2E40) : Colors.grey.shade200, thickness: 1),
+                      const SizedBox(width: 10),
                       
-                      // Budget
+                      // Owner
+                      Expanded(
+                        flex: 5,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.person_outline, size: 14, color: Colors.grey.shade400),
+                                const SizedBox(width: 4),
+                                Text(
+                                  "Owner",
+                                  style: TextStyle(fontSize: 11, color: Colors.grey.shade400, fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                if (ownerName.isNotEmpty && ownerName != 'N/A') ...[
+                                  Container(
+                                    width: 20,
+                                    height: 20,
+                                    margin: const EdgeInsets.only(right: 6),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF0D6EFD).withValues(alpha: 0.15),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      _getInitials(ownerName),
+                                      style: const TextStyle(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF0D6EFD),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                                Expanded(
+                                  child: Text(
+                                    ownerName.isNotEmpty ? ownerName : "N/A",
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                      color: primaryTextColor,
+                                      height: 1.25,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      VerticalDivider(width: 1, color: isDark ? const Color(0xFF1F2E40) : Colors.grey.shade200, thickness: 1),
+                      const SizedBox(width: 10),
+
+                      // Locations
                       Expanded(
                         flex: 3,
                         child: Column(
@@ -2279,54 +2345,25 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                           children: [
                             Row(
                               children: [
-                                Icon(Icons.account_balance_wallet_outlined, size: 14, color: Colors.grey.shade400),
+                                Icon(Icons.location_on_outlined, size: 14, color: Colors.grey.shade400),
                                 const SizedBox(width: 4),
                                 Text(
-                                  "Budget",
+                                  "Locations",
                                   style: TextStyle(fontSize: 11, color: Colors.grey.shade400, fontWeight: FontWeight.bold),
                                 ),
                               ],
                             ),
                             const SizedBox(height: 6),
                             Text(
-                              budget.isNotEmpty ? budget : "-",
+                              "$locationsCount",
                               style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.bold,
                                 color: primaryTextColor,
                                 height: 1.25,
                               ),
-                              maxLines: 2,
+                              maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      VerticalDivider(width: 1, color: isDark ? const Color(0xFF1F2E40) : Colors.grey.shade100, thickness: 1),
-                      const SizedBox(width: 12),
-
-                      // Priority
-                      Expanded(
-                        flex: 3,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              "Priority",
-                              style: TextStyle(fontSize: 11, color: Colors.grey.shade400, fontWeight: FontWeight.bold),
-                            ),
-                            const SizedBox(height: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: priorityBg,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                priority,
-                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: priorityColor),
-                              ),
                             ),
                           ],
                         ),
