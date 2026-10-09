@@ -28,12 +28,16 @@ class DrawingsTab extends StatefulWidget {
 
 class _DrawingsTabState extends State<DrawingsTab> {
   List<Map<String, dynamic>> _fetchedDrawings = [];
-  String _selectedSiteFilter = 'All Blocks, All Levels';
-  final TextEditingController _searchController = TextEditingController();
+
+  // Site Filter Hierarchical State
+  bool _isAllSelected = true;
+  final Set<String> _selectedBlocks = {};
+  final Set<String> _selectedLevels = {}; // Stored as "$blockName/$levelName"
 
   @override
   void initState() {
     super.initState();
+    _initAllSelections();
     _fetchLiveDrawings();
   }
 
@@ -45,10 +49,21 @@ class _DrawingsTabState extends State<DrawingsTab> {
     }
   }
 
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
+  void _initAllSelections() {
+    final List<Map<String, dynamic>> blocks =
+        (widget.rawBlocks ?? []).whereType<Map<String, dynamic>>().toList();
+    _selectedBlocks.clear();
+    _selectedLevels.clear();
+    for (var b in blocks) {
+      final bName = b['name']?.toString() ?? 'Block';
+      _selectedBlocks.add(bName);
+      final levels = b['levels'] as List<dynamic>? ?? [];
+      for (var l in levels) {
+        final lName = l['name']?.toString() ?? 'Level';
+        _selectedLevels.add('$bName/$lName');
+      }
+    }
+    _isAllSelected = true;
   }
 
   String _extractName(dynamic val) {
@@ -101,7 +116,7 @@ class _DrawingsTabState extends State<DrawingsTab> {
       }
     }
 
-    // 2. From _fetchedDrawings (more up-to-date with pins & location details)
+    // 2. From _fetchedDrawings
     for (var d in _fetchedDrawings) {
       final id = d['id']?.toString() ?? d['file_url']?.toString() ?? d['name']?.toString() ?? '';
       if (id.isNotEmpty) {
@@ -131,6 +146,318 @@ class _DrawingsTabState extends State<DrawingsTab> {
 
       return bMatch && lMatch;
     }).toList();
+  }
+
+  String get _activeSiteFilterSummary {
+    if (_isAllSelected) {
+      return "Site: All Blocks, All Levels";
+    }
+    if (_selectedLevels.isEmpty && _selectedBlocks.isEmpty) {
+      return "Site: None Selected";
+    }
+    if (_selectedLevels.length == 1) {
+      final parts = _selectedLevels.first.split('/');
+      if (parts.length >= 2) {
+        return "Site: ${parts[0]} / ${parts[1]}";
+      }
+      return "Site: ${_selectedLevels.first}";
+    }
+    if (_selectedBlocks.length == 1 && _selectedLevels.length > 1) {
+      return "Site: ${_selectedBlocks.first} (${_selectedLevels.length} Levels)";
+    }
+    return "Site: ${_selectedBlocks.length} Blocks, ${_selectedLevels.length} Levels";
+  }
+
+  void _showSiteFilterPopover(BuildContext context) {
+    final List<Map<String, dynamic>> blocks =
+        (widget.rawBlocks ?? []).whereType<Map<String, dynamic>>().toList();
+
+    // Local temporary state in popover
+    bool tempSelectAll = _isAllSelected;
+    final Set<String> tempBlocks = Set.from(_selectedBlocks);
+    final Set<String> tempLevels = Set.from(_selectedLevels);
+
+    showDialog(
+      context: context,
+      builder: (popoverCtx) {
+        return StatefulBuilder(
+          builder: (context, setPopoverState) {
+            final isDark = Theme.of(context).brightness == Brightness.dark;
+            final bg = isDark ? AppTheme.darkSurfaceRaised : Colors.white;
+            final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
+            final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+            final borderColor = isDark ? AppTheme.darkBorder : Colors.grey.shade200;
+
+            void toggleSelectAll(bool? val) {
+              final checked = val ?? false;
+              setPopoverState(() {
+                tempSelectAll = checked;
+                tempBlocks.clear();
+                tempLevels.clear();
+                if (checked) {
+                  for (var b in blocks) {
+                    final bName = b['name']?.toString() ?? 'Block';
+                    tempBlocks.add(bName);
+                    final levels = b['levels'] as List<dynamic>? ?? [];
+                    for (var l in levels) {
+                      final lName = l['name']?.toString() ?? 'Level';
+                      tempLevels.add('$bName/$lName');
+                    }
+                  }
+                }
+              });
+            }
+
+            void toggleBlock(String bName, List<dynamic> levels, bool? val) {
+              final checked = val ?? false;
+              setPopoverState(() {
+                if (checked) {
+                  tempBlocks.add(bName);
+                  for (var l in levels) {
+                    final lName = l['name']?.toString() ?? 'Level';
+                    tempLevels.add('$bName/$lName');
+                  }
+                } else {
+                  tempBlocks.remove(bName);
+                  for (var l in levels) {
+                    final lName = l['name']?.toString() ?? 'Level';
+                    tempLevels.remove('$bName/$lName');
+                  }
+                }
+
+                // Check if all blocks and levels are checked
+                int totalLevelsCount = 0;
+                for (var b in blocks) {
+                  final lvls = b['levels'] as List<dynamic>? ?? [];
+                  totalLevelsCount += lvls.length;
+                }
+                tempSelectAll = (totalLevelsCount > 0 && tempLevels.length == totalLevelsCount);
+              });
+            }
+
+            void toggleLevel(String bName, String lName, List<dynamic> allBlockLevels, bool? val) {
+              final checked = val ?? false;
+              final key = '$bName/$lName';
+              setPopoverState(() {
+                if (checked) {
+                  tempLevels.add(key);
+                } else {
+                  tempLevels.remove(key);
+                }
+
+                // Check if all levels in this block are selected
+                final allLevelKeys = allBlockLevels.map((l) => '$bName/${l['name']?.toString() ?? 'Level'}').toSet();
+                if (allLevelKeys.isNotEmpty && tempLevels.containsAll(allLevelKeys)) {
+                  tempBlocks.add(bName);
+                } else {
+                  tempBlocks.remove(bName);
+                }
+
+                int totalLevelsCount = 0;
+                for (var b in blocks) {
+                  final lvls = b['levels'] as List<dynamic>? ?? [];
+                  totalLevelsCount += lvls.length;
+                }
+                tempSelectAll = (totalLevelsCount > 0 && tempLevels.length == totalLevelsCount);
+              });
+            }
+
+            return Dialog(
+              backgroundColor: bg,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 380, maxHeight: 520),
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Popover Header: Title
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          "Site Filter",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: textColor,
+                            fontFamily: 'Inter',
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, size: 20),
+                          color: textSecondary,
+                          splashRadius: 18,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                          onPressed: () => Navigator.pop(popoverCtx),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Divider(height: 1, color: borderColor),
+                    const SizedBox(height: 10),
+
+                    // Hierarchical Checkbox Tree
+                    Expanded(
+                      child: SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Master "Select All" Checkbox
+                            CheckboxListTile(
+                              value: tempSelectAll,
+                              activeColor: const Color(0xFF0D6EFD),
+                              contentPadding: EdgeInsets.zero,
+                              dense: true,
+                              controlAffinity: ListTileControlAffinity.leading,
+                              title: Text(
+                                "Select All",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                  color: textColor,
+                                  fontFamily: 'Inter',
+                                ),
+                              ),
+                              onChanged: toggleSelectAll,
+                            ),
+                            const SizedBox(height: 4),
+                            Divider(height: 1, color: isDark ? Colors.white10 : Colors.grey.shade200),
+                            const SizedBox(height: 4),
+
+                            if (blocks.isEmpty)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 20),
+                                child: Text(
+                                  "No blocks or levels available.",
+                                  style: TextStyle(fontSize: 13, color: textSecondary),
+                                ),
+                              )
+                            else
+                              ...blocks.map((block) {
+                                final bName = block['name']?.toString() ?? 'Block';
+                                final levels = block['levels'] as List<dynamic>? ?? [];
+                                final isBlockChecked = tempBlocks.contains(bName);
+
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Parent Block Checkbox
+                                    CheckboxListTile(
+                                      value: isBlockChecked,
+                                      activeColor: const Color(0xFF0D6EFD),
+                                      contentPadding: EdgeInsets.zero,
+                                      dense: true,
+                                      controlAffinity: ListTileControlAffinity.leading,
+                                      title: Text(
+                                        bName,
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 14,
+                                          color: textColor,
+                                          fontFamily: 'Inter',
+                                        ),
+                                      ),
+                                      onChanged: (val) => toggleBlock(bName, levels, val),
+                                    ),
+
+                                    // Indented Child Level Checkboxes
+                                    ...levels.map((lvl) {
+                                      final lName = lvl['name']?.toString() ?? 'Level';
+                                      final levelKey = '$bName/$lName';
+                                      final isLevelChecked = tempLevels.contains(levelKey);
+
+                                      return Padding(
+                                        padding: const EdgeInsets.only(left: 28.0),
+                                        child: CheckboxListTile(
+                                          value: isLevelChecked,
+                                          activeColor: const Color(0xFF0D6EFD),
+                                          contentPadding: EdgeInsets.zero,
+                                          dense: true,
+                                          controlAffinity: ListTileControlAffinity.leading,
+                                          title: Text(
+                                            lName,
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              color: textColor,
+                                              fontFamily: 'Inter',
+                                            ),
+                                          ),
+                                          onChanged: (val) => toggleLevel(bName, lName, levels, val),
+                                        ),
+                                      );
+                                    }),
+                                    const SizedBox(height: 4),
+                                  ],
+                                );
+                              }),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+                    Divider(height: 1, color: borderColor),
+                    const SizedBox(height: 12),
+
+                    // Action Footer: Clear & Apply Buttons
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        TextButton(
+                          onPressed: () {
+                            setPopoverState(() {
+                              tempSelectAll = false;
+                              tempBlocks.clear();
+                              tempLevels.clear();
+                            });
+                          },
+                          child: Text(
+                            "Clear",
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+                              fontFamily: 'Inter',
+                            ),
+                          ),
+                        ),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF0D6EFD),
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _isAllSelected = tempSelectAll;
+                              _selectedBlocks.clear();
+                              _selectedBlocks.addAll(tempBlocks);
+                              _selectedLevels.clear();
+                              _selectedLevels.addAll(tempLevels);
+                            });
+                            Navigator.pop(popoverCtx);
+                          },
+                          child: const Text(
+                            "Apply",
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, fontFamily: 'Inter'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   void _showRecycleBinDialog() {
@@ -321,21 +648,9 @@ class _DrawingsTabState extends State<DrawingsTab> {
     final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
     final borderColor = isDark ? AppTheme.darkBorder : Colors.grey.shade200;
 
-    // Filter options for Site dropdown
-    final List<String> siteFilterOptions = ['All Blocks, All Levels'];
-    for (var b in blocks) {
-      final bName = b['name']?.toString() ?? 'Block';
-      siteFilterOptions.add(bName);
-      final levels = b['levels'] as List<dynamic>? ?? [];
-      for (var l in levels) {
-        final lName = l['name']?.toString() ?? 'Level';
-        siteFilterOptions.add('$bName / $lName');
-      }
-    }
-
     return Column(
       children: [
-        // Web Parity Toolbar: Filters, Recycle Bin, and Action Buttons
+        // Web Parity Toolbar: Site Filter Popover Button, Recycle Bin, and Action Buttons
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
@@ -345,39 +660,39 @@ class _DrawingsTabState extends State<DrawingsTab> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Row 1: Site Filter Dropdown + Refresh + Recycle Bin
+              // Row 1: Site Filter Popover Button + Refresh + Recycle Bin
               Row(
                 children: [
-                  // Site Filter Dropdown
+                  // Site Filter Popover Trigger Button
                   Expanded(
-                    child: Container(
-                      height: 40,
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      decoration: BoxDecoration(
-                        color: isDark ? Colors.white10 : const Color(0xFFF1F5F9),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: borderColor),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: siteFilterOptions.contains(_selectedSiteFilter) ? _selectedSiteFilter : 'All Blocks, All Levels',
-                          isExpanded: true,
-                          dropdownColor: isDark ? AppTheme.darkSurfaceRaised : Colors.white,
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: textColor,
-                            fontFamily: 'Inter',
-                          ),
-                          items: siteFilterOptions.map((opt) {
-                            return DropdownMenuItem<String>(
-                              value: opt,
-                              child: Text(opt, overflow: TextOverflow.ellipsis),
-                            );
-                          }).toList(),
-                          onChanged: (val) {
-                            if (val != null) setState(() => _selectedSiteFilter = val);
-                          },
+                    child: InkWell(
+                      onTap: () => _showSiteFilterPopover(context),
+                      borderRadius: BorderRadius.circular(10),
+                      child: Container(
+                        height: 40,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.white10 : const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: borderColor),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                _activeSiteFilterSummary,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: textColor,
+                                  fontFamily: 'Inter',
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Icon(Icons.keyboard_arrow_down, size: 20, color: textSecondary),
+                          ],
                         ),
                       ),
                     ),
@@ -485,19 +800,12 @@ class _DrawingsTabState extends State<DrawingsTab> {
                     final pinCount = (rawPins is List) ? rawPins.length : (int.tryParse(drawing['pin_count']?.toString() ?? '0') ?? 0);
                     final fileUrl = _resolveUrl(drawing['file_url']?.toString() ?? drawing['file_path']?.toString() ?? drawing['file']?.toString());
 
-                    // Check site filter
-                    if (_selectedSiteFilter != 'All Blocks, All Levels') {
-                      if (_selectedSiteFilter.contains('/')) {
-                        final parts = _selectedSiteFilter.split('/');
-                        final filterB = parts[0].trim().toLowerCase();
-                        final filterL = parts[1].trim().toLowerCase();
-                        if (bName.toLowerCase().trim() != filterB || lName.toLowerCase().trim() != filterL) {
-                          return const SizedBox.shrink();
-                        }
-                      } else {
-                        if (bName.toLowerCase().trim() != _selectedSiteFilter.trim().toLowerCase()) {
-                          return const SizedBox.shrink();
-                        }
+                    // Check hierarchical site filter
+                    if (!_isAllSelected) {
+                      final key = '$bName/$lName';
+                      final isMatch = _selectedLevels.contains(key) || _selectedBlocks.contains(bName);
+                      if (!isMatch) {
+                        return const SizedBox.shrink();
                       }
                     }
 
@@ -616,7 +924,7 @@ class _DrawingsTabState extends State<DrawingsTab> {
                                       const SizedBox(height: 6),
                                       Row(
                                         children: [
-                                          Icon(IconlyLight.location, size: 13, color: const Color(0xFF0D6EFD)),
+                                          const Icon(IconlyLight.location, size: 13, color: Color(0xFF0D6EFD)),
                                           const SizedBox(width: 4),
                                           Text(
                                             "$pinCount pin${pinCount != 1 ? 's' : ''}",
@@ -709,6 +1017,16 @@ class _DrawingsTabState extends State<DrawingsTab> {
                   ...blocks.map((block) {
                     final blockName = block['name']?.toString() ?? 'Unknown Block';
                     final levels = block['levels'] as List<dynamic>? ?? [];
+
+                    // Filter block by site selection
+                    if (!_isAllSelected) {
+                      final hasMatchingLevel = levels.any((l) => _selectedLevels.contains('$blockName/${l['name']}'));
+                      final isBlockSelected = _selectedBlocks.contains(blockName);
+                      if (!isBlockSelected && !hasMatchingLevel) {
+                        return const SizedBox.shrink();
+                      }
+                    }
+
                     return _buildBlockCard(context, blockName, levels, isDark, cardColor, borderColor, textColor, textSecondary);
                   }),
               ],
@@ -764,6 +1082,15 @@ class _DrawingsTabState extends State<DrawingsTab> {
               : levels.map((l) {
                   final levelName = l['name']?.toString() ?? 'Level';
                   final levelId = l['id'];
+
+                  // Filter level if active selection
+                  if (!_isAllSelected) {
+                    final key = '$blockName/$levelName';
+                    if (!_selectedLevels.contains(key) && !_selectedBlocks.contains(blockName)) {
+                      return const SizedBox.shrink();
+                    }
+                  }
+
                   final matchingDrawings = _findDrawingsForLevel(blockName, levelName, levelId);
                   final hasDrawings = matchingDrawings.isNotEmpty;
                   final drawingCount = matchingDrawings.length;
@@ -827,6 +1154,7 @@ class _DrawingsTabState extends State<DrawingsTab> {
                                 );
                                 final pickedFile = result?.files.first;
                                 if (pickedFile == null || pickedFile.path == null || widget.projectId == null) return;
+
                                 try {
                                   final url = ApiEndpoints.baseUrl + ApiEndpoints.projectAllInOneDetails(widget.projectId!);
                                   final response = await ApiClient.postMultipart(
