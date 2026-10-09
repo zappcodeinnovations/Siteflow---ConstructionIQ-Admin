@@ -75,11 +75,12 @@ class _ApprovalStagesScreenState extends State<ApprovalStagesScreen> {
         elevation: 0,
         backgroundColor: colors.surface,
         iconTheme: IconThemeData(color: colors.onSurface),
+        titleSpacing: 0,
         title: Text(
           "Approval Stages",
           style: TextStyle(
             color: colors.onSurface,
-            fontSize: 20,
+            fontSize: 18,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -90,17 +91,19 @@ class _ApprovalStagesScreenState extends State<ApprovalStagesScreen> {
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 16.0, top: 10, bottom: 10),
-            child: ElevatedButton(
+            child: ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF0D6EFD),
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                elevation: 0,
               ),
               onPressed: _showAddStageDialog,
-              child: const Text("Add Stage", style: TextStyle(fontWeight: FontWeight.bold)),
+              icon: const Icon(Icons.add, size: 16),
+              label: const Text("Add Stage", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
             ),
           ),
         ],
@@ -110,15 +113,15 @@ class _ApprovalStagesScreenState extends State<ApprovalStagesScreen> {
           : widget.controller.stagesError != null
               ? Center(child: Text(widget.controller.stagesError!, style: const TextStyle(color: Colors.red)))
               : SingleChildScrollView(
-                  padding: const EdgeInsets.all(24.0),
+                  padding: const EdgeInsets.all(20.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         "Configure declaration stages and signer access for this project.",
-                        style: TextStyle(color: colors.onSurfaceVariant, fontSize: 14),
+                        style: TextStyle(color: colors.onSurfaceVariant, fontSize: 14, height: 1.4),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 18),
                       if (stages.isEmpty)
                         Center(
                           child: Padding(
@@ -137,85 +140,163 @@ class _ApprovalStagesScreenState extends State<ApprovalStagesScreen> {
                           final index = entry.key;
                           final stage = entry.value;
                           final signerNames = ((stage['signers'] as List?) ?? []).map((s) => (s as Map)['name']?.toString() ?? '').join(', ');
+                          final isDark = Theme.of(context).brightness == Brightness.dark;
+
                           return Container(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            padding: const EdgeInsets.all(20),
+                            margin: const EdgeInsets.only(bottom: 14),
+                            padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
                               color: colors.surface,
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(14),
                               border: Border.all(color: colors.outlineVariant),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.02),
+                                  color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.02),
                                   blurRadius: 8,
                                   offset: const Offset(0, 2),
                                 )
                               ],
                             ),
-                            child: Row(
+                            child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Column(
+                                // Top Header Row: Reorder + Stage Title + Edit & Delete Actions
+                                Row(
                                   children: [
-                                    IconButton(
-                                      icon: const Icon(IconlyLight.arrow_up_2, size: 16),
-                                      onPressed: index == 0 ? null : () => widget.controller.reorderStage(stage['id'] as int, 'up'),
-                                      constraints: const BoxConstraints(),
-                                      padding: const EdgeInsets.all(2),
+                                    // Reorder controls
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        IconButton(
+                                          icon: const Icon(IconlyLight.arrow_up_2, size: 16),
+                                          onPressed: index == 0 ? null : () => widget.controller.reorderStage(stage['id'] as int, 'up'),
+                                          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                          padding: EdgeInsets.zero,
+                                          visualDensity: VisualDensity.compact,
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(IconlyLight.arrow_down_2, size: 16),
+                                          onPressed: index == stages.length - 1 ? null : () => widget.controller.reorderStage(stage['id'] as int, 'down'),
+                                          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                          padding: EdgeInsets.zero,
+                                          visualDensity: VisualDensity.compact,
+                                        ),
+                                      ],
                                     ),
-                                    IconButton(
-                                      icon: const Icon(IconlyLight.arrow_down_2, size: 16),
-                                      onPressed: index == stages.length - 1 ? null : () => widget.controller.reorderStage(stage['id'] as int, 'down'),
-                                      constraints: const BoxConstraints(),
-                                      padding: const EdgeInsets.all(2),
+                                    const SizedBox(width: 4),
+                                    // Stage Title
+                                    Expanded(
+                                      child: Text(
+                                        stage['title']?.toString() ?? 'Stage ${index + 1}',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                          color: colors.onSurface,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    // Action buttons
+                                    OutlinedButton.icon(
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: colors.onSurface,
+                                        side: BorderSide(color: colors.outlineVariant),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                        minimumSize: Size.zero,
+                                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                      ),
+                                      onPressed: () => _showEditStageDialog(stage),
+                                      icon: const Icon(IconlyLight.edit, size: 14),
+                                      label: const Text("Edit", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    OutlinedButton.icon(
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: const Color(0xFFDC2626),
+                                        side: BorderSide(color: const Color(0xFFDC2626).withValues(alpha: 0.3)),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                        minimumSize: Size.zero,
+                                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                      ),
+                                      onPressed: () => _confirmDelete(stage),
+                                      icon: const Icon(Icons.delete_outline, size: 14),
+                                      label: const Text("Delete", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                                     ),
                                   ],
                                 ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Column(
+
+                                // Declaration Text (if present)
+                                if ((stage['declaration']?.toString() ?? '').isNotEmpty) ...[
+                                  const SizedBox(height: 8),
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 4.0),
+                                    child: Text(
+                                      stage['declaration']?.toString() ?? '',
+                                      style: TextStyle(
+                                        color: colors.onSurfaceVariant,
+                                        fontSize: 13,
+                                        height: 1.4,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+
+                                // Signers Section (Full width, cleanly styled and wrapped)
+                                const SizedBox(height: 12),
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: isDark ? Colors.white.withValues(alpha: 0.04) : const Color(0xFFF1F5F9),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: isDark ? Colors.white12 : Colors.grey.shade200,
+                                    ),
+                                  ),
+                                  child: Row(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        stage['title']?.toString() ?? '',
-                                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: colors.onSurface),
+                                      const Padding(
+                                        padding: EdgeInsets.only(top: 2.0),
+                                        child: Icon(
+                                          IconlyLight.user,
+                                          size: 15,
+                                          color: Color(0xFF0D6EFD),
+                                        ),
                                       ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        stage['declaration']?.toString() ?? '',
-                                        style: TextStyle(color: colors.onSurfaceVariant, fontSize: 14),
-                                      ),
-                                      const SizedBox(height: 12),
-                                      Text(
-                                        "Signers: $signerNames",
-                                        style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12, fontWeight: FontWeight.w600),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: RichText(
+                                          text: TextSpan(
+                                            style: TextStyle(
+                                              fontSize: 12.5,
+                                              color: colors.onSurface,
+                                              height: 1.4,
+                                            ),
+                                            children: [
+                                              const TextSpan(
+                                                text: "Signers: ",
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Color(0xFF0D6EFD),
+                                                ),
+                                              ),
+                                              TextSpan(
+                                                text: signerNames.isNotEmpty ? signerNames : "No signers assigned",
+                                                style: TextStyle(
+                                                  color: signerNames.isNotEmpty ? (isDark ? Colors.white70 : Colors.black87) : Colors.grey,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
                                       ),
                                     ],
                                   ),
                                 ),
-                                Row(
-                                  children: [
-                                    OutlinedButton(
-                                      style: OutlinedButton.styleFrom(
-                                        foregroundColor: colors.onSurface,
-                                        side: BorderSide(color: colors.outline),
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                      ),
-                                      onPressed: () => _showEditStageDialog(stage),
-                                      child: const Text("Edit", style: TextStyle(fontWeight: FontWeight.bold)),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    OutlinedButton(
-                                      style: OutlinedButton.styleFrom(
-                                        foregroundColor: colors.onSurface,
-                                        side: BorderSide(color: colors.outline),
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                      ),
-                                      onPressed: () => _confirmDelete(stage),
-                                      child: const Text("Delete", style: TextStyle(fontWeight: FontWeight.bold)),
-                                    ),
-                                  ],
-                                )
                               ],
                             ),
                           );
