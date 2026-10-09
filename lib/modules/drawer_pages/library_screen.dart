@@ -11,6 +11,7 @@ import 'library_controller.dart';
 import 'admin_material_controller.dart';
 import 'material_detail_screen.dart';
 import 'job_sheet_webview_screen.dart';
+import 'project_template_workspace_screen.dart';
 import 'dart:convert';
 import '../../core/network/api_client.dart';
 import '../../core/network/api_endpoints.dart';
@@ -28,6 +29,8 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
   late final TabController _tabController;
   String _formsStatusFilter = 'active';
   final TextEditingController _formsSearchController = TextEditingController();
+  String _templatesStatusFilter = 'active';
+  final TextEditingController _templatesSearchController = TextEditingController();
 
   @override
   void initState() {
@@ -46,6 +49,7 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
     _controller.dispose();
     _materialController.dispose();
     _formsSearchController.dispose();
+    _templatesSearchController.dispose();
     super.dispose();
   }
 
@@ -1388,53 +1392,211 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
     final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
     final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
     final borderColor = isDark ? AppTheme.darkBorder : Colors.grey.shade200;
+    final inputFill = isDark ? AppTheme.darkSurfaceRaised : const Color(0xFFF9FAFB);
 
-    if (_controller.isLoadingTemplates) return const Center(child: CircularProgressIndicator());
-    if (_controller.templatesError != null) return _errorState(_controller.templatesError!, _controller.fetchTemplates);
-    if (_controller.templates.isEmpty) {
-      return _emptyState(isDark, "No project templates yet.", "Templates are created from the web admin panel's Library.");
-    }
-    return RefreshIndicator(
-      onRefresh: _controller.fetchTemplates,
-      child: ListView.separated(
-        padding: const EdgeInsets.all(16),
-        itemCount: _controller.templates.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 10),
-        itemBuilder: (context, index) {
-          final LibraryTemplateModel template = _controller.templates[index];
-          return Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: cardColor,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: borderColor),
-            ),
-            child: Row(
-              children: [
-                Icon(IconlyBold.category, color: textSecondary, size: 20),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(template.name, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: textColor)),
-                      const SizedBox(height: 4),
-                      Text(
-                        "${template.statusLabel} · ${template.fieldCount} field${template.fieldCount == 1 ? '' : 's'}",
-                        style: TextStyle(fontSize: 12, color: textSecondary),
+    return Column(
+      children: [
+        // Filter & Search Toolbar
+        Container(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
+          decoration: BoxDecoration(
+            color: isDark ? AppTheme.darkSurface : Colors.white,
+            border: Border(bottom: BorderSide(color: borderColor)),
+          ),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  // Status Dropdown
+                  Container(
+                    height: 40,
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    decoration: BoxDecoration(
+                      color: inputFill,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: borderColor),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: _templatesStatusFilter,
+                        dropdownColor: cardColor,
+                        style: TextStyle(fontSize: 13, color: textColor, fontWeight: FontWeight.w500),
+                        items: const [
+                          DropdownMenuItem(value: 'active', child: Text("Active Templates")),
+                          DropdownMenuItem(value: 'archived', child: Text("Archived Templates")),
+                        ],
+                        onChanged: (val) {
+                          if (val != null) {
+                            setState(() => _templatesStatusFilter = val);
+                            _controller.fetchTemplates(status: val, search: _templatesSearchController.text, page: 1);
+                          }
+                        },
                       ),
-                      if (template.description.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Text(template.description, style: TextStyle(fontSize: 12, color: textSecondary)),
-                      ],
-                    ],
+                    ),
                   ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
+                  const SizedBox(width: 8),
+                  // Search Input
+                  Expanded(
+                    child: SizedBox(
+                      height: 40,
+                      child: TextField(
+                        controller: _templatesSearchController,
+                        style: TextStyle(fontSize: 13, color: textColor),
+                        decoration: InputDecoration(
+                          isDense: true,
+                          hintText: "Search templates",
+                          hintStyle: TextStyle(fontSize: 13, color: textSecondary),
+                          prefixIcon: Icon(Icons.search, size: 18, color: textSecondary),
+                          contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+                          filled: true,
+                          fillColor: inputFill,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: borderColor)),
+                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: borderColor)),
+                          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF0F62FE))),
+                        ),
+                        onSubmitted: (val) => _controller.fetchTemplates(status: _templatesStatusFilter, search: val, page: 1),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Apply Button
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0F62FE),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onPressed: () => _controller.fetchTemplates(status: _templatesStatusFilter, search: _templatesSearchController.text, page: 1),
+                    child: const Text("Apply", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                  ),
+                  const SizedBox(width: 4),
+                  // Reset Button
+                  IconButton(
+                    icon: Icon(Icons.refresh, size: 20, color: textSecondary),
+                    tooltip: "Reset Filters",
+                    splashRadius: 18,
+                    onPressed: () {
+                      _templatesSearchController.clear();
+                      setState(() => _templatesStatusFilter = 'active');
+                      _controller.fetchTemplates(status: 'active', search: '', page: 1);
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              // Pagination Record Indicator
+              Row(
+                children: [
+                  const Spacer(),
+                  Text(
+                    _controller.templates.isEmpty
+                        ? "0 of 0"
+                        : "${((_controller.templatesPage - 1) * _controller.templatesPageSize) + 1} - ${((_controller.templatesPage - 1) * _controller.templatesPageSize) + _controller.templates.length} of ${_controller.templatesTotalCount}",
+                    style: TextStyle(fontSize: 12, color: textSecondary, fontWeight: FontWeight.w600),
+                  ),
+                  if (_controller.templatesTotalCount > _controller.templatesPageSize) ...[
+                    const SizedBox(width: 6),
+                    IconButton(
+                      icon: const Icon(Icons.chevron_left, size: 20),
+                      splashRadius: 16,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      onPressed: _controller.templatesPage > 1
+                          ? () => _controller.fetchTemplates(page: _controller.templatesPage - 1)
+                          : null,
+                    ),
+                    const SizedBox(width: 4),
+                    IconButton(
+                      icon: const Icon(Icons.chevron_right, size: 20),
+                      splashRadius: 16,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      onPressed: ((_controller.templatesPage * _controller.templatesPageSize) < _controller.templatesTotalCount)
+                          ? () => _controller.fetchTemplates(page: _controller.templatesPage + 1)
+                          : null,
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
+        ),
+
+        // Templates List
+        Expanded(
+          child: _controller.isLoadingTemplates
+              ? const Center(child: CircularProgressIndicator())
+              : _controller.templatesError != null
+                  ? _errorState(_controller.templatesError!, _controller.fetchTemplates)
+                  : _controller.templates.isEmpty
+                      ? _emptyState(isDark, "No project templates found.", "Try adjusting filters or searching a different term.")
+                      : RefreshIndicator(
+                          onRefresh: _controller.fetchTemplates,
+                          child: ListView.separated(
+                            padding: const EdgeInsets.all(16),
+                            itemCount: _controller.templates.length,
+                            separatorBuilder: (_, __) => const SizedBox(height: 10),
+                            itemBuilder: (context, index) {
+                              final LibraryTemplateModel template = _controller.templates[index];
+                              return Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(12),
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => ProjectTemplateWorkspaceScreen(template: template),
+                                      ),
+                                    ).then((_) => _controller.fetchTemplates());
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.all(14),
+                                    decoration: BoxDecoration(
+                                      color: cardColor,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: borderColor),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Icon(IconlyBold.category, color: textSecondary, size: 20),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                template.name,
+                                                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: textColor),
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                "${template.statusLabel} · ${template.fieldCount} field${template.fieldCount == 1 ? '' : 's'}",
+                                                style: TextStyle(fontSize: 12, color: textSecondary),
+                                              ),
+                                              if (template.description.isNotEmpty) ...[
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  template.description,
+                                                  style: TextStyle(fontSize: 12, color: textSecondary),
+                                                ),
+                                              ],
+                                            ],
+                                          ),
+                                        ),
+                                        Icon(IconlyLight.arrow_right_2, size: 18, color: textSecondary),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+        ),
+      ],
     );
   }
 }

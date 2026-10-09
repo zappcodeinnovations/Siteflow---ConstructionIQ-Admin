@@ -32,6 +32,12 @@ class LibraryController extends ChangeNotifier {
   String formsStatus = 'active';
   String formsSearch = '';
 
+  int templatesPage = 1;
+  int templatesTotalCount = 0;
+  int templatesPageSize = 25;
+  String templatesStatus = 'active';
+  String templatesSearch = '';
+
   Future<void> fetchForms({String? status, String? search, int? page}) async {
     isLoadingForms = true;
     formsError = null;
@@ -137,19 +143,32 @@ class LibraryController extends ChangeNotifier {
     }
   }
 
-  Future<void> fetchTemplates() async {
+  Future<void> fetchTemplates({String? status, String? search, int? page}) async {
     isLoadingTemplates = true;
     templatesError = null;
+    if (status != null) templatesStatus = status;
+    if (search != null) templatesSearch = search;
+    if (page != null) templatesPage = page;
     notifyListeners();
     try {
-      final url = ApiEndpoints.baseUrl + ApiEndpoints.libraryTemplates;
+      final params = <String, String>{
+        if (templatesStatus.isNotEmpty) 'status': templatesStatus,
+        if (templatesSearch.trim().isNotEmpty) 'search': templatesSearch.trim(),
+        'page': templatesPage.toString(),
+      };
+      final query = params.entries.map((e) => '${e.key}=${Uri.encodeQueryComponent(e.value)}').join('&');
+      final url = '${ApiEndpoints.baseUrl}${ApiEndpoints.libraryTemplates}?$query';
       final response = await ApiClient.get(url);
       final decoded = jsonDecode(response.body);
       if (response.statusCode == 200 && decoded['status'] == true) {
+        templatesTotalCount = decoded['count'] is int ? decoded['count'] : (decoded['data'] is List ? (decoded['data'] as List).length : 0);
         templates = (decoded['data'] as List? ?? [])
             .whereType<Map>()
             .map((e) => LibraryTemplateModel.fromJson(e.cast<String, dynamic>()))
             .toList();
+        if (templatesTotalCount == 0 && templates.isNotEmpty) {
+          templatesTotalCount = templates.length;
+        }
       } else {
         templatesError = decoded['message']?.toString() ?? 'Failed to fetch project templates.';
       }
