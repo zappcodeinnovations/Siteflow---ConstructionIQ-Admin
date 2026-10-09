@@ -90,7 +90,7 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
               icon: const Icon(Icons.add),
               label: const Text("Add Work Type"),
             )
-          : _tabController.index == 1
+          : (_tabController.index == 1 && !_materialSelectMode)
               ? FloatingActionButton.extended(
                   onPressed: () => _showAddMaterialDialog(context),
                   icon: const Icon(Icons.add),
@@ -578,31 +578,44 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
         ),
         if (_materialSelectMode && _selectedMaterialIds.isNotEmpty)
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
               color: cardColor,
-              border: Border(top: BorderSide(color: borderColor)),
-            ),
-            child: Row(
-              children: [
-                Text("${_selectedMaterialIds.length} selected", style: TextStyle(color: textColor, fontWeight: FontWeight.w600)),
-                const Spacer(),
-                TextButton.icon(
-                  onPressed: () => _runBulkAction('change_group'),
-                  icon: const Icon(IconlyLight.category, size: 16),
-                  label: const Text("Move"),
-                ),
-                TextButton.icon(
-                  onPressed: () => _runBulkAction('archive'),
-                  icon: const Icon(IconlyLight.folder, size: 16),
-                  label: const Text("Archive"),
-                ),
-                TextButton.icon(
-                  onPressed: () => _runBulkAction('delete'),
-                  icon: const Icon(IconlyLight.delete, size: 16, color: Colors.red),
-                  label: const Text("Delete", style: TextStyle(color: Colors.red)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.08),
+                  blurRadius: 8,
+                  offset: const Offset(0, -2),
                 ),
               ],
+              border: Border(top: BorderSide(color: borderColor)),
+            ),
+            child: SafeArea(
+              top: false,
+              child: Row(
+                children: [
+                  Text(
+                    "${_selectedMaterialIds.length} selected",
+                    style: TextStyle(color: textColor, fontWeight: FontWeight.w600, fontSize: 13),
+                  ),
+                  const Spacer(),
+                  TextButton.icon(
+                    onPressed: () => _runBulkAction('change_group'),
+                    icon: const Icon(IconlyLight.category, size: 16),
+                    label: const Text("Move"),
+                  ),
+                  TextButton.icon(
+                    onPressed: () => _runBulkAction('archive'),
+                    icon: const Icon(IconlyLight.folder, size: 16),
+                    label: const Text("Archive"),
+                  ),
+                  TextButton.icon(
+                    onPressed: () => _runBulkAction('delete'),
+                    icon: const Icon(IconlyLight.delete, size: 16, color: Colors.red),
+                    label: const Text("Delete", style: TextStyle(color: Colors.red)),
+                  ),
+                ],
+              ),
             ),
           ),
       ],
