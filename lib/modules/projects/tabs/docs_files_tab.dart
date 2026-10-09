@@ -242,6 +242,89 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: Colors.red));
   }
 
+  void _showFilesDialog(BuildContext context, String title, String folderType) {
+    final matching = _localFiles.where((f) {
+      final isSignedDoc = _getFileFolderType(f) == 'signed_docs';
+      if (folderType == 'signed_docs') {
+        return isSignedDoc;
+      } else {
+        return !isSignedDoc;
+      }
+    }).toList();
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        final isDark = Theme.of(dialogContext).brightness == Brightness.dark;
+        final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
+        final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+        final dialogWidth = MediaQuery.of(dialogContext).size.width * 0.9;
+
+        return AlertDialog(
+          backgroundColor: isDark ? AppTheme.darkSurface : Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              Icon(IconlyLight.folder, size: 20, color: isDark ? Colors.orange.shade300 : Colors.orange),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: textColor),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white10 : Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  "${matching.length}",
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textSecondary),
+                ),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: dialogWidth.clamp(320.0, 520.0),
+            child: matching.isEmpty
+                ? Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 32),
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(IconlyLight.document, size: 40, color: textSecondary.withValues(alpha: 0.5)),
+                          const SizedBox(height: 8),
+                          Text("No files here yet.", style: TextStyle(color: textSecondary, fontSize: 14)),
+                        ],
+                      ),
+                    ),
+                  )
+                : SizedBox(
+                    height: 380,
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: matching.length,
+                      separatorBuilder: (_, __) => Divider(height: 1, color: isDark ? Colors.white12 : Colors.grey.shade200),
+                      itemBuilder: (context, index) {
+                        return _buildFileItem(context, matching[index], isDark, textColor, textSecondary);
+                      },
+                    ),
+                  ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text("Close", style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void _showNewFolderDialog(String folderType) {
     final folderNameController = TextEditingController();
     bool isPrivate = false;
@@ -683,6 +766,14 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
                     constraints: const BoxConstraints(),
                     padding: const EdgeInsets.all(6),
                   ),
+                  const SizedBox(width: 4),
+                  IconButton(
+                    icon: const Icon(IconlyLight.show, size: 18),
+                    onPressed: () => _showFilesDialog(context, title, folderType),
+                    tooltip: "View Files",
+                    constraints: const BoxConstraints(),
+                    padding: const EdgeInsets.all(6),
+                  ),
                 ],
               ),
             ],
@@ -847,65 +938,78 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
     final fileId = _getFileId(file);
     final canOpen = url.startsWith('http');
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0D6EFD).withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
+    return Tooltip(
+      message: name,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0D6EFD).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(IconlyLight.document, size: 18, color: Color(0xFF0D6EFD)),
             ),
-            child: const Icon(IconlyLight.document, size: 18, color: Color(0xFF0D6EFD)),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: textColor,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (date.isNotEmpty) ...[
-                  const SizedBox(height: 2),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
                   Text(
-                    date,
+                    name,
                     style: TextStyle(
-                      fontSize: 11,
-                      color: textSecondary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: textColor,
+                      height: 1.25,
                     ),
+                    maxLines: 3,
+                    softWrap: true,
+                    overflow: TextOverflow.ellipsis,
                   ),
+                  if (date.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      date,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: textSecondary,
+                      ),
+                    ),
+                  ],
                 ],
+              ),
+            ),
+            const SizedBox(width: 6),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (canOpen)
+                  TextButton(
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      minimumSize: const Size(40, 32),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    onPressed: () => launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
+                    child: const Text("View", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  ),
+                if (fileId != null)
+                  IconButton(
+                    icon: const Icon(IconlyLight.delete, size: 18, color: Colors.red),
+                    tooltip: "Delete File",
+                    constraints: const BoxConstraints(),
+                    padding: const EdgeInsets.all(4),
+                    onPressed: () => _deleteFile(fileId),
+                  ),
               ],
             ),
-          ),
-          const SizedBox(width: 6),
-          if (canOpen)
-            IconButton(
-              icon: const Icon(IconlyLight.show, size: 18, color: Color(0xFF0D6EFD)),
-              tooltip: "View File",
-              constraints: const BoxConstraints(),
-              padding: const EdgeInsets.all(6),
-              onPressed: () => launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
-            ),
-          if (fileId != null)
-            IconButton(
-              icon: const Icon(IconlyLight.delete, size: 18, color: Colors.red),
-              tooltip: "Delete File",
-              constraints: const BoxConstraints(),
-              padding: const EdgeInsets.all(6),
-              onPressed: () => _deleteFile(fileId),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
