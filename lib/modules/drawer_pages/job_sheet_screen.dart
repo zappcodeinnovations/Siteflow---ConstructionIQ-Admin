@@ -13,6 +13,7 @@ import 'package:iconly/iconly.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/date_helper.dart';
 import '../../core/widgets/background_stripes_painter.dart';
+import '../projects/create_task_controller.dart';
 
 class JobSheetScreen extends StatefulWidget {
   final String title;
@@ -269,7 +270,7 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
     if (options[key] is List) {
       items = (options[key] as List)
           .map((e) => e.toString().trim())
-          .where((s) => s.isNotEmpty)
+          .where((s) => s.isNotEmpty && (key != 'operatives' || CreateTaskController.isEligibleOperativeName(s)))
           .toList();
     }
 
@@ -290,7 +291,7 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
       } else if (key == 'operatives') {
         items = _controller.jobSheets
             .map((s) => s.operative.trim())
-            .where((s) => s.isNotEmpty)
+            .where((s) => s.isNotEmpty && CreateTaskController.isEligibleOperativeName(s))
             .toSet()
             .toList();
       } else if (key == 'forms') {

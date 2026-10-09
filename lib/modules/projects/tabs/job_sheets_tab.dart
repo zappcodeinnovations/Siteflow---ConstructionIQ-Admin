@@ -4,6 +4,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/date_helper.dart';
 import '../../../models/job_sheet_model.dart';
 import '../../drawer_pages/job_sheet_details_screen.dart';
+import '../create_task_controller.dart';
 
 class JobSheetsTab extends StatelessWidget {
   final List<dynamic> jobSheets;
@@ -102,7 +103,11 @@ class JobSheetsTab extends StatelessWidget {
               _buildFilterDropdown(
                   context, "Form", filterOptions['forms'] as List? ?? []),
               _buildFilterDropdown(
-                  context, "Operative", filterOptions['operatives'] as List? ?? []),
+                  context,
+                  "Operative",
+                  (filterOptions['operatives'] as List? ?? [])
+                      .where((e) => CreateTaskController.isEligibleOperativeName(e?.toString()))
+                      .toList()),
               _buildFilterDropdown(
                   context, "Team", filterOptions['teams'] as List? ?? []),
               _buildFilterDropdown(
