@@ -38,25 +38,45 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
   String? _openedFolderName;
   String? _openedFolderType;
 
-  String get _baseUrl => ApiEndpoints.baseUrl + ApiEndpoints.projectAllInOneDetails(widget.projectId);
+  final Set<int> _expandedFolderIds = {};
+
+  String get _baseUrl =>
+      ApiEndpoints.baseUrl +
+      ApiEndpoints.projectAllInOneDetails(widget.projectId);
 
   @override
   void initState() {
     super.initState();
     _localFolders = List.from(widget.folders);
     _localFiles = List.from(widget.files);
-    // If files/folders were empty on initial load, fetch immediately from backend
+    _expandRootFolders();
+
     if (_localFolders.isEmpty && _localFiles.isEmpty) {
       _fetchTabFiles();
+    }
+  }
+
+  void _expandRootFolders() {
+    for (var f in _localFolders) {
+      if (f is Map) {
+        final id = f['id'] is int
+            ? f['id']
+            : int.tryParse(f['id']?.toString() ?? '');
+        if (id != null) {
+          _expandedFolderIds.add(id);
+        }
+      }
     }
   }
 
   @override
   void didUpdateWidget(covariant DocsFilesTab oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.folders != widget.folders || oldWidget.files != widget.files) {
+    if (oldWidget.folders != widget.folders ||
+        oldWidget.files != widget.files) {
       _localFolders = List.from(widget.folders);
       _localFiles = List.from(widget.files);
+      _expandRootFolders();
     }
   }
 
@@ -68,15 +88,25 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
 
   Future<void> _fetchTabFiles() async {
     try {
-      final response = await ApiClient.get(_baseUrl);
+      final tz = await DateHelper.getDeviceTimezone();
+      final queryParam = tz.isNotEmpty ? '?tz=${Uri.encodeComponent(tz)}' : '';
+      final response = await ApiClient.get(_baseUrl + queryParam);
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['status'] == true && data['data'] != null) {
           final resData = data['data'];
           if (mounted) {
             setState(() {
-              _localFolders = (resData['docs_folders'] ?? resData['folders'] ?? resData['doc_folders'] as List? ?? []);
-              _localFiles = (resData['docs_files'] ?? resData['files'] ?? resData['documents'] ?? resData['doc_files'] as List? ?? []);
+              _localFolders = (resData['docs_folders'] ??
+                  resData['folders'] ??
+                  resData['doc_folders'] as List? ??
+                  []);
+              _localFiles = (resData['docs_files'] ??
+                  resData['files'] ??
+                  resData['documents'] ??
+                  resData['doc_files'] as List? ??
+                  []);
+              _expandRootFolders();
             });
           }
         }
@@ -89,21 +119,35 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
 
   String _getFileName(dynamic file) {
     if (file is Map) {
-      return (file['title'] ?? file['name'] ?? file['file_name'] ?? file['filename'] ?? 'Untitled file').toString();
+      return (file['title'] ??
+              file['name'] ??
+              file['file_name'] ??
+              file['filename'] ??
+              'Untitled file')
+          .toString();
     }
     return file?.toString() ?? 'Untitled file';
   }
 
   String _getFileUrl(dynamic file) {
     if (file is Map) {
-      return (file['file_url'] ?? file['url'] ?? file['file'] ?? file['path'] ?? '').toString();
+      return (file['file_url'] ??
+              file['url'] ??
+              file['file'] ??
+              file['path'] ??
+              '')
+          .toString();
     }
     return '';
   }
 
   String _getFileDate(dynamic file) {
     if (file is Map) {
-      final raw = file['created_at'] ?? file['uploaded_at'] ?? file['created'] ?? file['date'] ?? file['timestamp'];
+      final raw = file['created_at'] ??
+          file['uploaded_at'] ??
+          file['created'] ??
+          file['date'] ??
+          file['timestamp'];
       if (raw != null) {
         return DateHelper.formatToLocal(raw.toString(), includeTime: true);
       }
@@ -136,7 +180,88 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
     return 'files';
   }
 
-  Future<void> _createFolder(String folderType, String name, bool isPrivate) async {
+  Set<int> _getAllDescendantFolderIds(int folderId) {
+    final result = <int>{folderId};
+    final children = _localFolders.where((f) {
+      if (f is! Map) return false;
+      final pId = f['parent_id'] ?? f['parent'];
+      final pIdInt = pId is int
+          ? pId
+          : (pId != null ? int.tryParse(pId.toString()) : null);
+      return pIdInt == folderId;
+    }).toList();
+
+    for (var child in children) {
+      final cId = child is Map
+          ? (child['id'] is int
+              ? child['id']
+              : int.tryParse(child['id']?.toString() ?? ''))
+          : null;
+      if (cId != null && !result.contains(cId)) {
+        result.addAll(_getAllDescendantFolderIds(cId));
+      }
+    }
+    return result;
+  }
+
+  List<Map<String, dynamic>> _getFolderSubfolders(Map<String, dynamic> folder) {
+    final folderId = folder['id'] is int
+        ? folder['id']
+        : int.tryParse(folder['id']?.toString() ?? '');
+
+    final embedded = (folder['subfolders'] ??
+            folder['children'] ??
+            folder['sub_folders'] as List? ??
+            [])
+        .whereType<Map>()
+        .map((e) => e.cast<String, dynamic>())
+        .toList();
+    if (embedded.isNotEmpty) return embedded;
+
+    if (folderId != null) {
+      return _localFolders.where((f) {
+        if (f is! Map) return false;
+        final pId = f['parent_id'] ?? f['parent'];
+        final pIdInt = pId is int
+            ? pId
+            : (pId != null ? int.tryParse(pId.toString()) : null);
+        return pIdInt == folderId;
+      }).map((f) => (f as Map).cast<String, dynamic>()).toList();
+    }
+    return [];
+  }
+
+  List<dynamic> _getFolderDirectFiles(Map<String, dynamic> folder) {
+    final folderId = folder['id'] is int
+        ? folder['id']
+        : int.tryParse(folder['id']?.toString() ?? '');
+
+    final directList =
+        (folder['files'] ?? folder['documents'] as List? ?? []).toList();
+    if (directList.isNotEmpty) return directList;
+
+    if (folderId != null) {
+      return _localFiles
+          .where((f) => _getFileFolderId(f) == folderId)
+          .toList();
+    }
+    return [];
+  }
+
+  int _getFolderTotalFilesCount(Map<String, dynamic> folder) {
+    final folderId = folder['id'] is int
+        ? folder['id']
+        : int.tryParse(folder['id']?.toString() ?? '');
+    if (folderId == null) return 0;
+    final allIds = _getAllDescendantFolderIds(folderId);
+    return _localFiles.where((f) {
+      final fid = _getFileFolderId(f);
+      return fid != null && allIds.contains(fid);
+    }).length;
+  }
+
+  Future<void> _createFolder(
+      String folderType, String name, bool isPrivate, {int? parentId}) async {
     setState(() => _isBusy = true);
     try {
       final response = await ApiClient.post(_baseUrl, body: {
@@ -144,13 +269,16 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
         "name": name,
         "folder_type": folderType,
         "is_private": isPrivate,
+        if (parentId != null) "parent_id": parentId,
       });
       if (!mounted) return;
       if (response.statusCode == 200 || response.statusCode == 201) {
         await _fetchTabFiles();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Folder '$name' created successfully."), backgroundColor: Colors.green),
+            SnackBar(
+                content: Text("Folder '$name' created successfully."),
+                backgroundColor: Colors.green),
           );
         }
       } else {
@@ -168,20 +296,29 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text("Delete Folder"),
-        content: const Text("Are you sure you want to delete this folder and all its contents? This cannot be undone."),
+        content: const Text(
+            "Are you sure you want to delete this folder and all its contents? This cannot be undone."),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text("Cancel")),
-          TextButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text("Delete", style: TextStyle(color: Colors.red))),
+          TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text("Cancel")),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text("Delete", style: TextStyle(color: Colors.red)),
+          ),
         ],
       ),
     );
-    if (confirmed != true || !mounted) return;
+
+    if (confirmed != true) return;
 
     setState(() => _isBusy = true);
     try {
-      final response = await ApiClient.delete('$_baseUrl?module=folders&folder_id=$folderId');
+      final deleteUrl =
+          "$_baseUrl?module=folders&folder_id=$folderId&delete=true";
+      final response = await ApiClient.delete(deleteUrl);
       if (!mounted) return;
-      if (response.statusCode == 200 || response.statusCode == 204) {
+      if (response.statusCode == 200) {
         if (_openedFolderId == folderId) {
           _openedFolderId = null;
           _openedFolderName = null;
@@ -190,7 +327,9 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
         await _fetchTabFiles();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Folder deleted successfully."), backgroundColor: Colors.green),
+            const SnackBar(
+                content: Text("Folder deleted successfully."),
+                backgroundColor: Colors.green),
           );
         }
       } else {
@@ -208,24 +347,34 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text("Delete File"),
-        content: const Text("Are you sure you want to delete this file? This cannot be undone."),
+        content: const Text(
+            "Are you sure you want to delete this file? This cannot be undone."),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text("Cancel")),
-          TextButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text("Delete", style: TextStyle(color: Colors.red))),
+          TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text("Cancel")),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text("Delete", style: TextStyle(color: Colors.red)),
+          ),
         ],
       ),
     );
-    if (confirmed != true || !mounted) return;
+
+    if (confirmed != true) return;
 
     setState(() => _isBusy = true);
     try {
-      final response = await ApiClient.delete('$_baseUrl?module=files&file_id=$fileId');
+      final deleteUrl = "$_baseUrl?module=files&file_id=$fileId&delete=true";
+      final response = await ApiClient.delete(deleteUrl);
       if (!mounted) return;
-      if (response.statusCode == 200 || response.statusCode == 204) {
+      if (response.statusCode == 200) {
         await _fetchTabFiles();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("File deleted successfully."), backgroundColor: Colors.green),
+            const SnackBar(
+                content: Text("File deleted successfully."),
+                backgroundColor: Colors.green),
           );
         }
       } else {
@@ -239,10 +388,14 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: Colors.red));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
   }
 
-  void _showFilesDialog(BuildContext context, String title, String folderType) {
+  void _showFilesDialog(
+      BuildContext context, String title, String folderType) {
     final matching = _localFiles.where((f) {
       final isSignedDoc = _getFileFolderType(f) == 'signed_docs';
       if (folderType == 'signed_docs') {
@@ -255,33 +408,48 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
     showDialog(
       context: context,
       builder: (dialogContext) {
-        final isDark = Theme.of(dialogContext).brightness == Brightness.dark;
-        final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
-        final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
-        final dialogWidth = MediaQuery.of(dialogContext).size.width * 0.9;
+        final isDark =
+            Theme.of(dialogContext).brightness == Brightness.dark;
+        final textColor =
+            isDark ? Colors.white : const Color(0xFF0F2C4A);
+        final textSecondary =
+            isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+        final dialogWidth =
+            MediaQuery.of(dialogContext).size.width * 0.9;
 
         return AlertDialog(
-          backgroundColor: isDark ? AppTheme.darkSurface : Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          backgroundColor:
+              isDark ? AppTheme.darkSurface : Colors.white,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Row(
             children: [
-              Icon(IconlyLight.folder, size: 20, color: isDark ? Colors.orange.shade300 : Colors.orange),
+              Icon(IconlyLight.folder,
+                  size: 20,
+                  color: isDark ? Colors.orange.shade300 : Colors.orange),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   title,
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: textColor),
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      color: textColor),
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
                   color: isDark ? Colors.white10 : Colors.grey.shade100,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
                   "${matching.length}",
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textSecondary),
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: textSecondary),
                 ),
               ),
             ],
@@ -295,9 +463,13 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(IconlyLight.document, size: 40, color: textSecondary.withValues(alpha: 0.5)),
+                          Icon(IconlyLight.document,
+                              size: 40,
+                              color: textSecondary.withValues(alpha: 0.5)),
                           const SizedBox(height: 8),
-                          Text("No files here yet.", style: TextStyle(color: textSecondary, fontSize: 14)),
+                          Text("No files here yet.",
+                              style: TextStyle(
+                                  color: textSecondary, fontSize: 14)),
                         ],
                       ),
                     ),
@@ -307,9 +479,14 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
                     child: ListView.separated(
                       shrinkWrap: true,
                       itemCount: matching.length,
-                      separatorBuilder: (_, __) => Divider(height: 1, color: isDark ? Colors.white12 : Colors.grey.shade200),
+                      separatorBuilder: (_, __) => Divider(
+                          height: 1,
+                          color: isDark
+                              ? Colors.white12
+                              : Colors.grey.shade200),
                       itemBuilder: (context, index) {
-                        return _buildFileItem(context, matching[index], isDark, textColor, textSecondary);
+                        return _buildFileItem(context, matching[index],
+                            isDark, textColor, textSecondary);
                       },
                     ),
                   ),
@@ -317,7 +494,8 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text("Close", style: TextStyle(fontWeight: FontWeight.bold)),
+              child: const Text("Close",
+                  style: TextStyle(fontWeight: FontWeight.bold)),
             ),
           ],
         );
@@ -325,7 +503,7 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
     );
   }
 
-  void _showNewFolderDialog(String folderType) {
+  void _showNewFolderDialog(String folderType, {int? parentId}) {
     final folderNameController = TextEditingController();
     bool isPrivate = false;
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -336,11 +514,15 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              backgroundColor: isDark ? AppTheme.darkSurface : Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              backgroundColor:
+                  isDark ? AppTheme.darkSurface : Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
               title: Text(
                 "New Folder",
-                style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF0F2C4A)),
+                style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : const Color(0xFF0F2C4A)),
               ),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -349,34 +531,44 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
                   TextField(
                     controller: folderNameController,
                     autofocus: true,
-                    style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                    style: TextStyle(
+                        color: isDark ? Colors.white : Colors.black87),
                     decoration: InputDecoration(
                       hintText: "Folder name",
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8)),
                     ),
                   ),
                   const SizedBox(height: 16),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text("Make Folder Private", style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
+                      Text("Make Folder Private",
+                          style: TextStyle(
+                              color: isDark ? Colors.white : Colors.black87)),
                       Switch(
                         value: isPrivate,
-                        onChanged: (val) => setDialogState(() => isPrivate = val),
+                        onChanged: (val) =>
+                            setDialogState(() => isPrivate = val),
                       ),
                     ],
                   ),
                 ],
               ),
               actions: [
-                TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text("Cancel")),
+                TextButton(
+                    onPressed: () => Navigator.pop(dialogContext),
+                    child: const Text("Cancel")),
                 ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0D6EFD), foregroundColor: Colors.white),
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0D6EFD),
+                      foregroundColor: Colors.white),
                   onPressed: () {
                     final name = folderNameController.text.trim();
                     if (name.isEmpty) return;
                     Navigator.pop(dialogContext);
-                    _createFolder(folderType, name, isPrivate);
+                    _createFolder(folderType, name, isPrivate,
+                        parentId: parentId);
                   },
                   child: const Text("Add Folder"),
                 ),
@@ -390,7 +582,11 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
 
   Future<void> _uploadFile(String folderType, {int? folderId}) async {
     final result = await FilePicker.platform.pickFiles(withData: false);
-    if (result == null || result.files.isEmpty || result.files.first.path == null) return;
+    if (result == null ||
+        result.files.isEmpty ||
+        result.files.first.path == null) {
+      return;
+    }
     final file = result.files.first;
 
     setState(() => _isBusy = true);
@@ -410,7 +606,9 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
         await _fetchTabFiles();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Uploaded '${file.name}' successfully."), backgroundColor: Colors.green),
+            SnackBar(
+                content: Text("Uploaded '${file.name}' successfully."),
+                backgroundColor: Colors.green),
           );
         }
       } else {
@@ -427,41 +625,46 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
-    final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+    final textSecondary =
+        isDark ? Colors.grey.shade400 : Colors.grey.shade600;
     final borderColor = isDark ? Colors.white24 : Colors.grey.shade200;
 
     final width = MediaQuery.of(context).size.width;
     final isDesktop = width > 800;
 
-    // Filter folders & files
-    final signedDocsFolders = _localFolders.where((f) {
+    // Filter root folders
+    final signedDocsRootFolders = _localFolders.where((f) {
       final fMap = f as Map<String, dynamic>? ?? {};
-      final name = fMap['name']?.toString() ?? '';
-      final matchesSearch = _searchQuery.isEmpty || name.toLowerCase().contains(_searchQuery.toLowerCase());
-      return fMap['folder_type'] == 'signed_docs' && fMap['parent_id'] == null && matchesSearch;
+      final pId = fMap['parent_id'] ?? fMap['parent'];
+      return fMap['folder_type'] == 'signed_docs' && pId == null;
     }).toList();
 
-    final normalFilesFolders = _localFolders.where((f) {
+    final normalFilesRootFolders = _localFolders.where((f) {
       final fMap = f as Map<String, dynamic>? ?? {};
-      final name = fMap['name']?.toString() ?? '';
-      final matchesSearch = _searchQuery.isEmpty || name.toLowerCase().contains(_searchQuery.toLowerCase());
-      return fMap['folder_type'] != 'signed_docs' && fMap['parent_id'] == null && matchesSearch;
+      final pId = fMap['parent_id'] ?? fMap['parent'];
+      return fMap['folder_type'] != 'signed_docs' && pId == null;
     }).toList();
 
-    final signedDocsFiles = _localFiles.where((f) {
-      final name = _getFileName(f);
-      final matchesSearch = _searchQuery.isEmpty || name.toLowerCase().contains(_searchQuery.toLowerCase());
+    // Section total files
+    final signedDocsAllFiles = _localFiles.where((f) {
       final isSignedDoc = _getFileFolderType(f) == 'signed_docs';
-      final isRoot = _getFileFolderId(f) == null;
-      return isSignedDoc && isRoot && matchesSearch;
+      return isSignedDoc;
     }).toList();
 
-    final normalFiles = _localFiles.where((f) {
-      final name = _getFileName(f);
-      final matchesSearch = _searchQuery.isEmpty || name.toLowerCase().contains(_searchQuery.toLowerCase());
+    final normalFilesAllFiles = _localFiles.where((f) {
       final isSignedDoc = _getFileFolderType(f) == 'signed_docs';
-      final isRoot = _getFileFolderId(f) == null;
-      return !isSignedDoc && isRoot && matchesSearch;
+      return !isSignedDoc;
+    }).toList();
+
+    // Loose root files (files with no folder_id)
+    final signedDocsRootFiles = signedDocsAllFiles.where((f) {
+      final fid = _getFileFolderId(f);
+      return fid == null;
+    }).toList();
+
+    final normalFilesRootFiles = normalFilesAllFiles.where((f) {
+      final fid = _getFileFolderId(f);
+      return fid == null;
     }).toList();
 
     final totalFilesCount = _localFiles.length;
@@ -474,11 +677,14 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
           children: [
             // Top Toolbar & Search
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Flex(
                 direction: isDesktop ? Axis.horizontal : Axis.vertical,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: isDesktop ? CrossAxisAlignment.center : CrossAxisAlignment.stretch,
+                crossAxisAlignment: isDesktop
+                    ? CrossAxisAlignment.center
+                    : CrossAxisAlignment.stretch,
                 children: [
                   Wrap(
                     spacing: 12,
@@ -496,14 +702,22 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
                       TextButton.icon(
                         onPressed: () {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("Copying to another project isn't supported yet.")),
+                            const SnackBar(
+                                content: Text(
+                                    "Copying to another project isn't supported yet.")),
                           );
                         },
-                        icon: Icon(IconlyLight.document, size: 14, color: isDark ? Colors.white70 : const Color(0xFF0F2C4A)),
+                        icon: Icon(IconlyLight.document,
+                            size: 14,
+                            color: isDark
+                                ? Colors.white70
+                                : const Color(0xFF0F2C4A)),
                         label: Text(
                           "Copy to Other Project",
                           style: TextStyle(
-                            color: isDark ? Colors.white : const Color(0xFF0F2C4A),
+                            color: isDark
+                                ? Colors.white
+                                : const Color(0xFF0F2C4A),
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
                           ),
@@ -518,21 +732,34 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
                         child: Container(
                           height: 38,
                           decoration: BoxDecoration(
-                            color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
+                            color: isDark
+                                ? Colors.white.withValues(alpha: 0.05)
+                                : Colors.white,
                             border: Border.all(color: borderColor),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: TextField(
                             controller: _searchController,
-                            style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 13),
-                            onChanged: (val) => setState(() => _searchQuery = val),
+                            style: TextStyle(
+                                color: isDark ? Colors.white : Colors.black87,
+                                fontSize: 13),
+                            onChanged: (val) =>
+                                setState(() => _searchQuery = val),
                             decoration: InputDecoration(
                               isDense: true,
                               hintText: "Search folders or files",
-                              hintStyle: TextStyle(color: isDark ? Colors.white38 : Colors.grey.shade400, fontSize: 13),
-                              prefixIcon: Icon(IconlyLight.search, size: 16, color: isDark ? Colors.white70 : Colors.grey),
+                              hintStyle: TextStyle(
+                                  color: isDark
+                                      ? Colors.white38
+                                      : Colors.grey.shade400,
+                                  fontSize: 13),
+                              prefixIcon: Icon(IconlyLight.search,
+                                  size: 16,
+                                  color:
+                                      isDark ? Colors.white70 : Colors.grey),
                               border: InputBorder.none,
-                              contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                              contentPadding:
+                                  const EdgeInsets.symmetric(vertical: 10),
                             ),
                           ),
                         ),
@@ -553,11 +780,15 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
             // Content Area
             Expanded(
               child: _openedFolderId != null
-                  ? _buildOpenedFolderView(isDark: isDark, textColor: textColor, textSecondary: textSecondary)
+                  ? _buildOpenedFolderView(
+                      isDark: isDark,
+                      textColor: textColor,
+                      textSecondary: textSecondary)
                   : SingleChildScrollView(
                       padding: const EdgeInsets.all(16.0),
                       child: Flex(
-                        direction: isDesktop ? Axis.horizontal : Axis.vertical,
+                        direction:
+                            isDesktop ? Axis.horizontal : Axis.vertical,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           // SIGNED DOCS Column
@@ -569,11 +800,14 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
                               textSecondary: textSecondary,
                               title: "SIGNED DOCS",
                               folderType: "signed_docs",
-                              folders: signedDocsFolders,
-                              files: signedDocsFiles,
+                              rootFolders: signedDocsRootFolders,
+                              totalSectionFiles: signedDocsAllFiles.length,
+                              rootFiles: signedDocsRootFiles,
                             ),
                           ),
-                          SizedBox(width: isDesktop ? 16 : 0, height: isDesktop ? 0 : 20),
+                          SizedBox(
+                              width: isDesktop ? 16 : 0,
+                              height: isDesktop ? 0 : 20),
                           // FILES Column
                           Expanded(
                             flex: isDesktop ? 1 : 0,
@@ -583,8 +817,9 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
                               textSecondary: textSecondary,
                               title: "FILES",
                               folderType: "files",
-                              folders: normalFilesFolders,
-                              files: normalFiles,
+                              rootFolders: normalFilesRootFolders,
+                              totalSectionFiles: normalFilesAllFiles.length,
+                              rootFiles: normalFilesRootFiles,
                             ),
                           ),
                         ],
@@ -610,7 +845,8 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
     final folderFiles = _localFiles.where((f) {
       final fid = _getFileFolderId(f);
       final name = _getFileName(f);
-      final matchesSearch = _searchQuery.isEmpty || name.toLowerCase().contains(_searchQuery.toLowerCase());
+      final matchesSearch = _searchQuery.isEmpty ||
+          name.toLowerCase().contains(_searchQuery.toLowerCase());
       return fid == _openedFolderId && matchesSearch;
     }).toList();
 
@@ -632,7 +868,8 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
                   });
                 },
                 icon: const Icon(IconlyLight.arrow_left, size: 16),
-                label: const Text("Back to Root", style: TextStyle(fontWeight: FontWeight.bold)),
+                label: const Text("Back to Root",
+                    style: TextStyle(fontWeight: FontWeight.bold)),
               ),
               Row(
                 children: [
@@ -640,16 +877,23 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF0D6EFD),
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 8),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
                     ),
-                    onPressed: () => _uploadFile(_openedFolderType ?? 'files', folderId: _openedFolderId),
+                    onPressed: () => _uploadFile(
+                        _openedFolderType ?? 'files',
+                        folderId: _openedFolderId),
                     icon: const Icon(IconlyLight.upload, size: 14),
-                    label: const Text("Upload File", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    label: const Text("Upload File",
+                        style: TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.bold)),
                   ),
                   const SizedBox(width: 8),
                   IconButton(
-                    icon: const Icon(IconlyLight.delete, size: 18, color: Colors.red),
+                    icon: const Icon(IconlyLight.delete,
+                        size: 18, color: Colors.red),
                     tooltip: "Delete Folder",
                     onPressed: () => _deleteFolder(_openedFolderId!),
                   ),
@@ -660,11 +904,17 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
           const SizedBox(height: 8),
           Row(
             children: [
-              Icon(IconlyLight.folder, color: isDark ? Colors.orange.shade300 : Colors.orange, size: 20),
+              Icon(IconlyLight.folder,
+                  color:
+                      isDark ? Colors.orange.shade300 : Colors.orange,
+                  size: 20),
               const SizedBox(width: 8),
               Text(
                 "${_openedFolderName ?? 'Folder'} (${folderFiles.length} files)",
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor),
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: textColor),
               ),
             ],
           ),
@@ -675,9 +925,13 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(IconlyLight.document, size: 48, color: textSecondary.withValues(alpha: 0.5)),
+                        Icon(IconlyLight.document,
+                            size: 48,
+                            color: textSecondary.withValues(alpha: 0.5)),
                         const SizedBox(height: 12),
-                        Text("No files in this folder.", style: TextStyle(color: textSecondary, fontSize: 14)),
+                        Text("No files in this folder.",
+                            style: TextStyle(
+                                color: textSecondary, fontSize: 14)),
                       ],
                     ),
                   )
@@ -685,7 +939,8 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
                     itemCount: folderFiles.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 8),
                     itemBuilder: (context, index) {
-                      return _buildFileItem(context, folderFiles[index], isDark, textColor, textSecondary);
+                      return _buildFileItem(context, folderFiles[index],
+                          isDark, textColor, textSecondary);
                     },
                   ),
           ),
@@ -700,8 +955,9 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
     required Color textSecondary,
     required String title,
     required String folderType,
-    required List<dynamic> folders,
-    required List<dynamic> files,
+    required List<dynamic> rootFolders,
+    required int totalSectionFiles,
+    required List<dynamic> rootFiles,
   }) {
     final borderColor = isDark ? Colors.white12 : Colors.grey.shade200;
     final cardBg = isDark ? AppTheme.darkSurface : Colors.white;
@@ -723,56 +979,72 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Section Header
+          // Section Header (With bounded Expanded Row to avoid horizontal overflow)
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Icon(IconlyLight.folder, size: 16, color: textSecondary),
-                  const SizedBox(width: 8),
-                  Text(
-                    title,
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: textColor, letterSpacing: 0.5),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: isDark ? Colors.white10 : Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(10),
+              Expanded(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(IconlyLight.folder, size: 16, color: textSecondary),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        title,
+                        style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: textColor,
+                            letterSpacing: 0.5),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                    child: Text(
-                      "${files.length}",
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textSecondary),
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.white10 : Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        "$totalSectionFiles",
+                        style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: textSecondary),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
               Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   IconButton(
                     icon: const Icon(IconlyLight.folder, size: 18),
                     onPressed: () => _showNewFolderDialog(folderType),
                     tooltip: "New Folder",
                     constraints: const BoxConstraints(),
-                    padding: const EdgeInsets.all(6),
+                    padding: const EdgeInsets.all(4),
                   ),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 2),
                   IconButton(
                     icon: const Icon(IconlyLight.upload, size: 18),
                     onPressed: () => _uploadFile(folderType),
                     tooltip: "Upload File",
                     constraints: const BoxConstraints(),
-                    padding: const EdgeInsets.all(6),
+                    padding: const EdgeInsets.all(4),
                   ),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 2),
                   IconButton(
                     icon: const Icon(IconlyLight.show, size: 18),
-                    onPressed: () => _showFilesDialog(context, title, folderType),
+                    onPressed: () =>
+                        _showFilesDialog(context, title, folderType),
                     tooltip: "View Files",
                     constraints: const BoxConstraints(),
-                    padding: const EdgeInsets.all(6),
+                    padding: const EdgeInsets.all(4),
                   ),
                 ],
               ),
@@ -780,21 +1052,31 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
           ),
           const SizedBox(height: 14),
 
-          // Folders List (if any)
-          if (folders.isNotEmpty) ...[
-            ...folders.map((f) => _buildFolderCard(context, f as Map<String, dynamic>)),
+          // Folder Tree (Folders & Subfolders & Files)
+          if (rootFolders.isNotEmpty) ...[
+            ...rootFolders.map((f) => _buildFolderTreeNode(
+                  context,
+                  folder: f as Map<String, dynamic>,
+                  depth: 0,
+                  isDark: isDark,
+                  textColor: textColor,
+                  textSecondary: textSecondary,
+                )),
             const SizedBox(height: 8),
           ] else
             _buildEmptyDashedState(
               context,
-              label: title == "SIGNED DOCS" ? "New Signed Docs Folder" : "New Folder",
+              label: title == "SIGNED DOCS"
+                  ? "New Signed Docs Folder"
+                  : "New Folder",
               onTap: () => _showNewFolderDialog(folderType),
             ),
 
-          if (files.isNotEmpty) ...[
+          // Loose Root Files (if any)
+          if (rootFiles.isNotEmpty) ...[
             const SizedBox(height: 14),
             Text(
-              "FILES (${files.length})",
+              "FILES (${rootFiles.length})",
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.bold,
@@ -806,16 +1088,22 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
             Container(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: isDark ? Colors.white10 : Colors.grey.shade100),
-                color: isDark ? Colors.black12 : Colors.grey.shade50.withValues(alpha: 0.5),
+                border: Border.all(
+                    color: isDark ? Colors.white10 : Colors.grey.shade100),
+                color: isDark
+                    ? Colors.black12
+                    : Colors.grey.shade50.withValues(alpha: 0.5),
               ),
               child: ListView.separated(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                itemCount: files.length,
-                separatorBuilder: (_, __) => Divider(height: 1, color: isDark ? Colors.white10 : Colors.grey.shade200),
+                itemCount: rootFiles.length,
+                separatorBuilder: (_, __) => Divider(
+                    height: 1,
+                    color: isDark ? Colors.white10 : Colors.grey.shade200),
                 itemBuilder: (context, index) {
-                  return _buildFileItem(context, files[index], isDark, textColor, textSecondary);
+                  return _buildFileItem(context, rootFiles[index], isDark,
+                      textColor, textSecondary);
                 },
               ),
             ),
@@ -825,7 +1113,8 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
     );
   }
 
-  Widget _buildEmptyDashedState(BuildContext context, {required String label, required VoidCallback onTap}) {
+  Widget _buildEmptyDashedState(BuildContext context,
+      {required String label, required VoidCallback onTap}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final borderColor = isDark ? Colors.white24 : Colors.grey.shade300;
 
@@ -841,86 +1130,211 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(IconlyLight.folder, size: 18, color: isDark ? Colors.white70 : Colors.black87),
+            Icon(IconlyLight.folder,
+                size: 18,
+                color: isDark ? Colors.white70 : Colors.black87),
             const SizedBox(width: 8),
-            Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
+            Text(label,
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : Colors.black87)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildFolderCard(BuildContext context, Map<String, dynamic> folder) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? Colors.white.withValues(alpha: 0.04) : Colors.grey.shade50;
-    final borderColor = isDark ? Colors.white12 : Colors.grey.shade200;
-    final textColor = isDark ? Colors.white : Colors.black87;
+  Widget _buildFolderTreeNode(
+    BuildContext context, {
+    required Map<String, dynamic> folder,
+    required int depth,
+    required bool isDark,
+    required Color textColor,
+    required Color textSecondary,
+  }) {
+    final folderId = folder['id'] is int
+        ? folder['id']
+        : int.tryParse(folder['id']?.toString() ?? '');
+    final name = folder['name']?.toString() ?? 'Folder';
+    final folderType = folder['folder_type']?.toString() ?? 'files';
 
-    final folderId = folder['id'] as int?;
-    final filesInFolder = _localFiles.where((f) => _getFileFolderId(f) == folderId).length;
+    final subfolders = _getFolderSubfolders(folder);
+    final directFiles = _getFolderDirectFiles(folder);
+    final totalFiles = _getFolderTotalFilesCount(folder);
 
-    return InkWell(
-      onTap: () {
-        setState(() {
-          _openedFolderId = folderId;
-          _openedFolderName = folder['name']?.toString() ?? 'Folder';
-          _openedFolderType = folder['folder_type']?.toString() ?? 'files';
-        });
-      },
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: cardColor,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: borderColor),
+    final isExpanded =
+        folderId != null && _expandedFolderIds.contains(folderId);
+    final hasContent = subfolders.isNotEmpty || directFiles.isNotEmpty;
+
+    final paddingLeft = (depth * 14.0) + 8.0;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      decoration: BoxDecoration(
+        color: isDark
+            ? Colors.white.withValues(alpha: depth == 0 ? 0.04 : 0.02)
+            : (depth == 0 ? Colors.grey.shade50 : Colors.white),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: isDark ? Colors.white12 : Colors.grey.shade200,
         ),
-        child: Row(
-          children: [
-            Icon(IconlyLight.folder, color: isDark ? Colors.orange.shade300 : Colors.orange, size: 20),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Folder Header Row
+          InkWell(
+            onTap: () {
+              if (folderId != null) {
+                setState(() {
+                  if (_expandedFolderIds.contains(folderId)) {
+                    _expandedFolderIds.remove(folderId);
+                  } else {
+                    _expandedFolderIds.add(folderId);
+                  }
+                });
+              }
+            },
+            borderRadius: BorderRadius.circular(10),
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(paddingLeft, 10, 8, 10),
+              child: Row(
                 children: [
-                  Text(
-                    folder['name']?.toString() ?? 'Unnamed Folder',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: textColor),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  Icon(
+                    hasContent
+                        ? (isExpanded
+                            ? Icons.keyboard_arrow_down
+                            : Icons.keyboard_arrow_right)
+                        : IconlyLight.folder,
+                    size: 18,
+                    color: isDark
+                        ? Colors.orange.shade300
+                        : Colors.orange.shade700,
                   ),
-                  Text(
-                    '$filesInFolder files',
-                    style: TextStyle(fontSize: 11, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                  const SizedBox(width: 8),
+                  Icon(
+                    IconlyLight.folder,
+                    size: 16,
+                    color: isDark
+                        ? Colors.orange.shade300
+                        : Colors.orange.shade700,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            name,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: textColor,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (subfolders.isNotEmpty) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? Colors.blue.withValues(alpha: 0.2)
+                                  : Colors.blue.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              "${subfolders.length} sub",
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF0D6EFD),
+                              ),
+                            ),
+                          ),
+                        ],
+                        const SizedBox(width: 6),
+                        Text(
+                          "$totalFiles",
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (folder['is_private'] == true)
+                    const Padding(
+                      padding: EdgeInsets.only(right: 4),
+                      child: Icon(IconlyLight.lock,
+                          size: 14, color: Colors.grey),
+                    ),
+                  IconButton(
+                    icon: const Icon(IconlyLight.folder, size: 15),
+                    tooltip: "New Subfolder",
+                    constraints: const BoxConstraints(),
+                    padding: const EdgeInsets.all(4),
+                    onPressed: () => _showNewFolderDialog(folderType,
+                        parentId: folderId),
+                  ),
+                  IconButton(
+                    icon: const Icon(IconlyLight.upload, size: 15),
+                    tooltip: "Upload into folder",
+                    constraints: const BoxConstraints(),
+                    padding: const EdgeInsets.all(4),
+                    onPressed: () =>
+                        _uploadFile(folderType, folderId: folderId),
+                  ),
+                  IconButton(
+                    icon: const Icon(IconlyLight.delete,
+                        size: 15, color: Colors.red),
+                    tooltip: "Delete folder",
+                    constraints: const BoxConstraints(),
+                    padding: const EdgeInsets.all(4),
+                    onPressed: () {
+                      if (folderId != null) _deleteFolder(folderId);
+                    },
                   ),
                 ],
               ),
             ),
-            if (folder['is_private'] == true)
-              const Padding(
-                padding: EdgeInsets.only(right: 6),
-                child: Icon(IconlyLight.lock, size: 14, color: Colors.grey),
+          ),
+
+          // Expanded Content: Subfolders and Files
+          if (isExpanded) ...[
+            if (subfolders.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(10, 0, 8, 4),
+                child: Column(
+                  children: subfolders
+                      .map((sub) => _buildFolderTreeNode(
+                            context,
+                            folder: sub,
+                            depth: depth + 1,
+                            isDark: isDark,
+                            textColor: textColor,
+                            textSecondary: textSecondary,
+                          ))
+                      .toList(),
+                ),
               ),
-            IconButton(
-              icon: const Icon(IconlyLight.upload, size: 16),
-              tooltip: "Upload into folder",
-              constraints: const BoxConstraints(),
-              padding: const EdgeInsets.all(4),
-              onPressed: () => _uploadFile(folder['folder_type']?.toString() ?? 'files', folderId: folderId),
-            ),
-            const SizedBox(width: 4),
-            IconButton(
-              icon: const Icon(IconlyLight.delete, size: 16, color: Colors.red),
-              tooltip: "Delete folder",
-              constraints: const BoxConstraints(),
-              padding: const EdgeInsets.all(4),
-              onPressed: () {
-                if (folderId != null) _deleteFolder(folderId);
-              },
-            ),
+            if (directFiles.isNotEmpty)
+              Padding(
+                padding: EdgeInsets.fromLTRB(paddingLeft + 10, 0, 8, 6),
+                child: Column(
+                  children: directFiles
+                      .map((file) => _buildFileItem(context, file, isDark,
+                          textColor, textSecondary))
+                      .toList(),
+                ),
+              ),
           ],
-        ),
+        ],
       ),
     );
   }
@@ -941,17 +1355,18 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
     return Tooltip(
       message: name,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(6),
+              padding: const EdgeInsets.all(5),
               decoration: BoxDecoration(
                 color: const Color(0xFF0D6EFD).withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(6),
               ),
-              child: const Icon(IconlyLight.document, size: 18, color: Color(0xFF0D6EFD)),
+              child: const Icon(IconlyLight.document,
+                  size: 16, color: Color(0xFF0D6EFD)),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -991,16 +1406,21 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
                 if (canOpen)
                   TextButton(
                     style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      minimumSize: const Size(40, 32),
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      minimumSize: const Size(40, 30),
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
-                    onPressed: () => launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
-                    child: const Text("View", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    onPressed: () => launchUrl(Uri.parse(url),
+                        mode: LaunchMode.externalApplication),
+                    child: const Text("View",
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 12)),
                   ),
                 if (fileId != null)
                   IconButton(
-                    icon: const Icon(IconlyLight.delete, size: 18, color: Colors.red),
+                    icon: const Icon(IconlyLight.delete,
+                        size: 16, color: Colors.red),
                     tooltip: "Delete File",
                     constraints: const BoxConstraints(),
                     padding: const EdgeInsets.all(4),
