@@ -281,15 +281,21 @@ class JobSheetsTab extends StatelessWidget {
           ),
 
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
+                flex: 4,
                 child: _buildInfoColumn(
                     context, "OPERATIVE", operativeName, IconlyLight.profile),
               ),
+              const SizedBox(width: 8),
               Expanded(
+                flex: 3,
                 child: _buildInfoColumn(context, "FORM", form, IconlyLight.paper),
               ),
+              const SizedBox(width: 8),
               Expanded(
+                flex: 3,
                 child: _buildInfoColumn(
                     context, "LOCATION", location, IconlyLight.location),
               ),
@@ -349,21 +355,31 @@ class JobSheetsTab extends StatelessWidget {
           children: [
             Icon(icon, size: 14, color: textSecondary),
             const SizedBox(width: 6),
-            Text(label,
+            Flexible(
+              child: Text(
+                label,
                 style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
                     color: textSecondary,
-                    letterSpacing: 0.5)),
+                    letterSpacing: 0.5),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 6),
-        Text(value,
-            style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: textColor),
-            overflow: TextOverflow.ellipsis),
+        Text(
+          value,
+          style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: textColor,
+              height: 1.25),
+          softWrap: true,
+          maxLines: 3,
+          overflow: TextOverflow.ellipsis,
+        ),
       ],
     );
   }

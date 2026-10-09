@@ -160,7 +160,7 @@ class _AddAttendanceDialogState extends State<AddAttendanceDialog> {
                           child: _buildPremiumDropdown(
                             "Operative *", 
                             _selectedOperatorId, 
-                            operators.map((o) => DropdownMenuItem(value: o['id'].toString(), child: Text(o['name'].toString(), overflow: TextOverflow.ellipsis))).toList(),
+                            operators.map((o) => DropdownMenuItem(value: o['id'].toString(), child: Text(o['name'].toString(), maxLines: 2, softWrap: true, overflow: TextOverflow.ellipsis))).toList(),
                             (val) => setState(() => _selectedOperatorId = val),
                           ),
                         ),
@@ -169,7 +169,7 @@ class _AddAttendanceDialogState extends State<AddAttendanceDialog> {
                           child: _buildPremiumDropdown(
                             "Project",
                             _selectedProjectId, 
-                            projects.map((p) => DropdownMenuItem(value: p['id'].toString(), child: Text(p['name'].toString(), overflow: TextOverflow.ellipsis))).toList(),
+                            projects.map((p) => DropdownMenuItem(value: p['id'].toString(), child: Text(p['name'].toString(), maxLines: 2, softWrap: true, overflow: TextOverflow.ellipsis))).toList(),
                             (val) => setState(() => _selectedProjectId = val),
                           ),
                         ),

@@ -1492,11 +1492,14 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
               child: Text(
                 operative,
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: FontWeight.w500,
                   color: valueColor,
+                  height: 1.25,
                 ),
                 softWrap: true,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],

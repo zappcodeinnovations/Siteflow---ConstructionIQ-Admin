@@ -180,7 +180,7 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
                           const DropdownMenuItem(value: null, child: Text("All Operators")),
                           ...operators.map((o) {
                             final parts = o.split('|');
-                            return DropdownMenuItem(value: parts[0], child: Text(parts.length > 1 ? parts[1] : parts[0], overflow: TextOverflow.ellipsis));
+                            return DropdownMenuItem(value: parts[0], child: Text(parts.length > 1 ? parts[1] : parts[0], maxLines: 2, softWrap: true, overflow: TextOverflow.ellipsis));
                           })
                         ], 
                         (val) => setState(() => tempOp = val)
@@ -194,7 +194,7 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
                           const DropdownMenuItem(value: null, child: Text("All Projects")),
                           ...projects.map((p) {
                             final parts = p.split('|');
-                            return DropdownMenuItem(value: parts[0], child: Text(parts.length > 1 ? parts[1] : parts[0], overflow: TextOverflow.ellipsis));
+                            return DropdownMenuItem(value: parts[0], child: Text(parts.length > 1 ? parts[1] : parts[0], maxLines: 2, softWrap: true, overflow: TextOverflow.ellipsis));
                           })
                         ], 
                         (val) => setState(() => tempProj = val)
@@ -208,7 +208,7 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
                           const DropdownMenuItem(value: null, child: Text("All")),
                           ...attendanceChoices.map((a) {
                             final parts = a.split('|');
-                            return DropdownMenuItem(value: parts[0], child: Text(parts.length > 1 ? parts[1] : parts[0], overflow: TextOverflow.ellipsis));
+                            return DropdownMenuItem(value: parts[0], child: Text(parts.length > 1 ? parts[1] : parts[0], maxLines: 2, softWrap: true, overflow: TextOverflow.ellipsis));
                           })
                         ], 
                         (val) => setState(() => tempAtt = val)
@@ -222,7 +222,7 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
                           const DropdownMenuItem(value: null, child: Text("All")),
                           ...shiftChoices.map((s) {
                             final parts = s.split('|');
-                            return DropdownMenuItem(value: parts[0], child: Text(parts.length > 1 ? parts[1] : parts[0], overflow: TextOverflow.ellipsis));
+                            return DropdownMenuItem(value: parts[0], child: Text(parts.length > 1 ? parts[1] : parts[0], maxLines: 2, softWrap: true, overflow: TextOverflow.ellipsis));
                           })
                         ], 
                         (val) => setState(() => tempShift = val)
