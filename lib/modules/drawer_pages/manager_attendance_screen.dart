@@ -503,9 +503,10 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
                             children: [
                               IconButton(
                                 icon: const Icon(
-                                  IconlyLight.swap,
-                                  color: Colors.blue,
+                                  Icons.refresh,
+                                  color: Color(0xFF0D6EFD),
                                 ),
+                                tooltip: 'Reset Filters',
                                 onPressed: () {
                                   _controller.resetFilters();
                                   _controller.fetchManagerAttendance();

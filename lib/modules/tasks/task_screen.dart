@@ -403,7 +403,7 @@ class _TasksScreenState extends State<TasksScreen> {
                             });
                           },
                           icon: const Icon(
-                            IconlyLight.swap,
+                            Icons.refresh,
                             size: 16,
                             color: Color(0xFF0D6EFD),
                           ),
@@ -901,7 +901,7 @@ class _TasksScreenState extends State<TasksScreen> {
                                   // Refresh / Reset Icon
                                   IconButton(
                                     icon: Icon(
-                                      IconlyLight.swap,
+                                      Icons.refresh,
                                       color: textColor,
                                     ),
                                     onPressed: _resetFilters,

@@ -520,7 +520,7 @@ class ClientsScreenState extends State<ClientsScreen> {
                               _controller.fetchClients();
                             },
                             icon: Icon(
-                              IconlyLight.swap,
+                              Icons.refresh,
                               color: isDark ? Colors.white : Colors.black87,
                             ),
                             tooltip: "Refresh List",

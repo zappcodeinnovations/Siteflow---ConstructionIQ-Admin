@@ -699,14 +699,14 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
                                 tooltip: 'Download Report',
                               ),
                               IconButton(
-                                icon: Icon(IconlyLight.swap, color: isDark ? Colors.white : Colors.black87),
+                                icon: Icon(Icons.refresh, color: isDark ? Colors.white : Colors.black87),
                                 onPressed: () {
                                   _controller.setTeam(null);
                                   _controller.setMember(null);
                                   _controller.setProject(null);
                                   _controller.fetchProductivity();
                                 },
-                                tooltip: 'Refresh',
+                                tooltip: 'Reset Filters',
                               ),
                             ],
                           ),
