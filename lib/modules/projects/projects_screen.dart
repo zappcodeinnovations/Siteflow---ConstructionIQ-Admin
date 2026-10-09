@@ -9,6 +9,8 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 import 'project_controller.dart';
 import 'project_details_screen.dart';
+import '../drawer_pages/admin_team_controller.dart';
+import '../drawer_pages/admin/admin_members_controller.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/background_stripes_painter.dart';
 import '../../models/client_model.dart';
@@ -986,6 +988,8 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                   ),
                 );
               },
+              onAssignTeam: () => _showAssignTeamDialog(context, project),
+              onViewTeam: () => _showViewTeamDialog(context, project),
               onViewQr: () => _showQrCode(context, project),
             );
               },
@@ -1230,6 +1234,866 @@ class ProjectsScreenState extends State<ProjectsScreen> {
     );
   }
 
+  void _showViewTeamDialog(BuildContext context, Project project) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return FutureBuilder<Map<String, dynamic>?>(
+          future: _controller.fetchAssignments(project.id),
+          builder: (context, snapshot) {
+            final isDark = Theme.of(context).brightness == Brightness.dark;
+            final dialogBg = isDark ? AppTheme.darkSurfaceRaised : Colors.white;
+            final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
+            final secondaryTextColor = isDark ? Colors.white60 : Colors.grey.shade600;
+            final borderColor = isDark ? AppTheme.darkBorder : Colors.grey.shade200;
+            final itemBg = isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF8FAFC);
+
+            Widget bodyContent;
+
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              bodyContent = const SizedBox(
+                height: 180,
+                child: Center(
+                  child: CircularProgressIndicator(),
+                ),
+              );
+            } else if (snapshot.hasError || snapshot.data == null) {
+              bodyContent = Padding(
+                padding: const EdgeInsets.symmetric(vertical: 24.0),
+                child: Column(
+                  children: [
+                    Icon(IconlyLight.danger, size: 40, color: Colors.orange.shade400),
+                    const SizedBox(height: 12),
+                    Text(
+                      "No assignments found",
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: textColor),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      "No team or workers assigned to this project yet.",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 13, color: secondaryTextColor),
+                    ),
+                  ],
+                ),
+              );
+            } else {
+              final data = snapshot.data!;
+              final rawTeams = data['teams'] ?? data['assigned_teams'] ?? [];
+              final rawWorkers = data['workers'] ?? data['assigned_workers'] ?? data['members'] ?? [];
+
+              final List<dynamic> teams = rawTeams is List ? rawTeams : [];
+              final List<dynamic> workers = rawWorkers is List ? rawWorkers : [];
+
+              final hasNoAssignments = teams.isEmpty && workers.isEmpty;
+
+              if (hasNoAssignments) {
+                bodyContent = Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 24.0),
+                  child: Column(
+                    children: [
+                      Icon(IconlyLight.user_1, size: 44, color: isDark ? Colors.white38 : Colors.grey.shade400),
+                      const SizedBox(height: 12),
+                      Text(
+                        "No Team Assigned",
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: textColor),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        "This project currently has no assigned teams or operatives.",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 13, color: secondaryTextColor),
+                      ),
+                    ],
+                  ),
+                );
+              } else {
+                bodyContent = ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(context).size.height * 0.5,
+                  ),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (teams.isNotEmpty) ...[
+                          Row(
+                            children: [
+                              const Icon(Icons.group_outlined, size: 16, color: Color(0xFF0D6EFD)),
+                              const SizedBox(width: 6),
+                              Text(
+                                "Assigned Teams (${teams.length})",
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: textColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          ...teams.map((teamItem) {
+                            final String teamName = teamItem is Map
+                                ? (teamItem['name'] ?? teamItem['display_name'] ?? 'Team #${teamItem['id'] ?? ''}')
+                                : 'Team #$teamItem';
+                            final String? leadName = teamItem is Map ? teamItem['lead_name'] : null;
+                            final int? memberCount = teamItem is Map ? teamItem['member_count'] : null;
+
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 8),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: itemBg,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: borderColor),
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF0D6EFD).withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Icon(Icons.group_outlined, size: 18, color: Color(0xFF0D6EFD)),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          teamName,
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.bold,
+                                            color: textColor,
+                                          ),
+                                        ),
+                                        if (leadName != null && leadName.isNotEmpty)
+                                          Text(
+                                            "Lead: $leadName",
+                                            style: TextStyle(fontSize: 12, color: secondaryTextColor),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                  if (memberCount != null)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF0D6EFD).withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Text(
+                                        "$memberCount members",
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xFF0D6EFD),
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            );
+                          }),
+                          const SizedBox(height: 16),
+                        ],
+                        if (workers.isNotEmpty) ...[
+                          Row(
+                            children: [
+                              const Icon(IconlyLight.user_1, size: 16, color: Color(0xFF0D6EFD)),
+                              const SizedBox(width: 6),
+                              Text(
+                                "Assigned Operatives / Members (${workers.length})",
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: textColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          ...workers.map((workerItem) {
+                            final String name = workerItem is Map
+                                ? (workerItem['display_name'] ??
+                                    '${workerItem['first_name'] ?? ''} ${workerItem['last_name'] ?? ''}'.trim().isNotEmpty
+                                        ? '${workerItem['first_name'] ?? ''} ${workerItem['last_name'] ?? ''}'.trim()
+                                        : workerItem['name'] ?? workerItem['email'] ?? 'Member #${workerItem['id'] ?? ''}')
+                                : 'Member #$workerItem';
+                            final String? role = workerItem is Map ? (workerItem['role_display_name'] ?? workerItem['role']) : null;
+                            final String? email = workerItem is Map ? workerItem['email'] : null;
+
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 8),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: itemBg,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: borderColor),
+                              ),
+                              child: Row(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 16,
+                                    backgroundColor: const Color(0xFF0D6EFD).withValues(alpha: 0.15),
+                                    child: Text(
+                                      name.isNotEmpty ? name[0].toUpperCase() : 'U',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                        color: Color(0xFF0D6EFD),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          name,
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.bold,
+                                            color: textColor,
+                                          ),
+                                        ),
+                                        if (role != null && role.isNotEmpty)
+                                          Text(
+                                            role,
+                                            style: TextStyle(fontSize: 11, color: secondaryTextColor),
+                                          )
+                                        else if (email != null && email.isNotEmpty)
+                                          Text(
+                                            email,
+                                            style: TextStyle(fontSize: 11, color: secondaryTextColor),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }),
+                        ],
+                      ],
+                    ),
+                  ),
+                );
+              }
+            }
+
+            return Dialog(
+              backgroundColor: dialogBg,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: isDark ? const BorderSide(color: AppTheme.darkBorder) : BorderSide.none,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Header
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Project Team",
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: textColor,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                "${project.code.isNotEmpty ? '${project.code} • ' : ''}${project.name}",
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: secondaryTextColor,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, size: 22),
+                          color: textColor.withValues(alpha: 0.7),
+                          splashRadius: 20,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                          onPressed: () => Navigator.pop(dialogContext),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    bodyContent,
+                    const SizedBox(height: 20),
+                    // Action Buttons
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(dialogContext),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: textColor,
+                              side: BorderSide(
+                                color: isDark ? Colors.white24 : Colors.grey.shade300,
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: const Text(
+                              "Close",
+                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              Navigator.pop(dialogContext);
+                              _showAssignTeamDialog(context, project);
+                            },
+                            icon: const Icon(IconlyLight.user_1, size: 16),
+                            label: const Text(
+                              "Assign / Edit",
+                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF0D6EFD),
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showAssignTeamDialog(BuildContext context, Project project) {
+    final teamController = AdminTeamController();
+    final membersController = AdminMembersController();
+    final searchWorkerController = TextEditingController();
+
+    bool isLoadingData = true;
+    bool isSaving = false;
+    String? errorMessage;
+    String searchWorkerQuery = '';
+
+    final List<int> selectedTeamIds = [];
+    final List<int> selectedWorkerIds = [];
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final isDark = Theme.of(context).brightness == Brightness.dark;
+            final dialogBg = isDark ? AppTheme.darkSurfaceRaised : Colors.white;
+            final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
+            final secondaryTextColor = isDark ? Colors.white60 : Colors.grey.shade600;
+            final borderColor = isDark ? AppTheme.darkBorder : Colors.grey.shade300;
+            final itemBg = isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF8FAFC);
+
+            // Fetch initial data once
+            if (isLoadingData && errorMessage == null) {
+              Future.wait([
+                _controller.fetchAssignments(project.id),
+                teamController.fetchTeams(),
+                membersController.fetchMembers(),
+              ]).then((results) {
+                final assignmentData = results[0] as Map<String, dynamic>?;
+                if (assignmentData != null) {
+                  final rawTeams = assignmentData['teams'] ?? assignmentData['assigned_teams'] ?? [];
+                  final rawWorkers = assignmentData['workers'] ?? assignmentData['assigned_workers'] ?? assignmentData['members'] ?? [];
+
+                  if (rawTeams is List) {
+                    for (var t in rawTeams) {
+                      if (t is int) {
+                        selectedTeamIds.add(t);
+                      } else if (t is Map && t['id'] != null) {
+                        final id = int.tryParse(t['id'].toString());
+                        if (id != null) selectedTeamIds.add(id);
+                      }
+                    }
+                  }
+                  if (rawWorkers is List) {
+                    for (var w in rawWorkers) {
+                      if (w is int) {
+                        selectedWorkerIds.add(w);
+                      } else if (w is Map && w['id'] != null) {
+                        final id = int.tryParse(w['id'].toString());
+                        if (id != null) selectedWorkerIds.add(id);
+                      }
+                    }
+                  }
+                }
+                setDialogState(() {
+                  isLoadingData = false;
+                });
+              }).catchError((e) {
+                setDialogState(() {
+                  isLoadingData = false;
+                  errorMessage = 'Failed to load team data: $e';
+                });
+              });
+            }
+
+            final teams = teamController.teams;
+            final allMembers = membersController.members;
+            final filteredMembers = allMembers.where((m) {
+              if (searchWorkerQuery.isEmpty) return true;
+              final query = searchWorkerQuery.toLowerCase();
+              return m.displayName.toLowerCase().contains(query) ||
+                  m.email.toLowerCase().contains(query) ||
+                  m.roleDisplayName.toLowerCase().contains(query) ||
+                  m.role.toLowerCase().contains(query);
+            }).toList();
+
+            return Dialog(
+              backgroundColor: dialogBg,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: isDark ? const BorderSide(color: AppTheme.darkBorder) : BorderSide.none,
+              ),
+              child: Container(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.8,
+                  maxWidth: 500,
+                ),
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Header
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Assign Team",
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: textColor,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                "${project.code.isNotEmpty ? '${project.code} • ' : ''}${project.name}",
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: secondaryTextColor,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, size: 22),
+                          color: textColor.withValues(alpha: 0.7),
+                          splashRadius: 20,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                          onPressed: () => Navigator.pop(dialogContext),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    if (isLoadingData) ...[
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 40),
+                        child: Center(child: CircularProgressIndicator()),
+                      ),
+                    ] else if (errorMessage != null) ...[
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 24),
+                        child: Column(
+                          children: [
+                            const Icon(Icons.error_outline, color: Colors.redAccent, size: 36),
+                            const SizedBox(height: 8),
+                            Text(errorMessage!, style: const TextStyle(color: Colors.redAccent, fontSize: 13)),
+                          ],
+                        ),
+                      ),
+                    ] else ...[
+                      Expanded(
+                        child: SingleChildScrollView(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // TEAMS SECTION
+                              Row(
+                                children: [
+                                  const Icon(Icons.group_outlined, size: 16, color: Color(0xFF0D6EFD)),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    "Teams",
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: textColor,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    "(${selectedTeamIds.length} selected)",
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Color(0xFF0D6EFD),
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              if (teams.isEmpty)
+                                Text(
+                                  "No teams configured yet.",
+                                  style: TextStyle(fontSize: 12, color: secondaryTextColor),
+                                )
+                              else
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: teams.map((team) {
+                                    final isSelected = selectedTeamIds.contains(team.id);
+                                    return FilterChip(
+                                      selected: isSelected,
+                                      showCheckmark: true,
+                                      checkmarkColor: Colors.white,
+                                      avatar: !isSelected ? const Icon(Icons.group_outlined, size: 14) : null,
+                                      label: Text(
+                                        "${team.name} (${team.memberCount})",
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                          color: isSelected ? Colors.white : textColor,
+                                        ),
+                                      ),
+                                      selectedColor: const Color(0xFF0D6EFD),
+                                      backgroundColor: itemBg,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(20),
+                                        side: BorderSide(
+                                          color: isSelected ? const Color(0xFF0D6EFD) : borderColor,
+                                        ),
+                                      ),
+                                      onSelected: (selected) {
+                                        setDialogState(() {
+                                          if (selected) {
+                                            selectedTeamIds.add(team.id);
+                                          } else {
+                                            selectedTeamIds.remove(team.id);
+                                          }
+                                        });
+                                      },
+                                    );
+                                  }).toList(),
+                                ),
+
+                              const SizedBox(height: 20),
+
+                              // OPERATIVES / MEMBERS SECTION
+                              Row(
+                                children: [
+                                  const Icon(IconlyLight.user_1, size: 16, color: Color(0xFF0D6EFD)),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    "Operatives / Members",
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: textColor,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    "(${selectedWorkerIds.length} selected)",
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Color(0xFF0D6EFD),
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+
+                              // Search input for workers
+                              TextField(
+                                controller: searchWorkerController,
+                                onChanged: (val) {
+                                  setDialogState(() {
+                                    searchWorkerQuery = val;
+                                  });
+                                },
+                                style: TextStyle(color: textColor, fontSize: 13),
+                                decoration: InputDecoration(
+                                  hintText: "Search operatives by name, role or email...",
+                                  hintStyle: TextStyle(color: secondaryTextColor, fontSize: 13),
+                                  prefixIcon: Icon(Icons.search, size: 18, color: secondaryTextColor),
+                                  suffixIcon: searchWorkerQuery.isNotEmpty
+                                      ? IconButton(
+                                          icon: const Icon(Icons.clear, size: 16),
+                                          onPressed: () {
+                                            searchWorkerController.clear();
+                                            setDialogState(() {
+                                              searchWorkerQuery = '';
+                                            });
+                                          },
+                                        )
+                                      : null,
+                                  isDense: true,
+                                  contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                                  filled: true,
+                                  fillColor: itemBg,
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                    borderSide: BorderSide(color: borderColor),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                    borderSide: BorderSide(color: borderColor),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                    borderSide: const BorderSide(color: Color(0xFF0D6EFD)),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+
+                              if (allMembers.isEmpty)
+                                Text(
+                                  "No operatives found.",
+                                  style: TextStyle(fontSize: 12, color: secondaryTextColor),
+                                )
+                              else if (filteredMembers.isEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  child: Center(
+                                    child: Text(
+                                      "No operatives match '$searchWorkerQuery'",
+                                      style: TextStyle(fontSize: 12, color: secondaryTextColor),
+                                    ),
+                                  ),
+                                )
+                              else
+                                Container(
+                                  constraints: const BoxConstraints(maxHeight: 220),
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: borderColor),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: ListView.separated(
+                                    shrinkWrap: true,
+                                    itemCount: filteredMembers.length,
+                                    separatorBuilder: (c, i) => Divider(height: 1, color: borderColor),
+                                    itemBuilder: (context, index) {
+                                      final member = filteredMembers[index];
+                                      final isSelected = selectedWorkerIds.contains(member.id);
+
+                                      return InkWell(
+                                        onTap: () {
+                                          setDialogState(() {
+                                            if (isSelected) {
+                                              selectedWorkerIds.remove(member.id);
+                                            } else {
+                                              selectedWorkerIds.add(member.id);
+                                            }
+                                          });
+                                        },
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                          child: Row(
+                                            children: [
+                                              Checkbox(
+                                                value: isSelected,
+                                                activeColor: const Color(0xFF0D6EFD),
+                                                onChanged: (val) {
+                                                  setDialogState(() {
+                                                    if (val == true) {
+                                                      selectedWorkerIds.add(member.id);
+                                                    } else {
+                                                      selectedWorkerIds.remove(member.id);
+                                                    }
+                                                  });
+                                                },
+                                              ),
+                                              CircleAvatar(
+                                                radius: 14,
+                                                backgroundColor: const Color(0xFF0D6EFD).withValues(alpha: 0.12),
+                                                child: Text(
+                                                  member.displayName.isNotEmpty
+                                                      ? member.displayName[0].toUpperCase()
+                                                      : 'U',
+                                                  style: const TextStyle(
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Color(0xFF0D6EFD),
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 10),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      member.displayName,
+                                                      style: TextStyle(
+                                                        fontSize: 13,
+                                                        fontWeight: FontWeight.w600,
+                                                        color: textColor,
+                                                      ),
+                                                    ),
+                                                    Text(
+                                                      member.roleDisplayName.isNotEmpty
+                                                          ? member.roleDisplayName
+                                                          : member.email,
+                                                      style: TextStyle(
+                                                        fontSize: 11,
+                                                        color: secondaryTextColor,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Footer Buttons
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: isSaving ? null : () => Navigator.pop(dialogContext),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: textColor,
+                                side: BorderSide(
+                                  color: isDark ? Colors.white24 : Colors.grey.shade300,
+                                ),
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: const Text(
+                                "Cancel",
+                                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: isSaving
+                                  ? null
+                                  : () async {
+                                      setDialogState(() {
+                                        isSaving = true;
+                                      });
+                                      final success = await _controller.assignProject(
+                                        project.id,
+                                        teamIds: selectedTeamIds,
+                                        workerIds: selectedWorkerIds,
+                                      );
+                                      if (dialogContext.mounted) {
+                                        Navigator.pop(dialogContext);
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              success
+                                                  ? "Team assignments updated successfully."
+                                                  : (_controller.errorMessage ?? "Failed to update assignments."),
+                                            ),
+                                            backgroundColor: success ? Colors.green : Colors.red,
+                                          ),
+                                        );
+                                      }
+                                    },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF0D6EFD),
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: isSaving
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Text(
+                                      "Save Assignments",
+                                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                                    ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   Widget _buildProjectCardItem(
     BuildContext context, {
     required bool isDark,
@@ -1248,6 +2112,8 @@ class ProjectsScreenState extends State<ProjectsScreen> {
     required bool isSelected,
     required ValueChanged<bool?> onSelectChanged,
     required VoidCallback onTap,
+    required VoidCallback? onAssignTeam,
+    required VoidCallback? onViewTeam,
     required VoidCallback? onViewQr,
   }) {
     // Priority badge styles
@@ -1261,21 +2127,21 @@ class ProjectsScreenState extends State<ProjectsScreen> {
       priorityBg = Colors.green.shade50;
     }
     if (isDark) {
-      priorityBg = priorityColor.withOpacity(0.15);
+      priorityBg = priorityColor.withValues(alpha: 0.15);
     }
 
     // Status badge styles matching mockup
     Color statusColor = Colors.green;
-    Color statusBg = Colors.green.withOpacity(0.1);
+    Color statusBg = Colors.green.withValues(alpha: 0.1);
     if (statusLabel.toLowerCase() == 'completed') {
       statusColor = const Color(0xFF0D6EFD);
-      statusBg = const Color(0xFF0D6EFD).withOpacity(0.1);
+      statusBg = const Color(0xFF0D6EFD).withValues(alpha: 0.1);
     } else if (statusLabel.toLowerCase() == 'on hold' || statusLabel.toLowerCase() == 'draft') {
       statusColor = Colors.orange.shade800;
       statusBg = Colors.orange.shade50;
     }
     if (isDark && (statusLabel.toLowerCase() == 'on hold' || statusLabel.toLowerCase() == 'draft')) {
-      statusBg = Colors.orange.withOpacity(0.15);
+      statusBg = Colors.orange.withValues(alpha: 0.15);
     }
 
     return Container(
@@ -1285,7 +2151,7 @@ class ProjectsScreenState extends State<ProjectsScreen> {
         border: Border.all(color: borderColor, width: borderWidth),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 10,
             offset: const Offset(0, 4),
           )
@@ -1311,7 +2177,7 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                       width: 44,
                       height: 44,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF0D6EFD).withOpacity(0.1),
+                        color: const Color(0xFF0D6EFD).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Icon(Icons.business, color: Color(0xFF0D6EFD), size: 22),
@@ -1485,8 +2351,64 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                   ],
                 ),
                 const SizedBox(height: 16),
+
+                // Team Action Buttons: Assign & View Team
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: isDark ? Colors.white : const Color(0xFF0D6EFD),
+                          side: BorderSide(
+                            color: isDark ? Colors.white.withValues(alpha: 0.3) : const Color(0xFF0D6EFD).withValues(alpha: 0.4),
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 11),
+                        ),
+                        onPressed: onAssignTeam,
+                        icon: const Icon(IconlyLight.user_1, size: 16),
+                        label: const Text(
+                          "Assign",
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'Inter',
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: isDark ? Colors.white : const Color(0xFF0D6EFD),
+                          side: BorderSide(
+                            color: isDark ? Colors.white.withValues(alpha: 0.3) : const Color(0xFF0D6EFD).withValues(alpha: 0.4),
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 11),
+                        ),
+                        onPressed: onViewTeam,
+                        icon: const Icon(IconlyLight.show, size: 16),
+                        label: const Text(
+                          "View Team",
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'Inter',
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
                 
-                // Bottom Row 2: Actions
+                // Bottom Row 2: Project Actions (QR Code & View Details)
                 Row(
                   children: [
                     if (onViewQr != null) ...[
@@ -1495,7 +2417,7 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                           style: OutlinedButton.styleFrom(
                             foregroundColor: isDark ? Colors.white : const Color(0xFF0D6EFD),
                             side: BorderSide(
-                              color: isDark ? Colors.white.withOpacity(0.5) : const Color(0xFF0D6EFD).withOpacity(0.4),
+                              color: isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF0D6EFD).withValues(alpha: 0.4),
                             ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
@@ -1503,11 +2425,11 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                             padding: const EdgeInsets.symmetric(vertical: 12),
                           ),
                           onPressed: onViewQr,
-                          child: Row(
+                          child: const Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Icon(Icons.qr_code, size: 16),
-                              const SizedBox(width: 6),
+                              SizedBox(width: 6),
                               Text(
                                 "QR Code",
                                 style: TextStyle(
@@ -1527,7 +2449,7 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                         style: OutlinedButton.styleFrom(
                           foregroundColor: isDark ? Colors.white : const Color(0xFF0D6EFD),
                           side: BorderSide(
-                            color: isDark ? Colors.white.withOpacity(0.5) : const Color(0xFF0D6EFD).withOpacity(0.4),
+                            color: isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF0D6EFD).withValues(alpha: 0.4),
                           ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
@@ -1538,7 +2460,7 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text(
+                            const Text(
                               "View Details",
                               style: TextStyle(
                                 fontSize: 13,
