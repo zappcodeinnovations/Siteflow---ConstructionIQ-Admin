@@ -139,6 +139,48 @@ class ProjectController extends ChangeNotifier {
     }
   }
 
+  Future<bool> createProject(String name, {int? clientId, String? description, String? priority}) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final Map<String, dynamic> body = {'name': name};
+      if (clientId != null) body['client_id'] = clientId;
+      if (description != null && description.isNotEmpty) body['description'] = description;
+      if (priority != null && priority.isNotEmpty) body['priority'] = priority;
+
+      final response = await ApiClient.post(
+        ApiEndpoints.baseUrl + ApiEndpoints.projects,
+        body: body,
+      );
+      final data = jsonDecode(response.body);
+
+      if ((response.statusCode == 200 || response.statusCode == 201) && data['status'] == true) {
+        if (data['data'] != null && data['data'] is Map) {
+          final newProject = Project.fromJson((data['data'] as Map).cast<String, dynamic>());
+          _projects.insert(0, newProject);
+          _applyFilters();
+        } else {
+          await fetchProjects();
+        }
+        _isLoading = false;
+        notifyListeners();
+        return true;
+      } else {
+        _errorMessage = data['message'] ?? 'Failed to create project';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      _errorMessage = 'An error occurred: $e';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
   Future<bool> deleteProject(int id) async {
     _isLoading = true;
     _errorMessage = null;
@@ -335,38 +377,6 @@ class ProjectController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> createProject(String name) async {
-    _isLoading = true;
-    _errorMessage = null;
-    notifyListeners();
-
-    try {
-      final response = await ApiClient.post(
-        ApiEndpoints.baseUrl + ApiEndpoints.projects,
-        body: {'name': name},
-      );
-      final data = jsonDecode(response.body);
-
-      if ((response.statusCode == 200 || response.statusCode == 201) && data['status'] == true) {
-        final newProject = Project.fromJson(data['data']);
-        _projects.insert(0, newProject);
-        _filteredProjects.insert(0, newProject);
-        _isLoading = false;
-        notifyListeners();
-        return true;
-      } else {
-        _errorMessage = data['message'] ?? 'Failed to create project';
-        _isLoading = false;
-        notifyListeners();
-        return false;
-      }
-    } catch (e) {
-      _errorMessage = 'An error occurred: $e';
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    }
-  }
 
   Future<bool> deleteSelectedProjects() async {
     if (_selectedProjectIds.isEmpty) return true;

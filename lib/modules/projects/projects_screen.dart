@@ -1,20 +1,14 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
-import 'package:euroside_admin/core/widgets/shimmer_loading.dart';
 import 'package:euroside_admin/models/project_model.dart';
 import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
-import '../../core/widgets/status_chip.dart';
 import 'project_controller.dart';
 import 'project_details_screen.dart';
-import 'package:url_launcher/url_launcher.dart';
-import '../../core/network/api_endpoints.dart';
-
-import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/background_stripes_painter.dart';
 import '../../models/client_model.dart';
@@ -72,18 +66,18 @@ class ProjectsScreenState extends State<ProjectsScreen> {
       context: context,
       builder: (context) {
         final isDark = Theme.of(context).brightness == Brightness.dark;
-        final dialogBg = isDark ? const Color(0xFF0F2C4A) : Colors.white;
+        final dialogBg = isDark ? AppTheme.darkSurfaceRaised : Colors.white;
         final titleColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
         final textColor = isDark ? Colors.white : Colors.black87;
         final hintColor = isDark ? Colors.white54 : Colors.grey;
-        final inputBorderColor = isDark ? Colors.white24 : Colors.grey.shade300;
+        final inputBorderColor = isDark ? AppTheme.darkBorder : Colors.grey.shade300;
         final inputFillColor = isDark ? Colors.white.withOpacity(0.08) : Colors.transparent;
 
         return AlertDialog(
           backgroundColor: dialogBg,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
-            side: isDark ? const BorderSide(color: Colors.white24) : BorderSide.none,
+            side: isDark ? const BorderSide(color: AppTheme.darkBorder) : BorderSide.none,
           ),
           title: Text(
             "Create Project",
@@ -161,7 +155,7 @@ class ProjectsScreenState extends State<ProjectsScreen> {
       context: context,
       builder: (context) {
         final isDark = Theme.of(context).brightness == Brightness.dark;
-        final dialogBg = isDark ? const Color(0xFF0F2C4A) : Colors.white;
+        final dialogBg = isDark ? AppTheme.darkSurfaceRaised : Colors.white;
         final titleColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
         final textColor = isDark ? Colors.white70 : Colors.black87;
 
@@ -169,7 +163,7 @@ class ProjectsScreenState extends State<ProjectsScreen> {
           backgroundColor: dialogBg,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
-            side: isDark ? const BorderSide(color: Colors.white24) : BorderSide.none,
+            side: isDark ? const BorderSide(color: AppTheme.darkBorder) : BorderSide.none,
           ),
           title: Text(
             "Delete Projects",
@@ -219,6 +213,83 @@ class ProjectsScreenState extends State<ProjectsScreen> {
         );
       },
     );
+  }
+
+  Future<void> _exportProjectsReport() async {
+    try {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Downloading report..."),
+            duration: Duration(seconds: 1),
+          ),
+        );
+      }
+
+      final projects = _controller.filteredProjects.isNotEmpty
+          ? _controller.filteredProjects
+          : _controller.projects;
+
+      final buffer = StringBuffer();
+      buffer.writeln('Code,Name,Client,Status,Priority,Progress,Created Date');
+
+      for (final project in projects) {
+        final code = project.code;
+        final escapedName = project.name.contains(',') || project.name.contains('"')
+            ? '"${project.name.replaceAll('"', '""')}"'
+            : project.name;
+        final clientName = project.client?.name ?? '-';
+        final escapedClient = clientName.contains(',') || clientName.contains('"')
+            ? '"${clientName.replaceAll('"', '""')}"'
+            : clientName;
+        final status = project.statusLabel.isNotEmpty
+            ? project.statusLabel
+            : (project.status.isNotEmpty ? project.status : 'Active');
+        final priority = project.priorityLabel.isNotEmpty
+            ? project.priorityLabel
+            : (project.priority.isNotEmpty ? project.priority : 'Normal');
+        final progress = '${project.progress}%';
+
+        String formattedDate = '';
+        if (project.createdAt != null && project.createdAt!.isNotEmpty) {
+          try {
+            final dt = DateTime.parse(project.createdAt!);
+            formattedDate =
+                "${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}";
+          } catch (_) {
+            formattedDate = project.createdAt!;
+          }
+        } else {
+          final now = DateTime.now();
+          formattedDate =
+              "${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}";
+        }
+
+        buffer.writeln(
+          '$code,$escapedName,$escapedClient,$status,$priority,$progress,$formattedDate',
+        );
+      }
+
+      final directory = await getTemporaryDirectory();
+      final file = File('${directory.path}/projects.csv');
+      await file.writeAsString(buffer.toString());
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      }
+
+      // Trigger the system share/save sheet
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text: 'Projects Report CSV',
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: $e")),
+        );
+      }
+    }
   }
 
   String _timeAgo(String? dateTimeStr) {
@@ -275,9 +346,51 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
+                        // Header Action Row (Export CSV & Create Project)
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            IconButton(
+                              onPressed: _exportProjectsReport,
+                              icon: Icon(
+                                IconlyLight.download,
+                                color: isDark ? Colors.white : Colors.black87,
+                              ),
+                              tooltip: "Export as CSV",
+                            ),
+                            ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF0D6EFD),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                  vertical: 14,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              onPressed: _showCreateProjectDialog,
+                              icon: const Icon(
+                                IconlyLight.plus,
+                                color: Colors.white,
+                                size: 18,
+                              ),
+                              label: const Text(
+                                "Create Project",
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+
                         // Search & Filter Settings Row
                         _buildSearchAndSettingsRow(isDark, borderColor, cardColor),
-                        const SizedBox(height: 16),
+                        if (_isSearchVisible) const SizedBox(height: 16),
                         
                         // Status Categories Tabs
                         _buildStatusTabs(isDark, borderColor, cardColor),
@@ -634,10 +747,10 @@ class ProjectsScreenState extends State<ProjectsScreen> {
       context: context,
       builder: (dialogContext) {
         final isDark = Theme.of(dialogContext).brightness == Brightness.dark;
-        final bgColor = isDark ? const Color(0xFF1F2E40) : Colors.white;
+        final bgColor = isDark ? AppTheme.darkSurfaceRaised : Colors.white;
         final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
         final secondaryTextColor = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
-        final borderColor = isDark ? const Color(0xFF2C3E50) : Colors.grey.shade200;
+        final borderColor = isDark ? AppTheme.darkBorder : Colors.grey.shade200;
 
         return Dialog(
           backgroundColor: Colors.transparent,
