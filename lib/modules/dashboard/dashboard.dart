@@ -8,6 +8,7 @@ import '../projects/project_details_screen.dart';
 import 'package:iconly/iconly.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/background_stripes_painter.dart';
+import '../../models/dashboard_model.dart';
 
 class DashboardScreen extends StatefulWidget {
   final VoidCallback? onProjectsTap;
@@ -275,6 +276,12 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                             ),
                           ],
                         ),
+
+                  const SizedBox(height: 24),
+                  DashboardAttendancePanel(
+                    present: data?.presentOperativesToday ?? const [],
+                    absent: data?.absentOperativesToday ?? const [],
+                  ),
                   const SizedBox(height: 24),
 
                   // LISTS
@@ -322,6 +329,277 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     ),
   );
 }
+}
+
+class DashboardAttendancePanel extends StatefulWidget {
+  final List<AttendanceOperative> present;
+  final List<AttendanceOperative> absent;
+
+  const DashboardAttendancePanel({
+    super.key,
+    required this.present,
+    required this.absent,
+  });
+
+  @override
+  State<DashboardAttendancePanel> createState() => _DashboardAttendancePanelState();
+}
+
+class _DashboardAttendancePanelState extends State<DashboardAttendancePanel> {
+  bool _showPresent = true;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final entries = _showPresent ? widget.present : widget.absent;
+    final accent = _showPresent ? const Color(0xff16A34A) : const Color(0xffDC2626);
+    final surface = isDark ? AppTheme.darkSurface : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xff152238);
+    final muted = isDark ? AppTheme.darkMuted : const Color(0xff667085);
+    final border = isDark ? AppTheme.darkBorder : const Color(0xffE3E8EF);
+    final width = MediaQuery.of(context).size.width;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: border),
+        boxShadow: isDark
+            ? null
+            : const [BoxShadow(color: Color(0x120F2C4A), blurRadius: 16, offset: Offset(0, 6))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Today's Attendance",
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: textColor),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Live operative attendance',
+                      style: TextStyle(fontSize: 13, color: muted),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(IconlyLight.calendar, color: accent, size: 21),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _AttendanceTab(
+                  label: 'Present',
+                  count: widget.present.length,
+                  color: const Color(0xff16A34A),
+                  selected: _showPresent,
+                  onTap: () => setState(() => _showPresent = true),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _AttendanceTab(
+                  label: 'Absent',
+                  count: widget.absent.length,
+                  color: const Color(0xffDC2626),
+                  selected: !_showPresent,
+                  onTap: () => setState(() => _showPresent = false),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (entries.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 28),
+              child: Center(
+                child: Text(
+                  _showPresent ? 'No one has clocked in yet today.' : 'No absent operatives today.',
+                  style: TextStyle(color: muted),
+                ),
+              ),
+            )
+          else if (width >= 720)
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                headingRowColor: WidgetStatePropertyAll(isDark ? AppTheme.darkSurfaceRaised : const Color(0xffF8FAFC)),
+                columnSpacing: 28,
+                columns: [
+                  DataColumn(label: Text('#', style: TextStyle(color: textColor, fontWeight: FontWeight.w700))),
+                  DataColumn(label: Text('EMPLOYEE', style: TextStyle(color: textColor, fontWeight: FontWeight.w700))),
+                  DataColumn(label: Text('TEAM', style: TextStyle(color: textColor, fontWeight: FontWeight.w700))),
+                  DataColumn(label: Text(_showPresent ? 'CHECK IN' : 'LAST SEEN', style: TextStyle(color: textColor, fontWeight: FontWeight.w700))),
+                  DataColumn(label: Text(_showPresent ? 'WORK HOURS' : 'STATUS', style: TextStyle(color: textColor, fontWeight: FontWeight.w700))),
+                ],
+                rows: [
+                  for (var index = 0; index < entries.length; index++)
+                    DataRow(cells: [
+                      DataCell(Text('${index + 1}', style: TextStyle(color: muted))),
+                      DataCell(_AttendanceEmployee(person: entries[index], textColor: textColor, muted: muted)),
+                      DataCell(Text(entries[index].teamName, style: TextStyle(color: textColor))),
+                      DataCell(Text(_showPresent ? (entries[index].checkInTime ?? '-') : (entries[index].lastSeen ?? '-'), style: TextStyle(color: textColor))),
+                      DataCell(Text(_showPresent ? (entries[index].workHours ?? '-') : 'Absent', style: TextStyle(color: accent, fontWeight: FontWeight.w600))),
+                    ]),
+                ],
+              ),
+            )
+          else
+            Column(
+              children: [
+                for (var index = 0; index < entries.length; index++) ...[
+                  _AttendanceMobileRow(
+                    number: index + 1,
+                    person: entries[index],
+                    isPresent: _showPresent,
+                    textColor: textColor,
+                    muted: muted,
+                    border: border,
+                    accent: accent,
+                  ),
+                  if (index < entries.length - 1) Divider(height: 1, color: border),
+                ],
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AttendanceTab extends StatelessWidget {
+  final String label;
+  final int count;
+  final Color color;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _AttendanceTab({
+    required this.label,
+    required this.count,
+    required this.color,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Material(
+      color: selected ? color.withOpacity(isDark ? 0.24 : 0.12) : Colors.transparent,
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+          decoration: BoxDecoration(
+            border: Border.all(color: selected ? color : (isDark ? AppTheme.darkBorder : const Color(0xffE3E8EF))),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(label == 'Present' ? IconlyLight.tick_square : IconlyLight.close_square, size: 16, color: color),
+              const SizedBox(width: 7),
+              Text('$label ($count)', style: TextStyle(color: color, fontWeight: FontWeight.w700)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AttendanceEmployee extends StatelessWidget {
+  final AttendanceOperative person;
+  final Color textColor;
+  final Color muted;
+
+  const _AttendanceEmployee({required this.person, required this.textColor, required this.muted});
+
+  @override
+  Widget build(BuildContext context) {
+    final fallbackInitial = person.name.trim().isEmpty ? '?' : person.name.trim().substring(0, 1).toUpperCase();
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        CircleAvatar(
+          radius: 17,
+          backgroundColor: _avatarColor(person.avatarColor),
+          child: Text(person.initials.isEmpty ? fallbackInitial : person.initials, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12)),
+        ),
+        const SizedBox(width: 10),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(person.name, style: TextStyle(color: textColor, fontWeight: FontWeight.w600)),
+            Text(person.roleLabel, style: TextStyle(color: muted, fontSize: 12)),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _AttendanceMobileRow extends StatelessWidget {
+  final int number;
+  final AttendanceOperative person;
+  final bool isPresent;
+  final Color textColor;
+  final Color muted;
+  final Color border;
+  final Color accent;
+
+  const _AttendanceMobileRow({
+    required this.number,
+    required this.person,
+    required this.isPresent,
+    required this.textColor,
+    required this.muted,
+    required this.border,
+    required this.accent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(width: 24, child: Text('$number', style: TextStyle(color: muted, fontSize: 13))),
+          Expanded(child: _AttendanceEmployee(person: person, textColor: textColor, muted: muted)),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(isPresent ? (person.checkInTime ?? '-') : (person.lastSeen ?? '-'), style: TextStyle(color: textColor, fontSize: 12, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 4),
+              Text(isPresent ? (person.workHours ?? '-') : person.teamName, style: TextStyle(color: accent, fontSize: 12)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+Color _avatarColor(String value) {
+  final hex = value.replaceFirst('#', '');
+  final parsed = int.tryParse('FF$hex', radix: 16);
+  return parsed == null ? const Color(0xff2563EB) : Color(parsed);
 }
 
 class DashboardHero extends StatelessWidget {

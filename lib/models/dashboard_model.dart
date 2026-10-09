@@ -62,22 +62,43 @@ class DashboardData {
 class AttendanceOperative {
   final int id;
   final String name;
+  final String initials;
+  final String avatarColor;
   final String employeeId;
   final String roleLabel;
+  final String teamName;
+  final String? checkInTime;
+  final String? workHours;
+  final String? lastSeen;
+  final bool? isClockedOut;
 
   AttendanceOperative({
     required this.id,
     required this.name,
+    this.initials = '',
+    this.avatarColor = '',
     required this.employeeId,
     required this.roleLabel,
+    this.teamName = '-',
+    this.checkInTime,
+    this.workHours,
+    this.lastSeen,
+    this.isClockedOut,
   });
 
   factory AttendanceOperative.fromJson(Map<String, dynamic> json) {
     return AttendanceOperative(
       id: json['id'] is int ? json['id'] : int.tryParse('${json['id']}') ?? 0,
       name: json['name']?.toString() ?? '',
+      initials: json['initials']?.toString() ?? '',
+      avatarColor: json['avatar_color']?.toString() ?? '',
       employeeId: json['employee_id']?.toString() ?? '',
       roleLabel: json['role_label']?.toString() ?? '',
+      teamName: json['team_name']?.toString() ?? '-',
+      checkInTime: json['check_in_time']?.toString(),
+      workHours: json['work_hours']?.toString(),
+      lastSeen: json['last_seen']?.toString(),
+      isClockedOut: json['is_clocked_out'] is bool ? json['is_clocked_out'] as bool : null,
     );
   }
 }
