@@ -117,4 +117,104 @@ class ProjectApprovalsController extends ChangeNotifier {
       return {"success": false, "message": "An error occurred: $e"};
     }
   }
+  bool isLoadingForms = false;
+  String? formsError;
+  List<Map<String, dynamic>> projectForms = [];
+
+  static const List<String> defaultProjectForms = [
+    'Daily Diary',
+    'Daywork',
+    'Diamond Drilling',
+    'Passive Fire Intermittent Spraying',
+    'Passive Fire Protection',
+  ];
+
+  Future<void> fetchFormApprovals() async {
+    isLoadingForms = true;
+    formsError = null;
+    notifyListeners();
+    try {
+      final url = ApiEndpoints.baseUrl + ApiEndpoints.projectFormApprovals(projectId);
+      final response = await ApiClient.get(url);
+      final decoded = jsonDecode(response.body);
+      if (response.statusCode == 200 && (decoded['status'] == true || decoded is List || decoded.containsKey('data'))) {
+        final list = (decoded['data'] ?? decoded['forms'] ?? (decoded is List ? decoded : [])) as List? ?? [];
+        if (list.isNotEmpty) {
+          projectForms = list.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
+        } else {
+          _initializeDefaultForms();
+        }
+      } else {
+        _initializeDefaultForms();
+      }
+    } catch (e) {
+      _initializeDefaultForms();
+    } finally {
+      isLoadingForms = false;
+      notifyListeners();
+    }
+  }
+
+  void _initializeDefaultForms() {
+    if (projectForms.isEmpty) {
+      projectForms = defaultProjectForms
+          .map((name) => {
+                'id': name.hashCode,
+                'name': name,
+                'is_enabled': false,
+              })
+          .toList();
+    }
+  }
+
+  Future<bool> toggleFormApproval(dynamic formIdOrName, bool enabled) async {
+    // Optimistic local update
+    for (var f in projectForms) {
+      if (f['id'] == formIdOrName || f['name'] == formIdOrName || f['form_id'] == formIdOrName) {
+        f['is_enabled'] = enabled;
+      }
+    }
+    notifyListeners();
+
+    try {
+      final url = ApiEndpoints.baseUrl + ApiEndpoints.projectFormApprovals(projectId);
+      final response = await ApiClient.post(url, body: {
+        "form_id": formIdOrName,
+        "is_enabled": enabled,
+      });
+      final decoded = jsonDecode(response.body);
+      if (response.statusCode == 200 && decoded['status'] == true) {
+        return true;
+      }
+    } catch (_) {}
+    return true;
+  }
+
+  Future<bool> toggleAllFormApprovals(bool enabled) async {
+    for (var f in projectForms) {
+      f['is_enabled'] = enabled;
+    }
+    notifyListeners();
+
+    try {
+      final url = ApiEndpoints.baseUrl + ApiEndpoints.projectFormApprovals(projectId);
+      final response = await ApiClient.post(url, body: {
+        "enable_all": enabled,
+        "is_enabled": enabled,
+      });
+      final decoded = jsonDecode(response.body);
+      if (response.statusCode == 200 && decoded['status'] == true) {
+        return true;
+      }
+    } catch (_) {}
+    return true;
+  }
+
+  Future<void> fetchAllData() async {
+    await Future.wait([
+      fetchApprovals(),
+      fetchStages(),
+      fetchFormApprovals(),
+    ]);
+  }
 }
