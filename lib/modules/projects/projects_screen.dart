@@ -34,10 +34,15 @@ class ProjectsScreenState extends State<ProjectsScreen> {
     });
   }
 
+  Client? _selectedClient;
+  String _selectedStatusTab = "All Projects";
+
   @override
   void initState() {
     super.initState();
+    _selectedClient = widget.filterClient;
     _verticalScrollController.addListener(_loadMoreProjectsWhenNeeded);
+    _controller.fetchAvailableClients();
     _controller.fetchProjects().then((_) {
       if (widget.filterClient != null) {
         _controller.filterByClient(widget.filterClient!);
@@ -428,9 +433,35 @@ class ProjectsScreenState extends State<ProjectsScreen> {
         );
       }
 
-      final projects = _controller.filteredProjects.isNotEmpty
+      final allProjects = _controller.filteredProjects.isNotEmpty
           ? _controller.filteredProjects
           : _controller.projects;
+
+      final projects = allProjects.where((p) {
+        // Status Filter
+        final status = (p.statusLabel.isEmpty ? p.status : p.statusLabel).toLowerCase();
+        if (_selectedStatusTab == "Active Projects") {
+          if (status == 'archived') return false;
+        } else if (_selectedStatusTab == "Archived Projects") {
+          if (status != 'archived') return false;
+        }
+
+        // Client Filter
+        if (_selectedClient != null) {
+          final pClientId = p.client?.id;
+          final pClientName = (p.client?.name ?? '').trim().toLowerCase();
+          final selClientId = _selectedClient!.id;
+          final selClientName = _selectedClient!.name.trim().toLowerCase();
+
+          if (selClientId > 0 && pClientId != null && pClientId > 0) {
+            if (pClientId != selClientId) return false;
+          } else {
+            if (pClientName != selClientName) return false;
+          }
+        }
+
+        return true;
+      }).toList();
 
       final buffer = StringBuffer();
       buffer.writeln('Code,Name,Client,Status,Priority,Progress,Created Date');
@@ -513,8 +544,6 @@ class ProjectsScreenState extends State<ProjectsScreen> {
     }
   }
 
-  String _selectedStatusTab = "All";
-
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -593,8 +622,12 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                         // Search & Filter Settings Row
                         _buildSearchAndSettingsRow(isDark, borderColor, cardColor),
                         if (_isSearchVisible) const SizedBox(height: 16),
+
+                        // Client Filter Selector
+                        _buildClientFilterDropdown(isDark, borderColor, cardColor, primaryTextColor),
+                        const SizedBox(height: 14),
                         
-                        // Status Categories Tabs
+                        // Status Categories Tabs (All Projects, Active Projects, Archived Projects)
                         _buildStatusTabs(isDark, borderColor, cardColor),
                         const SizedBox(height: 20),
 
@@ -613,6 +646,94 @@ class ProjectsScreenState extends State<ProjectsScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildClientFilterDropdown(bool isDark, Color borderColor, Color cardColor, Color primaryTextColor) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        final clients = _controller.availableClients;
+        return Container(
+          height: 46,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          decoration: BoxDecoration(
+            color: cardColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: borderColor),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<int?>(
+              isExpanded: true,
+              value: _selectedClient?.id,
+              dropdownColor: isDark ? AppTheme.darkSurfaceRaised : Colors.white,
+              icon: Icon(Icons.arrow_drop_down, color: isDark ? Colors.white70 : Colors.grey.shade700),
+              hint: Row(
+                children: [
+                  Icon(Icons.business_outlined, size: 18, color: const Color(0xFF0D6EFD)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      _selectedClient?.name ?? "All Clients",
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: primaryTextColor,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              items: [
+                DropdownMenuItem<int?>(
+                  value: null,
+                  child: Row(
+                    children: [
+                      Icon(Icons.group_outlined, size: 18, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                      const SizedBox(width: 10),
+                      Text(
+                        "All Clients",
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: _selectedClient == null ? FontWeight.bold : FontWeight.normal,
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                ...clients.map((client) {
+                  return DropdownMenuItem<int?>(
+                    value: client.id,
+                    child: Text(
+                      client.name,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: _selectedClient?.id == client.id ? FontWeight.bold : FontWeight.normal,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  );
+                }),
+              ],
+              onChanged: (clientId) {
+                setState(() {
+                  if (clientId == null) {
+                    _selectedClient = null;
+                  } else {
+                    _selectedClient = clients.firstWhere(
+                      (c) => c.id == clientId,
+                      orElse: () => Client(id: clientId, name: 'Client'),
+                    );
+                  }
+                });
+              },
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -680,10 +801,12 @@ class ProjectsScreenState extends State<ProjectsScreen> {
             onPressed: () {
               _searchController.clear();
               setState(() {
-                _selectedStatusTab = "All";
+                _selectedStatusTab = "All Projects";
+                _selectedClient = null;
               });
               _controller.searchProjects('');
               _controller.fetchProjects();
+              _controller.fetchAvailableClients();
             },
           ),
         ),
@@ -709,7 +832,7 @@ class ProjectsScreenState extends State<ProjectsScreen> {
   }
 
   Widget _buildStatusTabs(bool isDark, Color borderColor, Color cardColor) {
-    final List<String> statusTabs = ["All", "In Progress", "Completed", "On Hold", "Draft"];
+    final List<String> statusTabs = ["All Projects", "Active Projects", "Archived Projects"];
     
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -800,21 +923,38 @@ class ProjectsScreenState extends State<ProjectsScreen> {
           );
         }
 
-        // Apply local status tab filter
+        // Apply status and client filter
         final filteredList = _controller.filteredProjects.where((p) {
-          if (_selectedStatusTab == "All") return true;
-          final status = (p.statusLabel.isEmpty ? "Active" : p.statusLabel).toLowerCase();
-          final tabLower = _selectedStatusTab.toLowerCase();
-          
-          if (tabLower == "in progress" && status == "active") return true;
-          return status == tabLower;
+          // Status filter
+          final status = (p.statusLabel.isEmpty ? p.status : p.statusLabel).toLowerCase();
+          if (_selectedStatusTab == "Active Projects") {
+            if (status == 'archived') return false;
+          } else if (_selectedStatusTab == "Archived Projects") {
+            if (status != 'archived') return false;
+          }
+
+          // Client filter
+          if (_selectedClient != null) {
+            final pClientId = p.client?.id;
+            final pClientName = (p.client?.name ?? '').trim().toLowerCase();
+            final selClientId = _selectedClient!.id;
+            final selClientName = _selectedClient!.name.trim().toLowerCase();
+
+            if (selClientId > 0 && pClientId != null && pClientId > 0) {
+              if (pClientId != selClientId) return false;
+            } else {
+              if (pClientName != selClientName) return false;
+            }
+          }
+
+          return true;
         }).toList();
 
         if (filteredList.isEmpty) {
           return const Center(
             child: Padding(
               padding: EdgeInsets.all(40.0),
-              child: Text("No projects found under this status.", style: TextStyle(color: Colors.grey)),
+              child: Text("No projects found matching the selected filters.", style: TextStyle(color: Colors.grey)),
             ),
           );
         }
