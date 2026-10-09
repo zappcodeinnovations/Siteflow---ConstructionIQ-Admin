@@ -286,11 +286,22 @@ class _AddApprovalStageDialogState extends State<AddApprovalStageDialog> {
   @override
   Widget build(BuildContext context) {
     final users = widget.controller.assignableUsers;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final dialogBg = isDark ? AppTheme.darkSurfaceRaised : Colors.white;
+    final titleColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
+    final fieldFillColor = isDark ? Colors.white.withOpacity(0.08) : Colors.grey.shade50;
+    final fieldBorderColor = isDark ? AppTheme.darkBorder : Colors.grey.shade200;
+    final labelColor = isDark ? Colors.white70 : Colors.grey.shade700;
+    final hintColor = isDark ? Colors.white38 : Colors.grey.shade400;
+    final textColor = isDark ? Colors.white : Colors.black87;
 
     return Dialog(
-      backgroundColor: Colors.white,
+      backgroundColor: dialogBg,
       surfaceTintColor: Colors.transparent,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: isDark ? const BorderSide(color: AppTheme.darkBorder) : BorderSide.none,
+      ),
       child: Container(
         width: 500,
         padding: const EdgeInsets.all(24),
@@ -303,15 +314,15 @@ class _AddApprovalStageDialogState extends State<AddApprovalStageDialog> {
               children: [
                 Text(
                   widget.existingStage == null ? "Add Approval Stage" : "Edit Approval Stage",
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF0F2C4A),
+                    color: titleColor,
                     fontFamily: 'Inter',
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.close, color: Colors.black54),
+                  icon: Icon(Icons.close, color: isDark ? Colors.white70 : Colors.black54),
                   onPressed: () => Navigator.of(context).pop(),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
@@ -319,7 +330,7 @@ class _AddApprovalStageDialogState extends State<AddApprovalStageDialog> {
               ],
             ),
             const SizedBox(height: 16),
-            Divider(height: 1, color: Colors.grey.shade100),
+            Divider(height: 1, color: isDark ? Colors.white12 : Colors.grey.shade100),
             const SizedBox(height: 20),
             Flexible(
               child: SingleChildScrollView(
@@ -329,52 +340,52 @@ class _AddApprovalStageDialogState extends State<AddApprovalStageDialog> {
                     Text.rich(
                       TextSpan(
                         text: "Title ",
-                        style: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.bold, fontSize: 13, fontFamily: 'Inter'),
+                        style: TextStyle(color: labelColor, fontWeight: FontWeight.bold, fontSize: 13, fontFamily: 'Inter'),
                         children: const [TextSpan(text: "*", style: TextStyle(color: Colors.red))],
                       ),
                     ),
                     const SizedBox(height: 8),
                     TextField(
                       controller: _titleController,
-                      style: const TextStyle(color: Colors.black87, fontSize: 14),
+                      style: TextStyle(color: textColor, fontSize: 14),
                       decoration: InputDecoration(
                         isDense: true,
                         filled: true,
-                        fillColor: Colors.grey.shade50,
+                        fillColor: fieldFillColor,
                         hintText: "Enter approval stage title",
-                        hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+                        hintStyle: TextStyle(color: hintColor, fontSize: 14),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade200)),
-                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade200)),
-                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF0D6EFD), width: 1.5)),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: fieldBorderColor)),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: fieldBorderColor)),
+                        focusedBorder: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(8)), borderSide: BorderSide(color: Color(0xFF0D6EFD), width: 1.5)),
                       ),
                     ),
                     const SizedBox(height: 20),
                     Text(
                       "Declaration",
-                      style: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.bold, fontSize: 13, fontFamily: 'Inter'),
+                      style: TextStyle(color: labelColor, fontWeight: FontWeight.bold, fontSize: 13, fontFamily: 'Inter'),
                     ),
                     const SizedBox(height: 8),
                     TextField(
                       controller: _declarationController,
                       maxLines: 4,
-                      style: const TextStyle(color: Colors.black87, fontSize: 14),
+                      style: TextStyle(color: textColor, fontSize: 14),
                       decoration: InputDecoration(
                         filled: true,
-                        fillColor: Colors.grey.shade50,
+                        fillColor: fieldFillColor,
                         hintText: "Enter the declaration text...",
-                        hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+                        hintStyle: TextStyle(color: hintColor, fontSize: 14),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade200)),
-                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade200)),
-                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF0D6EFD), width: 1.5)),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: fieldBorderColor)),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: fieldBorderColor)),
+                        focusedBorder: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(8)), borderSide: BorderSide(color: Color(0xFF0D6EFD), width: 1.5)),
                       ),
                     ),
                     const SizedBox(height: 20),
                     Text.rich(
                       TextSpan(
                         text: "Users That Can Sign ",
-                        style: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.bold, fontSize: 13, fontFamily: 'Inter'),
+                        style: TextStyle(color: labelColor, fontWeight: FontWeight.bold, fontSize: 13, fontFamily: 'Inter'),
                         children: const [TextSpan(text: "*", style: TextStyle(color: Colors.red))],
                       ),
                     ),
@@ -382,8 +393,8 @@ class _AddApprovalStageDialogState extends State<AddApprovalStageDialog> {
                     Container(
                       height: 200,
                       decoration: BoxDecoration(
-                        color: Colors.grey.shade50,
-                        border: Border.all(color: Colors.grey.shade200),
+                        color: fieldFillColor,
+                        border: Border.all(color: fieldBorderColor),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: StatefulBuilder(
@@ -393,7 +404,7 @@ class _AddApprovalStageDialogState extends State<AddApprovalStageDialog> {
                           }
                           return ListView.separated(
                             itemCount: users.length,
-                            separatorBuilder: (context, index) => Divider(height: 1, color: Colors.grey.shade100),
+                            separatorBuilder: (context, index) => Divider(height: 1, color: isDark ? Colors.white12 : Colors.grey.shade100),
                             itemBuilder: (context, index) {
                               final user = users[index];
                               final userId = user['id'] as int;
@@ -410,12 +421,12 @@ class _AddApprovalStageDialogState extends State<AddApprovalStageDialog> {
                                 },
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                  color: isSelected ? Colors.blue.withOpacity(0.05) : Colors.transparent,
+                                  color: isSelected ? Colors.blue.withOpacity(0.12) : Colors.transparent,
                                   child: Row(
                                     children: [
                                       Icon(
                                         isSelected ? Icons.check_box : Icons.check_box_outline_blank,
-                                        color: isSelected ? const Color(0xFF0D6EFD) : Colors.grey.shade400,
+                                        color: isSelected ? const Color(0xFF0D6EFD) : (isDark ? Colors.white54 : Colors.grey.shade400),
                                         size: 20,
                                       ),
                                       const SizedBox(width: 12),
@@ -423,7 +434,7 @@ class _AddApprovalStageDialogState extends State<AddApprovalStageDialog> {
                                         child: Text(
                                           user['name']?.toString() ?? '',
                                           style: TextStyle(
-                                            color: isSelected ? const Color(0xFF0D6EFD) : Colors.black87,
+                                            color: isSelected ? const Color(0xFF66B2FF) : textColor,
                                             fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                                             fontSize: 13.5,
                                             fontFamily: 'Inter',
@@ -449,7 +460,7 @@ class _AddApprovalStageDialogState extends State<AddApprovalStageDialog> {
               children: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  style: TextButton.styleFrom(foregroundColor: Colors.grey.shade600, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12)),
+                  style: TextButton.styleFrom(foregroundColor: isDark ? Colors.white70 : Colors.grey.shade600, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12)),
                   child: const Text("Cancel", style: TextStyle(fontWeight: FontWeight.w600, fontFamily: 'Inter')),
                 ),
                 ElevatedButton(

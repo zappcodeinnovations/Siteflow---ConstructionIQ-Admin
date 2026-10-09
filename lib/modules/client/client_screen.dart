@@ -690,19 +690,21 @@ class ClientsScreenState extends State<ClientsScreen> {
                                   }
                                 },
                                 itemBuilder: (context) => [
-                                  const PopupMenuItem(
+                                  PopupMenuItem(
                                     value: 'edit',
                                     child: Row(
                                       children: [
-                                        Icon(
+                                        const Icon(
                                           IconlyLight.edit,
                                           size: 18,
                                           color: Color(0xFF0D6EFD),
                                         ),
-                                        SizedBox(width: 12),
+                                        const SizedBox(width: 12),
                                         Text(
                                           "Edit",
-                                          style: TextStyle(color: Colors.black87),
+                                          style: TextStyle(
+                                            color: isDark ? Colors.white : Colors.black87,
+                                          ),
                                         ),
                                       ],
                                     ),
