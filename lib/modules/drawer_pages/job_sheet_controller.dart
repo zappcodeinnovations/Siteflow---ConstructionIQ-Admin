@@ -40,6 +40,12 @@ class JobSheetController extends ChangeNotifier {
   List<JobSheet> _jobSheets = [];
   List<JobSheet> get jobSheets => _jobSheets;
 
+  // Unfiltered cache for instant 0ms Reset
+  List<JobSheet> _cachedUnfilteredJobSheets = [];
+  int _cachedUnfilteredTotalCount = 0;
+  int _cachedUnfilteredTotalPages = 1;
+  Map<String, dynamic> _cachedUnfilteredFilterOptions = {};
+
   Map<String, dynamic> _filterOptions = {};
   Map<String, dynamic> get filterOptions => _filterOptions;
 
@@ -61,6 +67,14 @@ class JobSheetController extends ChangeNotifier {
 
   String? _selectedForm;
   String? get selectedForm => _selectedForm;
+
+  bool get hasActiveFilters =>
+      _selectedStatus != 'Status: All' && _selectedStatus != 'All' ||
+      (_selectedProject?.isNotEmpty ?? false) ||
+      (_selectedSheetNo?.isNotEmpty ?? false) ||
+      (_selectedClient?.isNotEmpty ?? false) ||
+      (_selectedOperative?.isNotEmpty ?? false) ||
+      (_selectedForm?.isNotEmpty ?? false);
 
   // When true, this controller serves the "Daily Reports" screen instead of
   // "Job Sheets": Daily Diary submissions are included (the default list
@@ -108,11 +122,15 @@ class JobSheetController extends ChangeNotifier {
     });
   }
 
-  Future<void> fetchJobSheets({String? projectId}) async {
-    _isLoading = true;
+  Future<void> fetchJobSheets({String? projectId, bool silent = false, bool keepPreviousData = false}) async {
+    if (!silent && !keepPreviousData && _jobSheets.isEmpty) {
+      _isLoading = true;
+    }
     _errorMessage = null;
-    _currentPage = 0;
-    _totalPages = 1;
+    if (!keepPreviousData && !silent && _jobSheets.isEmpty) {
+      _currentPage = 0;
+      _totalPages = 1;
+    }
     notifyListeners();
 
     try {
@@ -126,11 +144,22 @@ class JobSheetController extends ChangeNotifier {
         _totalPages = jobSheetResponse.totalPages;
         _totalCount = jobSheetResponse.count;
         _mergeFilterOptions(jobSheetResponse.filterOptions);
+
+        if (!hasActiveFilters && projectId == null) {
+          _cachedUnfilteredJobSheets = List.from(_jobSheets);
+          _cachedUnfilteredTotalCount = _totalCount;
+          _cachedUnfilteredTotalPages = _totalPages;
+          _cachedUnfilteredFilterOptions = Map.from(_filterOptions);
+        }
       } else {
-        _errorMessage = data['message'] ?? 'Failed to fetch job sheets';
+        if (_jobSheets.isEmpty) {
+          _errorMessage = data['message'] ?? 'Failed to fetch job sheets';
+        }
       }
     } catch (e) {
-      _errorMessage = 'An error occurred: $e';
+      if (_jobSheets.isEmpty) {
+        _errorMessage = 'An error occurred: $e';
+      }
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -162,8 +191,7 @@ class JobSheetController extends ChangeNotifier {
 
   void setStatusFilter(String status) {
     _selectedStatus = status;
-    _jobSheets = [];
-    fetchJobSheets();
+    fetchJobSheets(keepPreviousData: true);
   }
 
   void setFilter({
@@ -178,8 +206,7 @@ class JobSheetController extends ChangeNotifier {
     _selectedClient = client;
     _selectedOperative = operative;
     _selectedForm = form;
-    _jobSheets = [];
-    fetchJobSheets();
+    fetchJobSheets(keepPreviousData: true);
   }
 
   void clearFilters() {
@@ -189,7 +216,24 @@ class JobSheetController extends ChangeNotifier {
     _selectedClient = null;
     _selectedOperative = null;
     _selectedForm = null;
-    _jobSheets = [];
-    fetchJobSheets();
+
+    if (_cachedUnfilteredJobSheets.isNotEmpty) {
+      // Instantly restore cached unfiltered items with 0ms latency
+      _jobSheets = List.from(_cachedUnfilteredJobSheets);
+      _totalCount = _cachedUnfilteredTotalCount;
+      _totalPages = _cachedUnfilteredTotalPages;
+      _currentPage = 1;
+      _errorMessage = null;
+      _isLoading = false;
+      if (_cachedUnfilteredFilterOptions.isNotEmpty) {
+        _filterOptions = Map.from(_cachedUnfilteredFilterOptions);
+      }
+      notifyListeners();
+
+      // Silent background fetch to ensure freshness
+      fetchJobSheets(silent: true);
+    } else {
+      fetchJobSheets(keepPreviousData: true);
+    }
   }
 }

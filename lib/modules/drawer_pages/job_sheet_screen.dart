@@ -93,6 +93,7 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
             ScaffoldMessenger.of(context).hideCurrentSnackBar();
           }
 
+          // ignore: deprecated_member_use
           await Share.shareXFiles([XFile(file.path)], text: 'Job Sheet ${sheet.sheetNo} PDF');
           return;
         }
@@ -166,6 +167,7 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
           ScaffoldMessenger.of(context).hideCurrentSnackBar();
         }
 
+        // ignore: deprecated_member_use
         await Share.shareXFiles([XFile(file.path)], text: 'Job Sheets Report');
       } else {
         if (mounted) {
@@ -243,6 +245,7 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
             } else {
               // iOS/desktop and older Android versions use the system save
               // sheet when public Downloads storage is unavailable.
+              // ignore: deprecated_member_use
               await Share.shareXFiles([XFile(file.path)], text: 'Project PDF: ${widget.title}');
             }
           }
@@ -1179,9 +1182,18 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
                     return const Center(child: Text("No job sheets found.", style: TextStyle(color: Colors.grey)));
                   }
 
-                  return ListView.builder(
-                    itemCount: _controller.jobSheets.length,
-                    itemBuilder: (context, index) {
+                  return Column(
+                    children: [
+                      if (_controller.isLoading && _controller.jobSheets.isNotEmpty)
+                        const LinearProgressIndicator(
+                          minHeight: 2,
+                          backgroundColor: Colors.transparent,
+                          color: Color(0xFF0D6EFD),
+                        ),
+                      Expanded(
+                        child: ListView.builder(
+                          itemCount: _controller.jobSheets.length,
+                          itemBuilder: (context, index) {
                       final sheet = _controller.jobSheets[index];
                       final isCompleted = sheet.statusLabel.toLowerCase().contains("completed") || sheet.status.toLowerCase().contains("completed");
                       
@@ -1416,10 +1428,13 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
                         ),
                       );
                     },
-                  );
-                },
-              ),
-            ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
               ],
             ),
           ),
