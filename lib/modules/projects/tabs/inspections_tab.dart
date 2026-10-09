@@ -116,36 +116,106 @@ class _InspectionsTabState extends State<InspectionsTab> {
     }
   }
 
-  Widget _buildSummaryCard(String title, int count, Color cardColor, Color borderColor, Color textColor, Color textSecondary) {
+  String _selectedStatusFilter = 'All';
+
+  List<InspectionModel> _getFilteredInspections() {
+    if (_selectedStatusFilter == 'All') {
+      return _controller.inspections;
+    }
+    final target = _selectedStatusFilter.toLowerCase().trim();
+    return _controller.inspections.where((i) {
+      final s = i.status.toLowerCase().trim();
+      final sl = i.statusLabel.toLowerCase().trim();
+      return s == target || sl == target;
+    }).toList();
+  }
+
+  Widget _buildSummaryCard({
+    required String title,
+    required int count,
+    required Color cardColor,
+    required Color borderColor,
+    required Color textColor,
+    required Color textSecondary,
+    required Color accentColor,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: borderColor),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.02),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
+    return InkWell(
+      borderRadius: BorderRadius.circular(10),
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? accentColor.withValues(alpha: isDark ? 0.22 : 0.1)
+              : cardColor,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected ? accentColor : borderColor,
+            width: isSelected ? 1.5 : 1.0,
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            title,
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textSecondary),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            "$count",
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
-          ),
-        ],
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.02),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2.0),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: accentColor,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                        color: isSelected
+                            ? (isDark ? Colors.white : accentColor)
+                            : textSecondary,
+                      ),
+                      maxLines: 1,
+                      softWrap: false,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 4),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                "$count",
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: isSelected ? accentColor : textColor,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -165,6 +235,7 @@ class _InspectionsTabState extends State<InspectionsTab> {
         final pendingCount = _controller.inspections.where((i) => i.status.toLowerCase() == 'pending').length;
         final passedCount = _controller.inspections.where((i) => i.status.toLowerCase() == 'passed').length;
         final failedCount = _controller.inspections.where((i) => i.status.toLowerCase() == 'failed').length;
+        final displayedInspections = _getFilteredInspections();
 
         return RefreshIndicator(
           onRefresh: _controller.fetchInspections,
@@ -197,17 +268,65 @@ class _InspectionsTabState extends State<InspectionsTab> {
                 ),
                 const SizedBox(height: 16),
 
-                // Metrics Summary Row
+                // Metrics Summary Row (Responsive, Single-Line, Uncut text)
                 if (!_controller.isLoadingInspections && _controller.inspections.isNotEmpty) ...[
                   Row(
                     children: [
-                      Expanded(child: _buildSummaryCard("All", totalCount, cardColor, borderColor, textColor, textSecondary)),
+                      Expanded(
+                        child: _buildSummaryCard(
+                          title: "All",
+                          count: totalCount,
+                          cardColor: cardColor,
+                          borderColor: borderColor,
+                          textColor: textColor,
+                          textSecondary: textSecondary,
+                          accentColor: const Color(0xFF0D6EFD),
+                          isSelected: _selectedStatusFilter == 'All',
+                          onTap: () => setState(() => _selectedStatusFilter = 'All'),
+                        ),
+                      ),
                       const SizedBox(width: 8),
-                      Expanded(child: _buildSummaryCard("Pending", pendingCount, cardColor, borderColor, textColor, textSecondary)),
+                      Expanded(
+                        child: _buildSummaryCard(
+                          title: "Pending",
+                          count: pendingCount,
+                          cardColor: cardColor,
+                          borderColor: borderColor,
+                          textColor: textColor,
+                          textSecondary: textSecondary,
+                          accentColor: const Color(0xFFF59E0B),
+                          isSelected: _selectedStatusFilter == 'Pending',
+                          onTap: () => setState(() => _selectedStatusFilter = _selectedStatusFilter == 'Pending' ? 'All' : 'Pending'),
+                        ),
+                      ),
                       const SizedBox(width: 8),
-                      Expanded(child: _buildSummaryCard("Passed", passedCount, cardColor, borderColor, textColor, textSecondary)),
+                      Expanded(
+                        child: _buildSummaryCard(
+                          title: "Passed",
+                          count: passedCount,
+                          cardColor: cardColor,
+                          borderColor: borderColor,
+                          textColor: textColor,
+                          textSecondary: textSecondary,
+                          accentColor: const Color(0xFF16A34A),
+                          isSelected: _selectedStatusFilter == 'Passed',
+                          onTap: () => setState(() => _selectedStatusFilter = _selectedStatusFilter == 'Passed' ? 'All' : 'Passed'),
+                        ),
+                      ),
                       const SizedBox(width: 8),
-                      Expanded(child: _buildSummaryCard("Failed", failedCount, cardColor, borderColor, textColor, textSecondary)),
+                      Expanded(
+                        child: _buildSummaryCard(
+                          title: "Failed",
+                          count: failedCount,
+                          cardColor: cardColor,
+                          borderColor: borderColor,
+                          textColor: textColor,
+                          textSecondary: textSecondary,
+                          accentColor: const Color(0xFFDC2626),
+                          isSelected: _selectedStatusFilter == 'Failed',
+                          onTap: () => setState(() => _selectedStatusFilter = _selectedStatusFilter == 'Failed' ? 'All' : 'Failed'),
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 18),
@@ -253,8 +372,30 @@ class _InspectionsTabState extends State<InspectionsTab> {
                       ],
                     ),
                   )
+                else if (displayedInspections.isEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 24),
+                    decoration: BoxDecoration(
+                      color: isDark ? AppTheme.darkSurface : Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: borderColor),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          "No $_selectedStatusFilter inspections found.",
+                          style: TextStyle(fontWeight: FontWeight.bold, color: textColor, fontSize: 15),
+                        ),
+                        const SizedBox(height: 8),
+                        TextButton(
+                          onPressed: () => setState(() => _selectedStatusFilter = 'All'),
+                          child: const Text("Show all inspections"),
+                        ),
+                      ],
+                    ),
+                  )
                 else
-                  ..._controller.inspections.map(
+                  ...displayedInspections.map(
                     (inspection) => _buildInspectionCard(inspection, cardColor, borderColor, textColor, textSecondary),
                   ),
               ],
