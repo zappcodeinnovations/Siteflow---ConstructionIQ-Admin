@@ -59,6 +59,11 @@ class AppTheme {
         borderSide: const BorderSide(color: corporateBlue, width: 2),
       ),
     ),
+    textSelectionTheme: const TextSelectionThemeData(
+      cursorColor: corporateBlue,
+      selectionColor: Color(0x3300529B),
+      selectionHandleColor: corporateBlue,
+    ),
     dialogTheme: DialogThemeData(
       backgroundColor: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -83,6 +88,11 @@ class AppTheme {
     cardColor: darkSurface,
     dividerColor: darkBorder,
     iconTheme: const IconThemeData(color: darkMuted),
+    textSelectionTheme: const TextSelectionThemeData(
+      cursorColor: Color(0xFF66B2FF),
+      selectionColor: Color(0x6666B2FF),
+      selectionHandleColor: Color(0xFF66B2FF),
+    ),
     cardTheme: const CardThemeData(
       color: darkSurface,
       surfaceTintColor: Colors.transparent,
@@ -96,7 +106,7 @@ class AppTheme {
       secondary: corporateYellow,
       onSecondary: Colors.black,
       surface: darkSurface,
-      onSurface: darkText,
+      onSurface: Colors.white,
       onSurfaceVariant: darkMuted,
       outline: darkBorder,
       outlineVariant: darkBorder,
@@ -105,9 +115,13 @@ class AppTheme {
       surfaceContainerHigh: darkSurfaceRaised,
       surfaceContainerHighest: Color(0xFF232A34),
     ),
-    textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme).apply(
-      bodyColor: darkText,
-      displayColor: darkText,
+    textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme).copyWith(
+      bodyLarge: const TextStyle(color: Colors.white),
+      bodyMedium: const TextStyle(color: Colors.white),
+      bodySmall: const TextStyle(color: Colors.white70),
+      titleLarge: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+      titleMedium: const TextStyle(color: Colors.white),
+      titleSmall: const TextStyle(color: Colors.white),
     ),
 
     dialogTheme: DialogThemeData(
@@ -163,10 +177,11 @@ class AppTheme {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: Colors.white, width: 1.5),
+        borderSide: const BorderSide(color: Color(0xFF66B2FF), width: 1.5),
       ),
       labelStyle: const TextStyle(color: Colors.white70),
-      hintStyle: const TextStyle(color: Colors.white60),
+      floatingLabelStyle: const TextStyle(color: Color(0xFF66B2FF)),
+      hintStyle: const TextStyle(color: Colors.white54),
       prefixIconColor: Colors.white70,
       suffixIconColor: Colors.white70,
     ),
@@ -183,10 +198,17 @@ class AppTheme {
     popupMenuTheme: PopupMenuThemeData(
       color: darkSurfaceRaised,
       surfaceTintColor: Colors.transparent,
-      textStyle: const TextStyle(color: darkText),
+      textStyle: const TextStyle(color: Colors.white),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: const BorderSide(color: darkBorder),
+      ),
+    ),
+    dropdownMenuTheme: DropdownMenuThemeData(
+      textStyle: const TextStyle(color: Colors.white),
+      menuStyle: MenuStyle(
+        backgroundColor: WidgetStatePropertyAll(darkSurfaceRaised),
+        surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
       ),
     ),
     bottomSheetTheme: const BottomSheetThemeData(

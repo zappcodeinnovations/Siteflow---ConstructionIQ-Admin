@@ -39,8 +39,8 @@ class ProjectAllInOneModel {
       drawings: json['drawings'] ?? [],
       locations: json['locations'] ?? [],
       specifications: json['specifications'] ?? [],
-      docsFolders: json['docs_folders'] ?? [],
-      docsFiles: json['docs_files'] ?? [],
+      docsFolders: json['docs_folders'] ?? json['folders'] ?? json['doc_folders'] ?? [],
+      docsFiles: json['docs_files'] ?? json['files'] ?? json['documents'] ?? json['doc_files'] ?? [],
       projectSetup: json['project_setup'],
       jobSheetsFilterOptions: json['job_sheets_filter_options'],
     );

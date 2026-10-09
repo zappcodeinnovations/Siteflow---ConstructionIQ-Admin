@@ -130,32 +130,27 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
       appBar: CustomAppBar(
         title: titles[currentIndex],
         actions: [
-          ...currentIndex == _clientsIndex
-              ? [
-                  IconButton(
-                    icon: const Icon(IconlyLight.search),
-                    onPressed: () {
-                      clientsScreenKey.currentState?.toggleSearch();
-                    },
-                  ),
-                ]
-              : currentIndex == _projectsIndex
-              ? [
-                  IconButton(
-                    icon: const Icon(IconlyLight.search),
-                    onPressed: () {
-                      projectsScreenKey.currentState?.toggleSearch();
-                    },
-                  ),
-                ]
-              : [],
           IconButton(
             icon: const Icon(IconlyLight.search),
-            tooltip: "Search everything",
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const GlobalSearchScreen()),
-            ),
+            tooltip: currentIndex == _clientsIndex
+                ? "Search & Filter Clients"
+                : currentIndex == _projectsIndex
+                ? "Search & Filter Projects"
+                : "Search everything",
+            onPressed: () {
+              if (currentIndex == _clientsIndex) {
+                clientsScreenKey.currentState?.toggleSearch();
+              } else if (currentIndex == _projectsIndex) {
+                projectsScreenKey.currentState?.toggleSearch();
+              } else {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const GlobalSearchScreen(),
+                  ),
+                );
+              }
+            },
           ),
         ],
       ),

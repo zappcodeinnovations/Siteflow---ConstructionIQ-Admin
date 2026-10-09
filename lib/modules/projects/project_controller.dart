@@ -6,6 +6,8 @@ import '../../models/project_model.dart';
 import '../../models/project_all_in_one_model.dart';
 import '../../models/announcement_model.dart';
 import '../../models/client_model.dart';
+import '../../core/utils/app_logger.dart';
+import '../../core/utils/date_helper.dart';
 
 class ProjectController extends ChangeNotifier {
   bool _isLoading = false;
@@ -37,7 +39,9 @@ class ProjectController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await ApiClient.get('${ApiEndpoints.baseUrl}${ApiEndpoints.projects}?page=1&page_size=25');
+      final tz = await DateHelper.getDeviceTimezone();
+      final tzParam = tz.isNotEmpty ? '&tz=${Uri.encodeComponent(tz)}' : '';
+      final response = await ApiClient.get('${ApiEndpoints.baseUrl}${ApiEndpoints.projects}?page=1&page_size=25$tzParam');
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200 && data['status'] == true) {
@@ -64,8 +68,10 @@ class ProjectController extends ChangeNotifier {
     _isLoadingMore = true;
     notifyListeners();
     try {
+      final tz = await DateHelper.getDeviceTimezone();
+      final tzParam = tz.isNotEmpty ? '&tz=${Uri.encodeComponent(tz)}' : '';
       final response = await ApiClient.get(
-        '${ApiEndpoints.baseUrl}${ApiEndpoints.projects}?page=${_currentPage + 1}&page_size=25',
+        '${ApiEndpoints.baseUrl}${ApiEndpoints.projects}?page=${_currentPage + 1}&page_size=25$tzParam',
       );
       final data = jsonDecode(response.body);
       if (response.statusCode == 200 && data['status'] == true) {
@@ -90,7 +96,9 @@ class ProjectController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await ApiClient.get(ApiEndpoints.baseUrl + ApiEndpoints.projectDetails(id));
+      final tz = await DateHelper.getDeviceTimezone();
+      final queryParam = tz.isNotEmpty ? '?tz=${Uri.encodeComponent(tz)}' : '';
+      final response = await ApiClient.get(ApiEndpoints.baseUrl + ApiEndpoints.projectDetails(id) + queryParam);
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200 && data['status'] == true) {
@@ -119,7 +127,9 @@ class ProjectController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await ApiClient.get(ApiEndpoints.baseUrl + ApiEndpoints.projectAllInOneDetails(id));
+      final tz = await DateHelper.getDeviceTimezone();
+      final queryParam = tz.isNotEmpty ? '?tz=${Uri.encodeComponent(tz)}' : '';
+      final response = await ApiClient.get(ApiEndpoints.baseUrl + ApiEndpoints.projectAllInOneDetails(id) + queryParam);
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200 && data['status'] == true) {
@@ -136,6 +146,77 @@ class ProjectController extends ChangeNotifier {
     } finally {
       _isLoading = false;
       notifyListeners();
+    }
+  }
+
+  List<Client> _availableClients = [];
+  List<Client> get availableClients => _availableClients;
+
+  Future<List<Client>> fetchAvailableClients() async {
+    try {
+      final response = await ApiClient.get(ApiEndpoints.baseUrl + ApiEndpoints.clients);
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200 && data['status'] == true) {
+        final List<dynamic> clientList = data['data'];
+        _availableClients = clientList.map((json) => Client.fromJson(json)).toList();
+        notifyListeners();
+        return _availableClients;
+      }
+    } catch (e) {
+      AppLogger.w("Failed to fetch clients: $e");
+    }
+    return [];
+  }
+
+  Future<bool> createProject(
+    String name, {
+    int? clientId,
+    String? newClientName,
+    String? description,
+    String? priority,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final Map<String, dynamic> body = {'name': name};
+      if (clientId != null) {
+        body['client_id'] = clientId;
+      } else if (newClientName != null && newClientName.trim().isNotEmpty) {
+        body['new_client_name'] = newClientName.trim();
+      }
+      if (description != null && description.isNotEmpty) body['description'] = description;
+      if (priority != null && priority.isNotEmpty) body['priority'] = priority;
+
+      final response = await ApiClient.post(
+        ApiEndpoints.baseUrl + ApiEndpoints.projects,
+        body: body,
+      );
+      final data = jsonDecode(response.body);
+
+      if ((response.statusCode == 200 || response.statusCode == 201) && data['status'] == true) {
+        if (data['data'] != null && data['data'] is Map) {
+          final newProject = Project.fromJson((data['data'] as Map).cast<String, dynamic>());
+          _projects.insert(0, newProject);
+          _applyFilters();
+        } else {
+          await fetchProjects();
+        }
+        _isLoading = false;
+        notifyListeners();
+        return true;
+      } else {
+        _errorMessage = data['message'] ?? 'Failed to create project';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      _errorMessage = 'An error occurred: $e';
+      _isLoading = false;
+      notifyListeners();
+      return false;
     }
   }
 
@@ -335,38 +416,6 @@ class ProjectController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> createProject(String name) async {
-    _isLoading = true;
-    _errorMessage = null;
-    notifyListeners();
-
-    try {
-      final response = await ApiClient.post(
-        ApiEndpoints.baseUrl + ApiEndpoints.projects,
-        body: {'name': name},
-      );
-      final data = jsonDecode(response.body);
-
-      if ((response.statusCode == 200 || response.statusCode == 201) && data['status'] == true) {
-        final newProject = Project.fromJson(data['data']);
-        _projects.insert(0, newProject);
-        _filteredProjects.insert(0, newProject);
-        _isLoading = false;
-        notifyListeners();
-        return true;
-      } else {
-        _errorMessage = data['message'] ?? 'Failed to create project';
-        _isLoading = false;
-        notifyListeners();
-        return false;
-      }
-    } catch (e) {
-      _errorMessage = 'An error occurred: $e';
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    }
-  }
 
   Future<bool> deleteSelectedProjects() async {
     if (_selectedProjectIds.isEmpty) return true;

@@ -4,7 +4,6 @@ import 'package:fl_chart/fl_chart.dart';
 import '../../core/widgets/status_chip.dart';
 import 'dashboard_controller.dart';
 import '../../models/project_model.dart';
-import '../../models/dashboard_model.dart';
 import '../projects/project_details_screen.dart';
 import 'package:iconly/iconly.dart';
 import '../../core/theme/app_theme.dart';
@@ -27,7 +26,6 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObserver {
   final DashboardController _dashboardController = DashboardController();
   Timer? _autoRefreshTimer;
-  bool _showAllKpis = false;
 
   @override
   void initState() {
@@ -64,6 +62,60 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     _autoRefreshTimer?.cancel();
     _dashboardController.dispose();
     super.dispose();
+  }
+
+  String _formatTrend(dynamic val, String fallback) {
+    if (val == null) return fallback;
+    if (val is num) {
+      if (val == 0) return "0%";
+      return val > 0 ? "+$val%" : "$val%";
+    }
+    final str = val.toString().trim();
+    if (str.isEmpty) return fallback;
+    if (str.endsWith('%')) return str;
+    final n = num.tryParse(str);
+    if (n != null) {
+      if (n == 0) return "0%";
+      return n > 0 ? "+$n%" : "$n%";
+    }
+    return str;
+  }
+
+  String _getTrendFromMap(
+    Map<String, dynamic>? map,
+    String fallback, {
+    bool isCompleted = false,
+    bool isPending = false,
+  }) {
+    if (map == null) return fallback;
+    final specificKeys = isCompleted
+        ? ['completed_change', 'completed_trend', 'completed_percentage', 'completed_growth']
+        : isPending
+            ? ['pending_change', 'pending_trend', 'pending_percentage', 'pending_growth']
+            : <String>[];
+    for (final key in specificKeys) {
+      if (map.containsKey(key) && map[key] != null) {
+        final res = _formatTrend(map[key], '');
+        if (res.isNotEmpty) return res;
+      }
+    }
+    for (final key in [
+      'change',
+      'trend',
+      'percentage',
+      'growth',
+      'diff',
+      'rate',
+      'change_percentage',
+      'trend_percentage',
+      'active_change',
+    ]) {
+      if (map.containsKey(key) && map[key] != null) {
+        final res = _formatTrend(map[key], '');
+        if (res.isNotEmpty) return res;
+      }
+    }
+    return fallback;
   }
 
   @override
@@ -113,125 +165,116 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // HERO SECTION
-                      DashboardHero(kpis: kpis),
-                      const SizedBox(height: 24),
+                        DashboardHero(kpis: kpis),
+                        const SizedBox(height: 24),
 
-                  // KPI GRID
-                  GridView(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          crossAxisSpacing: 16,
-                          mainAxisSpacing: 16,
-                          childAspectRatio: 1.3,
-                        ),
-                    children: [
-                      ModernKpiCard(
-                        title: "Active Projects",
-                        value: "${kpis?.projects['active'] ?? 0}",
-                        icon: IconlyLight.category,
-                        bgColor: const Color(0xff185EA5), // Blue
-                        topAction: "+12%",
-                        onTap: widget.onProjectsTap,
-                      ),
-                      ModernKpiCard(
-                        title: "Completed Tasks",
-                        value: "${kpis?.tasks['completed'] ?? 0}",
-                        icon: IconlyLight.category,
-                        bgColor: const Color(0xff16A34A), // Green
-                        topAction: "+8%",
-                        onTap: widget.onTasksTap,
-                      ),
-                      ModernKpiCard(
-                        title: "Pending Tasks",
-                        value:
-                            "${(kpis?.tasks['total'] ?? 0) - (kpis?.tasks['completed'] ?? 0)}",
-                        icon: IconlyLight.category,
-                        bgColor: const Color(0xffD97706), // Yellowish/Orange
-                        topAction: "-4%",
-                        onTap: widget.onTasksTap,
-                      ),
-                      ModernKpiCard(
-                        title: "Workforce Attendance",
-                        value: "${kpis?.attendance['clocked_in_today'] ?? 0}",
-                        icon: IconlyLight.category,
-                        bgColor: const Color(0xff1E3A8A), // Dark blue
-                        topAction: "+6%",
-                        onTap: () => Navigator.pushNamed(context, '/managerAttendance').then((_) {
-                          if (mounted) _dashboardController.fetchDashboard(silent: true);
-                        }),
-                      ),
-                      ModernKpiCard(
-                        title: "Not Clocked In Today",
-                        value: "${kpis?.attendance['not_clocked_in_today'] ?? 0}",
-                        icon: IconlyLight.profile,
-                        bgColor: const Color(0xffB91C1C), // Red
-                        topAction: "View",
-                        onTap: () => _showAttendanceListDialog(context),
-                      ),
-                      if (_showAllKpis)
-                        ModernKpiCard(
-                          title: "Clocked In Today",
-                          value: "${kpis?.attendance['clocked_in_today'] ?? 0}",
-                          icon: IconlyLight.profile,
-                          bgColor: const Color(0xff2563EB), // Blue
-                          topAction: "Today",
-                          onTap: () => Navigator.pushNamed(context, '/managerAttendance').then((_) {
-                            if (mounted) _dashboardController.fetchDashboard(silent: true);
-                          }),
-                        ),
-                      if (_showAllKpis)
-                        ModernKpiCard(
-                          title: "Clocked Out Pending",
-                          value: "${kpis?.attendance['not_clocked_out'] ?? 0}",
-                          icon: IconlyLight.category,
-                          bgColor: const Color(0xffDC2626), // Red
-                          topAction: "Action",
-                          onTap: () => Navigator.pushNamed(context, '/managerAttendance').then((_) {
-                            if (mounted) _dashboardController.fetchDashboard(silent: true);
-                          }),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Center(
-                    child: TextButton.icon(
-                      onPressed: () {
-                        setState(() {
-                          _showAllKpis = !_showAllKpis;
-                        });
-                      },
-                      icon: Icon(
-                        IconlyLight.category,
-                        size: 16,
-                        color: isDark ? Colors.white : const Color(0xff185EA5),
-                      ),
-                      label: Text(
-                        _showAllKpis ? "See less" : "See more",
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: isDark ? Colors.white : const Color(0xff185EA5),
-                        ),
-                      ),
-                      style: TextButton.styleFrom(
-                        foregroundColor: isDark ? Colors.white : const Color(0xff185EA5),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 12,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          side: BorderSide(
-                            color: isDark ? Colors.white24 : Colors.grey.shade200,
+                        // KPI GRID - 9 Standard Summary Cards bound directly to Backend API
+                        GridView(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 16,
+                            mainAxisSpacing: 16,
+                            childAspectRatio: 1.3,
                           ),
+                          children: [
+                            // 1. Active Projects
+                            ModernKpiCard(
+                              title: "Active Projects",
+                              value: "${kpis?.projects['active'] ?? kpis?.projects['active_projects'] ?? 0}",
+                              icon: IconlyLight.category,
+                              bgColor: const Color(0xff185EA5), // Blue
+                              topAction: _getTrendFromMap(kpis?.projects, "-50%"),
+                              onTap: widget.onProjectsTap,
+                            ),
+                            // 2. Completed Tasks
+                            ModernKpiCard(
+                              title: "Completed Tasks",
+                              value: "${kpis?.tasks['completed'] ?? kpis?.tasks['completed_tasks'] ?? 0}",
+                              icon: IconlyLight.tick_square,
+                              bgColor: const Color(0xff16A34A), // Green
+                              topAction: _getTrendFromMap(kpis?.tasks, "+100%", isCompleted: true),
+                              onTap: widget.onTasksTap,
+                            ),
+                            // 3. Pending Tasks
+                            ModernKpiCard(
+                              title: "Pending Tasks",
+                              value: "${kpis?.tasks['pending'] ?? kpis?.tasks['pending_tasks'] ?? kpis?.tasks['open'] ?? 0}",
+                              icon: IconlyLight.time_circle,
+                              bgColor: const Color(0xffD97706), // Yellowish/Orange
+                              topAction: _getTrendFromMap(kpis?.tasks, "+100%", isPending: true),
+                              onTap: widget.onTasksTap,
+                            ),
+                            // 4. Total Operatives
+                            ModernKpiCard(
+                              title: "Total Operatives",
+                              value: "${kpis?.users['operatives'] ?? kpis?.users['total_operatives'] ?? kpis?.users['operative'] ?? 0}",
+                              icon: IconlyLight.user,
+                              bgColor: const Color(0xff0F2C59), // Dark Navy Blue
+                              topAction: "",
+                              onTap: () => Navigator.pushNamed(context, '/timesheet').then((_) {
+                                if (mounted) _dashboardController.fetchDashboard(silent: true);
+                              }),
+                            ),
+                            // 5. Total Managers
+                            ModernKpiCard(
+                              title: "Total Managers",
+                              value: "${kpis?.users['managers'] ?? kpis?.users['total_managers'] ?? kpis?.users['manager'] ?? 0}",
+                              icon: IconlyLight.work,
+                              bgColor: const Color(0xff16A34A), // Green
+                              topAction: "",
+                              onTap: () => Navigator.pushNamed(context, '/managerAttendance').then((_) {
+                                if (mounted) _dashboardController.fetchDashboard(silent: true);
+                              }),
+                            ),
+                            // 6. Total Supervisors
+                            ModernKpiCard(
+                              title: "Total Supervisors",
+                              value: "${kpis?.users['supervisors'] ?? kpis?.users['total_supervisors'] ?? kpis?.users['supervisor'] ?? 0}",
+                              icon: IconlyLight.shield_done,
+                              bgColor: const Color(0xffD97706), // Mustard / Orange
+                              topAction: "",
+                              onTap: () => Navigator.pushNamed(context, '/managerAttendance').then((_) {
+                                if (mounted) _dashboardController.fetchDashboard(silent: true);
+                              }),
+                            ),
+                            // 7. Clocked In Today
+                            ModernKpiCard(
+                              title: "Clocked In Today",
+                              value: "${kpis?.attendance['clocked_in_today'] ?? kpis?.attendance['clocked_in'] ?? 0}",
+                              icon: IconlyLight.profile,
+                              bgColor: const Color(0xff2563EB), // Blue
+                              topAction: "Today",
+                              onTap: () => Navigator.pushNamed(context, '/managerAttendance').then((_) {
+                                if (mounted) _dashboardController.fetchDashboard(silent: true);
+                              }),
+                            ),
+                            // 8. Clocked Out Pending
+                            ModernKpiCard(
+                              title: "Clocked Out Pending",
+                              value: "${kpis?.attendance['not_clocked_out'] ?? kpis?.attendance['clocked_out_pending'] ?? 0}",
+                              icon: IconlyLight.logout,
+                              bgColor: const Color(0xffDC2626), // Red
+                              topAction: "Action",
+                              onTap: () => Navigator.pushNamed(context, '/managerAttendance').then((_) {
+                                if (mounted) _dashboardController.fetchDashboard(silent: true);
+                              }),
+                            ),
+                            // 9. Not Clocked In Today
+                            ModernKpiCard(
+                              title: "Not Clocked In Today",
+                              value: "${kpis?.attendance['not_clocked_in'] ?? kpis?.attendance['not_clocked_in_today'] ?? 0}",
+                              icon: IconlyLight.danger,
+                              bgColor: const Color(0xffDC2626), // Red
+                              topAction: "View List",
+                              onTap: () => Navigator.pushNamed(context, '/managerAttendance').then((_) {
+                                if (mounted) _dashboardController.fetchDashboard(silent: true);
+                              }),
+                            ),
+                          ],
                         ),
-                        backgroundColor: isDark ? AppTheme.darkSurfaceRaised : Colors.white,
-                      ),
-                    ),
-                  ),
                   const SizedBox(height: 24),
 
                   // LISTS
@@ -279,77 +322,6 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     ),
   );
 }
-
-void _showAttendanceListDialog(BuildContext context) {
-  final data = _dashboardController.dashboardData;
-  final present = data?.presentOperativesToday ?? [];
-  final absent = data?.absentOperativesToday ?? [];
-
-  showDialog(
-    context: context,
-    builder: (dialogContext) {
-      final isDark = Theme.of(dialogContext).brightness == Brightness.dark;
-      return AlertDialog(
-        title: const Text("Today's Attendance"),
-        content: SizedBox(
-          width: 420,
-          height: 420,
-          child: DefaultTabController(
-            length: 2,
-            child: Column(
-              children: [
-                TabBar(
-                  labelColor: isDark ? Colors.white : const Color(0xFF0D6EFD),
-                  unselectedLabelColor: isDark ? Colors.white54 : Colors.grey,
-                  tabs: [
-                    Tab(text: "Present (${present.length})"),
-                    Tab(text: "Absent (${absent.length})"),
-                  ],
-                ),
-                Expanded(
-                  child: TabBarView(
-                    children: [
-                      _buildAttendanceList(present, isDark, emptyText: "No one has clocked in yet today."),
-                      _buildAttendanceList(absent, isDark, emptyText: "Everyone has clocked in today."),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text("Close")),
-        ],
-      );
-    },
-  );
-}
-
-Widget _buildAttendanceList(List<AttendanceOperative> people, bool isDark, {required String emptyText}) {
-  if (people.isEmpty) {
-    return Center(
-      child: Text(emptyText, style: TextStyle(color: isDark ? Colors.white60 : Colors.grey.shade600)),
-    );
-  }
-  return ListView.separated(
-    itemCount: people.length,
-    separatorBuilder: (_, __) => const Divider(height: 1),
-    itemBuilder: (context, index) {
-      final person = people[index];
-      return ListTile(
-        leading: const Icon(IconlyLight.profile),
-        title: Text(person.name.isEmpty ? '-' : person.name),
-        subtitle: Text(
-          [
-            if (person.employeeId.isNotEmpty) person.employeeId,
-            person.roleLabel,
-          ].where((s) => s.isNotEmpty).join(' · '),
-        ),
-      );
-    },
-  );
-}
 }
 
 class DashboardHero extends StatelessWidget {
@@ -358,12 +330,11 @@ class DashboardHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
-        color: isDark ? AppTheme.darkSurfaceRaised : const Color(0xff0F2C59),
+        color: const Color(0xff0F2C59),
         borderRadius: BorderRadius.circular(16),
         boxShadow: const [
           BoxShadow(
@@ -466,33 +437,37 @@ class ModernKpiCard extends StatelessWidget {
                 ),
                 child: Icon(icon, color: Colors.white, size: 16),
               ),
-              Flexible(
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (topAction.contains('%'))
-                      const Icon(
-                        IconlyLight.category,
-                        color: Colors.white,
-                        size: 12,
-                      ),
-                    const SizedBox(width: 4),
-                    Flexible(
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text(
-                          topAction,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
+              if (topAction.isNotEmpty)
+                Flexible(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (topAction.contains('%')) ...[
+                        Icon(
+                          topAction.trim().startsWith('-')
+                              ? Icons.trending_down
+                              : Icons.trending_up,
+                          color: Colors.white,
+                          size: 14,
+                        ),
+                        const SizedBox(width: 3),
+                      ],
+                      Flexible(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            topAction,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
             ],
           ),
           Column(
@@ -539,12 +514,6 @@ class ProjectProgressChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final colors = Theme.of(context).colorScheme;
-    final panelColor = isDark ? AppTheme.darkSurfaceRaised : Colors.white;
-    final textColor = colors.onSurface;
-    final mutedColor = colors.onSurfaceVariant;
-    final gridColor = isDark ? AppTheme.darkBorder.withValues(alpha: 0.7) : Colors.grey.withValues(alpha: 0.1);
     final completed = (kpis?.tasks['completed'] ?? 0).toDouble();
     final inProgress = (kpis?.tasks['in_progress'] ?? 0).toDouble();
     final totalTasks = (kpis?.tasks['total'] ?? 0).toDouble();
@@ -559,9 +528,9 @@ class ProjectProgressChart extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: panelColor,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isDark ? AppTheme.darkBorder : Colors.grey.withValues(alpha: 0.1)),
+        border: Border.all(color: Colors.grey.withOpacity(0.1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -573,15 +542,15 @@ class ProjectProgressChart extends StatelessWidget {
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+                  children: const [
                     Text(
                       "Project Progress",
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor),
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(height: 4),
                     Text(
                       "Portfolio completion statistics and task movement",
-                      style: TextStyle(color: mutedColor, fontSize: 13),
+                      style: TextStyle(color: Colors.grey, fontSize: 13),
                     ),
                   ],
                 ),
@@ -647,21 +616,21 @@ class ProjectProgressChart extends StatelessWidget {
                       interval: 1,
                       reservedSize: 28,
                       getTitlesWidget: (double value, TitleMeta meta) {
-                        final style = TextStyle(
-                          color: mutedColor,
+                        const style = TextStyle(
+                          color: Colors.grey,
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                         );
                         Widget text;
                         switch (value.toInt()) {
                           case 0:
-                            text = Text('Pending', style: style, textAlign: TextAlign.center);
+                            text = const Text('Pending', style: style, textAlign: TextAlign.center);
                             break;
                           case 1:
-                            text = Text('In Progress', style: style, textAlign: TextAlign.center);
+                            text = const Text('In Progress', style: style, textAlign: TextAlign.center);
                             break;
                           case 2:
-                            text = Text('Completed', style: style, textAlign: TextAlign.center);
+                            text = const Text('Completed', style: style, textAlign: TextAlign.center);
                             break;
                           default:
                             return const SizedBox.shrink();
@@ -684,8 +653,8 @@ class ProjectProgressChart extends StatelessWidget {
                           padding: const EdgeInsets.only(right: 6),
                           child: Text(
                             value.toInt().toString(),
-                            style: TextStyle(
-                              color: mutedColor,
+                            style: const TextStyle(
+                              color: Colors.grey,
                               fontSize: 12,
                             ),
                             textAlign: TextAlign.right,
@@ -706,7 +675,7 @@ class ProjectProgressChart extends StatelessWidget {
                   drawVerticalLine: false,
                   horizontalInterval: interval,
                   getDrawingHorizontalLine: (value) => FlLine(
-                    color: gridColor,
+                    color: Colors.grey.withOpacity(0.1),
                     strokeWidth: 1,
                   ),
                 ),
@@ -759,39 +728,69 @@ class AttendanceTrendChart extends StatelessWidget {
   final dynamic kpis;
   const AttendanceTrendChart({super.key, this.kpis});
 
+  List<String> _getLast6DaysLabels() {
+    final now = DateTime.now();
+    const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    final List<String> labels = [];
+    for (int i = 5; i >= 1; i--) {
+      final d = now.subtract(Duration(days: i));
+      labels.add(dayNames[d.weekday - 1]);
+    }
+    labels.add('Today');
+    return labels;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final colors = Theme.of(context).colorScheme;
-    final panelColor = isDark ? AppTheme.darkSurfaceRaised : Colors.white;
-    final textColor = colors.onSurface;
-    final mutedColor = colors.onSurfaceVariant;
-    final gridColor = isDark ? AppTheme.darkBorder.withValues(alpha: 0.7) : Colors.grey.withValues(alpha: 0.1);
     final clockedInToday = (kpis?.attendance['clocked_in_today'] ?? 0).toDouble();
     final notClockedOutToday = (kpis?.attendance['not_clocked_out'] ?? 0).toDouble();
 
-    final List<double> clockedInValues = [
-      (clockedInToday * 0.9).clamp(0.0, 100.0),
-      (clockedInToday * 0.85).clamp(0.0, 100.0),
-      (clockedInToday * 0.95).clamp(0.0, 100.0),
-      (clockedInToday * 1.1).clamp(0.0, 100.0),
-      (clockedInToday * 1.2).clamp(0.0, 100.0),
-      clockedInToday,
-    ];
+    List<double> clockedInValues = [];
+    List<double> exceptionsValues = [];
 
-    final List<double> exceptionsValues = [
-      (notClockedOutToday * 0.5).clamp(0.0, 100.0),
-      (notClockedOutToday * 0.3).clamp(0.0, 100.0),
-      (notClockedOutToday * 0.7).clamp(0.0, 100.0),
-      (notClockedOutToday * 0.4).clamp(0.0, 100.0),
-      (notClockedOutToday * 0.6).clamp(0.0, 100.0),
-      notClockedOutToday,
-    ];
+    final rawTrend = kpis?.attendance['trend'] ??
+        kpis?.attendance['daily_trend'] ??
+        kpis?.attendance['weekly_trend'] ??
+        kpis?.attendance['history'] ??
+        kpis?.attendance['series'];
+
+    if (rawTrend is List && rawTrend.isNotEmpty) {
+      for (final item in rawTrend) {
+        if (item is Map) {
+          clockedInValues.add(double.tryParse((item['clocked_in'] ?? item['present'] ?? 0).toString()) ?? 0.0);
+          exceptionsValues.add(double.tryParse((item['exceptions'] ?? item['not_clocked_out'] ?? 0).toString()) ?? 0.0);
+        } else if (item is num) {
+          clockedInValues.add(item.toDouble());
+          exceptionsValues.add(0.0);
+        }
+      }
+    }
+
+    if (clockedInValues.isEmpty) {
+      clockedInValues = [
+        0.0,
+        clockedInToday > 0 ? (clockedInToday * 0.9).roundToDouble() : 0.0,
+        clockedInToday > 0 ? (clockedInToday * 0.85).roundToDouble() : 0.0,
+        clockedInToday > 0 ? (clockedInToday * 0.95).roundToDouble() : 0.0,
+        clockedInToday > 0 ? clockedInToday : 0.0,
+        clockedInToday,
+      ];
+      exceptionsValues = [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        notClockedOutToday,
+      ];
+    }
 
     final maxVal = [...clockedInValues, ...exceptionsValues, 10.0].reduce((a, b) => a > b ? a : b);
     final dynamicMaxY = (maxVal * 1.3).ceilToDouble().clamp(10.0, double.infinity);
     final yInterval = (dynamicMaxY / 5).ceilToDouble().clamp(1.0, double.infinity);
     final chartMaxY = dynamicMaxY + (yInterval * 0.75);
+
+    final days = _getLast6DaysLabels();
 
     final clockedInSpots = List.generate(
       clockedInValues.length,
@@ -803,12 +802,17 @@ class AttendanceTrendChart extends StatelessWidget {
       (i) => FlSpot(i.toDouble(), exceptionsValues[i]),
     );
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
+    final borderColor = isDark ? AppTheme.darkBorder : Colors.grey.withOpacity(0.1);
+    final titleTextColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
+
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: panelColor,
+        color: cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isDark ? AppTheme.darkBorder : Colors.grey.withValues(alpha: 0.1)),
+        border: Border.all(color: borderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -823,12 +827,16 @@ class AttendanceTrendChart extends StatelessWidget {
                   children: [
                     Text(
                       "Attendance Trend",
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: titleTextColor,
+                      ),
                     ),
                     const SizedBox(height: 4),
-                    Text(
+                    const Text(
                       "Clock-in coverage for current operations",
-                      style: TextStyle(color: mutedColor, fontSize: 13),
+                      style: TextStyle(color: Colors.grey, fontSize: 13),
                     ),
                   ],
                 ),
@@ -901,7 +909,7 @@ class AttendanceTrendChart extends StatelessWidget {
                   drawVerticalLine: false,
                   horizontalInterval: yInterval,
                   getDrawingHorizontalLine: (value) => FlLine(
-                    color: gridColor,
+                    color: Colors.grey.withOpacity(0.1),
                     strokeWidth: 1,
                   ),
                 ),
@@ -913,15 +921,14 @@ class AttendanceTrendChart extends StatelessWidget {
                       interval: 1,
                       reservedSize: 32,
                       getTitlesWidget: (value, meta) {
-                        const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Today'];
                         final idx = value.toInt();
                         if (idx >= 0 && idx < days.length && (value - idx).abs() < 0.01) {
                           return Padding(
                             padding: const EdgeInsets.only(top: 8.0),
                             child: Text(
                               days[idx],
-                              style: TextStyle(
-                                color: mutedColor,
+                              style: const TextStyle(
+                                color: Colors.grey,
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -943,8 +950,8 @@ class AttendanceTrendChart extends StatelessWidget {
                           padding: const EdgeInsets.only(right: 6),
                           child: Text(
                             value.toInt().toString(),
-                            style: TextStyle(
-                              color: mutedColor,
+                            style: const TextStyle(
+                              color: Colors.grey,
                               fontSize: 12,
                             ),
                             textAlign: TextAlign.right,
@@ -1000,9 +1007,9 @@ class AttendanceTrendChart extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 6),
-              Text(
+              const Text(
                 "Clocked In",
-                style: TextStyle(fontSize: 12, color: mutedColor),
+                style: TextStyle(fontSize: 12, color: Colors.grey),
               ),
               const SizedBox(width: 16),
               Container(
@@ -1014,9 +1021,9 @@ class AttendanceTrendChart extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 6),
-              Text(
+              const Text(
                 "Exceptions",
-                style: TextStyle(fontSize: 12, color: mutedColor),
+                style: TextStyle(fontSize: 12, color: Colors.grey),
               ),
             ],
           ),
@@ -1183,7 +1190,7 @@ class RecentTasksList extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
-    final borderColor = isDark ? Colors.white24 : Colors.grey.withOpacity(0.1);
+    final borderColor = isDark ? AppTheme.darkBorder : Colors.grey.withOpacity(0.1);
     final textColor = isDark ? Colors.white : Colors.black87;
 
     return Container(
@@ -1267,7 +1274,7 @@ class RecentJobSheetsList extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
-    final borderColor = isDark ? Colors.white24 : Colors.grey.withOpacity(0.1);
+    final borderColor = isDark ? AppTheme.darkBorder : Colors.grey.withOpacity(0.1);
     final textColor = isDark ? Colors.white : Colors.black87;
 
     return Container(

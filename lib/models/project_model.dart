@@ -30,7 +30,11 @@ class Project {
   final Map<String, dynamic>? qrPayload;
   final String? createdAt;
   final String? updatedAt;
+  final String? lastActivity;
+  final String? lastActivityAt;
   final String? ecgManager;
+  final String? owner;
+  final int locationsCount;
 
   Project({
     required this.id,
@@ -62,8 +66,73 @@ class Project {
     this.qrPayload,
     this.createdAt,
     this.updatedAt,
+    this.lastActivity,
+    this.lastActivityAt,
     this.ecgManager,
+    this.owner,
+    this.locationsCount = 1,
   });
+
+  static String formatTimeAgo(String? dateTimeStr) {
+    if (dateTimeStr == null || dateTimeStr.isEmpty) return 'N/A';
+    try {
+      final dateTime = DateTime.parse(dateTimeStr);
+      final diff = DateTime.now().difference(dateTime);
+      if (diff.inDays >= 7) {
+        final weeks = diff.inDays ~/ 7;
+        final remainingDays = diff.inDays % 7;
+        if (remainingDays > 0) {
+          return '$weeks week${weeks > 1 ? 's' : ''}, $remainingDays day${remainingDays > 1 ? 's' : ''} ago';
+        }
+        return '$weeks week${weeks > 1 ? 's' : ''} ago';
+      } else if (diff.inDays > 0) {
+        final hours = diff.inHours % 24;
+        if (hours > 0) {
+          return '${diff.inDays} day${diff.inDays > 1 ? 's' : ''}, $hours hour${hours > 1 ? 's' : ''} ago';
+        }
+        return '${diff.inDays} day${diff.inDays > 1 ? 's' : ''} ago';
+      } else if (diff.inHours > 0) {
+        final minutes = diff.inMinutes % 60;
+        if (minutes > 0) {
+          return '${diff.inHours} hour${diff.inHours > 1 ? 's' : ''}, $minutes minute${minutes > 1 ? 's' : ''} ago';
+        }
+        return '${diff.inHours} hour${diff.inHours > 1 ? 's' : ''} ago';
+      } else if (diff.inMinutes > 0) {
+        return '${diff.inMinutes} minute${diff.inMinutes > 1 ? 's' : ''} ago';
+      } else {
+        return 'Just now';
+      }
+    } catch (e) {
+      return dateTimeStr.split('T').first;
+    }
+  }
+
+  String get displayActivity {
+    if (lastActivity != null && lastActivity!.trim().isNotEmpty) {
+      return lastActivity!.trim();
+    }
+    final targetDate = lastActivityAt ?? updatedAt ?? createdAt;
+    return formatTimeAgo(targetDate);
+  }
+
+  String get displayNameWithCode {
+    if (code.trim().isEmpty) return name;
+    final cleanCode = code.trim();
+    if (name.toLowerCase().contains(cleanCode.toLowerCase())) {
+      return name;
+    }
+    return '$name ($cleanCode)';
+  }
+
+  String get ownerDisplay {
+    if (owner != null && owner!.trim().isNotEmpty) {
+      return owner!.trim();
+    }
+    if (ecgManager != null && ecgManager!.trim().isNotEmpty) {
+      return ecgManager!.trim();
+    }
+    return 'N/A';
+  }
 
   factory Project.fromJson(Map<String, dynamic> json) {
     return Project(
@@ -100,6 +169,8 @@ class Project {
       qrPayload: json['qr_payload'] is Map ? Map<String, dynamic>.from(json['qr_payload']) : null,
       createdAt: json['created_at'],
       updatedAt: json['updated_at'],
+      lastActivity: json['last_activity']?.toString() ?? json['last_activity_text']?.toString() ?? json['latest_activity']?.toString(),
+      lastActivityAt: json['last_activity_at']?.toString() ?? json['last_active']?.toString() ?? json['updated_at']?.toString(),
       ecgManager: () {
         final val = json['ecg_manager'] ?? json['manager'] ?? json['managers'];
         if (val == null) return null;
@@ -112,6 +183,48 @@ class Project {
         }
         final str = val.toString().trim();
         return str.isEmpty ? null : str;
+      }(),
+      owner: () {
+        final val = json['owner'] ??
+            json['owner_name'] ??
+            json['owner_email'] ??
+            json['project_manager'] ??
+            json['manager'] ??
+            json['managers'] ??
+            json['ecg_manager'] ??
+            json['created_by_name'] ??
+            json['created_by'];
+        if (val == null) return null;
+        if (val is Map) {
+          return val['name'] ?? val['email'] ?? val['display_name'] ?? val['username']?.toString();
+        }
+        if (val is List) {
+          final names = val.map((e) {
+            if (e is Map) return e['name'] ?? e['email'] ?? e['display_name'] ?? e.toString();
+            return e.toString();
+          }).where((e) => e.isNotEmpty).join(', ');
+          return names.isEmpty ? null : names;
+        }
+        final str = val.toString().trim();
+        return str.isEmpty ? null : str;
+      }(),
+      locationsCount: () {
+        if (json['locations_count'] != null) {
+          return int.tryParse(json['locations_count'].toString()) ?? 1;
+        }
+        if (json['location_count'] != null) {
+          return int.tryParse(json['location_count'].toString()) ?? 1;
+        }
+        if (json['total_locations'] != null) {
+          return int.tryParse(json['total_locations'].toString()) ?? 1;
+        }
+        if (json['locations'] is List) {
+          return (json['locations'] as List).length;
+        }
+        if (json['locations'] != null) {
+          return int.tryParse(json['locations'].toString()) ?? 1;
+        }
+        return 1;
       }(),
     );
   }

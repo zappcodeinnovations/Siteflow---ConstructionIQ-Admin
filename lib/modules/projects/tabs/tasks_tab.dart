@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
+import 'package:intl/intl.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
@@ -17,59 +18,110 @@ class TasksTab extends StatefulWidget {
 class _TasksTabState extends State<TasksTab> {
   String _selectedStatus = 'Status: All';
 
-  String _extractStatus(dynamic task) {
+  static const List<String> _statusOptions = [
+    'Status: All',
+    'Awaiting',
+    'In Progress',
+    'Completed',
+  ];
+
+  List<String> get _statusDropdownOptions => _statusOptions;
+
+  String _formatTaskDate(dynamic raw) {
+    if (raw == null) return "N/A";
+    final str = raw.toString().trim();
+    if (str.isEmpty || str == 'null' || str == '-') return "N/A";
+
+    final dMonYPattern = RegExp(r'^\d{1,2}\s+[A-Za-z]{3}\s+\d{4}$');
+    if (dMonYPattern.hasMatch(str)) {
+      return str;
+    }
+
+    try {
+      final parsed = DateTime.tryParse(str);
+      if (parsed != null) {
+        return DateFormat('dd MMM yyyy').format(parsed.toLocal());
+      }
+    } catch (_) {}
+
+    final formats = [
+      'yyyy-MM-dd',
+      'yyyy-MM-dd HH:mm:ss',
+      'yyyy-MM-ddTHH:mm:ssZ',
+      'yyyy-MM-ddTHH:mm:ss.SSSZ',
+      'dd/MM/yyyy',
+      'dd-MM-yyyy',
+      'dd/MM/yyyy HH:mm:ss',
+      'dd-MM-yyyy HH:mm:ss',
+      'MM/dd/yyyy',
+      'MMM dd, yyyy',
+      'dd MMM yyyy',
+    ];
+
+    for (final fmt in formats) {
+      try {
+        final d = DateFormat(fmt, 'en_US').parseLoose(str);
+        return DateFormat('dd MMM yyyy').format(d);
+      } catch (_) {}
+    }
+
+    return str;
+  }
+
+  String _getTaskDate(dynamic task) {
     if (task is Map) {
-      return (task['status'] ?? task['status_label'] ?? task['state'] ?? task['status_display'] ?? '').toString().trim();
+      final raw = task['date'] ??
+          task['task_date'] ??
+          task['scheduled_date'] ??
+          task['submission_date'] ??
+          task['assigned_date'] ??
+          task['created_at'] ??
+          task['created'] ??
+          task['created_date'] ??
+          task['timestamp'];
+      return _formatTaskDate(raw);
+    }
+    return "N/A";
+  }
+
+  String _normalizeStatus(dynamic task) {
+    if (task is Map) {
+      final raw = (task['status'] ?? task['status_label'] ?? task['state'] ?? task['status_display'] ?? '')
+          .toString()
+          .trim()
+          .toLowerCase()
+          .replaceAll('-', '_')
+          .replaceAll(' ', '_');
+
+      if (raw == 'in_progress' || raw == 'open' || raw == 'active') {
+        return 'in_progress';
+      }
+      if (raw == 'awaiting' || raw == 'pending') {
+        return 'awaiting';
+      }
+      if (raw == 'completed' || raw == 'closed' || raw == 'done' || raw == 'finished' || raw == 'approved' ||
+          task['is_closed'] == true || task['is_completed'] == true) {
+        return 'completed';
+      }
+      return raw;
     }
     return '';
-  }
-
-  bool _isTaskClosed(String status, dynamic task) {
-    final s = status.toLowerCase();
-    if (s == 'completed' || s == 'closed' || s == 'done' || s == 'finished' || s == 'approved') {
-      return true;
-    }
-    if (task is Map && (task['is_closed'] == true || task['is_completed'] == true)) {
-      return true;
-    }
-    return false;
-  }
-
-  List<String> get _statusDropdownOptions {
-    final options = <String>['Status: All', 'Status: Open', 'Status: Closed'];
-    for (final t in widget.tasks) {
-      final s = _extractStatus(t);
-      if (s.isNotEmpty) {
-        final formatted = 'Status: ${s[0].toUpperCase()}${s.substring(1).toLowerCase()}';
-        if (!options.contains(formatted) && formatted != 'Status: Open' && formatted != 'Status: Closed' && formatted != 'Status: All') {
-          options.add(formatted);
-        }
-      }
-    }
-    return options;
   }
 
   List<dynamic> get _filteredTasks {
     if (_selectedStatus == 'Status: All') {
       return widget.tasks;
     }
-    if (_selectedStatus == 'Status: Open') {
-      return widget.tasks.where((t) {
-        final status = _extractStatus(t);
-        return !_isTaskClosed(status, t);
-      }).toList();
+    if (_selectedStatus == 'Awaiting') {
+      return widget.tasks.where((t) => _normalizeStatus(t) == 'awaiting').toList();
     }
-    if (_selectedStatus == 'Status: Closed') {
-      return widget.tasks.where((t) {
-        final status = _extractStatus(t);
-        return _isTaskClosed(status, t);
-      }).toList();
+    if (_selectedStatus == 'In Progress') {
+      return widget.tasks.where((t) => _normalizeStatus(t) == 'in_progress').toList();
     }
-    final target = _selectedStatus.replaceFirst('Status: ', '').toLowerCase().trim();
-    return widget.tasks.where((t) {
-      final status = _extractStatus(t).toLowerCase();
-      return status == target;
-    }).toList();
+    if (_selectedStatus == 'Completed') {
+      return widget.tasks.where((t) => _normalizeStatus(t) == 'completed').toList();
+    }
+    return widget.tasks;
   }
 
   void _openFiltersBottomSheet() {
@@ -125,7 +177,7 @@ class _TasksTabState extends State<TasksTab> {
                 children: _statusDropdownOptions.map((opt) {
                   final isSelected = _selectedStatus == opt;
                   return ChoiceChip(
-                    label: Text(opt.replaceFirst('Status: ', '')),
+                    label: Text(opt.startsWith('Status: ') ? opt.replaceFirst('Status: ', '') : opt),
                     selected: isSelected,
                     selectedColor: const Color(0xFF0D6EFD),
                     labelStyle: TextStyle(
@@ -284,6 +336,7 @@ class _TasksTabState extends State<TasksTab> {
                           task['operative_name']?.toString() ?? "N/A",
                       form: task['form']?.toString() ?? "N/A",
                       sheets: task['sheets']?.toString() ?? "N/A",
+                      date: _getTaskDate(task),
                     );
                   },
                 ),
@@ -301,6 +354,7 @@ class _TasksTabState extends State<TasksTab> {
     required String operativeName,
     required String form,
     required String sheets,
+    required String date,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
@@ -308,13 +362,27 @@ class _TasksTabState extends State<TasksTab> {
     final textColor = isDark ? Colors.white : Colors.black87;
     final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
 
-    final isCompleted = status.toLowerCase() == 'completed' ||
-        status.toLowerCase() == 'closed';
-    final statusColor = isCompleted ? Colors.green : const Color(0xFF0D6EFD);
-    final statusBgColor =
-        isCompleted 
-            ? (isDark ? Colors.green.withValues(alpha: 0.2) : Colors.green.shade50) 
-            : (isDark ? Colors.blue.withValues(alpha: 0.2) : Colors.blue.shade50);
+    final normStatus = status.toLowerCase().replaceAll('-', '_').replaceAll(' ', '_');
+    final isCompleted = normStatus == 'completed' || normStatus == 'closed' || normStatus == 'done';
+    final isAwaiting = normStatus == 'awaiting' || normStatus == 'pending';
+    
+    Color statusColor = const Color(0xFF0D6EFD);
+    Color statusBgColor = isDark ? Colors.blue.withValues(alpha: 0.2) : Colors.blue.shade50;
+    String displayStatus = status.replaceAll('_', ' ').replaceAll('-', ' ').toUpperCase();
+
+    if (isCompleted) {
+      statusColor = Colors.green;
+      statusBgColor = isDark ? Colors.green.withValues(alpha: 0.2) : Colors.green.shade50;
+      displayStatus = 'COMPLETED';
+    } else if (isAwaiting) {
+      statusColor = Colors.orange.shade700;
+      statusBgColor = isDark ? Colors.orange.withValues(alpha: 0.2) : Colors.orange.shade50;
+      displayStatus = 'AWAITING';
+    } else if (normStatus == 'in_progress' || normStatus == 'open') {
+      statusColor = const Color(0xFF0D6EFD);
+      statusBgColor = isDark ? Colors.blue.withValues(alpha: 0.2) : Colors.blue.shade50;
+      displayStatus = 'IN PROGRESS';
+    }
 
     return Container(
       decoration: BoxDecoration(
@@ -383,7 +451,7 @@ class _TasksTabState extends State<TasksTab> {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      status.toUpperCase(),
+                      displayStatus,
                       style: TextStyle(
                         color: isDark ? Colors.white : statusColor.withValues(alpha: 0.9),
                         fontSize: 12,
@@ -404,16 +472,48 @@ class _TasksTabState extends State<TasksTab> {
 
           // Body Row
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
+                flex: 4,
                 child: _buildInfoColumn(
                     context, "OPERATIVE", operativeName, IconlyLight.profile),
               ),
+              const SizedBox(width: 8),
               Expanded(
+                flex: 3,
                 child: _buildInfoColumn(context, "FORM", form, IconlyLight.paper),
               ),
+              const SizedBox(width: 8),
               Expanded(
+                flex: 2,
                 child: _buildInfoColumn(context, "SHEETS", sheets, IconlyLight.paper),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 14),
+
+          // Date Row
+          Row(
+            children: [
+              Icon(IconlyLight.calendar, size: 14, color: textSecondary),
+              const SizedBox(width: 6),
+              Text(
+                "Date: ",
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: textSecondary,
+                ),
+              ),
+              Text(
+                date,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: textColor,
+                ),
               ),
             ],
           ),
@@ -511,6 +611,7 @@ class _TasksTabState extends State<TasksTab> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
+              _detailRow("Date", _getTaskDate(map)),
               _detailRow("Reference", map['reference']?.toString()),
               _detailRow("Status", map['status']?.toString()),
               _detailRow("Operative", map['operative_name']?.toString()),
@@ -559,21 +660,31 @@ class _TasksTabState extends State<TasksTab> {
           children: [
             Icon(icon, size: 14, color: textSecondary),
             const SizedBox(width: 6),
-            Text(label,
+            Flexible(
+              child: Text(
+                label,
                 style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
                     color: textSecondary,
-                    letterSpacing: 0.5)),
+                    letterSpacing: 0.5),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 6),
-        Text(value,
-            style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: textColor),
-            overflow: TextOverflow.ellipsis),
+        Text(
+          value,
+          style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: textColor,
+              height: 1.25),
+          softWrap: true,
+          maxLines: 3,
+          overflow: TextOverflow.ellipsis,
+        ),
       ],
     );
   }

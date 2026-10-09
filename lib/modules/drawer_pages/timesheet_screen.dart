@@ -180,7 +180,7 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
                           const DropdownMenuItem(value: null, child: Text("All Operators")),
                           ...operators.map((o) {
                             final parts = o.split('|');
-                            return DropdownMenuItem(value: parts[0], child: Text(parts.length > 1 ? parts[1] : parts[0], overflow: TextOverflow.ellipsis));
+                            return DropdownMenuItem(value: parts[0], child: Text(parts.length > 1 ? parts[1] : parts[0], maxLines: 2, softWrap: true, overflow: TextOverflow.ellipsis));
                           })
                         ], 
                         (val) => setState(() => tempOp = val)
@@ -194,7 +194,7 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
                           const DropdownMenuItem(value: null, child: Text("All Projects")),
                           ...projects.map((p) {
                             final parts = p.split('|');
-                            return DropdownMenuItem(value: parts[0], child: Text(parts.length > 1 ? parts[1] : parts[0], overflow: TextOverflow.ellipsis));
+                            return DropdownMenuItem(value: parts[0], child: Text(parts.length > 1 ? parts[1] : parts[0], maxLines: 2, softWrap: true, overflow: TextOverflow.ellipsis));
                           })
                         ], 
                         (val) => setState(() => tempProj = val)
@@ -208,7 +208,7 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
                           const DropdownMenuItem(value: null, child: Text("All")),
                           ...attendanceChoices.map((a) {
                             final parts = a.split('|');
-                            return DropdownMenuItem(value: parts[0], child: Text(parts.length > 1 ? parts[1] : parts[0], overflow: TextOverflow.ellipsis));
+                            return DropdownMenuItem(value: parts[0], child: Text(parts.length > 1 ? parts[1] : parts[0], maxLines: 2, softWrap: true, overflow: TextOverflow.ellipsis));
                           })
                         ], 
                         (val) => setState(() => tempAtt = val)
@@ -222,7 +222,7 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
                           const DropdownMenuItem(value: null, child: Text("All")),
                           ...shiftChoices.map((s) {
                             final parts = s.split('|');
-                            return DropdownMenuItem(value: parts[0], child: Text(parts.length > 1 ? parts[1] : parts[0], overflow: TextOverflow.ellipsis));
+                            return DropdownMenuItem(value: parts[0], child: Text(parts.length > 1 ? parts[1] : parts[0], maxLines: 2, softWrap: true, overflow: TextOverflow.ellipsis));
                           })
                         ], 
                         (val) => setState(() => tempShift = val)
@@ -419,13 +419,21 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
                           ),
                         ),
                       ),
-                      IconButton(
-                        icon: Icon(IconlyLight.swap, color: isDark ? Colors.white : Colors.blue),
+                      TextButton.icon(
+                        style: TextButton.styleFrom(
+                          foregroundColor: isDark ? Colors.blue.shade300 : const Color(0xFF0D6EFD),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        ),
                         onPressed: () {
                           _controller.resetFilters();
                           _controller.fetchTimesheets();
                         },
-                      )
+                        icon: const Icon(Icons.refresh, size: 18),
+                        label: const Text(
+                          "Reset",
+                          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 24),
@@ -687,7 +695,22 @@ class _TimesheetCardState extends State<_TimesheetCard> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Text("${widget.record.shiftHours} hrs", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF0D6EFD))),
+                        Text(
+                          widget.record.shiftHours.trim().isNotEmpty
+                              ? "${widget.record.shiftHours.trim()} hrs"
+                              : (widget.record.attendanceState == 'clocked_in' || widget.record.clockOut.trim().isEmpty)
+                                  ? "In Progress"
+                                  : "-",
+                          style: TextStyle(
+                            fontSize: widget.record.shiftHours.trim().isNotEmpty ? 16 : 13,
+                            fontWeight: FontWeight.bold,
+                            color: widget.record.shiftHours.trim().isNotEmpty
+                                ? (isDark ? Colors.white : const Color(0xFF0D6EFD))
+                                : (widget.record.attendanceState == 'clocked_in' || widget.record.clockOut.trim().isEmpty)
+                                    ? Colors.green
+                                    : textSecondary,
+                          ),
+                        ),
                         Text("Total Duration", style: TextStyle(fontSize: 10, color: textSecondary)),
                       ],
                     )

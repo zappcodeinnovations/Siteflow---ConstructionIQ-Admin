@@ -83,7 +83,7 @@ class _ManagerDiaryListScreenState extends State<ManagerDiaryListScreen> {
         ),
         actions: [
           IconButton(
-            icon: Icon(IconlyLight.swap, color: isDark ? Colors.white : Colors.black87),
+            icon: Icon(Icons.refresh, color: isDark ? Colors.white : Colors.black87),
             onPressed: _controller.fetchEntries,
             tooltip: 'Refresh',
           ),

@@ -18,7 +18,11 @@ class ApiEndpoints {
   static String projectAssignments(int id) => '/projects/$id/assignments/';
   static String projectIncidents(int projectId) => '/projects/$projectId/incidents/';
   static String projectSnags(int projectId) => '/projects/$projectId/snags/';
+  static String projectSnagDetail(int projectId, int snagId) => '/projects/$projectId/snags/$snagId/';
+  static String snagDetail(int snagId) => '/snags/$snagId/';
   static String projectInspections(int projectId) => '/projects/$projectId/inspections/';
+  static String projectInspectionDetail(int projectId, int inspectionId) => '/projects/$projectId/inspections/$inspectionId/';
+  static String inspectionDetail(int inspectionId) => '/inspections/$inspectionId/';
   static String inspectionComplete(int inspectionId) => '/inspections/$inspectionId/complete/';
   static String projectTemplateDetail(int projectId) => '/projects/$projectId/template/';
   static String projectMaterials(int projectId) => '/projects/$projectId/materials/';
@@ -55,6 +59,15 @@ class ApiEndpoints {
   static const String libraryForms = '/library/forms/';
   static const String libraryMaterials = '/library/materials/';
   static const String libraryTemplates = '/library/templates/';
+  static String libraryTemplateDetail(int templateId) => '/library/templates/$templateId/';
+  static String libraryTemplateForms(int templateId) => '/library/templates/$templateId/forms/';
+  static String libraryTemplateTasks(int templateId) => '/library/templates/$templateId/tasks/';
+  static String libraryTemplateLocations(int templateId) => '/library/templates/$templateId/locations/';
+  static String libraryTemplateSpecifications(int templateId) => '/library/templates/$templateId/specifications/';
+  static String libraryTemplateMaterials(int templateId) => '/library/templates/$templateId/materials/';
+  static String libraryTemplateCustomStatuses(int templateId) => '/library/templates/$templateId/custom-statuses/';
+  static String libraryTemplateApprovals(int templateId) => '/library/templates/$templateId/approvals/';
+  static String libraryTemplateFolders(int templateId) => '/library/templates/$templateId/folders/';
 
   // Tasks (global, admin/manager)
   static const String adminTasks = '/admin/tasks/';

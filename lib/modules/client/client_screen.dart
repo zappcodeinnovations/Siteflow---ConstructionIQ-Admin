@@ -2,9 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'dart:io';
-import '../../core/network/api_client.dart';
-import '../../core/network/api_endpoints.dart';
-import '../../core/widgets/shimmer_loading.dart';
 import 'client_controller.dart';
 import 'package:iconly/iconly.dart';
 import '../../core/theme/app_theme.dart';
@@ -235,36 +232,67 @@ class ClientsScreenState extends State<ClientsScreen> {
                 children: [
                   IconButton(
                     onPressed: () async {
-                      final urlStr = '${ApiEndpoints.baseUrl}${ApiEndpoints.clients}?export=csv';
                       try {
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("Downloading report...")),
+                            const SnackBar(
+                              content: Text("Downloading report..."),
+                              duration: Duration(seconds: 1),
+                            ),
                           );
                         }
-                        
-                        final response = await ApiClient.get(urlStr);
-                        
-                        if (response.statusCode == 200) {
-                          final directory = await getTemporaryDirectory();
-                          final file = File('${directory.path}/clients_report.csv');
-                          await file.writeAsBytes(response.bodyBytes);
-                          
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+                        final clients = _controller.filteredClients.isNotEmpty
+                            ? _controller.filteredClients
+                            : _controller.clients;
+
+                        final buffer = StringBuffer();
+                        buffer.writeln('Name,Status,Projects,Created Date');
+
+                        for (final client in clients) {
+                          final escapedName =
+                              client.name.contains(',') ||
+                                      client.name.contains('"')
+                                  ? '"${client.name.replaceAll('"', '""')}"'
+                                  : client.name;
+                          final status = client.status.toLowerCase();
+                          final projects = client.projectsCount;
+
+                          String formattedDate = '';
+                          if (client.createdAt != null &&
+                              client.createdAt!.isNotEmpty) {
+                            try {
+                              final dt = DateTime.parse(client.createdAt!);
+                              formattedDate =
+                                  "${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}";
+                            } catch (_) {
+                              formattedDate = client.createdAt!;
+                            }
+                          } else {
+                            final now = DateTime.now();
+                            formattedDate =
+                                "${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}";
                           }
-                          
-                          // Trigger the system share/save sheet so the user can save to downloads
-                          await Share.shareXFiles([XFile(file.path)], text: 'Clients Report CSV');
-                        } else {
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text("Download failed. Status: ${response.statusCode}")),
-                            );
-                          }
+
+                          buffer.writeln(
+                            '$escapedName,$status,$projects,$formattedDate',
+                          );
                         }
+
+                        final directory = await getTemporaryDirectory();
+                        final file = File('${directory.path}/clients.csv');
+                        await file.writeAsString(buffer.toString());
+
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                        }
+
+                        // Trigger the system share/save sheet
+                        await Share.shareXFiles(
+                          [XFile(file.path)],
+                          text: 'Clients Report CSV',
+                        );
                       } catch (e) {
-                        print("DEBUG EXPORT ERROR: $e");
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(content: Text("Error: $e")),
@@ -492,7 +520,7 @@ class ClientsScreenState extends State<ClientsScreen> {
                               _controller.fetchClients();
                             },
                             icon: Icon(
-                              IconlyLight.swap,
+                              Icons.refresh,
                               color: isDark ? Colors.white : Colors.black87,
                             ),
                             tooltip: "Refresh List",
@@ -690,19 +718,21 @@ class ClientsScreenState extends State<ClientsScreen> {
                                   }
                                 },
                                 itemBuilder: (context) => [
-                                  const PopupMenuItem(
+                                  PopupMenuItem(
                                     value: 'edit',
                                     child: Row(
                                       children: [
-                                        Icon(
+                                        const Icon(
                                           IconlyLight.edit,
                                           size: 18,
                                           color: Color(0xFF0D6EFD),
                                         ),
-                                        SizedBox(width: 12),
+                                        const SizedBox(width: 12),
                                         Text(
                                           "Edit",
-                                          style: TextStyle(color: Colors.black87),
+                                          style: TextStyle(
+                                            color: isDark ? Colors.white : Colors.black87,
+                                          ),
                                         ),
                                       ],
                                     ),

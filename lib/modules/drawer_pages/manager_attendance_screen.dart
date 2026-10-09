@@ -195,7 +195,14 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
                             _buildDataCell(log.date, 2),
                             _buildDataCell(log.clockIn, 1, isBold: true),
                             _buildDataCell(log.clockOut, 1, isBold: true),
-                            _buildDataCell(log.hours, 1),
+                            _buildDataCell(
+                              log.hours.trim().isNotEmpty
+                                  ? log.hours
+                                  : (log.isOpen || log.clockOut.trim().isEmpty)
+                                      ? "In Progress"
+                                      : "-",
+                              1,
+                            ),
                             _buildDataCell(
                               log.startLocation,
                               3,
@@ -496,9 +503,10 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
                             children: [
                               IconButton(
                                 icon: const Icon(
-                                  IconlyLight.swap,
-                                  color: Colors.blue,
+                                  Icons.refresh,
+                                  color: Color(0xFF0D6EFD),
                                 ),
+                                tooltip: 'Reset Filters',
                                 onPressed: () {
                                   _controller.resetFilters();
                                   _controller.fetchManagerAttendance();
@@ -847,13 +855,19 @@ class _ManagerAttendanceCardState extends State<_ManagerAttendanceCard> {
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
-                          "${widget.record.hours} hrs",
+                          widget.record.hours.trim().isNotEmpty
+                              ? "${widget.record.hours.trim()} hrs"
+                              : (widget.record.isOpenSession || widget.record.clockOut.trim().isEmpty)
+                                  ? "In Progress"
+                                  : "-",
                           style: TextStyle(
-                            fontSize: 16,
+                            fontSize: widget.record.hours.trim().isNotEmpty ? 16 : 13,
                             fontWeight: FontWeight.bold,
-                            color: isDark
-                                ? Colors.white
-                                : const Color(0xFF0D6EFD),
+                            color: widget.record.hours.trim().isNotEmpty
+                                ? (isDark ? Colors.white : const Color(0xFF0D6EFD))
+                                : (widget.record.isOpenSession || widget.record.clockOut.trim().isEmpty)
+                                    ? Colors.green
+                                    : textSecondary,
                           ),
                         ),
                         Text(
@@ -985,10 +999,19 @@ class _ManagerAttendanceCardState extends State<_ManagerAttendanceCard> {
                                         borderRadius: BorderRadius.circular(4),
                                       ),
                                       child: Text(
-                                        "${log.hours}h",
+                                        log.hours.trim().isNotEmpty
+                                            ? "${log.hours.trim()}h"
+                                            : (log.isOpen || log.clockOut.trim().isEmpty)
+                                                ? "In Progress"
+                                                : "-",
                                         style: TextStyle(
                                           fontSize: 10,
-                                          color: textSecondary,
+                                          fontWeight: FontWeight.w600,
+                                          color: log.hours.trim().isNotEmpty
+                                              ? textSecondary
+                                              : (log.isOpen || log.clockOut.trim().isEmpty)
+                                                  ? Colors.green
+                                                  : textSecondary,
                                         ),
                                       ),
                                     ),
@@ -1008,7 +1031,7 @@ class _ManagerAttendanceCardState extends State<_ManagerAttendanceCard> {
                                     padding: const EdgeInsets.all(8),
                                     decoration: BoxDecoration(
                                       color: isDark
-                                          ? Colors.white.withOpacity(0.05)
+                                          ? Colors.white.withValues(alpha: 0.05)
                                           : Colors.grey.shade50,
                                       borderRadius: BorderRadius.circular(6),
                                       border: Border.all(

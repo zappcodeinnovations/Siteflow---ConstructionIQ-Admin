@@ -60,15 +60,75 @@ class CreateTaskController extends ChangeNotifier {
     }
   }
 
+  static bool isEligibleOperativeName(String? name) {
+    if (name == null) return false;
+    final lower = name.trim().toLowerCase();
+    if (lower.isEmpty || lower == '-' || lower == 'null' || lower == 'none' || lower == 'n/a') {
+      return false;
+    }
+    const excluded = {
+      'all',
+      'all operatives',
+      'all members',
+      'all users',
+      'admin',
+      'admins',
+      'super admin',
+      'superadmin',
+      'super admins',
+      'manager',
+      'managers',
+      'project manager',
+      'project managers',
+      'site manager',
+      'site managers',
+      'general manager',
+      'general managers',
+      'management',
+      'supervisor',
+      'supervisors',
+      'client',
+      'clients',
+      'guest',
+      'guests',
+      'staff',
+      'operative',
+      'operatives',
+      'select operative',
+      'select an operative',
+      'choose operative',
+      'choose operatives',
+    };
+    return !excluded.contains(lower);
+  }
+
+  static bool isEligibleOperativeMember({required String role, required String roleDisplayName, required String name}) {
+    if (!isEligibleOperativeName(name)) return false;
+
+    final lowerRole = role.trim().toLowerCase();
+    final lowerRoleDisplay = roleDisplayName.trim().toLowerCase();
+
+    if (lowerRole.isNotEmpty || lowerRoleDisplay.isNotEmpty) {
+      final isOperativeRole = lowerRole == 'operative' ||
+          lowerRole == 'operatives' ||
+          lowerRoleDisplay == 'operative' ||
+          lowerRoleDisplay == 'operatives';
+      if (!isOperativeRole) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   Future<void> fetchOperatives() async {
     isLoadingOperatives = true;
     notifyListeners();
     try {
       final Map<String, OperativeOptionItem> map = {};
 
-      // 1. Fetch from /admin/members/?page_size=1000
+      // 1. Fetch from /admin/members/?page_size=1000&role=operative
       try {
-        final res = await ApiClient.get('${ApiEndpoints.baseUrl}/admin/members/?page_size=1000');
+        final res = await ApiClient.get('${ApiEndpoints.baseUrl}/admin/members/?page_size=1000&role=operative');
         final data = jsonDecode(res.body);
         if (res.statusCode == 200 && (data['status'] == true || data is List || data.containsKey('data'))) {
           final parsed = AdminMemberResponse.fromJson(data);
@@ -76,17 +136,44 @@ class CreateTaskController extends ChangeNotifier {
             final name = m.displayName.isNotEmpty
                 ? m.displayName
                 : '${m.firstName} ${m.lastName}'.trim();
-            if (name.isNotEmpty) {
+            final role = m.roleDisplayName.isNotEmpty ? m.roleDisplayName : m.role;
+            if (isEligibleOperativeMember(role: m.role, roleDisplayName: m.roleDisplayName, name: name)) {
               map[m.id.toString()] = OperativeOptionItem(
                 id: m.id.toString(),
                 name: name,
-                role: m.roleDisplayName.isNotEmpty ? m.roleDisplayName : m.role,
+                role: role.isNotEmpty ? role : 'Operative',
               );
             }
           }
         }
       } catch (e) {
-        debugPrint("Error fetching members: $e");
+        debugPrint("Error fetching members with role=operative: $e");
+      }
+
+      // If map is still empty, fallback to fetching all members and filtering strictly by operative role
+      if (map.isEmpty) {
+        try {
+          final res = await ApiClient.get('${ApiEndpoints.baseUrl}/admin/members/?page_size=1000');
+          final data = jsonDecode(res.body);
+          if (res.statusCode == 200 && (data['status'] == true || data is List || data.containsKey('data'))) {
+            final parsed = AdminMemberResponse.fromJson(data);
+            for (final m in parsed.data) {
+              final name = m.displayName.isNotEmpty
+                  ? m.displayName
+                  : '${m.firstName} ${m.lastName}'.trim();
+              final role = m.roleDisplayName.isNotEmpty ? m.roleDisplayName : m.role;
+              if (isEligibleOperativeMember(role: m.role, roleDisplayName: m.roleDisplayName, name: name)) {
+                map[m.id.toString()] = OperativeOptionItem(
+                  id: m.id.toString(),
+                  name: name,
+                  role: role.isNotEmpty ? role : 'Operative',
+                );
+              }
+            }
+          }
+        } catch (e) {
+          debugPrint("Error fetching all members fallback: $e");
+        }
       }
 
       // 2. Fetch from /job-sheets/filter-options/
@@ -98,8 +185,9 @@ class CreateTaskController extends ChangeNotifier {
           if (ops != null) {
             for (final op in ops) {
               final name = op.toString().trim();
-              if (name.isNotEmpty && !map.values.any((item) => item.name.toLowerCase() == name.toLowerCase())) {
-                map[name] = OperativeOptionItem(id: name, name: name);
+              if (isEligibleOperativeName(name) &&
+                  !map.values.any((item) => item.name.toLowerCase() == name.toLowerCase())) {
+                map[name] = OperativeOptionItem(id: name, name: name, role: 'Operative');
               }
             }
           }

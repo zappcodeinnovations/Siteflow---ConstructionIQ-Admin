@@ -1,11 +1,8 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
-import '../../core/network/api_client.dart';
-import '../../core/network/api_endpoints.dart';
-import '../../models/project_model.dart';
 import '../../models/job_sheet_model.dart';
 import '../projects/widgets/create_task_dialog.dart';
+import '../projects/create_task_controller.dart';
 import '../drawer_pages/job_sheet_controller.dart';
 import '../drawer_pages/job_sheet_details_screen.dart';
 import '../../core/theme/app_theme.dart';
@@ -121,13 +118,19 @@ class _TasksScreenState extends State<TasksScreen> {
     final set = <String>{'All'};
     if (_controller.filterOptions['operatives'] is List) {
       for (final o in _controller.filterOptions['operatives']) {
-        if (o != null && o.toString().trim().isNotEmpty) {
-          set.add(o.toString().trim());
+        if (o != null) {
+          final str = o.toString().trim();
+          if (str.isNotEmpty && CreateTaskController.isEligibleOperativeName(str)) {
+            set.add(str);
+          }
         }
       }
     }
     for (final t in _controller.jobSheets) {
-      if (t.operative.trim().isNotEmpty) set.add(t.operative.trim());
+      final op = t.operative.trim();
+      if (op.isNotEmpty && CreateTaskController.isEligibleOperativeName(op)) {
+        set.add(op);
+      }
     }
     return set.toList();
   }
@@ -400,7 +403,7 @@ class _TasksScreenState extends State<TasksScreen> {
                             });
                           },
                           icon: const Icon(
-                            IconlyLight.swap,
+                            Icons.refresh,
                             size: 16,
                             color: Color(0xFF0D6EFD),
                           ),
@@ -898,7 +901,7 @@ class _TasksScreenState extends State<TasksScreen> {
                                   // Refresh / Reset Icon
                                   IconButton(
                                     icon: Icon(
-                                      IconlyLight.swap,
+                                      Icons.refresh,
                                       color: textColor,
                                     ),
                                     onPressed: _resetFilters,

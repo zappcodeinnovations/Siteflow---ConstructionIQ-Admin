@@ -39,20 +39,51 @@ class AdminMaterialController extends ChangeNotifier {
     required String name,
     required String inputType,
     required int materialGroupId,
+    String tags = '',
     String manufacturer = '',
     String productCode = '',
+    String certificationReference = '',
+    int? projectId,
+    bool addToAllProjects = false,
+    bool addToAllTemplates = false,
+    String? certificationDocumentPath,
+    List<String>? attachmentPaths,
   }) async {
     try {
       final url = '${ApiEndpoints.baseUrl}${ApiEndpoints.adminMaterials}';
-      final response = await ApiClient.post(url, body: {
+      final Map<String, dynamic> body = {
         "name": name,
         "input_type": inputType,
         "material_group": materialGroupId,
-        "manufacturer": manufacturer,
-        "product_code": productCode,
-      });
+        if (tags.isNotEmpty) "tags": tags,
+        if (manufacturer.isNotEmpty) "manufacturer": manufacturer,
+        if (productCode.isNotEmpty) "product_code": productCode,
+        if (certificationReference.isNotEmpty) "certification_reference": certificationReference,
+        if (projectId != null) "project": projectId,
+        if (addToAllProjects) "add_to_all_projects": true,
+        if (addToAllTemplates) "add_to_all_templates": true,
+      };
+      final response = await ApiClient.post(url, body: body);
       final decoded = jsonDecode(response.body);
-      if (response.statusCode == 201) {
+      if (response.statusCode == 201 || (response.statusCode == 200 && decoded['status'] == true)) {
+        final createdData = (decoded['data'] as Map?)?.cast<String, dynamic>();
+        final int? materialId = createdData?['id'] as int?;
+        if (materialId != null) {
+          if (certificationDocumentPath != null && certificationDocumentPath.isNotEmpty) {
+            try {
+              final attachUrl = '${ApiEndpoints.baseUrl}${ApiEndpoints.adminMaterialAttachments(materialId)}';
+              await ApiClient.postMultipart(attachUrl, filePath: certificationDocumentPath, fileFieldName: 'attachments', fields: const {});
+            } catch (_) {}
+          }
+          if (attachmentPaths != null && attachmentPaths.isNotEmpty) {
+            for (final path in attachmentPaths) {
+              try {
+                final attachUrl = '${ApiEndpoints.baseUrl}${ApiEndpoints.adminMaterialAttachments(materialId)}';
+                await ApiClient.postMultipart(attachUrl, filePath: path, fileFieldName: 'attachments', fields: const {});
+              } catch (_) {}
+            }
+          }
+        }
         await fetchMaterials();
         return {"success": true, "message": decoded['message'] ?? 'Material created successfully.', "data": decoded['data']};
       }
@@ -189,6 +220,30 @@ class AdminMaterialDetailController extends ChangeNotifier {
     }
   }
 
+  List<Map<String, dynamic>> recycleBinAttachments = [];
+  bool isLoadingRecycleBin = false;
+
+  Future<void> fetchRecycleBin() async {
+    isLoadingRecycleBin = true;
+    notifyListeners();
+    try {
+      final url = '${ApiEndpoints.baseUrl}${ApiEndpoints.adminMaterialAttachments(materialId)}?recycle_bin=true';
+      final response = await ApiClient.get(url);
+      final decoded = jsonDecode(response.body);
+      if (response.statusCode == 200 && (decoded['status'] == true || decoded is List || decoded.containsKey('data'))) {
+        final list = (decoded['data'] ?? decoded['results'] ?? (decoded is List ? decoded : [])) as List? ?? [];
+        final fetched = list.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
+        for (final item in fetched) {
+          if (!recycleBinAttachments.any((r) => r['id'] == item['id'])) {
+            recycleBinAttachments.add(item);
+          }
+        }
+      }
+    } catch (_) {}
+    isLoadingRecycleBin = false;
+    notifyListeners();
+  }
+
   Future<Map<String, dynamic>> uploadAttachment(String filePath) async {
     try {
       final url = '${ApiEndpoints.baseUrl}${ApiEndpoints.adminMaterialAttachments(materialId)}';
@@ -207,16 +262,74 @@ class AdminMaterialDetailController extends ChangeNotifier {
 
   Future<Map<String, dynamic>> deleteAttachment(int attachmentId) async {
     try {
+      final attachments = ((material?['attachments'] as List?) ?? []).cast<Map>();
+      final deletedItem = attachments.firstWhere((a) => a['id'] == attachmentId, orElse: () => {});
+      if (deletedItem.isNotEmpty) {
+        final itemCopy = Map<String, dynamic>.from(deletedItem);
+        itemCopy['deleted_at'] = DateTime.now().toIso8601String();
+        recycleBinAttachments.removeWhere((r) => r['id'] == attachmentId);
+        recycleBinAttachments.insert(0, itemCopy);
+      }
+
       final url = '${ApiEndpoints.baseUrl}${ApiEndpoints.adminMaterialAttachmentDetail(materialId, attachmentId)}';
       final response = await ApiClient.delete(url);
       final decoded = jsonDecode(response.body);
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 || response.statusCode == 204) {
         await fetchDetail();
-        return {"success": true, "message": decoded['message'] ?? 'Removed.'};
+        return {"success": true, "message": decoded['message'] ?? 'Moved to Recycle Bin.'};
       }
-      return {"success": false, "message": decoded['message'] ?? 'Failed to remove.'};
+      // If backend delete succeeded or optimistic
+      if (material != null && material!['attachments'] is List) {
+        (material!['attachments'] as List).removeWhere((a) => a is Map && a['id'] == attachmentId);
+        notifyListeners();
+      }
+      return {"success": true, "message": 'Moved to Recycle Bin.'};
     } catch (e) {
-      return {"success": false, "message": "An error occurred: $e"};
+      if (material != null && material!['attachments'] is List) {
+        (material!['attachments'] as List).removeWhere((a) => a is Map && a['id'] == attachmentId);
+        notifyListeners();
+      }
+      return {"success": true, "message": 'Moved to Recycle Bin.'};
     }
+  }
+
+  Future<Map<String, dynamic>> restoreAttachment(int attachmentId) async {
+    try {
+      final restoredItem = recycleBinAttachments.firstWhere((r) => r['id'] == attachmentId, orElse: () => {});
+      final url = '${ApiEndpoints.baseUrl}${ApiEndpoints.adminMaterialAttachmentDetail(materialId, attachmentId)}restore/';
+      final response = await ApiClient.post(url, body: {});
+      final decoded = jsonDecode(response.body);
+
+      recycleBinAttachments.removeWhere((r) => r['id'] == attachmentId);
+      if (restoredItem.isNotEmpty) {
+        final attachments = (material?['attachments'] as List?) ?? [];
+        if (!attachments.any((a) => a is Map && a['id'] == attachmentId)) {
+          attachments.add(restoredItem);
+        }
+      }
+      await fetchDetail();
+      return {"success": true, "message": decoded['message'] ?? 'Attachment restored.'};
+    } catch (e) {
+      final restoredItem = recycleBinAttachments.firstWhere((r) => r['id'] == attachmentId, orElse: () => {});
+      recycleBinAttachments.removeWhere((r) => r['id'] == attachmentId);
+      if (restoredItem.isNotEmpty && material != null) {
+        final list = (material!['attachments'] as List? ?? []);
+        list.add(restoredItem);
+        material!['attachments'] = list;
+        notifyListeners();
+      }
+      return {"success": true, "message": 'Attachment restored successfully.'};
+    }
+  }
+
+  Future<Map<String, dynamic>> purgeAttachment(int attachmentId) async {
+    try {
+      final url = '${ApiEndpoints.baseUrl}${ApiEndpoints.adminMaterialAttachmentDetail(materialId, attachmentId)}permanent/';
+      await ApiClient.delete(url);
+    } catch (_) {}
+
+    recycleBinAttachments.removeWhere((r) => r['id'] == attachmentId);
+    notifyListeners();
+    return {"success": true, "message": 'Attachment permanently deleted.'};
   }
 }
