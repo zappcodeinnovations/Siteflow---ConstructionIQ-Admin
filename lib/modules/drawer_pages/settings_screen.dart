@@ -4,6 +4,8 @@ import '../../core/theme/app_theme.dart';
 import '../../core/widgets/background_stripes_painter.dart';
 import '../../models/admin_team_model.dart';
 import 'admin_team_controller.dart';
+import 'team_detail_screen.dart';
+import 'material_settings_content.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -152,13 +154,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     final isDesktop = MediaQuery.of(context).size.width > 800;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
+    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
     final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
     final subtitleColor = isDark ? Colors.white70 : Colors.grey.shade600;
     final borderColor = isDark ? Colors.white12 : Colors.grey.shade200;
 
     return Scaffold(
-      backgroundColor: isDark ? AppTheme.corporateBlue : const Color(0xFFF8FAFC),
+      backgroundColor: isDark ? AppTheme.darkBackground : const Color(0xFFF8FAFC),
       body: Stack(
         children: [
           Positioned.fill(
@@ -211,7 +213,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 // If not desktop, show a simple app bar to allow navigating back
                 if (!isDesktop)
                   AppBar(
-                    backgroundColor: isDark ? AppTheme.corporateBlue : Colors.white,
+                    backgroundColor: isDark ? AppTheme.darkSurface : Colors.white,
                     elevation: 0,
                     iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black87),
                     leading: IconButton(
@@ -226,7 +228,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Expanded(
                   child: _selectedIndex == 0
                       ? _buildTeamsContent(isDesktop, cardColor: cardColor, textColor: textColor, subtitleColor: subtitleColor, borderColor: borderColor, isDark: isDark)
-                      : Center(child: Text("Materials Content", style: TextStyle(color: textColor))),
+                      : MaterialSettingsContent(isDesktop: isDesktop),
                 ),
               ],
             ),
@@ -422,7 +424,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
         : 'Not set';
     final members = '${team.memberCount} Member${team.memberCount == 1 ? '' : 's'}';
 
-    return Container(
+    return InkWell(
+      onTap: () async {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => TeamDetailScreen(teamId: team.id, controller: _teamController),
+          ),
+        );
+      },
+      child: Container(
       decoration: BoxDecoration(
         border: Border(top: BorderSide(color: borderColor)),
       ),
@@ -503,10 +514,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   style: TextStyle(color: Colors.red.shade700, fontWeight: FontWeight.bold),
                 ),
               ),
-              Icon(IconlyLight.category, color: subtitleColor, size: 16),
+              Icon(IconlyLight.arrow_right_2, color: subtitleColor, size: 16),
             ],
           ),
         ],
+      ),
       ),
     );
   }

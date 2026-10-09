@@ -43,7 +43,7 @@ class _HseTabState extends State<HseTab> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
     final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
-    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
+    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
     final borderColor = isDark ? Colors.white24 : Colors.grey.shade200;
 
     return AnimatedBuilder(
@@ -133,7 +133,7 @@ class _HseTabState extends State<HseTab> {
       return Container(
         padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
         decoration: BoxDecoration(
-          color: isDark ? AppTheme.corporateBlue : Colors.grey.shade50,
+          color: isDark ? AppTheme.darkSurface : Colors.grey.shade50,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: borderColor),
         ),
@@ -230,7 +230,7 @@ class _HseTabState extends State<HseTab> {
 
   Widget _buildKpiCard(String title, String value, {bool isHighlighted = false, VoidCallback? onTap}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
+    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
     final borderColor = isDark
         ? (isHighlighted ? Colors.white : Colors.white24)
         : (isHighlighted ? const Color(0xFF0D6EFD).withOpacity(0.5) : Colors.grey.shade200);

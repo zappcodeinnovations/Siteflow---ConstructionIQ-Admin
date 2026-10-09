@@ -65,14 +65,14 @@ class _ManagerDiaryListScreenState extends State<ManagerDiaryListScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? AppTheme.corporateBlue : const Color(0xFFF8FAFC);
+    final bgColor = isDark ? AppTheme.darkBackground : const Color(0xFFF8FAFC);
 
     return Scaffold(
       backgroundColor: bgColor,
       appBar: AppBar(
         elevation: 0,
         iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black87),
-        backgroundColor: isDark ? AppTheme.corporateBlue : Colors.white,
+        backgroundColor: isDark ? AppTheme.darkSurface : Colors.white,
         title: Text(
           "Manager Diary",
           style: TextStyle(
@@ -142,7 +142,7 @@ class _ManagerDiaryListScreenState extends State<ManagerDiaryListScreen> {
   }
 
   Widget _buildHeaderInfo(bool isDark, String paginationText) {
-    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
+    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
     final borderColor = isDark ? Colors.white24 : Colors.grey.shade200;
     final textColor = isDark ? Colors.white : Colors.black87;
     final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
@@ -213,7 +213,7 @@ class _ManagerDiaryListScreenState extends State<ManagerDiaryListScreen> {
   }
 
   Widget _buildEntryCard(ManagerDiaryEntry entry, bool isDark) {
-    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
+    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
     final borderColor = isDark ? Colors.white24 : Colors.grey.shade200;
     final textColor = isDark ? Colors.white : Colors.black87;
     final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;

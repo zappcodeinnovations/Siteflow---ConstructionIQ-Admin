@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/date_helper.dart';
+import '../../../models/job_sheet_model.dart';
+import '../../drawer_pages/job_sheet_details_screen.dart';
 
 class JobSheetsTab extends StatelessWidget {
   final List<dynamic> jobSheets;
@@ -47,6 +49,7 @@ class JobSheetsTab extends StatelessWidget {
                     final sheet = jobSheets[index] as Map<String, dynamic>? ?? {};
                     return _buildJobSheetCard(
                       context,
+                      sheet: sheet,
                       sheetNo: sheet['sheet_no']?.toString() ?? "N/A",
                       reference: sheet['job_reference']?.toString() ??
                           sheet['job_no']?.toString() ??
@@ -72,7 +75,7 @@ class JobSheetsTab extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDark ? AppTheme.corporateBlue : Colors.white,
+        color: isDark ? AppTheme.darkSurface : Colors.white,
         border: Border(bottom: BorderSide(color: isDark ? Colors.white12 : Colors.grey.shade200)),
       ),
       child: Column(
@@ -142,7 +145,7 @@ class JobSheetsTab extends StatelessWidget {
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
-          dropdownColor: isDark ? AppTheme.corporateBlue : Colors.white,
+          dropdownColor: isDark ? AppTheme.darkSurface : Colors.white,
           value: null,
           hint: Text(label,
               style: TextStyle(
@@ -168,6 +171,7 @@ class JobSheetsTab extends StatelessWidget {
 
   Widget _buildJobSheetCard(
     BuildContext context, {
+    required Map<String, dynamic> sheet,
     required String sheetNo,
     required String reference,
     required String status,
@@ -177,7 +181,7 @@ class JobSheetsTab extends StatelessWidget {
     required String created,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
+    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
     final borderColor = isDark ? Colors.white24 : Colors.grey.shade200;
     final textColor = isDark ? Colors.white : Colors.black87;
     final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
@@ -311,7 +315,16 @@ class JobSheetsTab extends StatelessWidget {
                       elevation: 0,
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                     ),
-                    onPressed: () {},
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => JobSheetDetailsScreen(
+                            jobSheet: JobSheet.fromJson(sheet),
+                          ),
+                        ),
+                      );
+                    },
                     child: const Text("View Details",
                         style: TextStyle(fontWeight: FontWeight.bold)),
                   ),

@@ -204,8 +204,8 @@ class ClientsScreenState extends State<ClientsScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? AppTheme.corporateBlue : const Color(0xFFF8FAFC);
-    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
+    final bgColor = isDark ? AppTheme.darkBackground : const Color(0xFFF8FAFC);
+    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
     final borderColor = isDark ? Colors.white24 : Colors.grey.shade200;
     final textColor = isDark ? Colors.white : Colors.black87;
     final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;

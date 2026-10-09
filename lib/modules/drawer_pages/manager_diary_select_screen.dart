@@ -46,14 +46,14 @@ class _ManagerDiarySelectScreenState extends State<ManagerDiarySelectScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? AppTheme.corporateBlue : const Color(0xFFF8FAFC);
+    final bgColor = isDark ? AppTheme.darkBackground : const Color(0xFFF8FAFC);
 
     return Scaffold(
       backgroundColor: bgColor,
       appBar: AppBar(
         elevation: 0,
         iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black87),
-        backgroundColor: isDark ? AppTheme.corporateBlue : Colors.white,
+        backgroundColor: isDark ? AppTheme.darkSurface : Colors.white,
         title: Text(
           "Select a Sheet",
           style: TextStyle(
@@ -96,7 +96,7 @@ class _ManagerDiarySelectScreenState extends State<ManagerDiarySelectScreen> {
                       child: Container(
                         padding: const EdgeInsets.all(18),
                         decoration: BoxDecoration(
-                          color: isDark ? AppTheme.corporateBlue : Colors.white,
+                          color: isDark ? AppTheme.darkSurface : Colors.white,
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade200),
                         ),

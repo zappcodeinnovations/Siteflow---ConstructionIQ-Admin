@@ -24,6 +24,16 @@ class JobSheetController extends ChangeNotifier {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
+  bool _isLoadingMore = false;
+  bool get isLoadingMore => _isLoadingMore;
+
+  int _currentPage = 0;
+  int _totalPages = 1;
+  int _totalCount = 0;
+  bool get hasMore => _currentPage < _totalPages;
+  int get totalCount => _totalCount;
+  static const int _pageSize = 25;
+
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
 
@@ -58,91 +68,64 @@ class JobSheetController extends ChangeNotifier {
   // separate /daily-reports/ URL which reuses the same job_sheets_list view.
   bool dailyReportsMode = false;
 
+  Future<String> _buildUrl({required int page, String? projectId}) async {
+    String url = '${ApiEndpoints.baseUrl}/job-sheets/';
+    final queryParams = <String>['page=$page', 'page_size=$_pageSize'];
+
+    final tz = await DateHelper.getDeviceTimezone();
+    if (tz.isNotEmpty) queryParams.add('tz=${Uri.encodeComponent(tz)}');
+    if (projectId != null && projectId.isNotEmpty) {
+      queryParams.add('project=$projectId');
+    } else if (_selectedProject != null && _selectedProject!.isNotEmpty) {
+      queryParams.add('project=${Uri.encodeComponent(_selectedProject!)}');
+    }
+
+    var statusVal = _selectedStatus.replaceAll('Status: ', '').toLowerCase().trim();
+    if (statusVal.isEmpty) statusVal = 'all';
+    queryParams.add('status=${Uri.encodeComponent(statusVal)}');
+    if (_selectedSheetNo?.isNotEmpty == true) queryParams.add('sheet_no=${Uri.encodeComponent(_selectedSheetNo!)}');
+    if (_selectedClient?.isNotEmpty == true) queryParams.add('client=${Uri.encodeComponent(_selectedClient!)}');
+    if (_selectedOperative?.isNotEmpty == true) queryParams.add('operative=${Uri.encodeComponent(_selectedOperative!)}');
+    if (dailyReportsMode) {
+      queryParams.add('daily_reports=true');
+      queryParams.add('form=${Uri.encodeComponent('Daily Diary')}');
+    } else if (_selectedForm?.isNotEmpty == true) {
+      queryParams.add('form=${Uri.encodeComponent(_selectedForm!)}');
+    }
+    return '$url?${queryParams.join('&')}';
+  }
+
+  void _mergeFilterOptions(Map<String, dynamic> options) {
+    if (options.isEmpty) return;
+    if (_filterOptions.isEmpty) {
+      _filterOptions = Map<String, dynamic>.from(options);
+      return;
+    }
+    options.forEach((key, value) {
+      if (value is List && value.isNotEmpty) {
+        _filterOptions[key] = { ...((_filterOptions[key] as List?) ?? []), ...value }.toList();
+      }
+    });
+  }
+
   Future<void> fetchJobSheets({String? projectId}) async {
     _isLoading = true;
     _errorMessage = null;
+    _currentPage = 0;
+    _totalPages = 1;
     notifyListeners();
 
     try {
-      // Build query parameters
-      String url = '${ApiEndpoints.baseUrl}/job-sheets/';
-      List<String> queryParams = [];
-
-      final tz = await DateHelper.getDeviceTimezone();
-      if (tz.isNotEmpty) {
-        queryParams.add('tz=${Uri.encodeComponent(tz)}');
-      }
-
-      if (projectId != null && projectId.isNotEmpty) {
-        queryParams.add('project=$projectId');
-      } else if (_selectedProject != null && _selectedProject!.isNotEmpty) {
-        queryParams.add('project=${Uri.encodeComponent(_selectedProject!)}');
-      }
-
-      String statusVal = _selectedStatus.replaceAll('Status: ', '').toLowerCase().trim();
-      if (statusVal.isEmpty) statusVal = 'all';
-      queryParams.add('status=${Uri.encodeComponent(statusVal)}');
-
-      if (_selectedSheetNo != null && _selectedSheetNo!.isNotEmpty) {
-        queryParams.add('sheet_no=${Uri.encodeComponent(_selectedSheetNo!)}');
-      }
-      if (_selectedClient != null && _selectedClient!.isNotEmpty) {
-        queryParams.add('client=${Uri.encodeComponent(_selectedClient!)}');
-      }
-      if (_selectedOperative != null && _selectedOperative!.isNotEmpty) {
-        queryParams.add('operative=${Uri.encodeComponent(_selectedOperative!)}');
-      }
-      if (dailyReportsMode) {
-        queryParams.add('daily_reports=true');
-        queryParams.add('form=${Uri.encodeComponent('Daily Diary')}');
-      } else if (_selectedForm != null && _selectedForm!.isNotEmpty) {
-        queryParams.add('form=${Uri.encodeComponent(_selectedForm!)}');
-      }
-
-      if (!queryParams.any((p) => p.startsWith('page_size='))) {
-        queryParams.add('page_size=1000');
-      }
-
-      if (queryParams.isNotEmpty) {
-        url = '$url?${queryParams.join('&')}';
-      }
-
-      final response = await ApiClient.get(url);
+      final response = await ApiClient.get(await _buildUrl(page: 1, projectId: projectId));
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200 && data['status'] == true) {
         final jobSheetResponse = JobSheetResponse.fromJson(data);
-        List<JobSheet> allSheets = List.from(jobSheetResponse.data);
-        
-        if (jobSheetResponse.filterOptions.isNotEmpty) {
-          if (_filterOptions.isEmpty) {
-            _filterOptions = Map<String, dynamic>.from(jobSheetResponse.filterOptions);
-          } else {
-            jobSheetResponse.filterOptions.forEach((k, v) {
-              if (v is List && v.isNotEmpty) {
-                final currentSet = ((_filterOptions[k] as List?) ?? []).toSet();
-                currentSet.addAll(v);
-                _filterOptions[k] = currentSet.toList();
-              }
-            });
-          }
-        }
-
-        if (jobSheetResponse.totalPages > 1 && jobSheetResponse.page < jobSheetResponse.totalPages) {
-          int currentPage = jobSheetResponse.page + 1;
-          while (currentPage <= jobSheetResponse.totalPages) {
-            String pageUrl = '$url${url.contains('?') ? '&' : '?'}page=$currentPage';
-            final pageRes = await ApiClient.get(pageUrl);
-            final pageData = jsonDecode(pageRes.body);
-            if (pageRes.statusCode == 200 && pageData['status'] == true) {
-              final nextResp = JobSheetResponse.fromJson(pageData);
-              allSheets.addAll(nextResp.data);
-            }
-            currentPage++;
-          }
-        }
-
-        _jobSheets = allSheets;
+        _jobSheets = jobSheetResponse.data;
+        _currentPage = jobSheetResponse.page;
+        _totalPages = jobSheetResponse.totalPages;
+        _totalCount = jobSheetResponse.count;
+        _mergeFilterOptions(jobSheetResponse.filterOptions);
       } else {
         _errorMessage = data['message'] ?? 'Failed to fetch job sheets';
       }
@@ -150,6 +133,29 @@ class JobSheetController extends ChangeNotifier {
       _errorMessage = 'An error occurred: $e';
     } finally {
       _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> loadMore({String? projectId}) async {
+    if (_isLoading || _isLoadingMore || !hasMore) return;
+    _isLoadingMore = true;
+    notifyListeners();
+    try {
+      final response = await ApiClient.get(await _buildUrl(page: _currentPage + 1, projectId: projectId));
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200 && data['status'] == true) {
+        final page = JobSheetResponse.fromJson(data);
+        _jobSheets = [..._jobSheets, ...page.data];
+        _currentPage = page.page;
+        _totalPages = page.totalPages;
+        _totalCount = page.count;
+        _mergeFilterOptions(page.filterOptions);
+      }
+    } catch (_) {
+      // Keep the first loaded page usable if a later page cannot be fetched.
+    } finally {
+      _isLoadingMore = false;
       notifyListeners();
     }
   }

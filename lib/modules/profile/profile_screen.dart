@@ -3,6 +3,7 @@ import '../../core/widgets/shimmer_loading.dart';
 import 'profile_controller.dart';
 import 'package:iconly/iconly.dart';
 import '../../core/theme/app_theme.dart';
+import '../drawer_pages/admin/admin_activity_logs_view.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -92,7 +93,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             }
 
             return AlertDialog(
-              backgroundColor: isDark ? AppTheme.corporateBlue : Colors.white,
+              backgroundColor: isDark ? AppTheme.darkSurface : Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
                 side: BorderSide(
@@ -349,7 +350,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       animation: _controller,
       builder: (context, _) {
         final isDark = Theme.of(context).brightness == Brightness.dark;
-        final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
+        final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
         final shadowColor = isDark ? Colors.black26 : Colors.black.withOpacity(0.04);
         final textColor = isDark ? Colors.white : Colors.black87;
         final subtitleColor = isDark ? Colors.white70 : Colors.grey.shade600;
@@ -384,7 +385,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             (displayName.isNotEmpty ? displayName[0].toUpperCase() : "?");
 
         return Scaffold(
-          backgroundColor: isDark ? AppTheme.corporateBlue : const Color(0xFFF8F9FA),
+          backgroundColor: isDark ? AppTheme.darkBackground : const Color(0xFFF8F9FA),
           body: SingleChildScrollView(
             child: Column(
               children: [
@@ -457,16 +458,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 // Name & Role
                 Text(
                   displayName,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                    color: textColor,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   user.email ?? "",
-                  style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                  style: TextStyle(fontSize: 13, color: subtitleColor),
                 ),
                 const SizedBox(height: 12),
                 Container(
@@ -719,7 +720,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             const Divider(),
                             Center(
                               child: TextButton(
-                                onPressed: () {},
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (_) => const AdminActivityLogsView()),
+                                  );
+                                },
                                 child: const Text(
                                   "View Full Audit Log",
                                   style: TextStyle(

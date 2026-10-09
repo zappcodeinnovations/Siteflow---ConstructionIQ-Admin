@@ -83,6 +83,79 @@ class AdminTeamController extends ChangeNotifier {
     }
   }
 
+  Future<Map<String, dynamic>?> fetchTeamDetail(int teamId) async {
+    try {
+      final url = '${ApiEndpoints.baseUrl}/admin/teams/$teamId/';
+      final response = await ApiClient.get(url);
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        return (decoded['data'] as Map?)?.cast<String, dynamic>();
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error fetching team detail: $e');
+      return null;
+    }
+  }
+
+  Future<Map<String, dynamic>> updateTeam(int teamId, Map<String, dynamic> payload) async {
+    try {
+      final url = '${ApiEndpoints.baseUrl}/admin/teams/$teamId/';
+      final response = await ApiClient.patch(url, body: payload);
+      final decoded = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        await fetchTeams();
+        return {"success": true, "message": decoded['message'] ?? 'Team updated.', "data": decoded['data']};
+      }
+      return {"success": false, "message": decoded['message'] ?? 'Failed to update team.'};
+    } catch (e) {
+      return {"success": false, "message": "An error occurred: $e"};
+    }
+  }
+
+  Future<Map<String, dynamic>> deleteTeam(int teamId) async {
+    try {
+      final url = '${ApiEndpoints.baseUrl}/admin/teams/$teamId/';
+      final response = await ApiClient.delete(url);
+      final decoded = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        await fetchTeams();
+        return {"success": true, "message": decoded['message'] ?? 'Team deleted.'};
+      }
+      return {"success": false, "message": decoded['message'] ?? 'Failed to delete team.'};
+    } catch (e) {
+      return {"success": false, "message": "An error occurred: $e"};
+    }
+  }
+
+  Future<Map<String, dynamic>> assignMembers(int teamId, List<int> memberIds) async {
+    try {
+      final url = '${ApiEndpoints.baseUrl}/admin/teams/$teamId/members/';
+      final response = await ApiClient.post(url, body: {"member_ids": memberIds});
+      final decoded = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        return {"success": true, "message": decoded['message'] ?? 'Members added.'};
+      }
+      return {"success": false, "message": decoded['message'] ?? 'Failed to add members.'};
+    } catch (e) {
+      return {"success": false, "message": "An error occurred: $e"};
+    }
+  }
+
+  Future<Map<String, dynamic>> removeMember(int teamId, int memberId) async {
+    try {
+      final url = '${ApiEndpoints.baseUrl}/admin/teams/$teamId/members/$memberId/';
+      final response = await ApiClient.delete(url);
+      final decoded = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        return {"success": true, "message": decoded['message'] ?? 'Member removed.'};
+      }
+      return {"success": false, "message": decoded['message'] ?? 'Failed to remove member.'};
+    } catch (e) {
+      return {"success": false, "message": "An error occurred: $e"};
+    }
+  }
+
   Future<Map<String, dynamic>> forceClockOut(int teamId) async {
     try {
       final url = '${ApiEndpoints.baseUrl}/admin/teams/$teamId/force-clock-out/';

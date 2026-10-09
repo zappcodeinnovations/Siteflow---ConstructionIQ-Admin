@@ -18,6 +18,7 @@ class ManagerAttendanceScreen extends StatefulWidget {
 
 class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
   final ManagerAttendanceController _controller = ManagerAttendanceController();
+  final ScrollController _scrollController = ScrollController();
   bool _isClocking = false;
 
   String _formatTimestamp(String? value) {
@@ -30,13 +31,19 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_loadMoreWhenNeeded);
     _controller.fetchFilterOptions();
     _controller.fetchManagerAttendance();
+  }
+
+  void _loadMoreWhenNeeded() {
+    if (_scrollController.position.extentAfter < 400) _controller.loadMore();
   }
 
   @override
   void dispose() {
     _controller.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -260,7 +267,7 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
 
   Widget _buildKpiCard(String title, String value, Color color, IconData icon) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
+    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
     final borderColor = isDark ? Colors.white24 : color.withOpacity(0.3);
     final textColor = isDark ? Colors.white : Colors.black87;
     final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
@@ -322,14 +329,14 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? AppTheme.corporateBlue : const Color(0xFFF8FAFC);
+    final bgColor = isDark ? AppTheme.darkBackground : const Color(0xFFF8FAFC);
 
     return Scaffold(
       backgroundColor: bgColor,
       appBar: AppBar(
         elevation: 0,
         iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black87),
-        backgroundColor: isDark ? AppTheme.corporateBlue : Colors.white,
+        backgroundColor: isDark ? AppTheme.darkSurface : Colors.white,
         title: Text(
           "Manager Attendance",
           style: TextStyle(
@@ -350,6 +357,7 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
             animation: _controller,
             builder: (context, _) {
               return SingleChildScrollView(
+                controller: _scrollController,
                 child: Padding(
                   padding: const EdgeInsets.all(20.0),
                   child: Column(
@@ -591,28 +599,13 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
                         ),
                       const SizedBox(height: 24),
 
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            "Active Records",
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: isDark ? Colors.white : Colors.black87,
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: () {},
-                            child: Text(
-                              "View All",
-                              style: TextStyle(
-                                color: isDark ? Colors.white : Colors.blue,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ],
+                      Text(
+                        "Active Records",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
                       ),
                       const SizedBox(height: 16),
 
@@ -632,19 +625,21 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
                           ),
                         )
                       else if (_controller.data != null)
-                        ListView.separated(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: _controller.data!.data.length,
-                          separatorBuilder: (context, index) =>
-                              const SizedBox(height: 16),
-                          itemBuilder: (context, index) {
-                            return _ManagerAttendanceCard(
-                              record: _controller.data!.data[index],
-                              index: index,
-                            );
-                          },
-                        ),
+                        Column(children: [
+                          ListView.separated(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: _controller.data!.data.length,
+                            separatorBuilder: (context, index) => const SizedBox(height: 16),
+                            itemBuilder: (context, index) => _ManagerAttendanceCard(
+                              record: _controller.data!.data[index], index: index,
+                            ),
+                          ),
+                          if (_controller.isLoadingMore)
+                            const Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator())
+                          else if (_controller.hasMore)
+                            const Padding(padding: EdgeInsets.all(16), child: Text('Scroll to load more records')),
+                        ]),
                     ],
                   ),
                 ),
@@ -699,7 +694,7 @@ class _ManagerAttendanceCardState extends State<_ManagerAttendanceCard> {
     final aColor = avatarColors[widget.index % avatarColors.length];
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
+    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
     final borderColor = isDark ? Colors.white24 : Colors.grey.shade200;
     final textColor = isDark ? Colors.white : Colors.black87;
     final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;

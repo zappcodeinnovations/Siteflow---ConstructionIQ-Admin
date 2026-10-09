@@ -51,7 +51,7 @@ class _CustomAppBarState extends State<CustomAppBar> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final appBarColor = isDark ? AppTheme.corporateBlue : Colors.white;
+    final appBarColor = isDark ? AppTheme.darkSurface : Colors.white;
     final foregroundColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
 
     final recent = _controller.notifications

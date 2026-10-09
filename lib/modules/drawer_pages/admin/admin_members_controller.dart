@@ -86,6 +86,22 @@ class AdminMembersController extends ChangeNotifier {
     }
   }
 
+  Future<Map<String, dynamic>> updateMember(int id, Map<String, dynamic> payload) async {
+    try {
+      final url = '${ApiEndpoints.baseUrl}/admin/members/$id/';
+      final response = await ApiClient.patch(url, body: payload);
+      final decodedData = jsonDecode(response.body);
+
+      if (response.statusCode == 200 && decodedData['status'] == true) {
+        await fetchMembers();
+        return {"success": true, "message": decodedData['message'] ?? "Member updated successfully."};
+      }
+      return {"success": false, "message": decodedData['message'] ?? "Failed to update member."};
+    } catch (e) {
+      return {"success": false, "message": "An error occurred: $e"};
+    }
+  }
+
   Future<AdminMember?> fetchMemberDetails(int id) async {
     try {
       final url = '${ApiEndpoints.baseUrl}/admin/members/$id/';

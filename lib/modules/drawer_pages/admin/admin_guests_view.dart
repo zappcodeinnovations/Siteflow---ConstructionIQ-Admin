@@ -318,16 +318,16 @@ class _AdminGuestsViewState extends State<AdminGuestsView> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
-    final headerBg = isDark ? AppTheme.corporateBlue : Colors.grey.shade50;
-    final headerTitle = isDark ? Colors.white : const Color(0xFF0F2C4A);
-    final textColor = isDark ? Colors.white : Colors.black87;
-    final subtitleColor = isDark ? Colors.white70 : Colors.grey.shade600;
-    final borderColor = isDark ? Colors.white12 : Colors.grey.shade300;
-    final searchFillColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.white;
+    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
+    final headerBg = isDark ? AppTheme.darkSurfaceRaised : Colors.grey.shade50;
+    final headerTitle = isDark ? AppTheme.darkText : const Color(0xFF0F2C4A);
+    final textColor = isDark ? AppTheme.darkText : Colors.black87;
+    final subtitleColor = isDark ? AppTheme.darkMuted : Colors.grey.shade600;
+    final borderColor = isDark ? AppTheme.darkBorder : Colors.grey.shade300;
+    final searchFillColor = isDark ? AppTheme.darkSurface : Colors.white;
 
     return Scaffold(
-      backgroundColor: isDark ? AppTheme.corporateBlue : null,
+      backgroundColor: isDark ? AppTheme.darkBackground : null,
       body: AnimatedBuilder(
         animation: _controller,
         builder: (context, _) {

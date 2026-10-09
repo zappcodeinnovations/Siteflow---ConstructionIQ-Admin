@@ -50,12 +50,12 @@ class _WorkforcePlannerScreenState extends State<WorkforcePlannerScreen> {
   Widget build(BuildContext context) {
     final rows = _data['rows'] as List? ?? [];
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? const Color(0xFF123B64) : Colors.white;
-    final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
+    final cardColor = isDark ? AppTheme.darkSurfaceRaised : Colors.white;
+    final textColor = isDark ? AppTheme.darkText : const Color(0xFF0F2C4A);
 
     return Scaffold(
       backgroundColor: isDark
-          ? AppTheme.corporateBlue
+          ? AppTheme.darkBackground
           : const Color(0xFFF4F7FB),
       appBar: AppBar(
         title: const Text(
@@ -93,7 +93,7 @@ class _WorkforcePlannerScreenState extends State<WorkforcePlannerScreen> {
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
                               color: isDark
-                                  ? Colors.white24
+                                  ? AppTheme.darkBorder
                                   : const Color(0xFFDCE6F1),
                             ),
                           ),
@@ -132,7 +132,7 @@ class _WorkforcePlannerScreenState extends State<WorkforcePlannerScreen> {
                                       style: TextStyle(
                                         fontSize: 12,
                                         color: isDark
-                                            ? Colors.white70
+                                            ? AppTheme.darkMuted
                                             : Colors.grey.shade600,
                                       ),
                                     ),
@@ -200,10 +200,12 @@ class _WorkforcePlannerScreenState extends State<WorkforcePlannerScreen> {
         color: cardColor,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: isDark ? Colors.white24 : const Color(0xFFDCE6F1),
+          color: isDark ? AppTheme.darkBorder : const Color(0xFFDCE6F1),
         ),
       ),
-      child: ExpansionTile(
+      child: Material(
+        color: Colors.transparent,
+        child: ExpansionTile(
         shape: const Border(),
         collapsedShape: const Border(),
         leading: const CircleAvatar(
@@ -217,7 +219,7 @@ class _WorkforcePlannerScreenState extends State<WorkforcePlannerScreen> {
         subtitle: Text(
           '${planned.length} day(s) planned',
           style: TextStyle(
-            color: isDark ? Colors.white60 : Colors.grey.shade600,
+            color: isDark ? AppTheme.darkMuted : Colors.grey.shade600,
             fontSize: 12,
           ),
         ),
@@ -254,6 +256,7 @@ class _WorkforcePlannerScreenState extends State<WorkforcePlannerScreen> {
                     ),
                   )
                   .toList(),
+        ),
       ),
     );
   }

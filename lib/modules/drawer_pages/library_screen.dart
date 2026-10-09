@@ -7,6 +7,11 @@ import '../../models/library_form_model.dart';
 import '../../models/library_template_model.dart';
 import '../../models/project_material_model.dart';
 import 'library_controller.dart';
+import 'admin_material_controller.dart';
+import 'material_detail_screen.dart';
+import 'dart:convert';
+import '../../core/network/api_client.dart';
+import '../../core/network/api_endpoints.dart';
 
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
@@ -17,28 +22,32 @@ class LibraryScreen extends StatefulWidget {
 
 class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProviderStateMixin {
   final LibraryController _controller = LibraryController();
+  final AdminMaterialController _materialController = AdminMaterialController();
   late final TabController _tabController;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
+    _tabController.addListener(() => setState(() {}));
     _controller.fetchForms();
     _controller.fetchMaterials();
     _controller.fetchTemplates();
+    _controller.fetchWorkTypes();
   }
 
   @override
   void dispose() {
     _tabController.dispose();
     _controller.dispose();
+    _materialController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final background = isDark ? AppTheme.corporateBlue : const Color(0xFFF4F7FB);
+    final background = isDark ? AppTheme.darkBackground : const Color(0xFFF4F7FB);
 
     return Scaffold(
       backgroundColor: background,
@@ -46,10 +55,12 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
         title: const Text('Library', style: TextStyle(fontWeight: FontWeight.w700)),
         bottom: TabBar(
           controller: _tabController,
+          isScrollable: true,
           tabs: const [
             Tab(text: "Forms"),
             Tab(text: "Materials"),
             Tab(text: "Templates"),
+            Tab(text: "Work Types"),
           ],
         ),
       ),
@@ -66,12 +77,244 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
                   _buildFormsTab(isDark),
                   _buildMaterialsTab(isDark),
                   _buildTemplatesTab(isDark),
+                  _buildWorkTypesTab(isDark),
                 ],
               );
             },
           ),
         ],
       ),
+      floatingActionButton: _tabController.index == 3
+          ? FloatingActionButton.extended(
+              onPressed: () => _showAddWorkTypeDialog(context),
+              icon: const Icon(Icons.add),
+              label: const Text("Add Work Type"),
+            )
+          : _tabController.index == 1
+              ? FloatingActionButton.extended(
+                  onPressed: () => _showAddMaterialDialog(context),
+                  icon: const Icon(Icons.add),
+                  label: const Text("Add Material"),
+                )
+              : null,
+    );
+  }
+
+  Future<void> _showAddMaterialDialog(BuildContext context) async {
+    List<Map<String, dynamic>> groups = [];
+    try {
+      final response = await ApiClient.get('${ApiEndpoints.baseUrl}/admin/material-groups/');
+      final decoded = jsonDecode(response.body);
+      if (decoded['status'] == true) {
+        groups = (decoded['data'] as List).whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
+      }
+    } catch (_) {}
+    if (!context.mounted) return;
+    if (groups.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Create a material group first (Settings > Materials).")),
+      );
+      return;
+    }
+
+    final nameController = TextEditingController();
+    int groupId = groups.first['id'] as int;
+    String inputType = 'quantity';
+
+    await showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text("Add Material"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(controller: nameController, autofocus: true, decoration: const InputDecoration(labelText: "Name", border: OutlineInputBorder())),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<int>(
+                initialValue: groupId,
+                decoration: const InputDecoration(labelText: "Material Group", border: OutlineInputBorder()),
+                items: groups.map((g) => DropdownMenuItem(value: g['id'] as int, child: Text(g['name']?.toString() ?? ''))).toList(),
+                onChanged: (val) => setDialogState(() => groupId = val ?? groupId),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: inputType,
+                decoration: const InputDecoration(labelText: "Input Type", border: OutlineInputBorder()),
+                items: const [
+                  DropdownMenuItem(value: 'quantity', child: Text("Quantity")),
+                  DropdownMenuItem(value: 'linear_metres', child: Text("Linear Metres")),
+                  DropdownMenuItem(value: 'square_metres_width_height', child: Text("Square Metres (W x H)")),
+                  DropdownMenuItem(value: 'quantity_and_diameter_mm', child: Text("Quantity & Diameter (mm)")),
+                  DropdownMenuItem(value: 'square_metres_4_sides_width_height', child: Text("Square Metres (4 sides)")),
+                  DropdownMenuItem(value: 'linear_metres_and_joint_size_mm', child: Text("Linear Metres & Joint Size (mm)")),
+                ],
+                onChanged: (val) => setDialogState(() => inputType = val ?? inputType),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text("Cancel")),
+            ElevatedButton(
+              onPressed: () async {
+                final name = nameController.text.trim();
+                if (name.isEmpty) return;
+                Navigator.pop(dialogContext);
+                final result = await _materialController.createMaterial(name: name, inputType: inputType, materialGroupId: groupId);
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(result['message'] ?? ''), backgroundColor: result['success'] == true ? Colors.green : Colors.red),
+                );
+                if (result['success'] == true) {
+                  await _controller.fetchMaterials();
+                  final created = (result['data'] as Map?)?.cast<String, dynamic>();
+                  if (created != null && mounted) {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => MaterialDetailScreen(materialId: created['id'] as int)));
+                  }
+                }
+              },
+              child: const Text("Create"),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showAddWorkTypeDialog(BuildContext context) async {
+    final nameController = TextEditingController();
+    await showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text("Add Work Type"),
+        content: TextField(
+          controller: nameController,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: "Name", border: OutlineInputBorder()),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text("Cancel")),
+          ElevatedButton(
+            onPressed: () async {
+              final name = nameController.text.trim();
+              if (name.isEmpty) return;
+              Navigator.pop(dialogContext);
+              final result = await _controller.createWorkType(name);
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(result['message'] ?? ''), backgroundColor: result['success'] == true ? Colors.green : Colors.red),
+              );
+            },
+            child: const Text("Add"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showRenameWorkTypeDialog(BuildContext context, Map<String, dynamic> workType) async {
+    final nameController = TextEditingController(text: workType['name']?.toString() ?? '');
+    await showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text("Rename Work Type"),
+        content: TextField(
+          controller: nameController,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: "Name", border: OutlineInputBorder()),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text("Cancel")),
+          ElevatedButton(
+            onPressed: () async {
+              final name = nameController.text.trim();
+              if (name.isEmpty) return;
+              Navigator.pop(dialogContext);
+              final result = await _controller.renameWorkType(workType['id'] as int, name);
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(result['message'] ?? ''), backgroundColor: result['success'] == true ? Colors.green : Colors.red),
+              );
+            },
+            child: const Text("Save"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmDeleteWorkType(BuildContext context, Map<String, dynamic> workType) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text("Delete Work Type"),
+        content: Text('Delete "${workType['name']}"?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text("Cancel")),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text("Delete", style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final result = await _controller.deleteWorkType(workType['id'] as int);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(result['message'] ?? ''), backgroundColor: result['success'] == true ? Colors.green : Colors.red),
+    );
+  }
+
+  Widget _buildWorkTypesTab(bool isDark) {
+    final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
+    final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+
+    if (_controller.isLoadingWorkTypes) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_controller.workTypesError != null) {
+      return Center(child: Text(_controller.workTypesError!, style: TextStyle(color: textSecondary)));
+    }
+    if (_controller.workTypes.isEmpty) {
+      return _emptyState(isDark, "No work types yet", "Add one with the button below.");
+    }
+    return ListView.separated(
+      padding: const EdgeInsets.all(16),
+      itemCount: _controller.workTypes.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      itemBuilder: (context, index) {
+        final workType = _controller.workTypes[index];
+        final isActive = workType['is_active'] == true;
+        return Container(
+          decoration: BoxDecoration(
+            color: isDark ? AppTheme.darkSurfaceRaised : Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: isDark ? AppTheme.darkBorder : Colors.grey.shade200),
+          ),
+          child: ListTile(
+            title: Text(workType['name']?.toString() ?? '', style: TextStyle(color: textColor, fontWeight: FontWeight.w600)),
+            subtitle: Text(isActive ? "Active" : "Inactive", style: TextStyle(color: isActive ? Colors.green : textSecondary)),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Switch(
+                  value: isActive,
+                  onChanged: (val) => _controller.toggleWorkType(workType['id'] as int, val),
+                ),
+                IconButton(
+                  icon: const Icon(IconlyLight.edit, size: 18),
+                  onPressed: () => _showRenameWorkTypeDialog(context, workType),
+                ),
+                IconButton(
+                  icon: const Icon(IconlyLight.delete, size: 18, color: Colors.red),
+                  onPressed: () => _confirmDeleteWorkType(context, workType),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -85,9 +328,9 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
         Container(
           padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
           decoration: BoxDecoration(
-            color: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
+            color: isDark ? AppTheme.darkSurfaceRaised : Colors.white,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade200),
+            border: Border.all(color: isDark ? AppTheme.darkBorder : Colors.grey.shade200),
           ),
           child: Column(
             children: [
@@ -116,8 +359,8 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
   Widget _buildFormsTab(bool isDark) {
     final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
     final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
-    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
-    final borderColor = isDark ? Colors.white24 : Colors.grey.shade200;
+    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
+    final borderColor = isDark ? AppTheme.darkBorder : Colors.grey.shade200;
 
     if (_controller.isLoadingForms) return const Center(child: CircularProgressIndicator());
     if (_controller.formsError != null) return _errorState(_controller.formsError!, _controller.fetchForms);
@@ -164,25 +407,103 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
     );
   }
 
+  bool _materialSelectMode = false;
+  final Set<int> _selectedMaterialIds = {};
+
+  Future<void> _runBulkAction(String action) async {
+    final ids = _selectedMaterialIds.toList();
+    if (ids.isEmpty) return;
+
+    int? groupId;
+    if (action == 'change_group') {
+      List<Map<String, dynamic>> groups = [];
+      try {
+        final response = await ApiClient.get('${ApiEndpoints.baseUrl}/admin/material-groups/');
+        final decoded = jsonDecode(response.body);
+        if (decoded['status'] == true) groups = (decoded['data'] as List).whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
+      } catch (_) {}
+      if (!mounted || groups.isEmpty) return;
+      groupId = await showDialog<int>(
+        context: context,
+        builder: (dialogContext) => SimpleDialog(
+          title: const Text("Move to Group"),
+          children: groups
+              .map((g) => SimpleDialogOption(
+                    onPressed: () => Navigator.pop(dialogContext, g['id'] as int),
+                    child: Text(g['name']?.toString() ?? ''),
+                  ))
+              .toList(),
+        ),
+      );
+      if (groupId == null) return;
+    } else {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(action == 'archive' ? "Archive Materials" : "Delete Materials"),
+          content: Text('${action == 'archive' ? 'Archive' : 'Delete'} ${ids.length} material(s)?'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text("Cancel")),
+            TextButton(onPressed: () => Navigator.pop(dialogContext, true), child: Text(action == 'archive' ? "Archive" : "Delete", style: const TextStyle(color: Colors.red))),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+    }
+
+    final result = await _materialController.bulkAction(action: action, materialIds: ids, materialGroupId: groupId);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(result['message'] ?? ''), backgroundColor: result['success'] == true ? Colors.green : Colors.red),
+    );
+    if (result['success'] == true) {
+      setState(() {
+        _selectedMaterialIds.clear();
+        _materialSelectMode = false;
+      });
+      await _controller.fetchMaterials();
+    }
+  }
+
   Widget _buildMaterialsTab(bool isDark) {
     final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
     final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
-    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
-    final borderColor = isDark ? Colors.white24 : Colors.grey.shade200;
+    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
+    final borderColor = isDark ? AppTheme.darkBorder : Colors.grey.shade200;
 
     if (_controller.isLoadingMaterials) return const Center(child: CircularProgressIndicator());
     if (_controller.materialsError != null) return _errorState(_controller.materialsError!, _controller.fetchMaterials);
     if (_controller.materials.isEmpty) {
       return _emptyState(isDark, "No materials in the catalog yet.", "Materials and rate sets are managed from the web admin panel's Library.");
     }
-    return RefreshIndicator(
-      onRefresh: _controller.fetchMaterials,
-      child: ListView.separated(
-        padding: const EdgeInsets.all(16),
-        itemCount: _controller.materials.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 10),
-        itemBuilder: (context, index) {
-          final LibraryMaterialModel material = _controller.materials[index];
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton.icon(
+                onPressed: () => setState(() {
+                  _materialSelectMode = !_materialSelectMode;
+                  if (!_materialSelectMode) _selectedMaterialIds.clear();
+                }),
+                icon: Icon(_materialSelectMode ? IconlyLight.close_square : IconlyLight.tick_square, size: 16),
+                label: Text(_materialSelectMode ? "Cancel" : "Select"),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: _controller.fetchMaterials,
+            child: ListView.separated(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              itemCount: _controller.materials.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              itemBuilder: (context, index) {
+                final LibraryMaterialModel material = _controller.materials[index];
+                final isSelected = _selectedMaterialIds.contains(material.id);
           return Theme(
             data: ThemeData(dividerColor: Colors.transparent),
             child: Container(
@@ -191,8 +512,21 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: borderColor),
               ),
-              child: ExpansionTile(
-                leading: Icon(IconlyBold.bag, color: textColor, size: 18),
+              child: Material(
+                color: Colors.transparent,
+                child: ExpansionTile(
+                leading: _materialSelectMode
+                    ? Checkbox(
+                        value: isSelected,
+                        onChanged: (val) => setState(() {
+                          if (val == true) {
+                            _selectedMaterialIds.add(material.id);
+                          } else {
+                            _selectedMaterialIds.remove(material.id);
+                          }
+                        }),
+                      )
+                    : Icon(IconlyBold.bag, color: textColor, size: 18),
                 title: Text(material.name, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: textColor)),
                 subtitle: Text(
                   [if (material.materialGroup.isNotEmpty) material.materialGroup, material.inputTypeLabel]
@@ -200,6 +534,18 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
                       .join(' · '),
                   style: TextStyle(fontSize: 12, color: textSecondary),
                 ),
+                trailing: _materialSelectMode
+                    ? null
+                    : IconButton(
+                        icon: Icon(IconlyLight.edit, size: 18, color: textColor),
+                        tooltip: "Edit material",
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => MaterialDetailScreen(materialId: material.id)),
+                          ).then((_) => _controller.fetchMaterials());
+                        },
+                      ),
                 children: [
                   Padding(
                     padding: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
@@ -222,19 +568,52 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
                           ),
                   ),
                 ],
+                ),
               ),
             ),
           );
-        },
-      ),
+              },
+            ),
+          ),
+        ),
+        if (_materialSelectMode && _selectedMaterialIds.isNotEmpty)
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: cardColor,
+              border: Border(top: BorderSide(color: borderColor)),
+            ),
+            child: Row(
+              children: [
+                Text("${_selectedMaterialIds.length} selected", style: TextStyle(color: textColor, fontWeight: FontWeight.w600)),
+                const Spacer(),
+                TextButton.icon(
+                  onPressed: () => _runBulkAction('change_group'),
+                  icon: const Icon(IconlyLight.category, size: 16),
+                  label: const Text("Move"),
+                ),
+                TextButton.icon(
+                  onPressed: () => _runBulkAction('archive'),
+                  icon: const Icon(IconlyLight.folder, size: 16),
+                  label: const Text("Archive"),
+                ),
+                TextButton.icon(
+                  onPressed: () => _runBulkAction('delete'),
+                  icon: const Icon(IconlyLight.delete, size: 16, color: Colors.red),
+                  label: const Text("Delete", style: TextStyle(color: Colors.red)),
+                ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 
   Widget _buildTemplatesTab(bool isDark) {
     final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
     final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
-    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
-    final borderColor = isDark ? Colors.white24 : Colors.grey.shade200;
+    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
+    final borderColor = isDark ? AppTheme.darkBorder : Colors.grey.shade200;
 
     if (_controller.isLoadingTemplates) return const Center(child: CircularProgressIndicator());
     if (_controller.templatesError != null) return _errorState(_controller.templatesError!, _controller.fetchTemplates);

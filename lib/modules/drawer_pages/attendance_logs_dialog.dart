@@ -18,7 +18,7 @@ class AttendanceLogsDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? AppTheme.corporateBlue : Colors.white;
+    final bgColor = isDark ? AppTheme.darkSurface : Colors.white;
     final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
     final borderColor = isDark ? Colors.white24 : Colors.grey.shade200;
     

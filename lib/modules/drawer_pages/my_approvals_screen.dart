@@ -50,7 +50,7 @@ class _MyApprovalsScreenState extends State<MyApprovalsScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final background = isDark
-        ? AppTheme.corporateBlue
+        ? AppTheme.darkBackground
         : const Color(0xFFF4F7FB);
     return Scaffold(
       backgroundColor: background,
@@ -93,12 +93,12 @@ class _MyApprovalsScreenState extends State<MyApprovalsScreen> {
                         ),
                         decoration: BoxDecoration(
                           color: isDark
-                              ? Colors.white.withValues(alpha: 0.08)
+                              ? AppTheme.darkSurfaceRaised
                               : Colors.white,
                           borderRadius: BorderRadius.circular(18),
                           border: Border.all(
                             color: isDark
-                                ? Colors.white24
+                                ? AppTheme.darkBorder
                                 : const Color(0xFFDCE6F1),
                           ),
                         ),

@@ -152,6 +152,44 @@ class AdminPermissionsController extends ChangeNotifier {
     fetchPermissions(role);
   }
 
+  /// Rename/delete only apply to custom roles - [role.code] is the bare
+  /// numeric CustomRole id (unlike [role.id], which is prefixed e.g.
+  /// "custom:5"/"system:admin" to disambiguate built-in roles elsewhere).
+  Future<Map<String, dynamic>> renameRole(AdminRole role, String newName) async {
+    try {
+      final url = '${ApiEndpoints.baseUrl}/admin/permissions/roles/${role.code}/';
+      final response = await ApiClient.patch(url, body: {"name": newName});
+      final decodedData = jsonDecode(response.body);
+
+      if (response.statusCode == 200 && decodedData['status'] == true) {
+        await fetchRoles();
+        return {"success": true, "message": decodedData['message'] ?? "Role renamed successfully."};
+      }
+      return {"success": false, "message": decodedData['message'] ?? "Failed to rename role."};
+    } catch (e) {
+      return {"success": false, "message": "An error occurred: $e"};
+    }
+  }
+
+  Future<Map<String, dynamic>> deleteRole(AdminRole role) async {
+    try {
+      final url = '${ApiEndpoints.baseUrl}/admin/permissions/roles/${role.code}/';
+      final response = await ApiClient.delete(url);
+      final decodedData = jsonDecode(response.body);
+
+      if (response.statusCode == 200 && decodedData['status'] == true) {
+        if (_selectedRole?.id == role.id) {
+          _selectedRole = null;
+        }
+        await fetchRoles();
+        return {"success": true, "message": decodedData['message'] ?? "Role deleted successfully."};
+      }
+      return {"success": false, "message": decodedData['message'] ?? "Failed to delete role."};
+    } catch (e) {
+      return {"success": false, "message": "An error occurred: $e"};
+    }
+  }
+
   bool _parseBool(dynamic val) {
     if (val == null) return false;
     if (val is bool) return val;

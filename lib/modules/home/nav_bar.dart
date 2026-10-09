@@ -10,6 +10,7 @@ import '../../core/services/auth_service.dart';
 import '../../core/widgets/custom_drawer.dart';
 import '../../core/widgets/custom_appbar.dart';
 import 'package:iconly/iconly.dart';
+import 'global_search_screen.dart';
 
 class BottomNavScreen extends StatefulWidget {
   const BottomNavScreen({super.key});
@@ -128,25 +129,35 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
     return Scaffold(
       appBar: CustomAppBar(
         title: titles[currentIndex],
-        actions: currentIndex == _clientsIndex
-            ? [
-                IconButton(
-                  icon: const Icon(IconlyLight.search),
-                  onPressed: () {
-                    clientsScreenKey.currentState?.toggleSearch();
-                  },
-                ),
-              ]
-            : currentIndex == _projectsIndex
-            ? [
-                IconButton(
-                  icon: const Icon(IconlyLight.search),
-                  onPressed: () {
-                    projectsScreenKey.currentState?.toggleSearch();
-                  },
-                ),
-              ]
-            : null,
+        actions: [
+          ...currentIndex == _clientsIndex
+              ? [
+                  IconButton(
+                    icon: const Icon(IconlyLight.search),
+                    onPressed: () {
+                      clientsScreenKey.currentState?.toggleSearch();
+                    },
+                  ),
+                ]
+              : currentIndex == _projectsIndex
+              ? [
+                  IconButton(
+                    icon: const Icon(IconlyLight.search),
+                    onPressed: () {
+                      projectsScreenKey.currentState?.toggleSearch();
+                    },
+                  ),
+                ]
+              : [],
+          IconButton(
+            icon: const Icon(IconlyLight.search),
+            tooltip: "Search everything",
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const GlobalSearchScreen()),
+            ),
+          ),
+        ],
       ),
       drawer: isDesktop ? null : const CustomDrawer(),
       body: Row(
@@ -154,7 +165,7 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
           // Show NavigationRail on large screens for true responsiveness
           if (isDesktop)
             NavigationRail(
-              backgroundColor: Colors.white,
+              backgroundColor: Theme.of(context).colorScheme.surface,
               selectedIndex: currentIndex,
               onDestinationSelected: (value) {
                 if (value == 0) {
@@ -186,7 +197,10 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
               destinations: [
                 for (int i = 0; i < titles.length; i++)
                   NavigationRailDestination(
-                    icon: Icon(icons[i], color: Colors.grey.shade400),
+                    icon: Icon(
+                      icons[i],
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                     selectedIcon: Icon(icons[i]),
                     label: Text(titles[i]),
                   ),

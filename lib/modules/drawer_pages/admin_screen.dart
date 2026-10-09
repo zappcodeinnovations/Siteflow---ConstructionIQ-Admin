@@ -194,7 +194,7 @@ class _AdminScreenState extends State<AdminScreen> {
     }
     final isDesktop = MediaQuery.of(context).size.width > 800;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? AppTheme.corporateBlue : const Color(0xFFF8FAFC);
+    final bgColor = isDark ? AppTheme.darkBackground : const Color(0xFFF8FAFC);
 
     return Scaffold(
       backgroundColor: bgColor,

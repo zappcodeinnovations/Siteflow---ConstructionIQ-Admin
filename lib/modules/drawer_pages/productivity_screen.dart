@@ -9,6 +9,7 @@ import 'package:iconly/iconly.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/background_stripes_painter.dart';
 import '../../core/widgets/custom_date_picker_dialog.dart';
+import 'productivity_detail_screen.dart';
 
 class ProductivityScreen extends StatefulWidget {
   const ProductivityScreen({super.key});
@@ -435,12 +436,30 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
     }
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
+    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
     final borderColor = isDark ? Colors.white24 : Colors.grey.shade200;
     final textColor = isDark ? Colors.white : Colors.black87;
     final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
 
-    return Container(
+    VoidCallback? onTap;
+    if (_controller.currentView == 'member') {
+      final member = _controller.data!.byMember[index];
+      onTap = () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => ProductivityDetailScreen(id: member.id, title: member.name, isMember: true)),
+          );
+    } else if (_controller.currentView == 'project') {
+      final project = _controller.data!.byProject[index];
+      onTap = () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => ProductivityDetailScreen(id: project.id, title: project.name, isMember: false)),
+          );
+    }
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: onTap,
+      child: Container(
       decoration: BoxDecoration(
         color: cardColor,
         borderRadius: BorderRadius.circular(16),
@@ -547,20 +566,21 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
           ],
         ),
       ),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? AppTheme.corporateBlue : const Color(0xFFF8FAFC);
+    final bgColor = isDark ? AppTheme.darkBackground : const Color(0xFFF8FAFC);
 
     return Scaffold(
       backgroundColor: bgColor,
       appBar: AppBar(
         elevation: 0,
         iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black87),
-        backgroundColor: isDark ? AppTheme.corporateBlue : Colors.white,
+        backgroundColor: isDark ? AppTheme.darkSurface : Colors.white,
         title: Text(
           "Productivity",
           style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F2C4A), fontSize: 22, fontWeight: FontWeight.bold),

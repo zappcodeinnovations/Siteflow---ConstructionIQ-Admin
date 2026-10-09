@@ -15,17 +15,17 @@ class JobSheetDetailsScreen extends StatelessWidget {
   const JobSheetDetailsScreen({super.key, required this.jobSheet});
 
   void _openFormBrowser(BuildContext context) {
-    String path = jobSheet.viewFormInBrowserUrl.isNotEmpty 
+    String path = jobSheet.viewFormInBrowserUrl.isNotEmpty
         ? jobSheet.viewFormInBrowserUrl
         : jobSheet.globalDetailApiUrl;
-    
+
     String base = ApiEndpoints.baseUrl;
     if (path.startsWith('/api/') && base.endsWith('/api')) {
       base = base.substring(0, base.length - 4);
     }
-    
+
     final urlStr = base + path;
-    
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -77,29 +77,34 @@ class JobSheetDetailsScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: isDark ? AppTheme.corporateBlue : Colors.white,
+        color: isDark ? AppTheme.darkSurface : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade200),
+        border: Border.all(
+          color: isDark ? Colors.white24 : Colors.grey.shade200,
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
-          )
+          ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            title, 
+            title,
             style: TextStyle(
-              fontSize: 18, 
-              fontWeight: FontWeight.bold, 
-              color: isDark ? Colors.white : const Color(0xFF0F2C4A)
-            )
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : const Color(0xFF0F2C4A),
+            ),
           ),
-          Divider(height: 32, color: isDark ? Colors.white24 : Colors.grey.shade200),
+          Divider(
+            height: 32,
+            color: isDark ? Colors.white24 : Colors.grey.shade200,
+          ),
           ...children,
         ],
       ),
@@ -112,10 +117,12 @@ class JobSheetDetailsScreen extends StatelessWidget {
     final isDesktop = MediaQuery.of(context).size.width > 800;
 
     return Scaffold(
-      backgroundColor: isDark ? AppTheme.corporateBlue : const Color(0xFFF8FAFC),
+      backgroundColor: isDark
+          ? AppTheme.darkBackground
+          : const Color(0xFFF8FAFC),
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: isDark ? AppTheme.corporateBlue : Colors.white,
+        backgroundColor: isDark ? AppTheme.darkSurface : Colors.white,
         iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black87),
         title: Text(
           "Job Sheet: ${jobSheet.sheetNo}",
@@ -141,150 +148,281 @@ class JobSheetDetailsScreen extends StatelessWidget {
                 // Status and Actions Card
                 Container(
                   padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: isDark ? AppTheme.corporateBlue : Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade200),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  )
-                ],
-              ),
-              child: Wrap(
-                spacing: 16,
-                runSpacing: 16,
-                alignment: WrapAlignment.spaceBetween,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.green.withOpacity(0.3)),
+                  decoration: BoxDecoration(
+                    color: isDark ? AppTheme.darkSurface : Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isDark ? Colors.white24 : Colors.grey.shade200,
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(IconlyLight.tick_square, color: Colors.green, size: 16),
-                        const SizedBox(width: 6),
-                        Text(
-                          jobSheet.statusLabel.isNotEmpty ? jobSheet.statusLabel : jobSheet.status,
-                          style: const TextStyle(color: Colors.green, fontSize: 14, fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (jobSheet.viewFormInBrowserUrl.isNotEmpty || jobSheet.globalDetailApiUrl.isNotEmpty)
-                    ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0D6EFD),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
                       ),
-                      onPressed: () => _openFormBrowser(context),
-                      icon: const Icon(IconlyLight.document, color: Colors.white, size: 18),
-                      label: const Text("View Form", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
+                    ],
+                  ),
+                  child: Wrap(
+                    spacing: 16,
+                    runSpacing: 16,
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: Colors.green.withOpacity(0.3),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              IconlyLight.tick_square,
+                              color: Colors.green,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              jobSheet.statusLabel.isNotEmpty
+                                  ? jobSheet.statusLabel
+                                  : jobSheet.status,
+                              style: const TextStyle(
+                                color: Colors.green,
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (jobSheet.viewFormInBrowserUrl.isNotEmpty ||
+                          jobSheet.globalDetailApiUrl.isNotEmpty)
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF0D6EFD),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          onPressed: () => _openFormBrowser(context),
+                          icon: const Icon(
+                            IconlyLight.document,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                          label: const Text(
+                            "View Form",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
 
-            // Main Details Row / Column depending on screen size
-            if (isDesktop)
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: _buildSectionCard(
-                      title: "Core Information",
-                      isDark: isDark,
-                      children: [
-                        _buildDetailRow("Project", jobSheet.projectName, isDark),
-                        _buildDetailRow("Client", jobSheet.clientName, isDark),
-                        _buildDetailRow("Job No.", jobSheet.jobNo, isDark),
-                        _buildDetailRow("Job Reference", jobSheet.jobReference, isDark),
-                        _buildDetailRow("Operative", "${jobSheet.operative} (${jobSheet.operativeCode})", isDark),
-                        _buildDetailRow("Form Type", jobSheet.form, isDark),
-                        _buildDetailRow("Location", jobSheet.location, isDark),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 24),
-                  Expanded(
-                    child: Column(
-                      children: [
-                        _buildSectionCard(
-                          title: "Financials & Notes",
+                // Main Details Row / Column depending on screen size
+                if (isDesktop)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: _buildSectionCard(
+                          title: "Core Information",
                           isDark: isDark,
                           children: [
-                            _buildDetailRow("Material Cost", jobSheet.materialCost.isNotEmpty ? "£${jobSheet.materialCost}" : "-", isDark),
-                            _buildDetailRow("Charge", jobSheet.charge.isNotEmpty ? "£${jobSheet.charge}" : "-", isDark),
-                            _buildDetailRow("Comments", jobSheet.comments, isDark),
+                            _buildDetailRow(
+                              "Project",
+                              jobSheet.projectName,
+                              isDark,
+                            ),
+                            _buildDetailRow(
+                              "Client",
+                              jobSheet.clientName,
+                              isDark,
+                            ),
+                            _buildDetailRow("Job No.", jobSheet.jobNo, isDark),
+                            _buildDetailRow(
+                              "Job Reference",
+                              jobSheet.jobReference,
+                              isDark,
+                            ),
+                            _buildDetailRow(
+                              "Operative",
+                              "${jobSheet.operative} (${jobSheet.operativeCode})",
+                              isDark,
+                            ),
+                            _buildDetailRow("Form Type", jobSheet.form, isDark),
+                            _buildDetailRow(
+                              "Location",
+                              jobSheet.location,
+                              isDark,
+                            ),
                           ],
                         ),
-                        const SizedBox(height: 24),
-                        _buildSectionCard(
-                          title: "Timestamps",
-                          isDark: isDark,
+                      ),
+                      const SizedBox(width: 24),
+                      Expanded(
+                        child: Column(
                           children: [
-                            _buildDetailRow("Created", DateHelper.formatToLocal(jobSheet.created), isDark),
-                            _buildDetailRow("Submitted", DateHelper.formatToLocal(jobSheet.submitted), isDark),
-                            _buildDetailRow("Last Updated", DateHelper.formatToLocal(jobSheet.lastUpdated), isDark),
+                            _buildSectionCard(
+                              title: "Financials & Notes",
+                              isDark: isDark,
+                              children: [
+                                _buildDetailRow(
+                                  "Material Cost",
+                                  jobSheet.materialCost.isNotEmpty
+                                      ? "£${jobSheet.materialCost}"
+                                      : "-",
+                                  isDark,
+                                ),
+                                _buildDetailRow(
+                                  "Charge",
+                                  jobSheet.charge.isNotEmpty
+                                      ? "£${jobSheet.charge}"
+                                      : "-",
+                                  isDark,
+                                ),
+                                _buildDetailRow(
+                                  "Comments",
+                                  jobSheet.comments,
+                                  isDark,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 24),
+                            _buildSectionCard(
+                              title: "Timestamps",
+                              isDark: isDark,
+                              children: [
+                                _buildDetailRow(
+                                  "Created",
+                                  DateHelper.formatToLocal(jobSheet.created),
+                                  isDark,
+                                ),
+                                _buildDetailRow(
+                                  "Submitted",
+                                  DateHelper.formatToLocal(jobSheet.submitted),
+                                  isDark,
+                                ),
+                                _buildDetailRow(
+                                  "Last Updated",
+                                  DateHelper.formatToLocal(
+                                    jobSheet.lastUpdated,
+                                  ),
+                                  isDark,
+                                ),
+                              ],
+                            ),
                           ],
                         ),
-                      ],
-                    ),
-                  ),
-                ],
-              )
-            else
-              Column(
-                children: [
-                  _buildSectionCard(
-                    title: "Core Information",
-                    isDark: isDark,
+                      ),
+                    ],
+                  )
+                else
+                  Column(
                     children: [
-                      _buildDetailRow("Project", jobSheet.projectName, isDark),
-                      _buildDetailRow("Client", jobSheet.clientName, isDark),
-                      _buildDetailRow("Job No.", jobSheet.jobNo, isDark),
-                      _buildDetailRow("Job Reference", jobSheet.jobReference, isDark),
-                      _buildDetailRow("Operative", "${jobSheet.operative} (${jobSheet.operativeCode})", isDark),
-                      _buildDetailRow("Form Type", jobSheet.form, isDark),
-                      _buildDetailRow("Location", jobSheet.location, isDark),
+                      _buildSectionCard(
+                        title: "Core Information",
+                        isDark: isDark,
+                        children: [
+                          _buildDetailRow(
+                            "Project",
+                            jobSheet.projectName,
+                            isDark,
+                          ),
+                          _buildDetailRow(
+                            "Client",
+                            jobSheet.clientName,
+                            isDark,
+                          ),
+                          _buildDetailRow("Job No.", jobSheet.jobNo, isDark),
+                          _buildDetailRow(
+                            "Job Reference",
+                            jobSheet.jobReference,
+                            isDark,
+                          ),
+                          _buildDetailRow(
+                            "Operative",
+                            "${jobSheet.operative} (${jobSheet.operativeCode})",
+                            isDark,
+                          ),
+                          _buildDetailRow("Form Type", jobSheet.form, isDark),
+                          _buildDetailRow(
+                            "Location",
+                            jobSheet.location,
+                            isDark,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      _buildSectionCard(
+                        title: "Financials & Notes",
+                        isDark: isDark,
+                        children: [
+                          _buildDetailRow(
+                            "Material Cost",
+                            jobSheet.materialCost.isNotEmpty
+                                ? "£${jobSheet.materialCost}"
+                                : "-",
+                            isDark,
+                          ),
+                          _buildDetailRow(
+                            "Charge",
+                            jobSheet.charge.isNotEmpty
+                                ? "£${jobSheet.charge}"
+                                : "-",
+                            isDark,
+                          ),
+                          _buildDetailRow(
+                            "Comments",
+                            jobSheet.comments,
+                            isDark,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      _buildSectionCard(
+                        title: "Timestamps",
+                        isDark: isDark,
+                        children: [
+                          _buildDetailRow(
+                            "Created",
+                            DateHelper.formatToLocal(jobSheet.created),
+                            isDark,
+                          ),
+                          _buildDetailRow(
+                            "Submitted",
+                            DateHelper.formatToLocal(jobSheet.submitted),
+                            isDark,
+                          ),
+                          _buildDetailRow(
+                            "Last Updated",
+                            DateHelper.formatToLocal(jobSheet.lastUpdated),
+                            isDark,
+                          ),
+                        ],
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 24),
-                  _buildSectionCard(
-                    title: "Financials & Notes",
-                    isDark: isDark,
-                    children: [
-                      _buildDetailRow("Material Cost", jobSheet.materialCost.isNotEmpty ? "£${jobSheet.materialCost}" : "-", isDark),
-                      _buildDetailRow("Charge", jobSheet.charge.isNotEmpty ? "£${jobSheet.charge}" : "-", isDark),
-                      _buildDetailRow("Comments", jobSheet.comments, isDark),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  _buildSectionCard(
-                    title: "Timestamps",
-                    isDark: isDark,
-                    children: [
-                      _buildDetailRow("Created", DateHelper.formatToLocal(jobSheet.created), isDark),
-                      _buildDetailRow("Submitted", DateHelper.formatToLocal(jobSheet.submitted), isDark),
-                      _buildDetailRow("Last Updated", DateHelper.formatToLocal(jobSheet.lastUpdated), isDark),
-                    ],
-                  ),
-                ],
-              ),
-          ],
-        ),
-      ),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
-}
+}

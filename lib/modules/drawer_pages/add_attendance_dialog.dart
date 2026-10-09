@@ -110,7 +110,7 @@ class _AddAttendanceDialogState extends State<AddAttendanceDialog> {
     final projects = (options['projects'] as List?) ?? [];
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? AppTheme.corporateBlue : Colors.white;
+    final bgColor = isDark ? AppTheme.darkSurface : Colors.white;
     final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
     final iconBgColor = isDark ? Colors.white24 : Colors.grey.shade100;
     final iconColor = isDark ? Colors.white : Colors.black54;

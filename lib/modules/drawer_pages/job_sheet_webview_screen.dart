@@ -208,9 +208,44 @@ Page resource error:
     }
   }
 
+  // Desktop templates contain wide tables. Scale only the table that
+  // overflows, rather than shrinking its cells or the entire page. This
+  // retains the normal readable mobile form size and prevents left/right
+  // scrolling without causing fields to overlap.
+  function fitWideTablesToViewport() {
+    var availableWidth = (window.innerWidth || document.documentElement.clientWidth || 360) - 24;
+    if (availableWidth <= 0) return;
+
+    var candidates = document.querySelectorAll('table, .worksheet, .form-page, .page, .sheet-container');
+    var target = null;
+    var targetWidth = availableWidth;
+    for (var i = 0; i < candidates.length; i++) {
+      var element = candidates[i];
+      element.style.setProperty('zoom', '1', 'important');
+      var naturalWidth = Math.max(
+        element.scrollWidth || 0,
+        element.offsetWidth || 0,
+        Math.ceil(element.getBoundingClientRect().width || 0)
+      );
+      if (naturalWidth > targetWidth + 2) {
+        target = element;
+        targetWidth = naturalWidth;
+      }
+    }
+    if (target) {
+      var scale = availableWidth / targetWidth;
+      // Give the element its natural layout width first; Chromium's CSS zoom
+      // then reserves exactly the scaled width in the parent flow.
+      target.style.setProperty('width', targetWidth + 'px', 'important');
+      target.style.setProperty('max-width', 'none', 'important');
+      target.style.setProperty('zoom', String(scale), 'important');
+    }
+  }
+
   function applyEnhancements() {
     fitFormToScreen();
     formatDateTimestamps();
+    fitWideTablesToViewport();
   }
 
   applyEnhancements();
@@ -249,7 +284,7 @@ Page resource error:
       backgroundColor: isDark ? const Color(0xFF0A192F) : const Color(0xFFF8FAFC),
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: isDark ? AppTheme.corporateBlue : Colors.white,
+        backgroundColor: isDark ? AppTheme.darkSurface : Colors.white,
         iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black87),
         title: Text(
           widget.title,

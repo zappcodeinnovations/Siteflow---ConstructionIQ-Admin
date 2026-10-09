@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
 import 'tabs/dynamic_tab.dart';
+import 'tabs/specifications_tab.dart';
 import 'tabs/project_setup_tab.dart';
 import 'tabs/tasks_tab.dart';
 import 'tabs/job_sheets_tab.dart';
@@ -14,6 +15,7 @@ import 'tabs/site_manager_tab.dart';
 import 'tabs/project_template_tab.dart';
 import 'tabs/materials_tab.dart';
 import 'widgets/create_task_dialog.dart';
+import 'widgets/schedule_jobs_dialog.dart';
 import '../../models/project_model.dart';
 import '../../models/project_all_in_one_model.dart';
 import 'project_controller.dart';
@@ -78,6 +80,16 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
     }
   }
 
+  Future<void> _showScheduleJobsDialog() async {
+    final scheduled = await showDialog<bool>(
+      context: context,
+      builder: (_) => ScheduleJobsDialog(projectId: widget.project.id),
+    );
+    if (scheduled == true) {
+      await _fetchData();
+    }
+  }
+
   Future<void> _fetchData() async {
     final data = await _controller.fetchAllInOneProjectDetails(
       widget.project.id,
@@ -96,8 +108,8 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     // Custom Palette based on theme mode
-    final bgColor = isDark ? AppTheme.corporateBlue : const Color(0xFFF8FAFC);
-    final appBarBg = isDark ? AppTheme.corporateBlue : Colors.white;
+    final bgColor = isDark ? AppTheme.darkBackground : const Color(0xFFF8FAFC);
+    final appBarBg = isDark ? AppTheme.darkSurface : Colors.white;
     final textPrimary = isDark ? Colors.white : const Color(0xFF0F2C4A);
     final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
 
@@ -123,7 +135,11 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
       'Project Setup',
     ];
     final tabViews = <Widget>[
-      if (_canViewTasks) TasksTab(tasks: _allInOneData?.tasks ?? []),
+      if (_canViewTasks)
+        TasksTab(
+          tasks: _allInOneData?.tasks ?? [],
+          onChanged: _fetchData,
+        ),
       if (_canViewJobSheets)
         JobSheetsTab(
           jobSheets: _allInOneData?.jobSheets ?? [],
@@ -135,6 +151,8 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
       SnagsTab(projectId: widget.project.id),
       InspectionsTab(projectId: widget.project.id),
       DrawingsTab(
+        projectId: widget.project.id,
+        onChanged: _fetchData,
         rawBlocks:
             _allInOneData
                     ?.projectSetup?['dropdown_options']?['available_blocks']
@@ -148,15 +166,14 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                 as List?,
       ),
       DynamicTab(title: "Locations", data: _allInOneData?.locations ?? []),
-      DynamicTab(
-        title: "Specifications",
-        data: _allInOneData?.specifications ?? [],
-      ),
+      SpecificationsTab(projectId: widget.project.id),
       ProjectTemplateTab(projectId: widget.project.id),
       MaterialsTab(projectId: widget.project.id),
       DocsFilesTab(
+        projectId: widget.project.id,
         folders: _allInOneData?.docsFolders ?? [],
         files: _allInOneData?.docsFiles ?? [],
+        onChanged: _fetchData,
       ),
       ProjectSetupTab(
         projectId: widget.project.id,
@@ -239,12 +256,34 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                       ),
                     ),
                   ),
+                  const SizedBox(width: 8),
+                  Center(
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      onPressed: _showScheduleJobsDialog,
+                      label: const Text("Schedule Jobs"),
+                      icon: const Icon(IconlyLight.calendar, size: 18),
+                    ),
+                  ),
                   const SizedBox(width: 24),
                 ] else ...[
                   IconButton(
                     icon: const Icon(IconlyLight.plus),
                     onPressed: _showCreateTaskDialog,
                     color: const Color(0xFF0D6EFD),
+                  ),
+                  IconButton(
+                    icon: const Icon(IconlyLight.calendar),
+                    onPressed: _showScheduleJobsDialog,
+                    tooltip: "Schedule Jobs",
                   ),
                 ],
               ]
@@ -277,7 +316,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                     children: [
                       // Tab Bar Area
                       Container(
-                        color: isDark ? AppTheme.corporateBlue : Colors.white,
+                        color: isDark ? AppTheme.darkSurface : Colors.white,
                         child: TabBar(
                           isScrollable: true,
                           indicatorColor: isDark

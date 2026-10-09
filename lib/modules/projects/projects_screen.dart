@@ -43,11 +43,18 @@ class ProjectsScreenState extends State<ProjectsScreen> {
   @override
   void initState() {
     super.initState();
+    _verticalScrollController.addListener(_loadMoreProjectsWhenNeeded);
     _controller.fetchProjects().then((_) {
       if (widget.filterClient != null) {
         _controller.filterByClient(widget.filterClient!);
       }
     });
+  }
+
+  void _loadMoreProjectsWhenNeeded() {
+    if (_verticalScrollController.position.extentAfter < 400) {
+      _controller.loadMoreProjects();
+    }
   }
 
   @override
@@ -240,8 +247,8 @@ class ProjectsScreenState extends State<ProjectsScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
     // Custom Palette based on theme mode
-    final bgColor = isDark ? AppTheme.corporateBlue : const Color(0xFFF8FAFC);
-    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
+    final bgColor = isDark ? AppTheme.darkBackground : const Color(0xFFF8FAFC);
+    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
     final borderColor = isDark ? const Color(0xFF1F2E40) : Colors.grey.shade200;
     final primaryTextColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
     final secondaryTextColor = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
@@ -497,12 +504,14 @@ class ProjectsScreenState extends State<ProjectsScreen> {
           );
         }
 
-        return ListView.separated(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: filteredList.length,
-          separatorBuilder: (context, index) => const SizedBox(height: 16),
-          itemBuilder: (context, index) {
+        return Column(
+          children: [
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: filteredList.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 16),
+              itemBuilder: (context, index) {
             final project = filteredList[index];
             final isSelected = _controller.selectedProjectIds.contains(project.id);
             
@@ -542,7 +551,19 @@ class ProjectsScreenState extends State<ProjectsScreen> {
               },
               onViewQr: () => _showQrCode(context, project),
             );
-          },
+              },
+            ),
+            if (_controller.isLoadingMore)
+              const Padding(
+                padding: EdgeInsets.all(20),
+                child: CircularProgressIndicator(),
+              )
+            else if (_controller.hasMore)
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text('Scroll to load more projects', style: TextStyle(color: secondaryTextColor)),
+              ),
+          ],
         );
       },
     );

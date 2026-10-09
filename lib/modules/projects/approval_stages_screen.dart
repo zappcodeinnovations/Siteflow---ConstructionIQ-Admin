@@ -1,57 +1,90 @@
 import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
+import 'project_approvals_controller.dart';
 
 class ApprovalStagesScreen extends StatefulWidget {
-  const ApprovalStagesScreen({Key? key}) : super(key: key);
+  final ProjectApprovalsController controller;
+
+  const ApprovalStagesScreen({super.key, required this.controller});
 
   @override
   State<ApprovalStagesScreen> createState() => _ApprovalStagesScreenState();
 }
 
 class _ApprovalStagesScreenState extends State<ApprovalStagesScreen> {
-  // Mock data for stages
-  List<Map<String, dynamic>> _stages = [
-    {
-      "title": "test 1",
-      "declaration": "abc",
-      "users": ["Kanhaiya Gore"],
-    }
-  ];
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_onChanged);
+    widget.controller.fetchStages();
+  }
+
+  void _onChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_onChanged);
+    super.dispose();
+  }
 
   void _showAddStageDialog() {
     showDialog(
       context: context,
-      builder: (context) {
-        return const AddApprovalStageDialog();
-      },
-    ).then((newStage) {
-      if (newStage != null) {
-        setState(() {
-          _stages.add(newStage);
-        });
-      }
-    });
+      builder: (context) => AddApprovalStageDialog(controller: widget.controller),
+    );
+  }
+
+  void _showEditStageDialog(Map<String, dynamic> stage) {
+    showDialog(
+      context: context,
+      builder: (context) => AddApprovalStageDialog(controller: widget.controller, existingStage: stage),
+    );
+  }
+
+  Future<void> _confirmDelete(Map<String, dynamic> stage) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text("Delete Approval Stage"),
+        content: Text('Delete "${stage['title']}"? This cannot be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text("Cancel")),
+          TextButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text("Delete", style: TextStyle(color: Colors.red))),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    final result = await widget.controller.deleteStage(stage['id'] as int);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(result['message'] ?? ''), backgroundColor: result['success'] == true ? Colors.green : Colors.red),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final stages = widget.controller.stages;
+    final colors = Theme.of(context).colorScheme;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: Colors.white,
-        iconTheme: const IconThemeData(color: Colors.black87),
-        title: const Text(
+        backgroundColor: colors.surface,
+        iconTheme: IconThemeData(color: colors.onSurface),
+        title: Text(
           "Approval Stages",
           style: TextStyle(
-            color: Color(0xFF0F2C4A),
+            color: colors.onSurface,
             fontSize: 20,
             fontWeight: FontWeight.bold,
           ),
         ),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
-          child: Container(color: Colors.grey.shade200, height: 1),
+          child: Container(color: colors.outlineVariant, height: 1),
         ),
         actions: [
           Padding(
@@ -71,146 +104,149 @@ class _ApprovalStagesScreenState extends State<ApprovalStagesScreen> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "Configure declaration stages and signer access for this template.",
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
-            ),
-            const SizedBox(height: 16),
-            if (_stages.isEmpty)
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(32.0),
+      body: widget.controller.isLoadingStages
+          ? const Center(child: CircularProgressIndicator())
+          : widget.controller.stagesError != null
+              ? Center(child: Text(widget.controller.stagesError!, style: const TextStyle(color: Colors.red)))
+              : SingleChildScrollView(
+                  padding: const EdgeInsets.all(24.0),
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(IconlyLight.document, size: 48, color: Colors.grey.shade300),
+                      Text(
+                        "Configure declaration stages and signer access for this project.",
+                        style: TextStyle(color: colors.onSurfaceVariant, fontSize: 14),
+                      ),
                       const SizedBox(height: 16),
-                      Text("No approval stages found.", style: TextStyle(color: Colors.grey.shade600)),
+                      if (stages.isEmpty)
+                        Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(32.0),
+                            child: Column(
+                              children: [
+                                Icon(IconlyLight.document, size: 48, color: colors.onSurfaceVariant),
+                                const SizedBox(height: 16),
+                                Text("No approval stages found.", style: TextStyle(color: colors.onSurfaceVariant)),
+                              ],
+                            ),
+                          ),
+                        )
+                      else
+                        ...stages.asMap().entries.map((entry) {
+                          final index = entry.key;
+                          final stage = entry.value;
+                          final signerNames = ((stage['signers'] as List?) ?? []).map((s) => (s as Map)['name']?.toString() ?? '').join(', ');
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: colors.surface,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: colors.outlineVariant),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.02),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                )
+                              ],
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Column(
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(IconlyLight.arrow_up_2, size: 16),
+                                      onPressed: index == 0 ? null : () => widget.controller.reorderStage(stage['id'] as int, 'up'),
+                                      constraints: const BoxConstraints(),
+                                      padding: const EdgeInsets.all(2),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(IconlyLight.arrow_down_2, size: 16),
+                                      onPressed: index == stages.length - 1 ? null : () => widget.controller.reorderStage(stage['id'] as int, 'down'),
+                                      constraints: const BoxConstraints(),
+                                      padding: const EdgeInsets.all(2),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        stage['title']?.toString() ?? '',
+                                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: colors.onSurface),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        stage['declaration']?.toString() ?? '',
+                                        style: TextStyle(color: colors.onSurfaceVariant, fontSize: 14),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Text(
+                                        "Users: $signerNames",
+                                        style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12, fontWeight: FontWeight.w600),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Row(
+                                  children: [
+                                    OutlinedButton(
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: colors.onSurface,
+                                        side: BorderSide(color: colors.outline),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                      ),
+                                      onPressed: () => _showEditStageDialog(stage),
+                                      child: const Text("Edit", style: TextStyle(fontWeight: FontWeight.bold)),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    OutlinedButton(
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: colors.onSurface,
+                                        side: BorderSide(color: colors.outline),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                      ),
+                                      onPressed: () => _confirmDelete(stage),
+                                      child: const Text("Delete", style: TextStyle(fontWeight: FontWeight.bold)),
+                                    ),
+                                  ],
+                                )
+                              ],
+                            ),
+                          );
+                        }),
                     ],
                   ),
                 ),
-              )
-            else
-              ..._stages.map((stage) {
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade200),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.02),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      )
-                    ],
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              stage['title'] ?? '',
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF0F2C4A)),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              stage['declaration'] ?? '',
-                              style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              "Users: ${(stage['users'] as List).join(', ')}",
-                              style: TextStyle(color: Colors.grey.shade500, fontSize: 12, fontWeight: FontWeight.w600),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Row(
-                        children: [
-                          OutlinedButton(
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.black87,
-                              side: BorderSide(color: Colors.grey.shade300),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            ),
-                            onPressed: () {},
-                            child: const Text("Edit", style: TextStyle(fontWeight: FontWeight.bold)),
-                          ),
-                          const SizedBox(width: 8),
-                          OutlinedButton(
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.black87,
-                              side: BorderSide(color: Colors.grey.shade300),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                _stages.remove(stage);
-                              });
-                            },
-                            child: const Text("Delete", style: TextStyle(fontWeight: FontWeight.bold)),
-                          ),
-                        ],
-                      )
-                    ],
-                  ),
-                );
-              }).toList(),
-          ],
-        ),
-      ),
     );
   }
 }
 
 class AddApprovalStageDialog extends StatefulWidget {
-  const AddApprovalStageDialog({Key? key}) : super(key: key);
+  final ProjectApprovalsController controller;
+  final Map<String, dynamic>? existingStage;
+
+  const AddApprovalStageDialog({super.key, required this.controller, this.existingStage});
 
   @override
   State<AddApprovalStageDialog> createState() => _AddApprovalStageDialogState();
 }
 
 class _AddApprovalStageDialogState extends State<AddApprovalStageDialog> {
-  final TextEditingController _titleController = TextEditingController();
-  final TextEditingController _declarationController = TextEditingController();
-  
-  // Mock users
-  final List<String> _allUsers = [
-    "Amarjit Singh (amarjitsunner098@gmail.com)",
-    "Anna Brennan (anna@euroside.co.uk)",
-    "Ashu Sharma (patwarimedical007@gmail.com)",
-    "Avtar Singh (avtarsunner12@gmail.com)",
-    "Charanjit Singh (cs3344012@gmail.com)",
-    "Constantin Tugulea (tuguleaconstantin0@gmail.com)",
-    "Felix Emmanuel (felix@euroside.co.uk)",
-  ];
-  
-  final List<String> _selectedUsers = [];
+  late final TextEditingController _titleController =
+      TextEditingController(text: widget.existingStage?['title']?.toString() ?? '');
+  late final TextEditingController _declarationController =
+      TextEditingController(text: widget.existingStage?['declaration']?.toString() ?? '');
 
-  bool _isLoadingUsers = true; // Simulate loading
+  late final Set<int> _selectedUserIds = (widget.existingStage?['signers'] as List? ?? [])
+      .map((s) => (s as Map)['id'] as int)
+      .toSet();
 
-  @override
-  void initState() {
-    super.initState();
-    // Simulate API delay
-    Future.delayed(const Duration(seconds: 1), () {
-      if (mounted) {
-        setState(() {
-          _isLoadingUsers = false;
-        });
-      }
-    });
-  }
+  bool _isSaving = false;
 
   @override
   void dispose() {
@@ -219,28 +255,38 @@ class _AddApprovalStageDialogState extends State<AddApprovalStageDialog> {
     super.dispose();
   }
 
-  void _saveStage() {
-    if (_titleController.text.trim().isEmpty || _declarationController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Title and Declaration are required.")));
+  Future<void> _saveStage() async {
+    if (_titleController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Title is required.")));
       return;
     }
-    
-    if (_selectedUsers.isEmpty) {
+    if (_selectedUserIds.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please select at least one user.")));
       return;
     }
 
-    final newStage = {
-      "title": _titleController.text.trim(),
-      "declaration": _declarationController.text.trim(),
-      "users": _selectedUsers,
-    };
-    
-    Navigator.of(context).pop(newStage);
+    setState(() => _isSaving = true);
+    final result = await widget.controller.saveStage(
+      stageId: widget.existingStage?['id'] as int?,
+      title: _titleController.text.trim(),
+      declaration: _declarationController.text.trim(),
+      userIds: _selectedUserIds.toList(),
+    );
+    if (!mounted) return;
+    setState(() => _isSaving = false);
+
+    if (result['success'] == true) {
+      Navigator.of(context).pop();
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(result['message'] ?? ''), backgroundColor: result['success'] == true ? Colors.green : Colors.red),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final users = widget.controller.assignableUsers;
+
     return Dialog(
       backgroundColor: Colors.white,
       surfaceTintColor: Colors.transparent,
@@ -255,9 +301,9 @@ class _AddApprovalStageDialogState extends State<AddApprovalStageDialog> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  "Add Approval Stage",
-                  style: TextStyle(
+                Text(
+                  widget.existingStage == null ? "Add Approval Stage" : "Edit Approval Stage",
+                  style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF0F2C4A),
@@ -275,7 +321,6 @@ class _AddApprovalStageDialogState extends State<AddApprovalStageDialog> {
             const SizedBox(height: 16),
             Divider(height: 1, color: Colors.grey.shade100),
             const SizedBox(height: 20),
-            
             Flexible(
               child: SingleChildScrollView(
                 child: Column(
@@ -284,15 +329,8 @@ class _AddApprovalStageDialogState extends State<AddApprovalStageDialog> {
                     Text.rich(
                       TextSpan(
                         text: "Title ",
-                        style: TextStyle(
-                          color: Colors.grey.shade700,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                          fontFamily: 'Inter',
-                        ),
-                        children: const [
-                          TextSpan(text: "*", style: TextStyle(color: Colors.red))
-                        ],
+                        style: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.bold, fontSize: 13, fontFamily: 'Inter'),
+                        children: const [TextSpan(text: "*", style: TextStyle(color: Colors.red))],
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -306,35 +344,15 @@ class _AddApprovalStageDialogState extends State<AddApprovalStageDialog> {
                         hintText: "Enter approval stage title",
                         hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(color: Colors.grey.shade200),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(color: Colors.grey.shade200),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(color: Color(0xFF0D6EFD), width: 1.5),
-                        ),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade200)),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade200)),
+                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF0D6EFD), width: 1.5)),
                       ),
                     ),
                     const SizedBox(height: 20),
-                    
-                    Text.rich(
-                      TextSpan(
-                        text: "Declaration ",
-                        style: TextStyle(
-                          color: Colors.grey.shade700,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                          fontFamily: 'Inter',
-                        ),
-                        children: const [
-                          TextSpan(text: "*", style: TextStyle(color: Colors.red))
-                        ],
-                      ),
+                    Text(
+                      "Declaration",
+                      style: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.bold, fontSize: 13, fontFamily: 'Inter'),
                     ),
                     const SizedBox(height: 8),
                     TextField(
@@ -347,34 +365,17 @@ class _AddApprovalStageDialogState extends State<AddApprovalStageDialog> {
                         hintText: "Enter the declaration text...",
                         hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(color: Colors.grey.shade200),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(color: Colors.grey.shade200),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(color: Color(0xFF0D6EFD), width: 1.5),
-                        ),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade200)),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade200)),
+                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF0D6EFD), width: 1.5)),
                       ),
                     ),
                     const SizedBox(height: 20),
-                    
                     Text.rich(
                       TextSpan(
                         text: "Users That Can Sign ",
-                        style: TextStyle(
-                          color: Colors.grey.shade700,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                          fontFamily: 'Inter',
-                        ),
-                        children: const [
-                          TextSpan(text: "*", style: TextStyle(color: Colors.red))
-                        ],
+                        style: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.bold, fontSize: 13, fontFamily: 'Inter'),
+                        children: const [TextSpan(text: "*", style: TextStyle(color: Colors.red))],
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -385,70 +386,70 @@ class _AddApprovalStageDialogState extends State<AddApprovalStageDialog> {
                         border: Border.all(color: Colors.grey.shade200),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: _isLoadingUsers
-                          ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
-                          : _allUsers.isEmpty
-                              ? const Center(child: Text("No users found.", style: TextStyle(color: Colors.grey)))
-                              : ListView.separated(
-                                  itemCount: _allUsers.length,
-                                  separatorBuilder: (context, index) => Divider(height: 1, color: Colors.grey.shade100),
-                                  itemBuilder: (context, index) {
-                                    final user = _allUsers[index];
-                                    final isSelected = _selectedUsers.contains(user);
-                                    return InkWell(
-                                      onTap: () {
-                                        setState(() {
-                                          if (isSelected) {
-                                            _selectedUsers.remove(user);
-                                          } else {
-                                            _selectedUsers.add(user);
-                                          }
-                                        });
-                                      },
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                        color: isSelected ? Colors.blue.withOpacity(0.05) : Colors.transparent,
-                                        child: Row(
-                                          children: [
-                                            Icon(
-                                              isSelected ? Icons.check_box : Icons.check_box_outline_blank,
-                                              color: isSelected ? const Color(0xFF0D6EFD) : Colors.grey.shade400,
-                                              size: 20,
-                                            ),
-                                            const SizedBox(width: 12),
-                                            Expanded(
-                                              child: Text(
-                                                user,
-                                                style: TextStyle(
-                                                  color: isSelected ? const Color(0xFF0D6EFD) : Colors.black87,
-                                                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                                                  fontSize: 13.5,
-                                                  fontFamily: 'Inter',
-                                                ),
-                                              ),
-                                            ),
-                                          ],
+                      child: StatefulBuilder(
+                        builder: (context, setDialogState) {
+                          if (users.isEmpty) {
+                            return const Center(child: Text("No users found.", style: TextStyle(color: Colors.grey)));
+                          }
+                          return ListView.separated(
+                            itemCount: users.length,
+                            separatorBuilder: (context, index) => Divider(height: 1, color: Colors.grey.shade100),
+                            itemBuilder: (context, index) {
+                              final user = users[index];
+                              final userId = user['id'] as int;
+                              final isSelected = _selectedUserIds.contains(userId);
+                              return InkWell(
+                                onTap: () {
+                                  setDialogState(() {
+                                    if (isSelected) {
+                                      _selectedUserIds.remove(userId);
+                                    } else {
+                                      _selectedUserIds.add(userId);
+                                    }
+                                  });
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                  color: isSelected ? Colors.blue.withOpacity(0.05) : Colors.transparent,
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        isSelected ? Icons.check_box : Icons.check_box_outline_blank,
+                                        color: isSelected ? const Color(0xFF0D6EFD) : Colors.grey.shade400,
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          user['name']?.toString() ?? '',
+                                          style: TextStyle(
+                                            color: isSelected ? const Color(0xFF0D6EFD) : Colors.black87,
+                                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                                            fontSize: 13.5,
+                                            fontFamily: 'Inter',
+                                          ),
                                         ),
                                       ),
-                                    );
-                                  },
+                                    ],
+                                  ),
                                 ),
+                              );
+                            },
+                          );
+                        },
+                      ),
                     ),
                   ],
                 ),
               ),
             ),
-            
             const SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.grey.shade600,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  ),
+                  style: TextButton.styleFrom(foregroundColor: Colors.grey.shade600, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12)),
                   child: const Text("Cancel", style: TextStyle(fontWeight: FontWeight.w600, fontFamily: 'Inter')),
                 ),
                 ElevatedButton(
@@ -459,8 +460,10 @@ class _AddApprovalStageDialogState extends State<AddApprovalStageDialog> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
                   ),
-                  onPressed: _saveStage,
-                  child: const Text("Save Stage", style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Inter')),
+                  onPressed: _isSaving ? null : _saveStage,
+                  child: _isSaving
+                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Text("Save Stage", style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Inter')),
                 ),
               ],
             )

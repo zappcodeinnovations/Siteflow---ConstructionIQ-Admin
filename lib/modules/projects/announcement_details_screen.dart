@@ -25,6 +25,7 @@ class _AnnouncementDetailsScreenState extends State<AnnouncementDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Announcement Details'),
@@ -102,22 +103,22 @@ class _AnnouncementDetailsScreenState extends State<AnnouncementDetailsScreen> {
                 // Meta Info
                 Row(
                   children: [
-                    Icon(IconlyLight.time_circle, size: 16, color: Colors.grey.shade600),
+                    Icon(IconlyLight.time_circle, size: 16, color: colors.onSurfaceVariant),
                     const SizedBox(width: 6),
                     Text(
                       formattedDate,
-                      style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                      style: TextStyle(color: colors.onSurfaceVariant, fontSize: 14),
                     ),
                   ],
                 ),
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    Icon(IconlyLight.profile, size: 16, color: Colors.grey.shade600),
+                    Icon(IconlyLight.profile, size: 16, color: colors.onSurfaceVariant),
                     const SizedBox(width: 6),
                     Text(
                       "Posted by ${announcement.createdByName}",
-                      style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                      style: TextStyle(color: colors.onSurfaceVariant, fontSize: 14),
                     ),
                   ],
                 ),
@@ -134,9 +135,9 @@ class _AnnouncementDetailsScreenState extends State<AnnouncementDetailsScreen> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
+                    color: colors.surfaceContainerHigh,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade200),
+                    border: Border.all(color: colors.outlineVariant),
                   ),
                   child: Text(
                     announcement.message,
@@ -155,7 +156,7 @@ class _AnnouncementDetailsScreenState extends State<AnnouncementDetailsScreen> {
                 Card(
                   elevation: 0,
                   shape: RoundedRectangleBorder(
-                    side: BorderSide(color: Colors.grey.shade200),
+                    side: BorderSide(color: colors.outlineVariant),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Padding(
@@ -180,11 +181,12 @@ class _AnnouncementDetailsScreenState extends State<AnnouncementDetailsScreen> {
   }
 
   Widget _buildInfoRow(String label, String value) {
+    final colors = Theme.of(context).colorScheme;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: TextStyle(color: Colors.grey.shade600, fontSize: 14)),
-        Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+        Text(label, style: TextStyle(color: colors.onSurfaceVariant, fontSize: 14)),
+        Text(value, style: TextStyle(color: colors.onSurface, fontWeight: FontWeight.bold, fontSize: 14)),
       ],
     );
   }

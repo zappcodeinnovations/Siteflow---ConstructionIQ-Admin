@@ -23,16 +23,23 @@ class TimesheetScreen extends StatefulWidget {
 
 class _TimesheetScreenState extends State<TimesheetScreen> {
   final TimesheetController _controller = TimesheetController();
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_loadMoreWhenNeeded);
     _controller.fetchTimesheets();
+  }
+
+  void _loadMoreWhenNeeded() {
+    if (_scrollController.position.extentAfter < 400) _controller.loadMore();
   }
 
   @override
   void dispose() {
     _controller.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -123,7 +130,7 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
         return StatefulBuilder(
           builder: (context, setState) {
             final isDark = Theme.of(context).brightness == Brightness.dark;
-            final bgColor = isDark ? AppTheme.corporateBlue : Colors.white;
+            final bgColor = isDark ? AppTheme.darkSurface : Colors.white;
             final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
             final iconBgColor = isDark ? Colors.white24 : Colors.grey.shade100;
             final iconColor = isDark ? Colors.white : Colors.black54;
@@ -312,7 +319,7 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
 
   Widget _buildKpiCard(String title, String value, Color color, IconData icon) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
+    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
     final borderColor = isDark ? Colors.white24 : color.withOpacity(0.3);
     final textColor = isDark ? Colors.white : Colors.black87;
     final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
@@ -357,14 +364,14 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? AppTheme.corporateBlue : const Color(0xFFF8FAFC);
+    final bgColor = isDark ? AppTheme.darkBackground : const Color(0xFFF8FAFC);
 
     return Scaffold(
       backgroundColor: bgColor,
       appBar: AppBar(
         elevation: 0,
         iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black87),
-        backgroundColor: isDark ? AppTheme.corporateBlue : Colors.white,
+        backgroundColor: isDark ? AppTheme.darkSurface : Colors.white,
         title: Text("Timesheets", style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F2C4A), fontSize: 22, fontWeight: FontWeight.bold)),
         actions: [
           IconButton(icon: const Icon(IconlyLight.filter), onPressed: _showAdvancedFilterDialog),
@@ -382,6 +389,7 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
         animation: _controller,
         builder: (context, _) {
           return SingleChildScrollView(
+            controller: _scrollController,
             child: Padding(
               padding: const EdgeInsets.all(20.0),
               child: Column(
@@ -396,7 +404,7 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                           decoration: BoxDecoration(
-                            color: isDark ? AppTheme.corporateBlue : Colors.white,
+                            color: isDark ? AppTheme.darkSurface : Colors.white,
                             border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade200),
                             borderRadius: BorderRadius.circular(24),
                           ),
@@ -442,13 +450,7 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
                     ),
                   const SizedBox(height: 24),
 
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text("Recent Records", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
-                      TextButton(onPressed: () {}, child: Text("View All", style: TextStyle(color: isDark ? Colors.white : Colors.blue, fontWeight: FontWeight.w600))),
-                    ],
-                  ),
+                  Text("Recent Records", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
                   const SizedBox(height: 16),
 
                   if (_controller.isLoading && _controller.data == null)
@@ -461,15 +463,19 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
                   else if (_controller.errorMessage != null && _controller.data == null)
                     Center(child: Text(_controller.errorMessage!, style: const TextStyle(color: Colors.red)))
                   else if (_controller.data != null)
-                    ListView.separated(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: _controller.data!.data.length,
-                      separatorBuilder: (context, index) => const SizedBox(height: 16),
-                      itemBuilder: (context, index) {
-                        return _TimesheetCard(record: _controller.data!.data[index], index: index);
-                      },
-                    ),
+                    Column(children: [
+                      ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: _controller.data!.data.length,
+                        separatorBuilder: (context, index) => const SizedBox(height: 16),
+                        itemBuilder: (context, index) => _TimesheetCard(record: _controller.data!.data[index], index: index),
+                      ),
+                      if (_controller.isLoadingMore)
+                        const Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator())
+                      else if (_controller.hasMore)
+                        const Padding(padding: EdgeInsets.all(16), child: Text('Scroll to load more records')),
+                    ]),
                 ],
               ),
             ),
@@ -605,7 +611,7 @@ class _TimesheetCardState extends State<_TimesheetCard> {
     final aColor = avatarColors[widget.index % avatarColors.length];
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? AppTheme.corporateBlue : Colors.white;
+    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
     final borderColor = isDark ? Colors.white24 : Colors.grey.shade200;
     final textColor = isDark ? Colors.white : Colors.black87;
     final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;

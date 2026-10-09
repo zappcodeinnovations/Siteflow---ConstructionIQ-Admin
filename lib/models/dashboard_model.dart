@@ -10,6 +10,8 @@ class DashboardData {
   final List<dynamic> recentTasks;
   final List<dynamic> recentJobSheets;
   final List<dynamic> recentClockSessions;
+  final List<AttendanceOperative> presentOperativesToday;
+  final List<AttendanceOperative> absentOperativesToday;
 
   DashboardData({
     required this.today,
@@ -19,6 +21,8 @@ class DashboardData {
     this.recentTasks = const [],
     this.recentJobSheets = const [],
     this.recentClockSessions = const [],
+    this.presentOperativesToday = const [],
+    this.absentOperativesToday = const [],
   });
 
   static Map<String, dynamic> _parseMap(dynamic value) {
@@ -45,6 +49,35 @@ class DashboardData {
       recentTasks: json['recent_tasks'] is List ? json['recent_tasks'] : [],
       recentJobSheets: json['recent_job_sheets'] is List ? json['recent_job_sheets'] : [],
       recentClockSessions: json['recent_clock_sessions'] is List ? json['recent_clock_sessions'] : [],
+      presentOperativesToday: json['present_operatives_today'] is List
+          ? (json['present_operatives_today'] as List).map((i) => AttendanceOperative.fromJson(_parseMap(i))).toList()
+          : [],
+      absentOperativesToday: json['absent_operatives_today'] is List
+          ? (json['absent_operatives_today'] as List).map((i) => AttendanceOperative.fromJson(_parseMap(i))).toList()
+          : [],
+    );
+  }
+}
+
+class AttendanceOperative {
+  final int id;
+  final String name;
+  final String employeeId;
+  final String roleLabel;
+
+  AttendanceOperative({
+    required this.id,
+    required this.name,
+    required this.employeeId,
+    required this.roleLabel,
+  });
+
+  factory AttendanceOperative.fromJson(Map<String, dynamic> json) {
+    return AttendanceOperative(
+      id: json['id'] is int ? json['id'] : int.tryParse('${json['id']}') ?? 0,
+      name: json['name']?.toString() ?? '',
+      employeeId: json['employee_id']?.toString() ?? '',
+      roleLabel: json['role_label']?.toString() ?? '',
     );
   }
 }
