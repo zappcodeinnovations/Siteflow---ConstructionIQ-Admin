@@ -26,19 +26,38 @@ class LibraryController extends ChangeNotifier {
   String? workTypesError;
   List<Map<String, dynamic>> workTypes = [];
 
-  Future<void> fetchForms() async {
+  int formsPage = 1;
+  int formsTotalCount = 0;
+  int formsPageSize = 25;
+  String formsStatus = 'active';
+  String formsSearch = '';
+
+  Future<void> fetchForms({String? status, String? search, int? page}) async {
     isLoadingForms = true;
     formsError = null;
+    if (status != null) formsStatus = status;
+    if (search != null) formsSearch = search;
+    if (page != null) formsPage = page;
     notifyListeners();
     try {
-      final url = ApiEndpoints.baseUrl + ApiEndpoints.libraryForms;
+      final params = <String, String>{
+        if (formsStatus.isNotEmpty) 'status': formsStatus,
+        if (formsSearch.trim().isNotEmpty) 'search': formsSearch.trim(),
+        'page': formsPage.toString(),
+      };
+      final query = params.entries.map((e) => '${e.key}=${Uri.encodeQueryComponent(e.value)}').join('&');
+      final url = '${ApiEndpoints.baseUrl}${ApiEndpoints.libraryForms}?$query';
       final response = await ApiClient.get(url);
       final decoded = jsonDecode(response.body);
       if (response.statusCode == 200 && decoded['status'] == true) {
+        formsTotalCount = decoded['count'] is int ? decoded['count'] : (decoded['data'] is List ? (decoded['data'] as List).length : 0);
         forms = (decoded['data'] as List? ?? [])
             .whereType<Map>()
             .map((e) => LibraryFormModel.fromJson(e.cast<String, dynamic>()))
             .toList();
+        if (formsTotalCount == 0 && forms.isNotEmpty) {
+          formsTotalCount = forms.length;
+        }
       } else {
         formsError = decoded['message']?.toString() ?? 'Failed to fetch library forms.';
       }
@@ -47,6 +66,36 @@ class LibraryController extends ChangeNotifier {
     } finally {
       isLoadingForms = false;
       notifyListeners();
+    }
+  }
+
+  Future<Map<String, dynamic>> createForm(String name) async {
+    try {
+      final url = '${ApiEndpoints.baseUrl}${ApiEndpoints.libraryForms}';
+      final response = await ApiClient.post(url, body: {"name": name});
+      final decoded = jsonDecode(response.body);
+      if (response.statusCode == 201 || (response.statusCode == 200 && decoded['status'] == true)) {
+        await fetchForms();
+        return {"success": true, "message": decoded['message'] ?? 'Form created successfully.', "data": decoded['data']};
+      }
+      return {"success": false, "message": decoded['message'] ?? 'Failed to create form.'};
+    } catch (e) {
+      return {"success": false, "message": "An error occurred: $e"};
+    }
+  }
+
+  Future<Map<String, dynamic>> deleteForm(int id) async {
+    try {
+      final url = '${ApiEndpoints.baseUrl}${ApiEndpoints.libraryForms}$id/';
+      final response = await ApiClient.delete(url);
+      final decoded = jsonDecode(response.body);
+      if (response.statusCode == 200 || response.statusCode == 204 || decoded['status'] == true) {
+        await fetchForms();
+        return {"success": true, "message": decoded['message'] ?? 'Form deleted successfully.'};
+      }
+      return {"success": false, "message": decoded['message'] ?? 'Failed to delete form.'};
+    } catch (e) {
+      return {"success": false, "message": "An error occurred: $e"};
     }
   }
 
