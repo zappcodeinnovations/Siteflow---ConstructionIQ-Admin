@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'admin_support_controller.dart';
 import 'create_ticket_dialog.dart';
 import 'ticket_details_view.dart';
+import '../admin_screen.dart';
+import '../../projects/projects_screen.dart';
 import '../../../core/utils/date_helper.dart';
 import '../../../core/theme/app_theme.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -77,6 +79,7 @@ class _AdminSupportViewState extends State<AdminSupportView> {
     IconData icon,
     String title,
     String subtitle, {
+    required VoidCallback onTap,
     required Color cardColor,
     required Color borderColor,
     required Color textColor,
@@ -84,45 +87,71 @@ class _AdminSupportViewState extends State<AdminSupportView> {
     bool isDark = false,
   }) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(8),
+        color: isDark ? const Color(0xFF162A42) : const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: borderColor),
       ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF162A42) : Colors.blue.shade50,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, color: isDark ? Colors.lightBlueAccent : Colors.blue.shade700, size: 20),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(10),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
               children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                    color: textColor,
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF0F2C4A) : Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: isDark ? Colors.white12 : Colors.blue.shade100,
+                    ),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF0D6EFD),
+                    size: 20,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: TextStyle(color: subtitleColor, fontSize: 12),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          color: textColor,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          color: subtitleColor,
+                          fontSize: 12,
+                          height: 1.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 14,
+                  color: isDark ? Colors.white38 : Colors.grey.shade400,
                 ),
               ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -138,17 +167,31 @@ class _AdminSupportViewState extends State<AdminSupportView> {
     bool isDark = false,
   }) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(8),
+        color: isDark ? const Color(0xFF162A42) : const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: borderColor),
       ),
       child: Row(
         children: [
-          Icon(icon, color: isDark ? Colors.lightBlueAccent : Colors.blue.shade300, size: 20),
-          const SizedBox(width: 16),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF0F2C4A) : Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: isDark ? Colors.white12 : Colors.blue.shade100,
+              ),
+            ),
+            child: Icon(
+              icon,
+              color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF0D6EFD),
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -161,10 +204,10 @@ class _AdminSupportViewState extends State<AdminSupportView> {
                     color: textColor,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 3),
                 Text(
                   subtitle,
-                  style: TextStyle(color: subtitleColor, fontSize: 12),
+                  style: TextStyle(color: subtitleColor, fontSize: 12, height: 1.3),
                 ),
               ],
             ),
@@ -216,7 +259,7 @@ class _AdminSupportViewState extends State<AdminSupportView> {
         border: Border.all(color: borderColor),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.2 : 0.02),
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.02),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -538,7 +581,75 @@ class _AdminSupportViewState extends State<AdminSupportView> {
                                     ),
                                   ),
                                 );
-                              }).toList(),
+                              }),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Quick Actions Card
+                      _buildCard(
+                        title: "Quick Actions",
+                        icon: Icons.bolt_rounded,
+                        cardColor: cardColor,
+                        borderColor: borderColor,
+                        textColor: textColor,
+                        child: Column(
+                          children: [
+                            _buildQuickActionItem(
+                              IconlyLight.user_1,
+                              "Manage Members",
+                              "Invite users, reset access, and review pending invitations.",
+                              cardColor: cardColor,
+                              borderColor: borderColor,
+                              textColor: textColor,
+                              subtitleColor: subtitleColor,
+                              isDark: isDark,
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const AdminScreen(initialMenuKey: 'admin_members'),
+                                  ),
+                                );
+                              },
+                            ),
+                            _buildQuickActionItem(
+                              IconlyLight.work,
+                              "Organisation Settings",
+                              "Update organisation name, currency, and profile settings.",
+                              cardColor: cardColor,
+                              borderColor: borderColor,
+                              textColor: textColor,
+                              subtitleColor: subtitleColor,
+                              isDark: isDark,
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const AdminScreen(initialMenuKey: 'admin_organisation'),
+                                  ),
+                                );
+                              },
+                            ),
+                            _buildQuickActionItem(
+                              IconlyLight.folder,
+                              "Project Admin",
+                              "Check Project Admin, assigned operatives, forms, and locations.",
+                              cardColor: cardColor,
+                              borderColor: borderColor,
+                              textColor: textColor,
+                              subtitleColor: subtitleColor,
+                              isDark: isDark,
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const ProjectsScreen(),
+                                  ),
+                                );
+                              },
+                            ),
                           ],
                         ),
                       ),
@@ -546,14 +657,14 @@ class _AdminSupportViewState extends State<AdminSupportView> {
 
                       _buildCard(
                         title: "Before You Send",
-                        icon: IconlyLight.category,
+                        icon: IconlyLight.tick_square,
                         cardColor: cardColor,
                         borderColor: borderColor,
                         textColor: textColor,
                         child: Column(
                           children: [
                             _buildBeforeSendItem(
-                              IconlyLight.category,
+                              IconlyLight.edit,
                               "Copy the page URL",
                               "Paste the exact page where the issue appears.",
                               cardColor: cardColor,
@@ -563,7 +674,7 @@ class _AdminSupportViewState extends State<AdminSupportView> {
                               isDark: isDark,
                             ),
                             _buildBeforeSendItem(
-                              IconlyLight.category,
+                              IconlyLight.document,
                               "Add record numbers",
                               "Include project, job, form submission, or user email details.",
                               cardColor: cardColor,
