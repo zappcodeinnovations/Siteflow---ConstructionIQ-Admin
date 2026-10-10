@@ -88,4 +88,25 @@ grouped by screen/file. All commits stay local only until the user says push.
 | I11 | Manager Diary WebView: cut off / poorly formatted (= E1 "cut off" part; alert() part already fixed) | pending |
 | I12 | Signature/photo upload: screen scroll locked (= E2, previously investigated, unresolved) | pending |
 
+## Fourth batch (2026-10-10, from P:\Euroside_Project\bug.md - new points added)
+
+11 unique items (2 duplicate pairs deduped; the Add Attendance item was
+already fixed as H1 earlier). User explicitly cleared J2 (Forms library) for
+work despite the earlier "don't touch Forms builder" instruction - confirmed
+via AskUserQuestion this is about fixing the existing list screen's
+clickability/pagination/filters, not building a new form builder.
+
+| # | Bug | Status |
+|---|---|---|
+| J1 | Material Details view missing Input Type/Material Group/Tags/Cert upload fields, field order/styling mismatch | pending |
+| J2 | Forms library cards non-clickable; missing Pagination/Add Form/Filters/View/Delete/Created Date | pending |
+| J3 | Add Team modal missing Team Nickname/Team Lead/Associated Projects/Shift Start-End/Cancel | pending |
+| J4 | Team cards missing three-dots menu (Team Details/Shift Timezone/Members/Delete Team) | pending |
+| J5 | Member card three-dots menu missing 6 actions + missing Excel Import/Export + search/role filter bar | pending |
+| J6 | Guests module missing "Convert to Member" + missing Export/Import Excel + search Reset | pending |
+| J7 | Permissions matrix: saved Manager-role permissions not shown (all unchecked) | **done** - three real bugs in `admin_permissions_controller.dart`: (1) `fetchPermissions`/`savePermissions` called `.../roles/<id>/` which only matches a pure-numeric-id route (`AdminRoleDetailAPIView`); `role.id` is prefixed (`system:admin`/`custom:5`), so that URL 404'd silently every time, leaving every checkbox at its all-false init state; (2) `savePermissions` used PATCH but the real endpoint (`.../roles/<id>/permissions/`, `AdminRolePermissionsAPIView`) only defines GET/POST; (3) the save payload was sent bare instead of wrapped under `{"permissions": {...}}`. Fixed all three. |
+| J8 | Activity Logs export buttons (CSV/Excel/PDF): low contrast, non-functional | **done** - root cause of "non-functional": buttons used `launchUrl()` to open the export URL in an external browser with no Authorization header at all (this endpoint has no query-string-JWT support), so every tap silently hit a 401/403. Switched to an authenticated `ApiClient.get()` fetch + save + share, matching the pattern already used elsewhere (job sheet PDF, productivity report). Root cause of "low contrast": icon/label color was hardcoded `Color(0xFF0F2C4A)` (dark navy) regardless of theme - dark-on-dark in dark mode. Made it theme-aware. |
+| J9 | Activity Logs: wrong metric counts, filters don't execute, truncated to a few of 109 records | **done** - three real backend bugs: (1) `AdminActivityLogsKPIAPIView` returned a completely different field set (`total_logs`/`today_logins`/etc) than what the mobile UI's 5 cards actually read (`total_managers`/`active_managers`/`today_activities`/`this_month`/`failed_logins`), so every card always showed 0 - rewrote it to return the same 5 manager-scoped stats as the web admin's Activity Logs page, exactly; (2) the list/export endpoints weren't scoped to `user_role=manager` like web's `_audit_log_queryset` - this whole page is "Manager Activity Logs", not a global log; (3) the mobile list never read pagination fields from the response at all, so it silently showed only the API's default first page (20 of 109) - added real `loadMoreLogs()` + a "Load More" control. Also trimmed the Role filter dropdown to just "Manager" (Admin/Operative/Super Admin could never return results against the now-correctly-manager-scoped backend, matching web which only ever offered "Manager" too). |
+| J11 | Dashboard summary cards for Manager role mismatch web contractor/manager dashboard | pending |
+
 Work log (chronological, appended as each item is verified/fixed):

@@ -533,26 +533,20 @@ class _AdminActivityLogsViewState extends State<AdminActivityLogsView> {
                                 width: isMobile ? double.infinity : 150,
                                 hint: "Role",
                                 value: _selectedRole,
+                                // This page (mirroring the web admin's
+                                // "Manager Activity Logs") is scoped to
+                                // manager-role activity only on the
+                                // backend, so any other role here would
+                                // always return zero results - matches
+                                // web, which only offers "Manager" too.
                                 items: const [
                                   DropdownMenuItem<String>(
                                     value: "",
                                     child: Text("All roles"),
                                   ),
                                   DropdownMenuItem<String>(
-                                    value: "Manager",
+                                    value: "manager",
                                     child: Text("Manager"),
-                                  ),
-                                  DropdownMenuItem<String>(
-                                    value: "Super Admin",
-                                    child: Text("Super Admin"),
-                                  ),
-                                  DropdownMenuItem<String>(
-                                    value: "Admin",
-                                    child: Text("Admin"),
-                                  ),
-                                  DropdownMenuItem<String>(
-                                    value: "Operative",
-                                    child: Text("Operative"),
                                   ),
                                 ],
                                 onChanged: (val) => setState(() =>
@@ -868,7 +862,9 @@ class _AdminActivityLogsViewState extends State<AdminActivityLogsView> {
                       );
                     }
 
-                    return ListView.separated(
+                    return Column(
+                      children: [
+                        ListView.separated(
                       physics: const NeverScrollableScrollPhysics(),
                       shrinkWrap: true,
                       itemCount: _controller.logs.length,
@@ -1086,6 +1082,9 @@ class _AdminActivityLogsViewState extends State<AdminActivityLogsView> {
                           ),
                         );
                       },
+                        ),
+                        _buildLoadMoreControl(),
+                      ],
                     );
                   },
                 ),
@@ -1097,23 +1096,61 @@ class _AdminActivityLogsViewState extends State<AdminActivityLogsView> {
     );
   }
 
+  Widget _buildLoadMoreControl() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white70 : Colors.grey.shade700;
+    if (!_controller.hasMore) {
+      if (_controller.logs.isEmpty) return const SizedBox.shrink();
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        child: Center(
+          child: Text(
+            "Showing all ${_controller.totalCount} logs",
+            style: TextStyle(color: textColor, fontSize: 12),
+          ),
+        ),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Center(
+        child: _controller.isLoadingMore
+            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+            : OutlinedButton(
+                onPressed: _controller.loadMoreLogs,
+                child: Text("Load More (${_controller.logs.length} of ${_controller.totalCount})"),
+              ),
+      ),
+    );
+  }
+
   Widget _buildExportButton(
     String label,
     String format,
     Color borderColor,
     Color cardColor,
   ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
     return OutlinedButton.icon(
-      onPressed: () => _controller.exportLogs(format),
-      icon: const Icon(
+      onPressed: () async {
+        final success = await _controller.exportLogs(format);
+        if (!mounted) return;
+        if (!success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(_controller.exportError ?? 'Failed to export.'), backgroundColor: Colors.red),
+          );
+        }
+      },
+      icon: Icon(
         IconlyLight.download,
         size: 15,
-        color: Color(0xFF0F2C4A),
+        color: textColor,
       ),
       label: Text(
         label,
-        style: const TextStyle(
-          color: Color(0xFF0F2C4A),
+        style: TextStyle(
+          color: textColor,
           fontWeight: FontWeight.bold,
           fontSize: 12,
         ),

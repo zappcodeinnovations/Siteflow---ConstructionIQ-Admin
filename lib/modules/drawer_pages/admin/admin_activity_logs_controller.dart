@@ -1,9 +1,11 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/api_endpoints.dart';
 import '../../../../models/admin_activity_log_model.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class AdminActivityLogsController extends ChangeNotifier {
   bool _isLoading = false;
@@ -17,6 +19,13 @@ class AdminActivityLogsController extends ChangeNotifier {
 
   List<ActivityLog> _logs = [];
   List<ActivityLog> get logs => _logs;
+
+  bool _isLoadingMore = false;
+  bool get isLoadingMore => _isLoadingMore;
+  int _currentPage = 1;
+  int _totalPages = 1;
+  bool get hasMore => _currentPage < _totalPages;
+  int totalCount = 0;
 
   // Filters
   Map<String, dynamic> _filterOptions = {};
@@ -214,46 +223,41 @@ class AdminActivityLogsController extends ChangeNotifier {
     fetchLogs();
   }
 
+  String _buildLogsUrl(int page) {
+    List<String> queryParams = ['page=$page', 'page_size=50'];
+
+    if (selectedManager != null && selectedManager!.isNotEmpty) queryParams.add('user_id=$selectedManager');
+    if (selectedRole != null && selectedRole!.isNotEmpty) queryParams.add('role=$selectedRole');
+    if (selectedModule != null && selectedModule!.isNotEmpty) queryParams.add('module=$selectedModule');
+    if (selectedAction != null && selectedAction!.isNotEmpty) queryParams.add('action_type=$selectedAction');
+    if (fromDate != null && fromDate!.isNotEmpty) queryParams.add('from=$fromDate');
+    if (toDate != null && toDate!.isNotEmpty) queryParams.add('to=$toDate');
+    if (searchQuery.isNotEmpty) queryParams.add('search=$searchQuery');
+
+    return '${ApiEndpoints.baseUrl}/admin/activity-logs/?${queryParams.join('&')}';
+  }
+
   Future<void> fetchLogs({bool isInitial = false}) async {
     if (!isInitial) {
       _isLoading = true;
       _errorMessage = null;
       notifyListeners();
     }
+    _currentPage = 1;
+    _totalPages = 1;
 
     try {
-      List<String> queryParams = [];
-      
-      if (selectedManager != null && selectedManager!.isNotEmpty) queryParams.add('user_id=$selectedManager');
-      if (selectedRole != null && selectedRole!.isNotEmpty) queryParams.add('role=$selectedRole');
-      if (selectedModule != null && selectedModule!.isNotEmpty) queryParams.add('module=$selectedModule');
-      if (selectedAction != null && selectedAction!.isNotEmpty) queryParams.add('action_type=$selectedAction');
-      if (fromDate != null && fromDate!.isNotEmpty) queryParams.add('from=$fromDate');
-      if (toDate != null && toDate!.isNotEmpty) queryParams.add('to=$toDate');
-      if (searchQuery.isNotEmpty) queryParams.add('search=$searchQuery');
+      final response = await ApiClient.get(_buildLogsUrl(1));
 
-      final String url = queryParams.isNotEmpty
-          ? '${ApiEndpoints.baseUrl}/admin/activity-logs/?${queryParams.join('&')}'
-          : '${ApiEndpoints.baseUrl}/admin/activity-logs/';
-
-      final response = await ApiClient.get(url);
-      
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
-        List<dynamic> dataList = [];
-
-        if (decoded is List) {
-          dataList = decoded;
-        } else if (decoded is Map<String, dynamic>) {
-          final data = decoded['data'] ?? decoded['results'] ?? decoded['logs'];
-          if (data is List) {
-            dataList = data;
-          } else if (data is Map<String, dynamic>) {
-            dataList = (data['results'] ?? data['logs'] ?? data['data']) as List? ?? [];
-          }
+        if (decoded is Map<String, dynamic>) {
+          final dataList = (decoded['data'] as List?) ?? [];
+          _logs = dataList.map((i) => ActivityLog.fromJson(i as Map<String, dynamic>)).toList();
+          _currentPage = decoded['page'] is int ? decoded['page'] as int : 1;
+          _totalPages = decoded['total_pages'] is int ? decoded['total_pages'] as int : 1;
+          totalCount = decoded['count'] is int ? decoded['count'] as int : _logs.length;
         }
-
-        _logs = dataList.map((i) => ActivityLog.fromJson(i as Map<String, dynamic>)).toList();
         _errorMessage = null;
       } else {
         _errorMessage = 'Failed to load activity logs (${response.statusCode}).';
@@ -266,7 +270,45 @@ class AdminActivityLogsController extends ChangeNotifier {
     }
   }
 
-  Future<void> exportLogs(String format) async {
+  /// Without this, the list only ever showed the API's default page (20
+  /// records) regardless of how many logs actually existed (e.g. 109) - the
+  /// response's page/total_pages/count were never even read before.
+  Future<void> loadMoreLogs() async {
+    if (_isLoading || _isLoadingMore || !hasMore) return;
+    _isLoadingMore = true;
+    notifyListeners();
+    try {
+      final response = await ApiClient.get(_buildLogsUrl(_currentPage + 1));
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map<String, dynamic>) {
+          final dataList = (decoded['data'] as List?) ?? [];
+          _logs = [
+            ..._logs,
+            ...dataList.map((i) => ActivityLog.fromJson(i as Map<String, dynamic>)),
+          ];
+          _currentPage = decoded['page'] is int ? decoded['page'] as int : _currentPage + 1;
+          _totalPages = decoded['total_pages'] is int ? decoded['total_pages'] as int : _totalPages;
+          totalCount = decoded['count'] is int ? decoded['count'] as int : totalCount;
+        }
+      }
+    } catch (_) {
+      // Keep what's already loaded visible if a later page fails.
+    } finally {
+      _isLoadingMore = false;
+      notifyListeners();
+    }
+  }
+
+  String? exportError;
+
+  /// Downloads the export through the authenticated API client and shares
+  /// the resulting file - launchUrl() previously opened the export URL in
+  /// an external browser with no Authorization header at all, so every tap
+  /// silently hit a 401/403 (this endpoint has no query-string-JWT support
+  /// the way a couple of other export links in the app do).
+  Future<bool> exportLogs(String format) async {
+    exportError = null;
     try {
       String url = '${ApiEndpoints.baseUrl}/admin/activity-logs/export/?format=$format';
       if (selectedManager != null && selectedManager!.isNotEmpty) url += '&user_id=$selectedManager';
@@ -277,14 +319,22 @@ class AdminActivityLogsController extends ChangeNotifier {
       if (toDate != null && toDate!.isNotEmpty) url += '&to=$toDate';
       if (searchQuery.isNotEmpty) url += '&search=$searchQuery';
 
-      final uri = Uri.parse(url);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } else {
-        debugPrint("Could not launch $url");
+      final response = await ApiClient.get(url);
+      if (response.statusCode != 200 || response.bodyBytes.isEmpty) {
+        exportError = 'Failed to export (${response.statusCode}).';
+        return false;
       }
+
+      final ext = format == 'excel' ? 'xlsx' : format;
+      final directory = await getTemporaryDirectory();
+      final file = File('${directory.path}/activity_logs_${DateTime.now().millisecondsSinceEpoch}.$ext');
+      await file.writeAsBytes(response.bodyBytes);
+      await Share.shareXFiles([XFile(file.path)], text: "Activity Logs Export");
+      return true;
     } catch (e) {
-      debugPrint("Export error: $e");
+      exportError = 'Export error: $e';
+      debugPrint(exportError);
+      return false;
     }
   }
 

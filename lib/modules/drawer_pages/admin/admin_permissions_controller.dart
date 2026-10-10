@@ -243,7 +243,14 @@ class AdminPermissionsController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final url = '${ApiEndpoints.baseUrl}/admin/permissions/roles/${role.id}/';
+      // The bare roles/<id>/ route only matches a pure-numeric id
+      // (AdminRoleDetailAPIView), while role.id here is prefixed
+      // ("system:admin"/"custom:5") to disambiguate built-in vs custom
+      // roles - that URL never matched any route (404), silently leaving
+      // every checkbox at its all-false initial state. The actual
+      // permissions live under .../roles/<id>/permissions/
+      // (AdminRolePermissionsAPIView), which does accept the prefixed id.
+      final url = '${ApiEndpoints.baseUrl}/admin/permissions/roles/${role.id}/permissions/';
       final response = await ApiClient.get(url);
       
       if (response.statusCode == 200) {
@@ -349,15 +356,18 @@ class AdminPermissionsController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final url = '${ApiEndpoints.baseUrl}/admin/permissions/roles/${_selectedRole!.id}/';
-      
+      // Same endpoint as fetchPermissions (.../permissions/, not the bare
+      // roles/<id>/ route), and AdminRolePermissionsAPIView only defines
+      // GET/POST (no PATCH, which would 405), and expects the menu-key map
+      // wrapped under a top-level "permissions" key, not sent bare.
+      final url = '${ApiEndpoints.baseUrl}/admin/permissions/roles/${_selectedRole!.id}/permissions/';
+
       Map<String, dynamic> permissionsMap = {};
       for (var p in _permissions) {
         permissionsMap[p.menuKey] = p.toJsonValue();
       }
 
-      final payload = permissionsMap; 
-      final response = await ApiClient.patch(url, body: payload);
+      final response = await ApiClient.post(url, body: {"permissions": permissionsMap});
       final decodedData = jsonDecode(response.body);
       
       if (response.statusCode == 200 || response.statusCode == 201) {
