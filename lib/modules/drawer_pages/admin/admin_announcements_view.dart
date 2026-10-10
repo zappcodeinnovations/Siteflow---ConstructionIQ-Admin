@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
 import '../../../../models/announcement_model.dart';
-import '../../../../core/widgets/shimmer_loading.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/date_helper.dart';
 import 'admin_announcements_controller.dart';
 import 'add_announcement_dialog.dart';
 import 'edit_announcement_dialog.dart';
@@ -66,6 +66,7 @@ class _AdminAnnouncementsViewState extends State<AdminAnnouncementsView> {
   }
 
   void _deleteAnnouncement(Announcement announcement) {
+    final messenger = ScaffoldMessenger.of(context);
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -85,16 +86,14 @@ class _AdminAnnouncementsViewState extends State<AdminAnnouncementsView> {
               final result = await _controller.deleteAnnouncement(
                 announcement.id,
               );
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(result['message']),
-                    backgroundColor: result['success'] == true
-                        ? Colors.green
-                        : Colors.red,
-                  ),
-                );
-              }
+              messenger.showSnackBar(
+                SnackBar(
+                  content: Text(result['message']),
+                  backgroundColor: result['success'] == true
+                      ? Colors.green
+                      : Colors.red,
+                ),
+              );
             },
             child: const Text("Delete", style: TextStyle(color: Colors.white)),
           ),
@@ -260,38 +259,69 @@ class _AdminAnnouncementsViewState extends State<AdminAnnouncementsView> {
                 Divider(color: borderColor, height: 1),
                 const SizedBox(height: 10),
                 // Bottom row: Updated info + Edit Action
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        "Updated ${announcement.updatedAt.isNotEmpty ? announcement.updatedAt : announcement.createdAt}${announcement.updatedByName.isNotEmpty ? ' · ${announcement.updatedByName}' : (announcement.createdByName.isNotEmpty ? ' · ${announcement.createdByName}' : '')}",
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: subtitleColor,
+                Builder(
+                  builder: (context) {
+                    final rawDate = announcement.updatedAt.isNotEmpty
+                        ? announcement.updatedAt
+                        : announcement.createdAt;
+                    final formattedDate = DateHelper.formatToLocal(rawDate);
+                    final author = announcement.updatedByName.isNotEmpty
+                        ? announcement.updatedByName
+                        : announcement.createdByName;
+                    final updatedText = "Updated $formattedDate${author.isNotEmpty ? ' · $author' : ''}";
+
+                    return Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            updatedText,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: subtitleColor,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: () => _editAnnouncement(announcement),
-                      icon: const Icon(IconlyLight.edit, size: 14),
-                      label: const Text(
-                        "Edit",
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF0D6EFD),
-                        side: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        shape: RoundedRectangleBorder(
+                        const SizedBox(width: 8),
+                        OutlinedButton.icon(
+                          onPressed: () => _editAnnouncement(announcement),
+                          icon: const Icon(IconlyLight.edit, size: 14),
+                          label: const Text(
+                            "Edit",
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF0D6EFD),
+                            side: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        InkWell(
+                          onTap: () => _deleteAnnouncement(announcement),
                           borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade300),
+                            ),
+                            child: Icon(
+                              IconlyLight.delete,
+                              size: 14,
+                              color: isDark ? Colors.red.shade400 : Colors.red.shade600,
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                  ],
+                      ],
+                    );
+                  },
                 ),
               ],
             ),
@@ -402,7 +432,7 @@ class _AdminAnnouncementsViewState extends State<AdminAnnouncementsView> {
                         // Status filter dropdown
                         Expanded(
                           child: DropdownButtonFormField<String>(
-                            value: _selectedStatusFilter,
+                            initialValue: _selectedStatusFilter,
                             isExpanded: true,
                             decoration: InputDecoration(
                               filled: true,
