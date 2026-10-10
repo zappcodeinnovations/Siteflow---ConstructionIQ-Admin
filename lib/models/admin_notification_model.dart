@@ -1,3 +1,5 @@
+import '../core/utils/date_helper.dart';
+
 class AdminNotification {
   final int id;
   final String headline;
@@ -63,31 +65,17 @@ class AdminNotification {
     );
   }
 
+  // Was previously parsed and formatted by hand here without ever calling
+  // .toLocal() - the backend sends UTC-aware ISO timestamps, so the raw
+  // UTC clock fields were shown as-is instead of the device's local time
+  // (e.g. a UK event at 14:30 UTC displayed as "14:30" instead of the
+  // correct local time for whatever timezone the device is actually in).
+  // DateHelper.formatToLocal() is the shared, already-correct helper used
+  // everywhere else in the app for this.
   String get formattedUpdatedAt {
-    try {
-      if (updatedAt.isEmpty) return '';
-      final parsed = DateTime.parse(updatedAt);
-      // Wait, we can't use intl.dart here because we previously removed it from the project (it wasn't in pubspec.yaml).
-      // We'll format manually.
-      return _formatDateTime(parsed);
-    } catch (e) {
-      return updatedAt;
-    }
-  }
-
-  String _formatDateTime(DateTime dt) {
-    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    final amPm = dt.hour >= 12 ? 'PM' : 'AM';
-    var hour = dt.hour % 12;
-    if (hour == 0) hour = 12;
-    
-    final dayStr = dt.day.toString().padLeft(2, '0');
-    final monthStr = months[dt.month - 1];
-    final yearStr = dt.year.toString();
-    final hourStr = hour.toString().padLeft(2, '0');
-    final minStr = dt.minute.toString().padLeft(2, '0');
-
-    return "Updated $dayStr $monthStr $yearStr, $hourStr:$minStr $amPm";
+    if (updatedAt.isEmpty) return '';
+    final formatted = DateHelper.formatToLocal(updatedAt, includeTime: true);
+    return (formatted == '-' || formatted.isEmpty) ? '' : formatted;
   }
 }
 

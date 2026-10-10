@@ -4,6 +4,7 @@ import '../../models/admin_notification_model.dart';
 import '../../modules/drawer_pages/admin/admin_notifications_controller.dart';
 import '../../modules/drawer_pages/admin_screen.dart';
 import '../services/auth_service.dart';
+import '../utils/date_helper.dart';
 
 class CustomAppBar extends StatefulWidget implements PreferredSizeWidget {
   final String title;
@@ -200,8 +201,21 @@ class _NotificationRow extends StatelessWidget {
 
   const _NotificationRow({required this.notification, required this.isDark});
 
+  // Prefer sent_at (when the push actually went out); fall back to
+  // created_at for notifications that haven't been sent yet. Both are
+  // UTC-aware ISO timestamps from the backend - DateHelper.formatToLocal()
+  // converts to the device's own local timezone, matching how the full
+  // Notifications screen already formats this same data.
+  String get _timestampLabel {
+    final raw = notification.sentAt.isNotEmpty ? notification.sentAt : notification.createdAt;
+    if (raw.trim().isEmpty) return '';
+    final formatted = DateHelper.formatToLocal(raw, includeTime: true);
+    return (formatted == '-' || formatted.isEmpty) ? '' : formatted;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final timestamp = _timestampLabel;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: Column(
@@ -227,6 +241,16 @@ class _NotificationRow extends StatelessWidget {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
+          if (timestamp.isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Text(
+              timestamp,
+              style: TextStyle(
+                fontSize: 11,
+                color: isDark ? Colors.white38 : Colors.grey.shade500,
+              ),
+            ),
+          ],
         ],
       ),
     );

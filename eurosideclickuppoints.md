@@ -29,4 +29,3 @@ The date range in the Workforce Planner header card displays in yyyy-mm-dd forma
 Missing project selection filter dropdown in the Workforce Planner screen of the Admin mobile app, preventing users from switching between and filtering available projects.
 
 Cascading dependent dropdown filters fail to link properly, exposed debug mock strings appear in production inputs, and layout/styling inconsistencies are present in the "Add Attendance" modal between the Admin mobile app and the web portal.
-
