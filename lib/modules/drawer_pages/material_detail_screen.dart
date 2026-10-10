@@ -25,6 +25,7 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> with Single
     _controller.addListener(_onChanged);
     _tabController.addListener(_onChanged);
     _controller.fetchDetail();
+    _controller.fetchDropdownOptions();
     _controller.fetchRateSets(category: _activeCategory);
     _controller.fetchRecycleBin();
   }
@@ -102,11 +103,33 @@ class _DetailsSection extends StatefulWidget {
 }
 
 class _DetailsSectionState extends State<_DetailsSection> {
+  static const _inputTypeChoices = [
+    {'value': 'quantity', 'label': 'Quantity'},
+    {'value': 'linear_metres', 'label': 'Linear metres'},
+    {'value': 'square_metres_width_height', 'label': 'Square metres (width x height)'},
+    {'value': 'quantity_and_diameter_mm', 'label': 'Quantity and diameter (mm)'},
+    {'value': 'square_metres_4_sides_width_height', 'label': 'Square metres (4 sides width x height)'},
+    {'value': 'linear_metres_and_joint_size_mm', 'label': 'Linear metres and joint size (mm)'},
+  ];
+
   late final _nameController = TextEditingController(text: widget.controller.material?['name']?.toString() ?? '');
   late final _manufacturerController = TextEditingController(text: widget.controller.material?['manufacturer']?.toString() ?? '');
   late final _productCodeController = TextEditingController(text: widget.controller.material?['product_code']?.toString() ?? '');
   late final _certRefController = TextEditingController(text: widget.controller.material?['certification_reference']?.toString() ?? '');
   late String _status = widget.controller.material?['status']?.toString() ?? 'active';
+  late String? _inputType = widget.controller.material?['input_type']?.toString();
+  late int? _materialGroupId = _parseIntOrNull(widget.controller.material?['material_group_id']);
+  late final Set<int> _selectedTagIds = ((widget.controller.material?['tags'] as List?) ?? [])
+      .whereType<Map>()
+      .map((t) => _parseIntOrNull(t['id']) ?? -1)
+      .where((id) => id != -1)
+      .toSet();
+
+  static int? _parseIntOrNull(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    return int.tryParse(value.toString());
+  }
   bool _isSaving = false;
 
   @override
@@ -126,6 +149,9 @@ class _DetailsSectionState extends State<_DetailsSection> {
       "product_code": _productCodeController.text.trim(),
       "certification_reference": _certRefController.text.trim(),
       "status": _status,
+      if (_inputType != null) "input_type": _inputType,
+      if (_materialGroupId != null) "material_group": _materialGroupId,
+      "tag_ids": _selectedTagIds.toList(),
     });
     if (!mounted) return;
     setState(() => _isSaving = false);
@@ -143,8 +169,50 @@ class _DetailsSectionState extends State<_DetailsSection> {
         children: [
           TextField(controller: _nameController, decoration: const InputDecoration(labelText: "Name", border: OutlineInputBorder())),
           const SizedBox(height: 16),
-          Text("Group: ${widget.controller.material?['material_group']?.toString() ?? ''} · Type: ${widget.controller.material?['input_type_label']?.toString() ?? ''}",
-              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13)),
+          DropdownButtonFormField<String>(
+            initialValue: _inputTypeChoices.any((c) => c['value'] == _inputType) ? _inputType : null,
+            decoration: const InputDecoration(labelText: "Input Type", border: OutlineInputBorder()),
+            items: _inputTypeChoices
+                .map((c) => DropdownMenuItem(value: c['value'], child: Text(c['label']!, overflow: TextOverflow.ellipsis)))
+                .toList(),
+            onChanged: (val) => setState(() => _inputType = val),
+          ),
+          const SizedBox(height: 16),
+          DropdownButtonFormField<int>(
+            initialValue: widget.controller.groups.any((g) => g['id'] == _materialGroupId) ? _materialGroupId : null,
+            decoration: const InputDecoration(labelText: "Material Group", border: OutlineInputBorder()),
+            items: widget.controller.groups
+                .map((g) => DropdownMenuItem(
+                      value: g['id'] is int ? g['id'] as int : int.tryParse(g['id'].toString()),
+                      child: Text(g['name']?.toString() ?? '', overflow: TextOverflow.ellipsis),
+                    ))
+                .toList(),
+            onChanged: (val) => setState(() => _materialGroupId = val),
+          ),
+          const SizedBox(height: 16),
+          Align(alignment: Alignment.centerLeft, child: Text("Tags", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurfaceVariant))),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: widget.controller.allTags.isEmpty
+                ? [Text("No tags available.", style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13))]
+                : widget.controller.allTags.map((t) {
+                    final id = t['id'] is int ? t['id'] as int : int.tryParse(t['id'].toString()) ?? -1;
+                    final selected = _selectedTagIds.contains(id);
+                    return FilterChip(
+                      label: Text(t['name']?.toString() ?? ''),
+                      selected: selected,
+                      onSelected: (val) => setState(() {
+                        if (val) {
+                          _selectedTagIds.add(id);
+                        } else {
+                          _selectedTagIds.remove(id);
+                        }
+                      }),
+                    );
+                  }).toList(),
+          ),
           const SizedBox(height: 16),
           TextField(controller: _manufacturerController, decoration: const InputDecoration(labelText: "Manufacturer", border: OutlineInputBorder())),
           const SizedBox(height: 16),

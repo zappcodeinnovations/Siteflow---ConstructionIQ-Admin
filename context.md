@@ -255,3 +255,79 @@ Remaining from this batch: I4 (Approvals tab), I5 (Locations/Site Manager
 mismatch), I6-I8 (Incidents trio), I10 (Project Setup redesign, large),
 I11 (Manager Diary webview cut-off layout), I12 (signature/photo scroll
 lock, previously investigated and unresolved).
+
+## 2026-10-10 — Fourth bug batch from P:\Euroside_Project\bug.md (J1/J3-J9/J11 done; J2/J10 deferred)
+
+12 more items added to the same scratch file (2 duplicate pairs deduped,
+one already fixed as H1). Full detail/root-causes for each item are in
+report.md's "Fourth batch" table; this is the narrative summary.
+
+- **J3/J4 (Teams)**: Add Team modal was missing Nickname/Team Lead/
+  Associated Projects fields; backend `AdminTeamsAPIView.post()` already
+  accepted `nickname`/`lead_id` but never wired `project_ids` at all. Added
+  the three fields + wired `project_ids` server-side (mirrors web's
+  `team.selected_projects.set()` + `sync_project_team_assignments`). Found
+  and fixed a real latent crash while testing: a JSON int `lead_id` (vs a
+  web form's always-string) crashed `.strip()` with `AttributeError`. Also
+  added a card-level three-dots menu (Team Details/Members/Shift Timezone/
+  Delete Team) - the actions already existed inside `TeamDetailScreen`, just
+  had no quick shortcut from the list like web has.
+- **J5/J6 (Members/Guests)**: three-dots menus completed (View Profile/
+  Update Member/Change Password/Convert to Guest/Delete Member; Convert to
+  Member on the Guests side); new backend endpoints
+  `members/<id>/change-password/`, `members/<id>/convert-to-guest/`,
+  `guests/<id>/convert-to-member/` (all thin wrappers reusing existing web
+  action helpers in `admin_app/views.py`). Found and fixed a real latent
+  crash in the shared `convert_member_to_guest()` helper:
+  `GuestInvite.first_name`/`last_name`/`phone` are NOT NULL but the source
+  member's own fields can be `None` - fixed with `or ''` fallbacks
+  (benefits the web action too, not just the new mobile API). Wired Export
+  (backend already had it) + Role filter + Reset on both list screens.
+  Add Qualification (Members) and Import Excel (both) deferred - no
+  backend capability exists anywhere for either, genuinely new features.
+- **J7 (Permissions matrix)**: three real bugs in
+  `admin_permissions_controller.dart` - (1) fetch/save hit
+  `.../roles/<id>/`, which only matches the pure-numeric-id route and
+  404'd silently for every role (`role.id` is always prefixed,
+  `system:admin`/`custom:5`), leaving every checkbox stuck at its all-
+  false init state; (2) save used PATCH against an endpoint that only
+  defines GET/POST; (3) payload was sent bare instead of wrapped under
+  `{"permissions": {...}}`. Fixed all three.
+- **J8/J9 (Activity Logs)**: export buttons used `launchUrl()` with no
+  auth header against an endpoint with no query-string-JWT support - every
+  tap silently 401'd; switched to authenticated fetch+share. Low-contrast
+  export icons were a hardcoded dark navy color regardless of theme - made
+  theme-aware. KPI cards always showed 0 because
+  `AdminActivityLogsKPIAPIView` returned an entirely different field set
+  than what the UI's 5 cards read - rewrote to match the web admin's
+  manager-scoped stats exactly. List/export were also unscoped (should be
+  manager-only, like web); and the list never read pagination at all, so
+  it silently capped at the API's default first page of 20 (of 109) -
+  added real `loadMoreLogs()` + a "Load More" control.
+- **J11 (Dashboard)**: `dashboard.dart` rendered the Admin-only 9-card KPI
+  set for every role including Manager, leaking staff-headcount metrics a
+  Manager shouldn't see and not matching `contractor_dashboard.html`'s
+  real 6-card set. Added a role branch (`user.effectiveRole`) - same
+  backend response already has all needed data, this was purely a missing
+  UI branch.
+- **J1 (Material Details)**: backend (`AdminMaterialDetailAPIView.patch`)
+  already fully accepted `input_type`/`material_group`/`tag_ids`/
+  `certification_document` - the Details tab just displayed Group/Type as
+  plain read-only text with no Tags UI at all. Added an editable Input
+  Type dropdown (against `Material.INPUT_TYPE_CHOICES`), a Material Group
+  dropdown (fetches `/admin/material-groups/`), and a Tags multi-select
+  (fetches `/admin/material-tags/`, one `FilterChip` per tag). Cert
+  Document upload already exists via the Attachments tab, left as-is.
+
+Backend tests run narrowly per the user's "don't re-run old tests"
+instruction, each run individually and passing: new
+`AdminActivityLogsAPITests` (2 tests), the new
+`test_create_team_with_nickname_lead_and_projects`, the new
+`AdminMemberChangePasswordAndConvertToGuestAPITests` (4 tests), the new
+`AdminGuestConvertToMemberAPITests` (3 tests). Flutter: full
+`flutter analyze` clean (0 errors) after every item in this batch.
+
+Deferred: J2 (Forms library - cards non-clickable, missing Pagination/Add
+Form/Filters/View/Delete/Created Date; explicitly authorized by the user
+to fix the existing list screen, not yet started) and J10 (Project Setup
+tab full redesign, same large/open-ended item as I10, still deferred).

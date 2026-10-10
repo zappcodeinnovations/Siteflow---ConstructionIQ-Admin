@@ -121,6 +121,27 @@ class AdminMaterialDetailController extends ChangeNotifier {
   String? error;
   Map<String, dynamic>? material;
 
+  List<Map<String, dynamic>> groups = [];
+  List<Map<String, dynamic>> allTags = [];
+
+  Future<void> fetchDropdownOptions() async {
+    try {
+      final results = await Future.wait([
+        ApiClient.get('${ApiEndpoints.baseUrl}/admin/material-groups/'),
+        ApiClient.get('${ApiEndpoints.baseUrl}/admin/material-tags/'),
+      ]);
+      final groupsDecoded = jsonDecode(results[0].body);
+      if (results[0].statusCode == 200 && groupsDecoded['status'] == true) {
+        groups = (groupsDecoded['data'] as List? ?? []).whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
+      }
+      final tagsDecoded = jsonDecode(results[1].body);
+      if (results[1].statusCode == 200 && tagsDecoded['status'] == true) {
+        allTags = (tagsDecoded['data'] as List? ?? []).whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
+      }
+      notifyListeners();
+    } catch (_) {}
+  }
+
   Future<void> fetchDetail() async {
     isLoading = true;
     error = null;
