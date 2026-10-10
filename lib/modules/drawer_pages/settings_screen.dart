@@ -1,5 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
+import '../../core/network/api_client.dart';
+import '../../core/network/api_endpoints.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/background_stripes_painter.dart';
 import '../../models/admin_team_model.dart';
@@ -18,11 +22,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
   int _selectedIndex = 0; // 0: Teams, 1: Materials
   final AdminTeamController _teamController = AdminTeamController();
 
+  List<Map<String, dynamic>> _teamLeadChoices = [];
+  List<Map<String, dynamic>> _projectChoices = [];
+
   @override
   void initState() {
     super.initState();
     _teamController.fetchTeams();
     _teamController.addListener(_onTeamControllerChanged);
+    _fetchTeamLeadChoices();
+    _fetchProjectChoices();
+  }
+
+  Future<void> _fetchTeamLeadChoices() async {
+    try {
+      final response = await ApiClient.get('${ApiEndpoints.baseUrl}/admin/members/?page_size=1000');
+      final decoded = jsonDecode(response.body);
+      final list = (decoded is Map ? (decoded['data'] ?? decoded['results']) : decoded) as List?;
+      if (list != null && mounted) {
+        setState(() {
+          _teamLeadChoices = list.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _fetchProjectChoices() async {
+    try {
+      final response = await ApiClient.get('${ApiEndpoints.baseUrl}${ApiEndpoints.projects}');
+      final decoded = jsonDecode(response.body);
+      final list = (decoded is Map ? decoded['data'] : null) as List?;
+      if (list != null && mounted) {
+        setState(() {
+          _projectChoices = list.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
+        });
+      }
+    } catch (_) {}
   }
 
   void _onTeamControllerChanged() {
@@ -38,6 +73,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _showAddTeamDialog() async {
     final nameController = TextEditingController();
+    final nicknameController = TextEditingController();
+    String? selectedLeadId;
+    final Set<int> selectedProjectIds = {};
     TimeOfDay? shiftStart;
     TimeOfDay? shiftEnd;
 
@@ -58,9 +96,64 @@ class _SettingsScreenState extends State<SettingsScreen> {
               children: [
                 TextField(
                   controller: nameController,
-                  decoration: const InputDecoration(labelText: 'Team name'),
+                  decoration: const InputDecoration(labelText: 'Team name *'),
                 ),
                 const SizedBox(height: 16),
+                TextField(
+                  controller: nicknameController,
+                  decoration: const InputDecoration(labelText: 'Team nickname (optional)'),
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  initialValue: selectedLeadId,
+                  decoration: const InputDecoration(labelText: 'Team lead (optional)'),
+                  isExpanded: true,
+                  items: [
+                    const DropdownMenuItem(value: null, child: Text('Select member')),
+                    ..._teamLeadChoices.map((m) {
+                      final name = (m['display_name'] ?? m['name'] ?? m['email'] ?? 'Unknown').toString();
+                      final role = (m['role_display'] ?? m['role'] ?? '').toString();
+                      return DropdownMenuItem(
+                        value: m['id'].toString(),
+                        child: Text(role.isNotEmpty ? '$name ($role)' : name, overflow: TextOverflow.ellipsis),
+                      );
+                    }),
+                  ],
+                  onChanged: (val) => setDialogState(() => selectedLeadId = val),
+                ),
+                const SizedBox(height: 16),
+                if (_projectChoices.isNotEmpty) ...[
+                  const Align(alignment: Alignment.centerLeft, child: Text('Associated project(s)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                  const SizedBox(height: 4),
+                  SizedBox(
+                    height: 160,
+                    child: Scrollbar(
+                      child: ListView(
+                        shrinkWrap: true,
+                        children: _projectChoices.map((p) {
+                          final id = p['id'] is int ? p['id'] as int : int.tryParse(p['id'].toString()) ?? -1;
+                          final name = (p['name'] ?? '').toString();
+                          final code = (p['code'] ?? '').toString();
+                          return CheckboxListTile(
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            controlAffinity: ListTileControlAffinity.leading,
+                            value: selectedProjectIds.contains(id),
+                            title: Text(code.isNotEmpty ? '$name ($code)' : name, overflow: TextOverflow.ellipsis),
+                            onChanged: (checked) => setDialogState(() {
+                              if (checked == true) {
+                                selectedProjectIds.add(id);
+                              } else {
+                                selectedProjectIds.remove(id);
+                              }
+                            }),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: Text(shiftStart == null ? 'Shift start (optional)' : 'Start: ${formatTime(shiftStart)}'),
@@ -100,6 +193,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Navigator.pop(dialogContext);
                 final result = await _teamController.createTeam(
                   name: name,
+                  nickname: nicknameController.text.trim(),
+                  leadId: selectedLeadId,
+                  projectIds: selectedProjectIds.toList(),
                   shiftStartTime: formatTime(shiftStart),
                   shiftEndTime: formatTime(shiftEnd),
                 );
@@ -141,6 +237,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (confirmed != true) return;
 
     final result = await _teamController.forceClockOut(team.id);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(result['message'] as String),
+        backgroundColor: result['success'] == true ? Colors.green : Colors.red,
+      ),
+    );
+  }
+
+  Future<void> _confirmDeleteTeam(AdminTeam team) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete Team'),
+        content: Text('Delete "${team.displayName}"? This cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    final result = await _teamController.deleteTeam(team.id);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -514,7 +641,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   style: TextStyle(color: Colors.red.shade700, fontWeight: FontWeight.bold),
                 ),
               ),
-              Icon(IconlyLight.arrow_right_2, color: subtitleColor, size: 16),
+              // Team Details/Shift Timezone/Members/Delete all already live
+              // inside TeamDetailScreen (reachable by tapping the card) -
+              // this three-dots menu is purely a quicker, no-navigation
+              // shortcut to the two most common actions, matching the web
+              // admin's per-card action menu.
+              PopupMenuButton<String>(
+                icon: Icon(IconlyLight.more_square, color: subtitleColor, size: 20),
+                onSelected: (value) async {
+                  if (value == 'details') {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => TeamDetailScreen(teamId: team.id, controller: _teamController),
+                      ),
+                    );
+                  } else if (value == 'delete') {
+                    await _confirmDeleteTeam(team);
+                  }
+                },
+                itemBuilder: (context) => const [
+                  PopupMenuItem(value: 'details', child: Text('Team Details / Members / Shift Timezone')),
+                  PopupMenuItem(value: 'delete', child: Text('Delete Team', style: TextStyle(color: Colors.red))),
+                ],
+              ),
             ],
           ),
         ],

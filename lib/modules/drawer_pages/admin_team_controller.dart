@@ -47,6 +47,9 @@ class AdminTeamController extends ChangeNotifier {
 
   Future<Map<String, dynamic>> createTeam({
     required String name,
+    String? nickname,
+    String? leadId,
+    List<int>? projectIds,
     String? shiftStartTime,
     String? shiftEndTime,
   }) async {
@@ -57,6 +60,9 @@ class AdminTeamController extends ChangeNotifier {
       final url = '${ApiEndpoints.baseUrl}/admin/teams/';
       final response = await ApiClient.post(url, body: {
         "name": name,
+        if (nickname != null && nickname.isNotEmpty) "nickname": nickname,
+        if (leadId != null && leadId.isNotEmpty) "lead_id": leadId,
+        if (projectIds != null && projectIds.isNotEmpty) "project_ids": projectIds,
         if (shiftStartTime != null && shiftStartTime.isNotEmpty)
           "shift_start_time": shiftStartTime,
         if (shiftEndTime != null && shiftEndTime.isNotEmpty)
