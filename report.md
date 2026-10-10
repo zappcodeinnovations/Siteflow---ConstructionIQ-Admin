@@ -109,4 +109,49 @@ clickability/pagination/filters, not building a new form builder.
 | J9 | Activity Logs: wrong metric counts, filters don't execute, truncated to a few of 109 records | **done** - three real backend bugs: (1) `AdminActivityLogsKPIAPIView` returned a completely different field set (`total_logs`/`today_logins`/etc) than what the mobile UI's 5 cards actually read (`total_managers`/`active_managers`/`today_activities`/`this_month`/`failed_logins`), so every card always showed 0 - rewrote it to return the same 5 manager-scoped stats as the web admin's Activity Logs page, exactly; (2) the list/export endpoints weren't scoped to `user_role=manager` like web's `_audit_log_queryset` - this whole page is "Manager Activity Logs", not a global log; (3) the mobile list never read pagination fields from the response at all, so it silently showed only the API's default first page (20 of 109) - added real `loadMoreLogs()` + a "Load More" control. Also trimmed the Role filter dropdown to just "Manager" (Admin/Operative/Super Admin could never return results against the now-correctly-manager-scoped backend, matching web which only ever offered "Manager" too). |
 | J11 | Dashboard summary cards for Manager role mismatch web contractor/manager dashboard | **done** - `dashboard.dart` always rendered the Admin-only 9-card set (Active Projects/Completed Tasks/Pending Tasks/Total Operatives/Total Managers/Total Supervisors/Clocked In/Clocked Out Pending/Not Clocked In) for every logged-in role, including Manager - which leaks staff-headcount metrics a Manager isn't meant to see and doesn't match `contractor_dashboard.html`'s actual 6-card set at all (Total/Active/Completed Projects, Clocked In/Not Clocked In/Not Clocked Out). Added a role check (`user.effectiveRole`) and a second 6-card branch mirroring the web manager dashboard exactly - same backend API response already has all the needed data (`kpis.projects`/`kpis.attendance`), this was purely a missing UI branch. |
 
+## Merge from Harman's branch + ClickUp cross-check (2026-10-10)
+
+Merged `origin/Harman` into `main` (17 commits, diverged since
+`34c5df8`). Per explicit instruction, cross-checked each conflicted/
+incoming file against the ClickUp "Euroside admin app" list before
+resolving, so each resolution matches a real ticket rather than a
+guess:
+
+| ClickUp ticket | Status | Resolution |
+|---|---|---|
+| 14yjutqfhbh - Add Attendance cascading dropdowns/mock data/layout | in progress | Took Harman's full rebuild - verified it implements every line of the ticket spec verbatim (disabled-state cascading, live tasks replacing "Job 22 (Mocked for API)", task-sheet multi-select, default clock times, location helper text, double-asterisk Operative). |
+| 14yjutqfha0 + 14yjutqfh93 - Workforce Planner project filter + date format | dev done | Took Harman's rebuild. |
+| 86d3umczz / 86d3um93w / 86d3um8dh - Productivity API failure/filter/date-preset bugs | dev done | Took Harman's rebuild (search bar, date presets, multi-criteria filters, My Reports tab). |
+| 14yjutqfhh5 - Members Active/Pending tabs | dev done | Took Harman's tab structure; re-merged this session's role filter/export/reset/5-action member menu on top so neither side's work was lost. |
+
+Also found and fixed two pre-existing typos baked into Harman's own
+branch (not introduced by the merge - confirmed present in
+`origin/Harman` beforehand): `cclass ApiEndpoints` in
+`api_endpoints.dart` and `iimport 'dart:convert';` in both
+`login_controller.dart` and `profile_controller.dart`. These broke
+the whole project's compile (753 `flutter analyze` errors cascading
+from the single `ApiEndpoints` typo) - full analyze is clean (0
+errors) after fixing both.
+
+**14yjutqfhqp - Change Password missing from Profile, organizational
+fields wrong, "View full audit log" link should be removed**: the
+Flutter UI side (Change Password button, full Profile Details grid,
+no audit log link) came in with the same Harman merge and already
+matches the web admin's `admin_profile.html` grid field-for-field.
+Investigated the two fields that still looked wrong after the merge -
+Company Name and Last Login - and found a real backend gap:
+`UserSummarySerializer` (`API/serializers.py`) never exposed
+`company_name`/`last_login` at all, even though the Flutter model
+(`user_model.dart`) already prioritized exactly those JSON keys over
+its fallbacks. Added both: `company_name` mirrors the web's
+`organisation_settings.name` (`OrganisationSettings.get_solo()`),
+`last_login` mirrors `profile_user.last_login` shown on the web's own
+page. No Flutter change needed - the model was already correct,
+only the backend was missing the data. New test
+`test_profile_api_returns_company_name_and_last_login`, run
+individually and passing. Backend pushed to `origin/main` (`a4d94d0`).
+
+Flutter merge commit (`62ae3f5`) is local-only per standing rule;
+not yet pushed pending explicit confirmation.
+
 Work log (chronological, appended as each item is verified/fixed):

@@ -377,3 +377,92 @@ that class to confirm the new status/search filtering didn't break
 the RBAC-gated list behavior. Flutter: full `flutter analyze` clean
 (0 errors). Backend pushed to origin/main (`4657d36`); Flutter
 committed locally only, per standing rule.
+
+## 2026-10-10 — Merged origin/Harman into main; cross-checked against ClickUp
+
+User asked to pull and merge Harman's branch, then for every
+conflicting/incoming change to check which ClickUp ticket ("Euroside
+admin app" list) it actually matched and resolve accordingly, rather
+than just picking a side blindly.
+
+`origin/Harman` had diverged at `34c5df8` with 17 commits across
+add_attendance_dialog.dart, admin_members_view.dart/controller.dart,
+job_sheet_controller.dart/screen.dart, productivity_controller.dart/
+screen.dart, workforce_planner_screen.dart, admin_material_controller.dart,
+material_detail_screen.dart, profile_controller.dart/screen.dart, plus
+announcements/support files. `git merge --no-commit --no-ff` produced
+7 real conflicts; the rest auto-merged.
+
+For each conflict, looked up the matching ClickUp ticket before
+resolving:
+- Add Attendance modal (`add_attendance_dialog.dart`): ticket
+  14yjutqfhbh (cascading dropdown dependencies broken, "Job 22
+  (Mocked for API)" debug string exposed, missing task-sheet multi-
+  select/default times/location helper text/double-asterisk). Read
+  the ticket's full comment text and grepped Harman's 941-line
+  rebuild for the exact phrases quoted in the ticket ("Select
+  operative first", "Select one or more task sheets.", "Project
+  location will be used if current location is not added.") - all
+  present verbatim, confirming his rebuild is the real fix, not a
+  parallel/older attempt. Took it wholesale over this repo's own
+  older cascading-dropdown implementation.
+- Workforce Planner, Productivity: same approach - ticket numbers
+  14yjutqfha0/14yjutqfh93 and 86d3umczz/86d3um93w/86d3um8dh, all
+  "dev done", sizes 2x+ the old files confirming full rebuilds. Took
+  Harman's versions.
+- `admin_members_view.dart` (6 conflicts, the one file this session
+  had also touched for J5): ticket 14yjutqfhh5 (Active/Pending
+  segmented tabs, dev done) was Harman's addition; this session's own
+  work (role filter dropdown, Export, Reset, the 5-action member
+  three-dots menu: View Profile/Update Member/Change Password/
+  Convert to Guest/Delete Member) was not represented on his side at
+  all - his equivalent card only had Edit Profile/Remove Member. Hand-
+  merged: kept his tab structure, summary card, and pending-invite
+  card wholesale, re-added this session's menu actions/dialogs/filter
+  bar on top. Confirmed `admin_members_controller.dart` (auto-merged
+  clean) already exposes both `statusFilter`/`setStatusFilter` (his)
+  and `roleFilter`/`setRoleFilter`/`changePassword`/`convertToGuest`
+  (this session's), so no controller changes were needed.
+- `job_sheet_controller.dart`/`job_sheet_screen.dart`: small, genuine
+  independent fixes on both sides (status-string formatting extracted
+  to a helper; Daily Report material cost/charge detail fields) -
+  took Harman's version where it was the cleaner superset in each
+  case.
+
+Found two pre-existing typos already present in `origin/Harman`
+itself (verified via `git show origin/Harman:<file>`, so not
+introduced by the merge): `cclass ApiEndpoints` in
+`api_endpoints.dart` and `iimport 'dart:convert';` in both
+`login_controller.dart` and `profile_controller.dart`. The single
+`ApiEndpoints` typo alone cascaded into 753 `flutter analyze` errors
+project-wide (every file referencing `ApiEndpoints.baseUrl` etc.
+failed to resolve). Fixed all three; full `flutter analyze` clean (0
+errors) after.
+
+Immediately after the merge, user reported ticket 14yjutqfhqp
+verbatim ("Change Password missing from Profile, organizational
+fields wrong, View full audit log link should be removed"). The
+Flutter side (Change Password button, full Profile Details grid:
+Full Name/Email/Username/Mobile/Company Name/Role Type/Account
+Status/Joining Date/Last Login, no audit log link) had just arrived
+with the Harman merge and already matches the web's
+`admin_profile.html` grid field-for-field - confirmed by reading that
+template directly. Two fields still looked wrong: Company Name and
+Last Login. Traced to a real backend gap: `UserSummarySerializer`
+(`API/serializers.py`) never exposed `company_name` or `last_login`
+in its `Meta.fields` tuple at all, even though
+`user_model.dart`'s `User.fromJson` already prioritized exactly those
+two JSON keys ahead of its hardcoded fallbacks - so the backend gap
+was the entire bug, no Flutter change needed. Added
+`get_company_name` (mirrors web's `OrganisationSettings.get_solo().name`)
+and `get_last_login` (mirrors `profile_user.last_login`, Django's
+built-in field, previously just never serialized). New test
+`test_profile_api_returns_company_name_and_last_login` in
+`UserProfileAndSetPasswordApiTests`, run individually plus the 4
+sibling tests in that class, all passing. Backend pushed to
+origin/main (`a4d94d0`).
+
+Flutter merge commit is local-only so far (standing rule - never
+pushed without explicit instruction), pending the user's confirmation
+since merging another developer's branch into shared main is exactly
+the kind of action worth a check before it goes out.
