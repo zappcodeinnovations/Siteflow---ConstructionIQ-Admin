@@ -1,4 +1,4 @@
-class ApiEndpoints {
+cclass ApiEndpoints {
   static const String baseUrl = 'https://euroside.zappcode.in/api';
 
   // Auth
