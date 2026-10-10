@@ -90,6 +90,21 @@ class AdminGuestsController extends ChangeNotifier {
     }
   }
 
+  Future<Map<String, dynamic>> convertToMember(int id, {String role = 'operative'}) async {
+    try {
+      final url = '${ApiEndpoints.baseUrl}/admin/guests/$id/convert-to-member/';
+      final response = await ApiClient.post(url, body: {"role": role});
+      final decodedData = jsonDecode(response.body);
+      if (response.statusCode == 200 && decodedData['status'] == true) {
+        await fetchGuests();
+        return {"success": true, "message": decodedData['message'] ?? "Converted to member."};
+      }
+      return {"success": false, "message": decodedData['message'] ?? "Failed to convert guest."};
+    } catch (e) {
+      return {"success": false, "message": "An error occurred: $e"};
+    }
+  }
+
   Future<Map<String, dynamic>> deleteGuest(int id) async {
     try {
       final url = '${ApiEndpoints.baseUrl}/admin/guests/$id/';

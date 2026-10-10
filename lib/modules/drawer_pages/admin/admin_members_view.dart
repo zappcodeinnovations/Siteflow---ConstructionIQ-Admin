@@ -1,10 +1,15 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'admin_members_controller.dart';
 import 'invite_member_dialog.dart';
 import 'edit_member_dialog.dart';
 import 'member_details_dialog.dart';
+import '../../../../core/network/api_client.dart';
+import '../../../../core/network/api_endpoints.dart';
 import '../../../../models/admin_member_model.dart';
-import '../../../../core/widgets/shimmer_loading.dart';
 import '../../../../core/theme/app_theme.dart';
 import 'package:iconly/iconly.dart';
 
@@ -17,9 +22,54 @@ class AdminMembersView extends StatefulWidget {
 
 class _AdminMembersViewState extends State<AdminMembersView> {
   final AdminMembersController _controller = AdminMembersController();
+  final TextEditingController _searchController = TextEditingController();
   String _searchQuery = "";
-  int _currentPage = 1;
-  final int _pageSize = 20; // Default page size from response
+  String? _selectedRole;
+
+  static const List<Map<String, String>> _roleChoices = [
+    {'value': 'admin', 'label': 'Admin'},
+    {'value': 'manager', 'label': 'Manager'},
+    {'value': 'operative', 'label': 'Operative'},
+    {'value': 'custom', 'label': 'Custom'},
+  ];
+
+  void _resetFilters() {
+    setState(() {
+      _searchQuery = '';
+      _selectedRole = null;
+      _searchController.clear();
+    });
+  }
+
+  Future<void> _exportMembers() async {
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Exporting members..."), duration: Duration(seconds: 2)),
+      );
+      var url = '${ApiEndpoints.baseUrl}/admin/members/export/?status=active';
+      if (_selectedRole != null) url += '&role=$_selectedRole';
+      if (_searchQuery.isNotEmpty) url += '&search=${Uri.encodeQueryComponent(_searchQuery)}';
+      final response = await ApiClient.get(url);
+      if (!mounted) return;
+      if (response.statusCode == 200 && response.bodyBytes.isNotEmpty) {
+        final directory = await getTemporaryDirectory();
+        final file = File('${directory.path}/members_export_${DateTime.now().millisecondsSinceEpoch}.xlsx');
+        await file.writeAsBytes(response.bodyBytes);
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        await Share.shareXFiles([XFile(file.path)], text: "Members Export");
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Failed to export (${response.statusCode}).")),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error exporting members: $e")),
+        );
+      }
+    }
+  }
 
   @override
   void initState() {
@@ -30,6 +80,7 @@ class _AdminMembersViewState extends State<AdminMembersView> {
   @override
   void dispose() {
     _controller.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -44,6 +95,120 @@ class _AdminMembersViewState extends State<AdminMembersView> {
     showDialog(
       context: context,
       builder: (context) => EditMemberDialog(controller: _controller, member: member),
+    );
+  }
+
+  void _showMemberDetails(AdminMember member) {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: "Dismiss",
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return MemberDetailsDialog(
+          memberId: member.id,
+          controller: _controller,
+        );
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        return ScaleTransition(
+          scale: CurvedAnimation(parent: animation, curve: Curves.easeOutBack),
+          child: FadeTransition(opacity: animation, child: child),
+        );
+      },
+    );
+  }
+
+  Future<void> _showChangePasswordDialog(AdminMember member) async {
+    final newPasswordController = TextEditingController();
+    final confirmPasswordController = TextEditingController();
+    bool obscure = true;
+
+    await showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text("Change Password for ${member.displayName}"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                "The password is not shown anywhere in the admin panel after saving.",
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: newPasswordController,
+                obscureText: obscure,
+                decoration: InputDecoration(
+                  labelText: "New Password",
+                  suffixIcon: IconButton(
+                    icon: Icon(obscure ? Icons.visibility_off : Icons.visibility),
+                    onPressed: () => setDialogState(() => obscure = !obscure),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: confirmPasswordController,
+                obscureText: obscure,
+                decoration: const InputDecoration(labelText: "Confirm Password"),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text("Cancel")),
+            ElevatedButton(
+              onPressed: () async {
+                final newPassword = newPasswordController.text;
+                final confirmPassword = confirmPasswordController.text;
+                if (newPassword.isEmpty || confirmPassword.isEmpty) return;
+                Navigator.pop(dialogContext);
+                final result = await _controller.changePassword(
+                  member.id,
+                  newPassword: newPassword,
+                  confirmPassword: confirmPassword,
+                );
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(result['message'] ?? ''),
+                    backgroundColor: result['success'] == true ? Colors.green : Colors.red,
+                  ),
+                );
+              },
+              child: const Text("Save"),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmConvertToGuest(AdminMember member) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text("Convert to Guest"),
+        content: Text("Convert ${member.displayName} to a guest user? They will lose member access."),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text("Cancel")),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text("Convert", style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    final result = await _controller.convertToGuest(member.id);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(result['message'] ?? ''),
+        backgroundColor: result['success'] == true ? Colors.green : Colors.red,
+      ),
     );
   }
 
@@ -132,30 +297,7 @@ class _AdminMembersViewState extends State<AdminMembersView> {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
-          onTap: () {
-            showGeneralDialog(
-              context: context,
-              barrierDismissible: true,
-              barrierLabel: "Dismiss",
-              transitionDuration: const Duration(milliseconds: 300),
-              pageBuilder: (context, animation, secondaryAnimation) {
-                return MemberDetailsDialog(
-                  memberId: member.id,
-                  controller: _controller,
-                );
-              },
-              transitionBuilder:
-                  (context, animation, secondaryAnimation, child) {
-                    return ScaleTransition(
-                      scale: CurvedAnimation(
-                        parent: animation,
-                        curve: Curves.easeOutBack,
-                      ),
-                      child: FadeTransition(opacity: animation, child: child),
-                    );
-                  },
-            );
-          },
+          onTap: () => _showMemberDetails(member),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -252,18 +394,33 @@ class _AdminMembersViewState extends State<AdminMembersView> {
                         color: Colors.grey,
                       ),
                       onSelected: (val) {
-                        if (val == 'delete') _deleteMember(member);
+                        if (val == 'view') _showMemberDetails(member);
                         if (val == 'edit') _showEditDialog(member);
+                        if (val == 'password') _showChangePasswordDialog(member);
+                        if (val == 'convert') _confirmConvertToGuest(member);
+                        if (val == 'delete') _deleteMember(member);
                       },
                       itemBuilder: (context) => [
                         const PopupMenuItem(
+                          value: 'view',
+                          child: Text("View Profile"),
+                        ),
+                        const PopupMenuItem(
                           value: 'edit',
-                          child: Text("Edit Profile"),
+                          child: Text("Update Member"),
+                        ),
+                        const PopupMenuItem(
+                          value: 'password',
+                          child: Text("Change Password"),
+                        ),
+                        const PopupMenuItem(
+                          value: 'convert',
+                          child: Text("Convert to Guest"),
                         ),
                         const PopupMenuItem(
                           value: 'delete',
                           child: Text(
-                            "Remove Member",
+                            "Delete Member",
                             style: TextStyle(color: Colors.red),
                           ),
                         ),
@@ -402,6 +559,7 @@ class _AdminMembersViewState extends State<AdminMembersView> {
                     m.displayName.toLowerCase().contains(_searchQuery) ||
                     m.email.toLowerCase().contains(_searchQuery),
               )
+              .where((m) => _selectedRole == null || m.role.toLowerCase() == _selectedRole)
               .toList();
 
           final totalMembers = _controller.totalCount;
@@ -474,6 +632,7 @@ class _AdminMembersViewState extends State<AdminMembersView> {
                     const SizedBox(height: 20),
                     // Search Bar
                     TextField(
+                      controller: _searchController,
                       style: TextStyle(color: textColor),
                       decoration: InputDecoration(
                         hintText: "Search members, roles, or teams...",
@@ -496,6 +655,47 @@ class _AdminMembersViewState extends State<AdminMembersView> {
                       ),
                       onChanged: (val) =>
                           setState(() => _searchQuery = val.toLowerCase()),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            height: 44,
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            decoration: BoxDecoration(
+                              color: searchFillColor,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: borderColor),
+                            ),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<String?>(
+                                isExpanded: true,
+                                value: _selectedRole,
+                                hint: Text("All roles", style: TextStyle(color: subtitleColor, fontSize: 13)),
+                                dropdownColor: isDark ? AppTheme.darkSurfaceRaised : Colors.white,
+                                items: [
+                                  const DropdownMenuItem(value: null, child: Text("All roles")),
+                                  ..._roleChoices.map((r) => DropdownMenuItem(value: r['value'], child: Text(r['label']!))),
+                                ],
+                                onChanged: (val) => setState(() => _selectedRole = val),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        OutlinedButton.icon(
+                          onPressed: _exportMembers,
+                          icon: const Icon(IconlyLight.download, size: 16),
+                          label: const Text("Export"),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          tooltip: "Reset filters",
+                          onPressed: _resetFilters,
+                          icon: Icon(Icons.refresh, color: subtitleColor),
+                        ),
+                      ],
                     ),
                   ],
                 ),

@@ -1,7 +1,12 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
+import '../../../../core/network/api_client.dart';
+import '../../../../core/network/api_endpoints.dart';
 import '../../../../models/admin_guest_model.dart';
-import '../../../../core/widgets/shimmer_loading.dart';
 import '../../../../core/theme/app_theme.dart';
 import 'admin_guests_controller.dart';
 import 'invite_guest_dialog.dart';
@@ -17,6 +22,7 @@ class AdminGuestsView extends StatefulWidget {
 
 class _AdminGuestsViewState extends State<AdminGuestsView> {
   final AdminGuestsController _controller = AdminGuestsController();
+  final TextEditingController _searchController = TextEditingController();
   String _searchQuery = "";
 
   @override
@@ -28,7 +34,70 @@ class _AdminGuestsViewState extends State<AdminGuestsView> {
   @override
   void dispose() {
     _controller.dispose();
+    _searchController.dispose();
     super.dispose();
+  }
+
+  void _resetFilters() {
+    setState(() {
+      _searchQuery = '';
+      _searchController.clear();
+    });
+  }
+
+  Future<void> _exportGuests() async {
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Exporting guests..."), duration: Duration(seconds: 2)),
+      );
+      var url = '${ApiEndpoints.baseUrl}/admin/guests/export/';
+      if (_searchQuery.isNotEmpty) url += '?search=${Uri.encodeQueryComponent(_searchQuery)}';
+      final response = await ApiClient.get(url);
+      if (!mounted) return;
+      if (response.statusCode == 200 && response.bodyBytes.isNotEmpty) {
+        final directory = await getTemporaryDirectory();
+        final file = File('${directory.path}/guests_export_${DateTime.now().millisecondsSinceEpoch}.xlsx');
+        await file.writeAsBytes(response.bodyBytes);
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        await Share.shareXFiles([XFile(file.path)], text: "Guests Export");
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Failed to export (${response.statusCode}).")),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error exporting guests: $e")),
+        );
+      }
+    }
+  }
+
+  Future<void> _confirmConvertToMember(AdminGuest guest) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text("Convert to Member"),
+        content: Text("Convert ${guest.displayName} to a member (Operative)? They will gain member access."),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text("Cancel")),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text("Convert"),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    final result = await _controller.convertToMember(guest.id);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(result['message'] ?? ''),
+        backgroundColor: result['success'] == true ? Colors.green : Colors.red,
+      ),
+    );
   }
 
   void _showInviteDialog() {
@@ -237,12 +306,17 @@ class _AdminGuestsViewState extends State<AdminGuestsView> {
                       ),
                       onSelected: (val) {
                         if (val == 'edit') _editGuest(guest);
+                        if (val == 'convert') _confirmConvertToMember(guest);
                         if (val == 'delete') _deleteGuest(guest);
                       },
                       itemBuilder: (context) => [
                         const PopupMenuItem(
                           value: 'edit',
                           child: Text("Edit Guest"),
+                        ),
+                        const PopupMenuItem(
+                          value: 'convert',
+                          child: Text("Convert to Member"),
                         ),
                         const PopupMenuItem(
                           value: 'delete',
@@ -409,6 +483,7 @@ class _AdminGuestsViewState extends State<AdminGuestsView> {
                     const SizedBox(height: 20),
                     // Search Bar
                     TextField(
+                      controller: _searchController,
                       style: TextStyle(color: textColor),
                       decoration: InputDecoration(
                         hintText: "Search guests...",
@@ -431,6 +506,24 @@ class _AdminGuestsViewState extends State<AdminGuestsView> {
                       ),
                       onChanged: (val) =>
                           setState(() => _searchQuery = val.toLowerCase()),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _exportGuests,
+                            icon: const Icon(IconlyLight.download, size: 16),
+                            label: const Text("Export Excel"),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          tooltip: "Reset filters",
+                          onPressed: _resetFilters,
+                          icon: Icon(Icons.refresh, color: subtitleColor),
+                        ),
+                      ],
                     ),
                   ],
                 ),

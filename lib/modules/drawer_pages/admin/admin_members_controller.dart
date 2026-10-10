@@ -102,6 +102,44 @@ class AdminMembersController extends ChangeNotifier {
     }
   }
 
+  Future<Map<String, dynamic>> changePassword(
+    int id, {
+    required String newPassword,
+    required String confirmPassword,
+    bool sendEmail = false,
+  }) async {
+    try {
+      final url = '${ApiEndpoints.baseUrl}/admin/members/$id/change-password/';
+      final response = await ApiClient.post(url, body: {
+        "new_password": newPassword,
+        "confirm_password": confirmPassword,
+        "send_password_email": sendEmail,
+      });
+      final decodedData = jsonDecode(response.body);
+      return {
+        "success": response.statusCode == 200 && decodedData['status'] == true,
+        "message": decodedData['message'] ?? "Failed to change password.",
+      };
+    } catch (e) {
+      return {"success": false, "message": "An error occurred: $e"};
+    }
+  }
+
+  Future<Map<String, dynamic>> convertToGuest(int id) async {
+    try {
+      final url = '${ApiEndpoints.baseUrl}/admin/members/$id/convert-to-guest/';
+      final response = await ApiClient.post(url, body: {});
+      final decodedData = jsonDecode(response.body);
+      if (response.statusCode == 200 && decodedData['status'] == true) {
+        await fetchMembers();
+        return {"success": true, "message": decodedData['message'] ?? "Converted to guest."};
+      }
+      return {"success": false, "message": decodedData['message'] ?? "Failed to convert member."};
+    } catch (e) {
+      return {"success": false, "message": "An error occurred: $e"};
+    }
+  }
+
   Future<AdminMember?> fetchMemberDetails(int id) async {
     try {
       final url = '${ApiEndpoints.baseUrl}/admin/members/$id/';
