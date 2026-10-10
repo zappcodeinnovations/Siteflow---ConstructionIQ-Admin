@@ -97,22 +97,22 @@ class LibraryController extends ChangeNotifier {
     }
   }
 
-  Future<Map<String, dynamic>> deleteForm(int id) async {
+  Future<Map<String, dynamic>> archiveForm(int id) async {
     try {
       final url = '${ApiEndpoints.baseUrl}${ApiEndpoints.libraryForms}$id/';
       final response = await ApiClient.delete(url);
       final decoded = jsonDecode(response.body);
       if (response.statusCode == 200 || response.statusCode == 204 || decoded['status'] == true) {
         await fetchForms();
-        return {"success": true, "message": decoded['message'] ?? 'Form deleted successfully.'};
+        return {"success": true, "message": decoded['message'] ?? 'Form archived successfully.'};
       }
       if (response.statusCode == 405) {
         return {
           "success": false,
-          "message": "Form deletion is not supported via mobile API (HTTP 405). Please manage forms in the Web Admin."
+          "message": "Form archiving is not supported via mobile API (HTTP 405). Please manage forms in the Web Admin."
         };
       }
-      final errMsg = decoded['message'] ?? decoded['detail'] ?? decoded['error'] ?? 'Failed to delete form.';
+      final errMsg = decoded['message'] ?? decoded['detail'] ?? decoded['error'] ?? 'Failed to archive form.';
       return {"success": false, "message": errMsg.toString()};
     } catch (e) {
       return {"success": false, "message": "An error occurred: $e"};

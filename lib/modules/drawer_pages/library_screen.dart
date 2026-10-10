@@ -753,23 +753,23 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
     );
   }
 
-  Future<void> _confirmDeleteForm(LibraryFormModel form) async {
+  Future<void> _confirmArchiveForm(LibraryFormModel form) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text("Delete Form"),
-        content: Text('Are you sure you want to delete "${form.name}"?'),
+        title: const Text("Archive Form"),
+        content: Text('Archive "${form.name}"? It will move to Archived Forms and can be restored from the Web Admin.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text("Cancel")),
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text("Delete", style: TextStyle(color: Colors.red)),
+            child: const Text("Archive", style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
     );
     if (confirmed != true || !mounted) return;
-    final result = await _controller.deleteForm(form.id);
+    final result = await _controller.archiveForm(form.id);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -1160,10 +1160,10 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
                                           onPressed: () => _openFormWebview(form),
                                         ),
                                         IconButton(
-                                          icon: const Icon(IconlyLight.delete, size: 20, color: Colors.red),
-                                          tooltip: "Delete form",
+                                          icon: const Icon(IconlyLight.folder, size: 20, color: Colors.red),
+                                          tooltip: "Archive form",
                                           splashRadius: 18,
-                                          onPressed: () => _confirmDeleteForm(form),
+                                          onPressed: () => _confirmArchiveForm(form),
                                         ),
                                       ],
                                     ),

@@ -327,7 +327,53 @@ instruction, each run individually and passing: new
 `AdminGuestConvertToMemberAPITests` (3 tests). Flutter: full
 `flutter analyze` clean (0 errors) after every item in this batch.
 
-Deferred: J2 (Forms library - cards non-clickable, missing Pagination/Add
-Form/Filters/View/Delete/Created Date; explicitly authorized by the user
-to fix the existing list screen, not yet started) and J10 (Project Setup
-tab full redesign, same large/open-ended item as I10, still deferred).
+Deferred: J10 (Project Setup tab full redesign, same large/open-ended
+item as I10, still deferred).
+
+## 2026-10-10 — J2 (Forms library "locked") - backend gap, not a UI gap
+
+User explicitly authorized working on this despite the earlier "don't
+touch Forms builder" instruction, after I flagged the conflict via
+AskUserQuestion - clarified as fixing the existing list screen, not
+building a new form builder.
+
+Investigated `library_screen.dart`'s `_buildFormsTab` first per the
+verify-then-report workflow, expecting to need to build clickable
+cards/pagination/filters/view/delete/created-date from scratch. All of
+that UI already existed - built in an earlier session, commit
+`48cdea1` ("full web admin parity for Forms tab"). So the user's
+complaint had to be coming from somewhere else: traced it to two real
+backend gaps that made the already-built UI non-functional:
+
+- `LibraryFormsCatalogAPIView` (`API/views.py`) was documented and
+  built as read-only (GET only). The app's "+ Add Form" button POSTs
+  to the same URL - with no `post()` defined, DRF auto-returns 405,
+  so every tap silently failed (the Flutter side at least has a
+  friendly message for this case). "Delete" DELETEs
+  `/library/forms/<id>/`, which had no URL route at all - plain 404
+  from Django's resolver, HTML body, not JSON, so `jsonDecode` threw
+  and the user saw a raw exception string.
+- The GET endpoint never read `status`/`search` from the query
+  string at all, even though the Flutter screen's Status dropdown and
+  search box were already sending both - so the "Filters" the bug
+  report called missing were actually present in the UI but silently
+  no-ops server-side.
+
+Fix, scoped to match the web exactly (not a new form builder):
+added `POST` to `LibraryFormsCatalogAPIView` (bare `name`-only create
+via `get_or_create`, mirrors `library_form_create_view`); added a new
+`LibraryFormDetailAPIView.delete()` that archives rather than hard-
+deletes (mirrors `library_form_archive_bulk_view` - checked and
+confirmed there is no hard-delete for forms anywhere, even on the
+web, since forms can be referenced by existing submissions); wired
+`status`/`search` into the GET queryset. Renamed the Flutter card's
+"Delete" action to "Archive" (icon, tooltip, confirm dialog, method
+name `archiveForm`) to honestly describe what it now does, since
+calling a soft-archive "Delete" would be misleading.
+
+Backend: new `LibraryCatalogAPITests.test_create_form_then_archive_removes_it_from_active_list`,
+run individually, passing; also reran the 3 pre-existing tests in
+that class to confirm the new status/search filtering didn't break
+the RBAC-gated list behavior. Flutter: full `flutter analyze` clean
+(0 errors). Backend pushed to origin/main (`4657d36`); Flutter
+committed locally only, per standing rule.
