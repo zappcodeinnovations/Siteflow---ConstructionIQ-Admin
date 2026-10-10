@@ -71,4 +71,21 @@ grouped by screen/file. All commits stay local only until the user says push.
 | G2 | workforce_planner_screen.dart | Missing project filter dropdown | **done** - backend already returned a `projects` list + accepted `project_id=`; added the dropdown to the app bar |
 | H1 | add_attendance_dialog.dart | Cascading dropdowns broken, debug mock strings exposed, layout mismatch | **done** - "Task Name (Job)" and "Task Sheet" were hardcoded (`"Job 22 (Mocked for API)"`, `"Drilling Form"`); added a new backend endpoint `GET /api/timesheets/entry-options/` (mirrors the web Add Attendance modal's `entry_job_options`) and real cascading Operative -> Project -> Task dropdowns. Removed the "Task Sheet" field entirely (the backend auto-submits the job's forms - it was never actually read from the payload) and the "Use Current Location" button + mock lat/lon (backend already falls back to the project's own location when omitted) |
 
+## Third batch (2026-10-10, from P:\Euroside_Project\bug.md)
+
+| # | Bug | Status |
+|---|---|---|
+| I1 | Docs & Files: folder counter delayed after upload, no real-time sync | **done** - root cause: upload/delete both waited on a full `ProjectAllInOneDetails` refetch (the whole project: specs, drawings, job sheets, HSE...) before updating anything. Now inserts/removes the file in local state immediately (optimistic), with the full refetch still happening in the background to reconcile. Backend upload response enriched with `folder_id`/`folder_type`/`is_private`/`created_at` so the optimistic object is complete. |
+| I2 | Docs & Files: folder counter delayed after delete | **done** - same fix as I1 (shared code path) |
+| I3 | Job Sheets: "More Filters" button non-interactive, quick filters fail | **investigated, already correct** - `job_sheets_tab.dart`'s More Filters button, quick filter dropdowns, and client-side `_filteredJobSheets` getter are all properly wired. Could not reproduce a defect via code review; needs device verification if it's still reported. |
+| I4 | Approvals tab: missing Approval Stages section, site filter, Site Manager button | pending |
+| I5 | Locations tab shows job-sheet pins instead of block/level hierarchy (vs Site Manager) | pending |
+| I6 | Report Incident modal: missing All-statuses filter, field/styling mismatches | pending |
+| I7 | Incident cards: Open unclickable, Delete missing, timestamp/status badge absent | pending |
+| I8 | Incidents list: no auto-refresh on create | pending |
+| I9 | Specifications tab: missing Open button on cards, Manage Attributes + Get Report toolbar buttons | **done** - added explicit "Open" button per card, "Manage Attributes" (bottom sheet, reuses the project-level attribute-definitions API) and "Get Report" (new `?export=csv` on `ProjectSpecificationsAPIView`, mirrors the web's CSV export) toolbar buttons. |
+| I10 | Project Setup tab: full redesign to match web Project Admin (= B2, large) | pending |
+| I11 | Manager Diary WebView: cut off / poorly formatted (= E1 "cut off" part; alert() part already fixed) | pending |
+| I12 | Signature/photo upload: screen scroll locked (= E2, previously investigated, unresolved) | pending |
+
 Work log (chronological, appended as each item is verified/fixed):

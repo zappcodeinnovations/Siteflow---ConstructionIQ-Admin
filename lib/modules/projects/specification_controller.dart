@@ -48,6 +48,65 @@ class SpecificationController extends ChangeNotifier {
     }
   }
 
+  // Project-level attribute DEFINITIONS (shared schema across every
+  // specification on this project), backing the "Manage Attributes"
+  // toolbar action - distinct from a single specification's attribute
+  // VALUES, which live on SpecificationDetailController.
+  bool isLoadingAttributeDefinitions = false;
+  List<Map<String, dynamic>> attributeDefinitions = [];
+
+  Future<void> fetchAttributeDefinitions() async {
+    isLoadingAttributeDefinitions = true;
+    notifyListeners();
+    try {
+      final url = '${ApiEndpoints.baseUrl}${ApiEndpoints.projectSpecificationAttributeDefinitions(projectId)}';
+      final response = await ApiClient.get(url);
+      final decoded = jsonDecode(response.body);
+      if (response.statusCode == 200 && decoded['status'] == true) {
+        final data = (decoded['data'] as Map).cast<String, dynamic>();
+        attributeDefinitions = (data['definitions'] as List? ?? []).whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
+      }
+    } catch (_) {
+    } finally {
+      isLoadingAttributeDefinitions = false;
+      notifyListeners();
+    }
+  }
+
+  Future<Map<String, dynamic>> createAttributeDefinition({
+    required String name,
+    required String attributeType,
+    List<String> options = const [],
+  }) async {
+    try {
+      final url = '${ApiEndpoints.baseUrl}${ApiEndpoints.projectSpecificationAttributeDefinitions(projectId)}';
+      final response = await ApiClient.post(url, body: {"name": name, "attribute_type": attributeType, "options": options});
+      final decoded = jsonDecode(response.body);
+      if (response.statusCode == 201) {
+        await fetchAttributeDefinitions();
+        return {"success": true, "message": decoded['message'] ?? 'Added.'};
+      }
+      return {"success": false, "message": decoded['message'] ?? 'Failed to add attribute.'};
+    } catch (e) {
+      return {"success": false, "message": "An error occurred: $e"};
+    }
+  }
+
+  Future<Map<String, dynamic>> deleteAttributeDefinition(int definitionId) async {
+    try {
+      final url = '${ApiEndpoints.baseUrl}${ApiEndpoints.projectSpecificationAttributeDefinitionDetail(projectId, definitionId)}';
+      final response = await ApiClient.delete(url);
+      final decoded = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        await fetchAttributeDefinitions();
+        return {"success": true, "message": decoded['message'] ?? 'Removed.'};
+      }
+      return {"success": false, "message": decoded['message'] ?? 'Failed to remove attribute.'};
+    } catch (e) {
+      return {"success": false, "message": "An error occurred: $e"};
+    }
+  }
+
   Future<Map<String, dynamic>> deleteSpecification(int specId) async {
     try {
       final url = '${ApiEndpoints.baseUrl}${ApiEndpoints.projectSpecificationDetail(projectId, specId)}';

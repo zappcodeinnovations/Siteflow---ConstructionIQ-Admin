@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
@@ -369,7 +370,13 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
       final response = await ApiClient.delete(deleteUrl);
       if (!mounted) return;
       if (response.statusCode == 200) {
-        await _fetchTabFiles();
+        // Same reasoning as upload: remove it from local state right away
+        // rather than waiting on a full (and comparatively heavy)
+        // project-detail refetch before the counter reflects the delete.
+        setState(() {
+          _localFiles = _localFiles.where((f) => _getFileId(f) != fileId).toList();
+        });
+        unawaited(_fetchTabFiles());
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -603,7 +610,19 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
       );
       if (!mounted) return;
       if (response.statusCode == 200 || response.statusCode == 201) {
-        await _fetchTabFiles();
+        // Insert the uploaded file into local state immediately instead of
+        // waiting on a full project-detail refetch - that request fetches
+        // the entire project (specs, drawings, job sheets, HSE, ...), not
+        // just this tab's files, so the folder's item counter used to sit
+        // stale until that whole round-trip finished.
+        final decoded = jsonDecode(response.body);
+        final uploaded = decoded['data'];
+        if (uploaded is Map) {
+          setState(() {
+            _localFiles = [..._localFiles, Map<String, dynamic>.from(uploaded)];
+          });
+        }
+        unawaited(_fetchTabFiles());
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(

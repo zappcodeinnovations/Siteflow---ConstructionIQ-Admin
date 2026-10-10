@@ -1,5 +1,11 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
+import '../../../core/network/api_client.dart';
+import '../../../core/network/api_endpoints.dart';
 import '../../../core/theme/app_theme.dart';
 import '../specification_controller.dart';
 import '../specification_detail_screen.dart';
@@ -112,6 +118,182 @@ class _SpecificationsTabState extends State<SpecificationsTab> {
     );
   }
 
+  Future<void> _downloadReport() async {
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Downloading report..."), duration: Duration(seconds: 2)),
+      );
+      final url = '${ApiEndpoints.baseUrl}${ApiEndpoints.projectSpecifications(widget.projectId)}?export=csv';
+      final response = await ApiClient.get(url);
+      if (!mounted) return;
+      if (response.statusCode == 200) {
+        final directory = await getTemporaryDirectory();
+        final file = File('${directory.path}/specifications_report_${DateTime.now().millisecondsSinceEpoch}.csv');
+        await file.writeAsBytes(response.bodyBytes);
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        await Share.shareXFiles([XFile(file.path)], text: "Specifications Report");
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Failed to download report (${response.statusCode}).")),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error downloading report: $e")),
+        );
+      }
+    }
+  }
+
+  Future<void> _showManageAttributesSheet() async {
+    await _controller.fetchAttributeDefinitions();
+    if (!mounted) return;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: isDark ? AppTheme.darkSurface : Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (sheetContext) {
+        return AnimatedBuilder(
+          animation: _controller,
+          builder: (context, _) {
+            return DraggableScrollableSheet(
+              initialChildSize: 0.6,
+              maxChildSize: 0.9,
+              minChildSize: 0.3,
+              expand: false,
+              builder: (context, scrollController) => Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          "Manage Attributes",
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF0F2C4A)),
+                        ),
+                        IconButton(icon: const Icon(IconlyLight.close_square), onPressed: () => Navigator.pop(context)),
+                      ],
+                    ),
+                    Text(
+                      "These attributes are available on every specification in this project.",
+                      style: TextStyle(fontSize: 12, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                    ),
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: _controller.isLoadingAttributeDefinitions
+                          ? const Center(child: CircularProgressIndicator())
+                          : _controller.attributeDefinitions.isEmpty
+                              ? const Center(child: Text("No attributes defined for this project yet."))
+                              : ListView.builder(
+                                  controller: scrollController,
+                                  itemCount: _controller.attributeDefinitions.length,
+                                  itemBuilder: (context, index) {
+                                    final def = _controller.attributeDefinitions[index];
+                                    return ListTile(
+                                      title: Text(def['name']?.toString() ?? '', style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
+                                      subtitle: Text(
+                                        (def['attribute_type']?.toString() ?? 'text'),
+                                        style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                                      ),
+                                      trailing: IconButton(
+                                        icon: const Icon(IconlyLight.delete, size: 18, color: Colors.red),
+                                        onPressed: () async {
+                                          final result = await _controller.deleteAttributeDefinition(def['id'] as int);
+                                          if (!context.mounted) return;
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(content: Text(result['message'] ?? ''), backgroundColor: result['success'] == true ? Colors.green : Colors.red),
+                                          );
+                                        },
+                                      ),
+                                    );
+                                  },
+                                ),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: _showAddAttributeDefinitionDialog,
+                        icon: const Icon(IconlyLight.plus, size: 16),
+                        label: const Text("Add Attribute"),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _showAddAttributeDefinitionDialog() async {
+    final nameController = TextEditingController();
+    final optionsController = TextEditingController();
+    String type = 'text';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    await showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: isDark ? AppTheme.darkSurface : Colors.white,
+          title: const Text("Add Attribute"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(controller: nameController, decoration: const InputDecoration(labelText: "Name", border: OutlineInputBorder())),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: type,
+                decoration: const InputDecoration(labelText: "Type", border: OutlineInputBorder()),
+                items: const [
+                  DropdownMenuItem(value: 'text', child: Text("Text")),
+                  DropdownMenuItem(value: 'number', child: Text("Number")),
+                  DropdownMenuItem(value: 'yes_no', child: Text("Yes/No")),
+                  DropdownMenuItem(value: 'select', child: Text("Select")),
+                  DropdownMenuItem(value: 'multiselect', child: Text("Multiselect")),
+                ],
+                onChanged: (val) => setDialogState(() => type = val ?? 'text'),
+              ),
+              if (type == 'select' || type == 'multiselect') ...[
+                const SizedBox(height: 12),
+                TextField(
+                  controller: optionsController,
+                  maxLines: 3,
+                  decoration: const InputDecoration(labelText: "Options (one per line)", border: OutlineInputBorder()),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text("Cancel")),
+            ElevatedButton(
+              onPressed: () async {
+                final name = nameController.text.trim();
+                if (name.isEmpty) return;
+                final options = optionsController.text.split('\n').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+                Navigator.pop(dialogContext);
+                final result = await _controller.createAttributeDefinition(name: name, attributeType: type, options: options);
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(result['message'] ?? ''), backgroundColor: result['success'] == true ? Colors.green : Colors.red),
+                );
+              },
+              child: const Text("Add"),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _openDetail(int specId) {
     Navigator.push(
       context,
@@ -132,30 +314,45 @@ class _SpecificationsTabState extends State<SpecificationsTab> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _searchController,
-                  style: TextStyle(color: textColor),
-                  decoration: InputDecoration(
-                    isDense: true,
-                    hintText: "Search specifications…",
-                    prefixIcon: const Icon(IconlyLight.search, size: 18),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(20)),
-                  ),
-                  onSubmitted: (val) => _controller.fetchSpecifications(search: val),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: TextField(
+            controller: _searchController,
+            style: TextStyle(color: textColor),
+            decoration: InputDecoration(
+              isDense: true,
+              hintText: "Search specifications…",
+              prefixIcon: const Icon(IconlyLight.search, size: 18),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(20)),
+            ),
+            onSubmitted: (val) => _controller.fetchSpecifications(search: val),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0D6EFD), foregroundColor: Colors.white),
+                  onPressed: _showAddDialog,
+                  icon: const Icon(IconlyLight.plus, size: 16),
+                  label: const Text("Add"),
                 ),
-              ),
-              const SizedBox(width: 12),
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0D6EFD), foregroundColor: Colors.white),
-                onPressed: _showAddDialog,
-                icon: const Icon(IconlyLight.plus, size: 16),
-                label: const Text("Add"),
-              ),
-            ],
+                const SizedBox(width: 10),
+                OutlinedButton.icon(
+                  onPressed: _showManageAttributesSheet,
+                  icon: const Icon(IconlyLight.setting, size: 16),
+                  label: const Text("Manage Attributes"),
+                ),
+                const SizedBox(width: 10),
+                OutlinedButton.icon(
+                  onPressed: _downloadReport,
+                  icon: const Icon(IconlyLight.download, size: 16),
+                  label: const Text("Get Report"),
+                ),
+              ],
+            ),
           ),
         ),
         Expanded(
@@ -202,6 +399,11 @@ class _SpecificationsTabState extends State<SpecificationsTab> {
                                       ),
                                     ),
                                     Text("£${spec['total_value'] ?? '0.00'}", style: TextStyle(fontWeight: FontWeight.bold, color: textColor)),
+                                    const SizedBox(width: 4),
+                                    TextButton(
+                                      onPressed: () => _openDetail(spec['id'] as int),
+                                      child: const Text("Open"),
+                                    ),
                                     IconButton(
                                       icon: const Icon(IconlyLight.delete, size: 18, color: Colors.red),
                                       onPressed: () => _confirmDelete(spec),

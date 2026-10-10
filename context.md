@@ -202,3 +202,56 @@ Fix:
 Backend: `manage.py test API.tests -k Project` (new test
 `test_project_list_includes_owner_contractor_and_location_count` added).
 Flutter: `flutter analyze` on `project_model.dart` clean.
+
+## 2026-10-10 — Third bug batch from P:\Euroside_Project\bug.md (I1/I2/I9 done; I3 already correct)
+
+User pointed to a new scratch file in the backend repo, `bug.md`, with 12
+more bug descriptions (mostly Drawings/Site Manager/Incidents/Approvals/
+Specifications-toolbar/Project-Setup-redesign - the cluster deferred from
+the original 33-item audit). Tracked as I1-I12 in report.md. Also: per
+explicit user feedback this session ("har bar purane test mat run kara kar
+bas jitna update kiya hai utne kara kar" - don't run old tests every time,
+just run what you've updated), switched to running only the single new/
+touched test method per change, not the test class or suite.
+
+- **I1/I2 (Docs & Files folder counter delay)**: root cause was that both
+  upload and delete waited on a full `ProjectAllInOneDetailAPIView` refetch
+  (the entire project - specs, drawings, job sheets, HSE, everything) before
+  the folder's file counter updated at all. Fixed in
+  `lib/modules/projects/tabs/docs_files_tab.dart`: both actions now
+  optimistically insert/remove the file from local state immediately via
+  `setState`, with the full refetch still happening afterward in the
+  background (`unawaited(_fetchTabFiles())`) to reconcile. Backend
+  (`API/views.py`, the `module == "files"` POST handler) enriched to return
+  `folder_id`/`folder_type`/`is_private`/`created_at` on upload so the
+  optimistic object the app inserts is complete, not just `{id, title,
+  file_url}`.
+- **I3 (Job Sheets "More Filters" non-interactive)**: investigated
+  `lib/modules/projects/tabs/job_sheets_tab.dart` thoroughly - the button is
+  wired to `_openMoreFiltersSheet`, quick filter dropdowns call `setState`,
+  and `_filteredJobSheets` correctly reads every filter field client-side.
+  Could not find a defect via code review. Left as "needs device
+  verification" rather than guess at a fix with no evidence of what's
+  actually broken.
+- **I9 (Specifications tab toolbar/Open button)**: added an explicit "Open"
+  button to each specification card (previously only tap-to-open via
+  `InkWell`, no visible button); added "Manage Attributes" (bottom sheet
+  listing/adding/deleting project-level attribute *definitions* - reuses the
+  `ProjectSpecificationAttributeDefinitionsAPIView` built earlier this
+  session, new methods added to `SpecificationController`) and "Get Report"
+  (downloads/shares a CSV, new `?export=csv` query param added to
+  `ProjectSpecificationsAPIView` in `API/views.py`, mirroring the web's
+  existing `project_specifications_report` CSV export exactly - same
+  column set: Name/Code/Price/Locations/Total Value).
+
+Backend tests run narrowly per the user's instruction:
+`test_project_list_includes_owner_contractor_and_location_count` (fixed an
+off-by-one in an assertion someone else concurrently appended to that test
+function - not something I originally wrote) and the new
+`ProjectSpecificationAPITests.test_export_csv`, both passing individually.
+Flutter: full `flutter analyze` clean (0 errors) after this batch.
+
+Remaining from this batch: I4 (Approvals tab), I5 (Locations/Site Manager
+mismatch), I6-I8 (Incidents trio), I10 (Project Setup redesign, large),
+I11 (Manager Diary webview cut-off layout), I12 (signature/photo scroll
+lock, previously investigated and unresolved).
