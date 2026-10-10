@@ -6,7 +6,6 @@ import '../admin_screen.dart';
 import '../../projects/projects_screen.dart';
 import '../../../core/utils/date_helper.dart';
 import '../../../core/theme/app_theme.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:iconly/iconly.dart';
 import '../../../../models/admin_support_model.dart';
 
@@ -559,29 +558,6 @@ class _AdminSupportViewState extends State<AdminSupportView> {
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 16),
-                            if (_controller.quickActions?.links != null)
-                              ..._controller.quickActions!.links.map((link) {
-                                return Padding(
-                                  padding: const EdgeInsets.only(top: 8.0),
-                                  child: InkWell(
-                                    onTap: () async {
-                                      final uri = Uri.parse(link.url);
-                                      if (await canLaunchUrl(uri)) {
-                                        await launchUrl(uri);
-                                      }
-                                    },
-                                    child: Text(
-                                      link.title,
-                                      style: TextStyle(
-                                        color: isDark ? Colors.lightBlueAccent : Colors.blue.shade700,
-                                        decoration: TextDecoration.underline,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              }),
                           ],
                         ),
                       ),
