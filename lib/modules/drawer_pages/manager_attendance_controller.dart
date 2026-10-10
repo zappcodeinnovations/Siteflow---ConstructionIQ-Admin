@@ -33,6 +33,18 @@ class ManagerAttendanceController extends ChangeNotifier {
   String? _selectedManager;
   String? get selectedManager => _selectedManager;
 
+  ManagerAttendanceController() {
+    _initDefaultTodayDate();
+  }
+
+  void _initDefaultTodayDate() {
+    final now = DateTime.now();
+    final todayStr =
+        "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+    _fromDate = todayStr;
+    _toDate = todayStr;
+  }
+
   String _buildUrl(int page) {
     final queryParams = <String>['page=$page', 'page_size=25'];
     if (_fromDate != null && _fromDate!.isNotEmpty) queryParams.add('from=$_fromDate');
@@ -95,7 +107,7 @@ class ManagerAttendanceController extends ChangeNotifier {
 
   Future<void> fetchFilterOptions() async {
     try {
-      final url = ApiEndpoints.baseUrl + '/manager-attendance/filters/';
+      final url = '${ApiEndpoints.baseUrl}/manager-attendance/filters/';
       final response = await ApiClient.get(url);
       final decodedData = jsonDecode(response.body);
 
@@ -104,13 +116,13 @@ class ManagerAttendanceController extends ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      print("Error fetching filters: $e");
+      debugPrint("Error fetching filters: $e");
     }
   }
 
   Future<Map<String, dynamic>> clockAction(String action) async {
     try {
-      final url = ApiEndpoints.baseUrl + '/manager-attendance/clock/';
+      final url = '${ApiEndpoints.baseUrl}/manager-attendance/clock/';
       final payload = {
         "action": action,
         "latitude": "53.3498053", // Mocked Dublin
@@ -145,8 +157,7 @@ class ManagerAttendanceController extends ChangeNotifier {
   }
 
   void resetFilters() {
-    _fromDate = null;
-    _toDate = null;
+    _initDefaultTodayDate();
     _selectedManager = null;
     notifyListeners();
   }

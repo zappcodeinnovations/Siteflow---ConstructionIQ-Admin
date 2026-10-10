@@ -37,8 +37,28 @@ class JobSheetController extends ChangeNotifier {
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
 
+  static String _formatStatusForApi(String status) {
+    var statusVal = status.replaceAll('Status: ', '').toLowerCase().trim();
+    if (statusVal.isEmpty || statusVal == 'all') return 'all';
+    return statusVal.replaceAll(' ', '_');
+  }
+
+  static String _normalizeStatus(String raw) {
+    return raw.replaceAll('Status: ', '').toLowerCase().replaceAll(' ', '_').trim();
+  }
+
   List<JobSheet> _jobSheets = [];
-  List<JobSheet> get jobSheets => _jobSheets;
+  List<JobSheet> get jobSheets {
+    final statusVal = _formatStatusForApi(_selectedStatus);
+    if (statusVal == 'all') {
+      return _jobSheets;
+    }
+    return _jobSheets.where((sheet) {
+      final s = _normalizeStatus(sheet.status);
+      final sl = _normalizeStatus(sheet.statusLabel);
+      return s == statusVal || sl == statusVal;
+    }).toList();
+  }
 
   // Unfiltered cache for instant 0ms Reset
   List<JobSheet> _cachedUnfilteredJobSheets = [];
@@ -69,7 +89,7 @@ class JobSheetController extends ChangeNotifier {
   String? get selectedForm => _selectedForm;
 
   bool get hasActiveFilters =>
-      _selectedStatus != 'Status: All' && _selectedStatus != 'All' ||
+      (_selectedStatus != 'Status: All' && _selectedStatus != 'All' && _selectedStatus.isNotEmpty) ||
       (_selectedProject?.isNotEmpty ?? false) ||
       (_selectedSheetNo?.isNotEmpty ?? false) ||
       (_selectedClient?.isNotEmpty ?? false) ||
@@ -94,12 +114,7 @@ class JobSheetController extends ChangeNotifier {
       queryParams.add('project=${Uri.encodeComponent(_selectedProject!)}');
     }
 
-    var statusVal = _selectedStatus
-        .replaceAll('Status: ', '')
-        .toLowerCase()
-        .trim()
-        .replaceAll(' ', '_');
-    if (statusVal.isEmpty) statusVal = 'all';
+    final statusVal = _formatStatusForApi(_selectedStatus);
     queryParams.add('status=${Uri.encodeComponent(statusVal)}');
     if (_selectedSheetNo?.isNotEmpty == true) queryParams.add('sheet_no=${Uri.encodeComponent(_selectedSheetNo!)}');
     if (_selectedClient?.isNotEmpty == true) queryParams.add('client=${Uri.encodeComponent(_selectedClient!)}');
@@ -158,7 +173,7 @@ class JobSheetController extends ChangeNotifier {
   }
 
   Future<void> fetchJobSheets({String? projectId, bool silent = false, bool keepPreviousData = false}) async {
-    if (!silent && !keepPreviousData && _jobSheets.isEmpty) {
+    if (!silent) {
       _isLoading = true;
     }
     _errorMessage = null;

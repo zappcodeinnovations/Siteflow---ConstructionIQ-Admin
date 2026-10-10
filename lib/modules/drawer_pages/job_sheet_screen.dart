@@ -1327,6 +1327,10 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
                                         _buildDetailItem("CLIENT", sheet.clientName),
                                         const SizedBox(height: 16),
                                         _buildOperativeItem(sheet.operative),
+                                        if (!widget.dailyReportsMode) ...[
+                                          const SizedBox(height: 16),
+                                          _buildDetailItem("MATERIAL COST", sheet.materialCost.isNotEmpty ? "£${sheet.materialCost}" : "£0.00", isBold: true),
+                                        ],
                                       ],
                                     ),
                                   ),
@@ -1339,6 +1343,10 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
                                         _buildDetailItem("JOB NO/REF", "${sheet.jobNo} / ${sheet.jobReference}"),
                                         const SizedBox(height: 16),
                                         _buildDetailItem("LOCATION", sheet.location),
+                                        if (!widget.dailyReportsMode) ...[
+                                          const SizedBox(height: 16),
+                                          _buildDetailItem("CHARGE", sheet.charge.isNotEmpty ? "£${sheet.charge}" : "£0.00", isBold: true, color: isDark ? Colors.white : const Color(0xFF0D6EFD)),
+                                        ],
                                       ],
                                     ),
                                   ),

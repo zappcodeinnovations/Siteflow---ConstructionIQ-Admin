@@ -257,43 +257,507 @@ class _RateSetsSection extends StatelessWidget {
   });
 
   Future<void> _showAddRateSetDialog(BuildContext context) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final nameController = TextEditingController();
+    final minMeasureController = TextEditingController();
+    String selectedCategory = activeCategory;
     bool isDefault = false;
+    bool isSaving = false;
+    String? nameError;
 
     await showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text("Add Rate Set"),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(controller: nameController, decoration: const InputDecoration(labelText: "Name", border: OutlineInputBorder())),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text("Default for this category"),
-                value: isDefault,
-                onChanged: (val) => setDialogState(() => isDefault = val),
+        builder: (context, setDialogState) {
+          final titleColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
+          final fieldFill = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.white;
+          final fieldBorder = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+
+          return Dialog(
+            backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 480),
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Header Row with Title & Close Icon
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            "Add Rate Set",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: titleColor,
+                            ),
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.close, size: 20, color: isDark ? Colors.white70 : Colors.grey.shade600),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            onPressed: () => Navigator.pop(dialogContext),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Category *
+                      Text.rich(
+                        TextSpan(
+                          children: [
+                            TextSpan(
+                              text: "Category ",
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: isDark ? Colors.white70 : const Color(0xFF334155),
+                              ),
+                            ),
+                            const TextSpan(
+                              text: "*",
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.red,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: fieldFill,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: fieldBorder),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: selectedCategory,
+                            isExpanded: true,
+                            dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
+                            items: categories.map((cat) {
+                              return DropdownMenuItem(
+                                value: cat,
+                                child: Text(categoryLabels[cat] ?? cat),
+                              );
+                            }).toList(),
+                            onChanged: (val) {
+                              if (val != null) {
+                                setDialogState(() => selectedCategory = val);
+                              }
+                            },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Name *
+                      Text.rich(
+                        TextSpan(
+                          children: [
+                            TextSpan(
+                              text: "Name ",
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: isDark ? Colors.white70 : const Color(0xFF334155),
+                              ),
+                            ),
+                            const TextSpan(
+                              text: "*",
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.red,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: nameController,
+                        style: TextStyle(fontSize: 14, color: isDark ? Colors.white : Colors.black87),
+                        decoration: InputDecoration(
+                          hintText: "e.g. Standard Rate, Subcontractor",
+                          hintStyle: TextStyle(fontSize: 14, color: isDark ? Colors.white38 : Colors.grey.shade400),
+                          filled: true,
+                          fillColor: fieldFill,
+                          errorText: nameError,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: fieldBorder)),
+                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: fieldBorder)),
+                          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF0D6EFD))),
+                        ),
+                        onChanged: (val) {
+                          if (nameError != null && val.trim().isNotEmpty) {
+                            setDialogState(() => nameError = null);
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Minimum Measure
+                      Text(
+                        "Minimum Measure",
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.white70 : const Color(0xFF334155),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: minMeasureController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        style: TextStyle(fontSize: 14, color: isDark ? Colors.white : Colors.black87),
+                        decoration: InputDecoration(
+                          hintText: "e.g. 0.00",
+                          hintStyle: TextStyle(fontSize: 14, color: isDark ? Colors.white38 : Colors.grey.shade400),
+                          filled: true,
+                          fillColor: fieldFill,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: fieldBorder)),
+                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: fieldBorder)),
+                          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF0D6EFD))),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Set as default Checkbox
+                      InkWell(
+                        onTap: () => setDialogState(() => isDefault = !isDefault),
+                        borderRadius: BorderRadius.circular(6),
+                        child: Row(
+                          children: [
+                            SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: Checkbox(
+                                value: isDefault,
+                                activeColor: const Color(0xFF0D6EFD),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                                onChanged: (val) => setDialogState(() => isDefault = val ?? false),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              "Set as default",
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: isDark ? Colors.white : const Color(0xFF334155),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Footer Actions: Cancel and Save
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: isDark ? Colors.white70 : Colors.black87,
+                              side: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
+                              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                            onPressed: isSaving ? null : () => Navigator.pop(dialogContext),
+                            child: const Text("Cancel"),
+                          ),
+                          const SizedBox(width: 12),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF0D6EFD),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              elevation: 0,
+                            ),
+                            onPressed: isSaving
+                                ? null
+                                : () async {
+                                    final name = nameController.text.trim();
+                                    if (name.isEmpty) {
+                                      setDialogState(() => nameError = "Rate set name is required");
+                                      return;
+                                    }
+
+                                    setDialogState(() => isSaving = true);
+                                    final minMeasure = minMeasureController.text.trim();
+                                    final result = await controller.createRateSet(
+                                      name: name,
+                                      category: selectedCategory,
+                                      minimumMeasure: minMeasure.isNotEmpty ? minMeasure : null,
+                                      isDefault: isDefault,
+                                    );
+
+                                    if (!context.mounted) return;
+                                    Navigator.pop(dialogContext);
+
+                                    if (selectedCategory != activeCategory) {
+                                      onCategoryChanged(selectedCategory);
+                                    }
+
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(result['message'] ?? ''),
+                                        backgroundColor: result['success'] == true ? Colors.green : Colors.red,
+                                      ),
+                                    );
+                                  },
+                            child: isSaving
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                  )
+                                : const Text("Save", style: TextStyle(fontWeight: FontWeight.bold)),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ],
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text("Cancel")),
-            ElevatedButton(
-              onPressed: () async {
-                final name = nameController.text.trim();
-                if (name.isEmpty) return;
-                Navigator.pop(dialogContext);
-                final result = await controller.createRateSet(name: name, category: activeCategory, isDefault: isDefault);
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(result['message'] ?? ''), backgroundColor: result['success'] == true ? Colors.green : Colors.red),
-                );
-              },
-              child: const Text("Create"),
             ),
-          ],
-        ),
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _showManageRateSetsModal(BuildContext context) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, setSheetState) {
+          final totalCount = controller.rateSets.length;
+
+          return ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.8,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Header
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0D6EFD).withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(IconlyLight.setting, color: Color(0xFF0D6EFD), size: 20),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Manage Rate Sets",
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? Colors.white : const Color(0xFF0F2C4A),
+                              ),
+                            ),
+                            Text(
+                              "${categoryLabels[activeCategory] ?? activeCategory} · $totalCount configured",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.close, size: 20, color: isDark ? Colors.white70 : Colors.grey.shade600),
+                        onPressed: () => Navigator.pop(sheetContext),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+
+                // Category selector inside management modal
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: categories.map((cat) {
+                        final isSelected = activeCategory == cat;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: ChoiceChip(
+                            label: Text(categoryLabels[cat] ?? cat),
+                            selected: isSelected,
+                            selectedColor: const Color(0xFF0D6EFD),
+                            labelStyle: TextStyle(
+                              color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                              fontSize: 12,
+                            ),
+                            onSelected: (_) {
+                              onCategoryChanged(cat);
+                              setSheetState(() {});
+                            },
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ),
+
+                // Rate sets list
+                Expanded(
+                  child: controller.rateSets.isEmpty
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Text(
+                              "No ${categoryLabels[activeCategory] ?? activeCategory} rate sets yet.",
+                              style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                            ),
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          itemCount: controller.rateSets.length,
+                          itemBuilder: (context, index) {
+                            final rateSet = controller.rateSets[index];
+                            final tierCount = ((rateSet['tiers'] as List?) ?? []).length;
+                            final isDefaultSet = rateSet['is_default'] == true;
+
+                            return Card(
+                              margin: const EdgeInsets.only(bottom: 10),
+                              color: isDark ? Colors.white10 : const Color(0xFFF8FAFC),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                side: BorderSide(color: isDark ? Colors.white12 : Colors.grey.shade200),
+                              ),
+                              child: ListTile(
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                                title: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        rateSet['name']?.toString() ?? '',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          color: isDark ? Colors.white : const Color(0xFF0F2C4A),
+                                        ),
+                                      ),
+                                    ),
+                                    if (isDefaultSet)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: Colors.green.withValues(alpha: 0.1),
+                                          borderRadius: BorderRadius.circular(12),
+                                          border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+                                        ),
+                                        child: const Text(
+                                          "Default",
+                                          style: TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.bold),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                                subtitle: Text(
+                                  "$tierCount tier(s) configured",
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                                  ),
+                                ),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(IconlyLight.edit, size: 18, color: Color(0xFF0D6EFD)),
+                                      tooltip: "Edit Tiers",
+                                      onPressed: () {
+                                        Navigator.pop(sheetContext);
+                                        _editTiers(context, rateSet);
+                                      },
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(IconlyLight.delete, size: 18, color: Colors.red),
+                                      tooltip: "Delete Rate Set",
+                                      onPressed: () async {
+                                        final result = await controller.deleteRateSet(rateSet['id'] as int, activeCategory);
+                                        setSheetState(() {});
+                                        if (!context.mounted) return;
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text(result['message'] ?? ''),
+                                            backgroundColor: result['success'] == true ? Colors.green : Colors.red,
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+
+                // Bottom Action
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0D6EFD),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    onPressed: () {
+                      Navigator.pop(sheetContext);
+                      _showAddRateSetDialog(context);
+                    },
+                    icon: const Icon(IconlyLight.plus, size: 18),
+                    label: const Text("Add New Rate Set", style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -416,40 +880,190 @@ class _RateSetsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final activeLabel = categoryLabels[activeCategory] ?? activeCategory;
+
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // Top Section: Header & Action Buttons ("Manage Rate Sets" and "Add Rates")
         Padding(
-          padding: const EdgeInsets.all(12),
-          child: Wrap(
-            spacing: 8,
-            children: categories.map((cat) {
-              return ChoiceChip(
-                label: Text(categoryLabels[cat] ?? cat),
-                selected: activeCategory == cat,
-                onSelected: (_) => onCategoryChanged(cat),
-              );
-            }).toList(),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                "Rate Sets",
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : const Color(0xFF0F2C4A),
+                ),
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Manage Rate Sets Button
+                  TextButton.icon(
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFF0D6EFD),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    ),
+                    onPressed: () => _showManageRateSetsModal(context),
+                    icon: const Icon(IconlyLight.setting, size: 16),
+                    label: const Text(
+                      "Manage Rate Sets",
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+
+                  // Add Rates Action Button
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0D6EFD),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      elevation: 0,
+                    ),
+                    onPressed: () => _showAddRateSetDialog(context),
+                    icon: const Icon(IconlyLight.plus, size: 14),
+                    label: const Text(
+                      "Add Rates",
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
+
+        // Category Pills Row (Operative, Material Cost, Charge)
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: categories.map((cat) {
+                final isSelected = activeCategory == cat;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(8),
+                    onTap: () => onCategoryChanged(cat),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))
+                            : (isDark ? Colors.white10 : Colors.grey.shade100),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: isSelected
+                              ? (isDark ? const Color(0xFF64748B) : const Color(0xFFCBD5E1))
+                              : Colors.transparent,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (isSelected) ...[
+                            Icon(
+                              Icons.check,
+                              size: 14,
+                              color: isDark ? Colors.white : const Color(0xFF0F2C4A),
+                            ),
+                            const SizedBox(width: 6),
+                          ],
+                          Text(
+                            categoryLabels[cat] ?? cat,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                              color: isSelected
+                                  ? (isDark ? Colors.white : const Color(0xFF0F2C4A))
+                                  : (isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+
+        // Main List or Empty State
         Expanded(
           child: controller.rateSets.isEmpty
-              ? const Center(child: Text("No rate sets for this category yet."))
+              ? Center(
+                  child: Text(
+                    "No $activeLabel rate sets yet.",
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                    ),
+                  ),
+                )
               : ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   itemCount: controller.rateSets.length,
                   itemBuilder: (context, index) {
                     final rateSet = controller.rateSets[index];
                     final tierCount = ((rateSet['tiers'] as List?) ?? []).length;
+                    final isDefaultSet = rateSet['is_default'] == true;
+
                     return Card(
-                      margin: const EdgeInsets.only(bottom: 8),
+                      margin: const EdgeInsets.only(bottom: 10),
+                      color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(color: isDark ? Colors.white12 : Colors.grey.shade200),
+                      ),
+                      elevation: 0,
                       child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                         title: Row(
                           children: [
-                            Expanded(child: Text(rateSet['name']?.toString() ?? '')),
-                            if (rateSet['is_default'] == true) const Chip(label: Text("Default", style: TextStyle(fontSize: 10)), visualDensity: VisualDensity.compact),
+                            Expanded(
+                              child: Text(
+                                rateSet['name']?.toString() ?? '',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? Colors.white : const Color(0xFF0F2C4A),
+                                ),
+                              ),
+                            ),
+                            if (isDefaultSet)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.green.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+                                ),
+                                child: const Text(
+                                  "Default",
+                                  style: TextStyle(fontSize: 11, color: Colors.green, fontWeight: FontWeight.bold),
+                                ),
+                              ),
                           ],
                         ),
-                        subtitle: Text("$tierCount tier(s)"),
+                        subtitle: Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            "$tierCount tier(s)",
+                            style: TextStyle(
+                              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
                         onTap: () => _editTiers(context, rateSet),
                         trailing: IconButton(
                           icon: const Icon(IconlyLight.delete, size: 18, color: Colors.red),
@@ -457,7 +1071,10 @@ class _RateSetsSection extends StatelessWidget {
                             final result = await controller.deleteRateSet(rateSet['id'] as int, activeCategory);
                             if (!context.mounted) return;
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text(result['message'] ?? ''), backgroundColor: result['success'] == true ? Colors.green : Colors.red),
+                              SnackBar(
+                                content: Text(result['message'] ?? ''),
+                                backgroundColor: result['success'] == true ? Colors.green : Colors.red,
+                              ),
                             );
                           },
                         ),
@@ -466,14 +1083,21 @@ class _RateSetsSection extends StatelessWidget {
                   },
                 ),
         ),
+
+        // Bottom Action Button
         Padding(
           padding: const EdgeInsets.all(16),
           child: SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                side: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              ),
               onPressed: () => _showAddRateSetDialog(context),
               icon: const Icon(IconlyLight.plus, size: 16),
-              label: const Text("Add Rate Set"),
+              label: const Text("Add Rate Set", style: TextStyle(fontWeight: FontWeight.w600)),
             ),
           ),
         ),

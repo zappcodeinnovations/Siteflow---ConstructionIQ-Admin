@@ -194,12 +194,25 @@ class AdminMaterialDetailController extends ChangeNotifier {
     } catch (_) {}
   }
 
-  Future<Map<String, dynamic>> createRateSet({required String name, required String category, bool isDefault = false}) async {
+  Future<Map<String, dynamic>> createRateSet({
+    required String name,
+    required String category,
+    String? minimumMeasure,
+    bool isDefault = false,
+  }) async {
     try {
       final url = '${ApiEndpoints.baseUrl}${ApiEndpoints.adminMaterialRateSets(materialId)}';
-      final response = await ApiClient.post(url, body: {"name": name, "category": category, "is_default": isDefault});
+      final Map<String, dynamic> body = {
+        "name": name,
+        "category": category,
+        "is_default": isDefault,
+        if (minimumMeasure != null && minimumMeasure.isNotEmpty)
+          "minimum_measure": minimumMeasure,
+      };
+      final response = await ApiClient.post(url, body: body);
       final decoded = jsonDecode(response.body);
-      if (response.statusCode == 201) {
+      if (response.statusCode == 201 ||
+          (response.statusCode == 200 && decoded['status'] == true)) {
         await fetchRateSets(category: category);
         return {"success": true, "message": decoded['message'] ?? 'Rate set created.'};
       }

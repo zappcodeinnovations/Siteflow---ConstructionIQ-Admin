@@ -20,6 +20,8 @@ class User {
   final bool changePassword;
   final String? joinedAt;
   final String? updatedAt;
+  final String? lastLogin;
+  final String? companyName;
 
   User({
     required this.id,
@@ -43,31 +45,38 @@ class User {
     required this.changePassword,
     this.joinedAt,
     this.updatedAt,
+    this.lastLogin,
+    this.companyName,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
-      id: json['id'],
+      id: json['id'] ?? 0,
       employeeId: json['employee_id']?.toString(),
       email: json['email'] ?? '',
-      username: json['username'] ?? '',
+      username: json['username'] ?? json['email'] ?? '',
       firstName: json['first_name'],
       lastName: json['last_name'],
-      displayName: json['display_name'] ?? '',
-      effectiveRole: json['effective_role'] ?? '',
-      roleLabel: json['role_label'],
+      displayName: json['display_name'] ??
+          (json['first_name'] != null && json['last_name'] != null
+              ? "${json['first_name']} ${json['last_name']}".trim()
+              : (json['email'] ?? '')),
+      effectiveRole: json['effective_role'] ?? json['role'] ?? '',
+      roleLabel: json['role_label'] ?? json['role']?.toString().toUpperCase(),
       initials: json['initials'],
       profileImage: json['profile_image'],
       profileImageUrl: json['profile_image_url'],
-      phone: json['phone']?.toString(),
+      phone: json['phone']?.toString() ?? json['mobile']?.toString(),
       team: json['team']?.toString(),
-      isActive: json['is_active'] ?? false,
+      isActive: json['is_active'] ?? true,
       isPasswordSet: json['is_password_set'] ?? false,
       deviceId: json['device_id'],
       fcmToken: json['fcm_token'],
       changePassword: json['change_password'] ?? false,
-      joinedAt: json['joined_at'],
+      joinedAt: json['joined_at'] ?? json['created_at'] ?? json['date_joined'],
       updatedAt: json['updated_at'],
+      lastLogin: json['last_login'] ?? json['last_login_at'] ?? json['last_activity'],
+      companyName: json['company_name'] ?? json['organization_name'] ?? json['organisation_name'] ?? 'Euroside Construction Limited',
     );
   }
 }

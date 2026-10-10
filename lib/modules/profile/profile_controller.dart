@@ -108,4 +108,56 @@ class ProfileController extends ChangeNotifier {
       return false;
     }
   }
+
+  Future<Map<String, dynamic>> changePassword({
+    required String currentPassword,
+    required String newPassword,
+    required String confirmPassword,
+  }) async {
+    try {
+      final payload = {
+        'current_password': currentPassword,
+        'old_password': currentPassword,
+        'new_password': newPassword,
+        'password': newPassword,
+        'confirm_password': confirmPassword,
+        'confirm_new_password': confirmPassword,
+      };
+
+      final endpoints = [
+        '${ApiEndpoints.baseUrl}/profile/change-password/',
+        '${ApiEndpoints.baseUrl}/auth/change-password/',
+        '${ApiEndpoints.baseUrl}/admin/change-password/',
+        '${ApiEndpoints.baseUrl}/change-password/',
+      ];
+
+      dynamic lastDecoded;
+      for (final url in endpoints) {
+        try {
+          final response = await ApiClient.post(url, body: payload);
+          try {
+            lastDecoded = jsonDecode(response.body);
+          } catch (_) {
+            lastDecoded = response.body;
+          }
+
+          if (response.statusCode == 200 || response.statusCode == 201) {
+            if (lastDecoded is Map && lastDecoded['status'] == false) {
+              return {"success": false, "message": lastDecoded['message'] ?? "Failed to change password."};
+            }
+            return {"success": true, "message": (lastDecoded is Map && lastDecoded['message'] != null) ? lastDecoded['message'] : "Password updated successfully."};
+          } else if (response.statusCode != 404 && response.statusCode != 405) {
+            String errorMsg = "Failed to update password.";
+            if (lastDecoded is Map) {
+              errorMsg = lastDecoded['message'] ?? lastDecoded['detail'] ?? lastDecoded['error'] ?? errorMsg;
+            }
+            return {"success": false, "message": errorMsg};
+          }
+        } catch (_) {}
+      }
+      return {"success": false, "message": "Failed to update password. Please try again."};
+    } catch (e) {
+      return {"success": false, "message": "An error occurred: $e"};
+    }
+  }
 }

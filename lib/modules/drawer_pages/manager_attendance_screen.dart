@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'manager_attendance_controller.dart';
 import '../../models/manager_attendance_model.dart';
-import '../../core/widgets/shimmer_loading.dart';
 import 'package:iconly/iconly.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/background_stripes_painter.dart';
@@ -21,11 +20,72 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
   final ScrollController _scrollController = ScrollController();
   bool _isClocking = false;
 
-  String _formatTimestamp(String? value) {
-    if (value == null || value.trim().isEmpty) return 'N/A';
-    final parsed = DateTime.tryParse(value);
-    if (parsed == null) return value;
-    return DateFormat('dd MMM, hh:mm a').format(parsed.toLocal());
+  String _formatDateLabel(String? fromDate, String? toDate) {
+    if (fromDate == null || fromDate.isEmpty) return 'Select - Date';
+    try {
+      final fromDt = DateTime.parse(fromDate);
+      final fromFormatted = DateFormat('dd/MM/yyyy').format(fromDt);
+      if (toDate == null || toDate.isEmpty || fromDate == toDate) {
+        final now = DateTime.now();
+        if (fromDt.year == now.year &&
+            fromDt.month == now.month &&
+            fromDt.day == now.day) {
+          return "Today ($fromFormatted)";
+        }
+        return fromFormatted;
+      }
+      final toDt = DateTime.parse(toDate);
+      final toFormatted = DateFormat('dd/MM/yyyy').format(toDt);
+      return "$fromFormatted - $toFormatted";
+    } catch (_) {
+      return "$fromDate - ${toDate ?? ''}";
+    }
+  }
+
+  String _formatActiveSince(ManagerAttendanceResponse? data) {
+    if (data == null || data.kpi == null) return '-';
+    if (data.kpi!.currentStatus != 'Clocked In') {
+      return 'Clocked Out';
+    }
+    final raw = data.effectiveActiveSince;
+    if (raw.trim().isEmpty || raw == 'N/A') return 'Active Now';
+    final parsed = DateTime.tryParse(raw);
+    if (parsed != null) {
+      return DateFormat('hh:mm a').format(parsed.toLocal());
+    }
+    return raw;
+  }
+
+  static String formatDurationHuman(String? raw) {
+    if (raw == null || raw.trim().isEmpty || raw == '-' || raw == 'N/A') {
+      return '-';
+    }
+    final clean = raw
+        .trim()
+        .replaceAll('hrs', '')
+        .replaceAll('hr', '')
+        .replaceAll('h', '')
+        .trim();
+    if (clean.contains(':')) {
+      final parts = clean.split(':');
+      if (parts.length >= 2) {
+        final hours = int.tryParse(parts[0]);
+        final mins = int.tryParse(parts[1]);
+        if (hours != null && mins != null) {
+          if (hours == 0) return "0h ${mins}m";
+          return mins > 0 ? "${hours}h ${mins}m" : "${hours}h";
+        }
+      }
+    }
+    final numVal = double.tryParse(clean);
+    if (numVal != null) {
+      final totalMins = (numVal * 60).round();
+      final h = totalMins ~/ 60;
+      final m = totalMins % 60;
+      if (h == 0) return "0h ${m}m";
+      return m > 0 ? "${h}h ${m}m" : "${h}h";
+    }
+    return raw;
   }
 
   @override
@@ -48,7 +108,8 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
   }
 
   Future<void> _selectDateRange(BuildContext context) async {
-    final DateTimeRange? picked = await CustomDatePickerDialog.showCustomDateRangePicker(
+    final DateTimeRange? picked =
+        await CustomDatePickerDialog.showCustomDateRangePicker(
       context: context,
       firstDate: DateTime(2000),
       lastDate: DateTime(2101),
@@ -59,6 +120,7 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
       final endStr =
           "${picked.end.year}-${picked.end.month.toString().padLeft(2, '0')}-${picked.end.day.toString().padLeft(2, '0')}";
       _controller.setDateRange(startStr, endStr);
+      _controller.fetchManagerAttendance();
     }
   }
 
@@ -140,7 +202,9 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
                       backgroundColor: Colors.grey.shade100,
                     ),
                     Chip(
-                      label: Text("Total Worked: ${record.summaryTotalWorked}"),
+                      label: Text(
+                        "Total Worked: ${formatDurationHuman(record.summaryTotalWorked)}",
+                      ),
                       backgroundColor: Colors.grey.shade100,
                     ),
                     Chip(
@@ -197,7 +261,7 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
                             _buildDataCell(log.clockOut, 1, isBold: true),
                             _buildDataCell(
                               log.hours.trim().isNotEmpty
-                                  ? log.hours
+                                  ? formatDurationHuman(log.hours)
                                   : (log.isOpen || log.clockOut.trim().isEmpty)
                                       ? "In Progress"
                                       : "-",
@@ -477,7 +541,10 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
-                                    "${_controller.fromDate ?? 'Select'} - ${_controller.toDate ?? 'Date'}",
+                                    _formatDateLabel(
+                                      _controller.fromDate,
+                                      _controller.toDate,
+                                    ),
                                     style: TextStyle(
                                       fontWeight: FontWeight.w600,
                                       fontSize: 13,
@@ -582,8 +649,12 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
                             ),
                             _buildKpiCard(
                               "Total Hours",
-                              _controller.data!.kpi!.completedHours,
-                              Colors.black87,
+                              _controller.data!.kpi!.completedHours.isNotEmpty
+                                  ? formatDurationHuman(
+                                      _controller.data!.kpi!.completedHours,
+                                    )
+                                  : "0h 0m",
+                              isDark ? Colors.white : Colors.black87,
                               IconlyLight.time_circle,
                             ),
                             _buildKpiCard(
@@ -597,9 +668,7 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
                             ),
                             _buildKpiCard(
                               "Active Since",
-                              _formatTimestamp(
-                                _controller.data!.kpi!.clockedInSince,
-                              ),
+                              _formatActiveSince(_controller.data),
                               Colors.purple,
                               IconlyLight.category,
                             ),
@@ -640,7 +709,9 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
                             itemCount: _controller.data!.data.length,
                             separatorBuilder: (context, index) => const SizedBox(height: 16),
                             itemBuilder: (context, index) => _ManagerAttendanceCard(
-                              record: _controller.data!.data[index], index: index,
+                              record: _controller.data!.data[index],
+                              index: index,
+                              onViewLogs: () => _showLogsDialog(_controller.data!.data[index]),
                             ),
                           ),
                           if (_controller.isLoadingMore)
@@ -663,7 +734,12 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
 class _ManagerAttendanceCard extends StatefulWidget {
   final ManagerAttendanceRecord record;
   final int index;
-  const _ManagerAttendanceCard({required this.record, required this.index});
+  final VoidCallback? onViewLogs;
+  const _ManagerAttendanceCard({
+    required this.record,
+    required this.index,
+    this.onViewLogs,
+  });
 
   @override
   State<_ManagerAttendanceCard> createState() => _ManagerAttendanceCardState();
@@ -856,7 +932,7 @@ class _ManagerAttendanceCardState extends State<_ManagerAttendanceCard> {
                       children: [
                         Text(
                           widget.record.hours.trim().isNotEmpty
-                              ? "${widget.record.hours.trim()} hrs"
+                              ? _ManagerAttendanceScreenState.formatDurationHuman(widget.record.hours)
                               : (widget.record.isOpenSession || widget.record.clockOut.trim().isEmpty)
                                   ? "In Progress"
                                   : "-",
@@ -1000,7 +1076,7 @@ class _ManagerAttendanceCardState extends State<_ManagerAttendanceCard> {
                                       ),
                                       child: Text(
                                         log.hours.trim().isNotEmpty
-                                            ? "${log.hours.trim()}h"
+                                            ? _ManagerAttendanceScreenState.formatDurationHuman(log.hours)
                                             : (log.isOpen || log.clockOut.trim().isEmpty)
                                                 ? "In Progress"
                                                 : "-",

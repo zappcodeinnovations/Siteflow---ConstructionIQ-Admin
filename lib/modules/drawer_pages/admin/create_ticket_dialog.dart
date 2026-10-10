@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:iconly/iconly.dart';
 import 'admin_support_controller.dart';
 
@@ -18,6 +20,8 @@ class _CreateTicketDialogState extends State<CreateTicketDialog> {
 
   String _selectedCategory = 'login_access';
   String _selectedPriority = 'normal';
+
+  PlatformFile? _selectedFile;
 
   final List<Map<String, String>> _categories = [
     {'value': 'login_access', 'label': 'Login & access'},
@@ -40,14 +44,67 @@ class _CreateTicketDialogState extends State<CreateTicketDialog> {
     super.dispose();
   }
 
+  Future<void> _pickAttachment() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.any,
+        allowMultiple: false,
+        withData: true,
+      );
+      if (result != null && result.files.isNotEmpty) {
+        setState(() {
+          _selectedFile = result.files.first;
+        });
+      }
+    } catch (e) {
+      debugPrint("Error picking file: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Failed to pick file: $e"), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  void _removeAttachment() {
+    setState(() {
+      _selectedFile = null;
+    });
+  }
+
+  String _formatFileSize(int bytes) {
+    if (bytes <= 0) return "0 B";
+    if (bytes < 1024) return "$bytes B";
+    if (bytes < 1024 * 1024) return "${(bytes / 1024).toStringAsFixed(1)} KB";
+    return "${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB";
+  }
+
+  bool _isImageFile(String fileName) {
+    final parts = fileName.toLowerCase().split('.');
+    if (parts.length <= 1) return false;
+    final ext = parts.last;
+    return ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'heic'].contains(ext);
+  }
+
   Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) return;
+
+    String? attachmentBase64;
+    String? attachmentName;
+    if (_selectedFile != null) {
+      attachmentName = _selectedFile!.name;
+      if (_selectedFile!.bytes != null) {
+        attachmentBase64 = base64Encode(_selectedFile!.bytes!);
+      }
+    }
 
     final result = await widget.controller.submitTicket(
       subject: _subjectController.text.trim(),
       category: _selectedCategory,
       priority: _selectedPriority,
       body: _messageController.text.trim(),
+      attachmentBase64: attachmentBase64,
+      attachmentName: attachmentName,
     );
 
     if (mounted) {
@@ -143,27 +200,31 @@ class _CreateTicketDialogState extends State<CreateTicketDialog> {
                                 Text("Category", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isDark ? Colors.white : const Color(0xFF0F2C4A))),
                                 const SizedBox(height: 8),
                                 DropdownButtonFormField<String>(
-                                  value: _selectedCategory,
+                                  initialValue: _selectedCategory,
                                   isExpanded: true,
                                   dropdownColor: isDark ? const Color(0xFF162A42) : Colors.white,
                                   style: TextStyle(color: isDark ? Colors.white : Colors.black87),
                                   icon: Icon(Icons.arrow_drop_down, color: isDark ? Colors.white70 : Colors.grey.shade700),
                                   decoration: _buildInputDecoration(hintText: "Select Category", isDark: isDark),
                                   items: _categories.map((c) => DropdownMenuItem(value: c['value'], child: Text(c['label']!, overflow: TextOverflow.ellipsis))).toList(),
-                                  onChanged: (val) => setState(() => _selectedCategory = val!),
+                                  onChanged: (val) {
+                                    if (val != null) setState(() => _selectedCategory = val);
+                                  },
                                 ),
                                 const SizedBox(height: 16),
                                 Text("Priority", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isDark ? Colors.white : const Color(0xFF0F2C4A))),
                                 const SizedBox(height: 8),
                                 DropdownButtonFormField<String>(
-                                  value: _selectedPriority,
+                                  initialValue: _selectedPriority,
                                   isExpanded: true,
                                   dropdownColor: isDark ? const Color(0xFF162A42) : Colors.white,
                                   style: TextStyle(color: isDark ? Colors.white : Colors.black87),
                                   icon: Icon(Icons.arrow_drop_down, color: isDark ? Colors.white70 : Colors.grey.shade700),
                                   decoration: _buildInputDecoration(hintText: "Select Priority", isDark: isDark),
                                   items: _priorities.map((p) => DropdownMenuItem(value: p['value'], child: Text(p['label']!, overflow: TextOverflow.ellipsis))).toList(),
-                                  onChanged: (val) => setState(() => _selectedPriority = val!),
+                                  onChanged: (val) {
+                                    if (val != null) setState(() => _selectedPriority = val);
+                                  },
                                 ),
                               ],
                             );
@@ -177,14 +238,16 @@ class _CreateTicketDialogState extends State<CreateTicketDialog> {
                                     Text("Category", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isDark ? Colors.white : const Color(0xFF0F2C4A))),
                                     const SizedBox(height: 8),
                                     DropdownButtonFormField<String>(
-                                      value: _selectedCategory,
+                                      initialValue: _selectedCategory,
                                       isExpanded: true,
                                       dropdownColor: isDark ? const Color(0xFF162A42) : Colors.white,
                                       style: TextStyle(color: isDark ? Colors.white : Colors.black87),
                                       icon: Icon(Icons.arrow_drop_down, color: isDark ? Colors.white70 : Colors.grey.shade700),
                                       decoration: _buildInputDecoration(hintText: "Select Category", isDark: isDark),
                                       items: _categories.map((c) => DropdownMenuItem(value: c['value'], child: Text(c['label']!, overflow: TextOverflow.ellipsis))).toList(),
-                                      onChanged: (val) => setState(() => _selectedCategory = val!),
+                                      onChanged: (val) {
+                                        if (val != null) setState(() => _selectedCategory = val);
+                                      },
                                     ),
                                   ],
                                 ),
@@ -197,14 +260,16 @@ class _CreateTicketDialogState extends State<CreateTicketDialog> {
                                     Text("Priority", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isDark ? Colors.white : const Color(0xFF0F2C4A))),
                                     const SizedBox(height: 8),
                                     DropdownButtonFormField<String>(
-                                      value: _selectedPriority,
+                                      initialValue: _selectedPriority,
                                       isExpanded: true,
                                       dropdownColor: isDark ? const Color(0xFF162A42) : Colors.white,
                                       style: TextStyle(color: isDark ? Colors.white : Colors.black87),
                                       icon: Icon(Icons.arrow_drop_down, color: isDark ? Colors.white70 : Colors.grey.shade700),
                                       decoration: _buildInputDecoration(hintText: "Select Priority", isDark: isDark),
                                       items: _priorities.map((p) => DropdownMenuItem(value: p['value'], child: Text(p['label']!, overflow: TextOverflow.ellipsis))).toList(),
-                                      onChanged: (val) => setState(() => _selectedPriority = val!),
+                                      onChanged: (val) {
+                                        if (val != null) setState(() => _selectedPriority = val);
+                                      },
                                     ),
                                   ],
                                 ),
@@ -228,29 +293,120 @@ class _CreateTicketDialogState extends State<CreateTicketDialog> {
 
                       Text("Attachment or screenshot", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isDark ? Colors.white : const Color(0xFF0F2C4A))),
                       const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF162A42) : Colors.transparent,
-                          border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade400),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: isDark ? const Color(0xFF0F2C4A) : Colors.grey.shade200,
-                                borderRadius: BorderRadius.circular(4),
-                                border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade300),
-                              ),
-                              child: Text("Choose File", style: TextStyle(fontSize: 12, color: isDark ? Colors.white : Colors.black87)),
+                      
+                      // Attachment picker or preview container with delete action
+                      if (_selectedFile == null)
+                        InkWell(
+                          onTap: _pickAttachment,
+                          borderRadius: BorderRadius.circular(6),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF162A42) : Colors.transparent,
+                              border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade400),
+                              borderRadius: BorderRadius.circular(6),
                             ),
-                            const SizedBox(width: 12),
-                            Text("No file chosen", style: TextStyle(color: isDark ? Colors.white60 : Colors.grey, fontSize: 12)),
-                          ],
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: isDark ? const Color(0xFF0F2C4A) : Colors.grey.shade200,
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade300),
+                                  ),
+                                  child: Text("Choose File", style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? Colors.white : Colors.black87)),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text("No file chosen", style: TextStyle(color: isDark ? Colors.white60 : Colors.grey, fontSize: 12)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      else
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xFF162A42) : const Color(0xFFF1F5F9),
+                            border: Border.all(
+                              color: isDark ? const Color(0xFF0D6EFD).withValues(alpha: 0.5) : const Color(0xFF93C5FD),
+                              width: 1.2,
+                            ),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            children: [
+                              // File thumbnail / icon
+                              Container(
+                                width: 42,
+                                height: 42,
+                                decoration: BoxDecoration(
+                                  color: isDark ? const Color(0xFF0F2C4A) : Colors.white,
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade300),
+                                ),
+                                clipBehavior: Clip.antiAlias,
+                                child: _selectedFile!.bytes != null && _isImageFile(_selectedFile!.name)
+                                    ? Image.memory(
+                                        _selectedFile!.bytes!,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, __, ___) => const Icon(IconlyLight.image, color: Color(0xFF0D6EFD), size: 20),
+                                      )
+                                    : Icon(
+                                        _isImageFile(_selectedFile!.name) ? IconlyLight.image : IconlyLight.document,
+                                        color: const Color(0xFF0D6EFD),
+                                        size: 20,
+                                      ),
+                              ),
+                              const SizedBox(width: 12),
+                              // File Name and formatted size
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      _selectedFile!.name,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: isDark ? Colors.white : const Color(0xFF0F2C4A),
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      _formatFileSize(_selectedFile!.size),
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              // Dedicated Delete / Trash button
+                              IconButton(
+                                onPressed: _removeAttachment,
+                                tooltip: "Remove attachment",
+                                icon: const Icon(
+                                  IconlyLight.delete,
+                                  color: Colors.redAccent,
+                                  size: 18,
+                                ),
+                                style: IconButton.styleFrom(
+                                  backgroundColor: isDark ? Colors.red.withValues(alpha: 0.15) : Colors.red.shade50,
+                                  padding: const EdgeInsets.all(8),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
                     ],
                   ),
                 ),

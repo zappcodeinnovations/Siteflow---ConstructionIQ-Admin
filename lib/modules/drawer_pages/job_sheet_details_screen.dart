@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../models/job_sheet_model.dart';
 import '../../core/network/api_client.dart';
 import '../../core/network/api_endpoints.dart';
@@ -209,7 +208,7 @@ class _JobSheetDetailsScreenState extends State<JobSheetDetailsScreen> {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -359,7 +358,7 @@ class _JobSheetDetailsScreenState extends State<JobSheetDetailsScreen> {
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
+                        color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),
@@ -377,10 +376,10 @@ class _JobSheetDetailsScreenState extends State<JobSheetDetailsScreen> {
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.green.withOpacity(0.1),
+                          color: Colors.green.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: Colors.green.withOpacity(0.3),
+                            color: Colors.green.withValues(alpha: 0.3),
                           ),
                         ),
                         child: Row(
@@ -487,23 +486,27 @@ class _JobSheetDetailsScreenState extends State<JobSheetDetailsScreen> {
                         child: Column(
                           children: [
                             _buildSectionCard(
-                              title: "Financials & Notes",
+                              title: jobSheet.form.toLowerCase().contains("daily")
+                                  ? "Notes"
+                                  : "Financials & Notes",
                               isDark: isDark,
                               children: [
-                                _buildDetailRow(
-                                  "Material Cost",
-                                  jobSheet.materialCost.isNotEmpty
-                                      ? "£${jobSheet.materialCost}"
-                                      : "-",
-                                  isDark,
-                                ),
-                                _buildDetailRow(
-                                  "Charge",
-                                  jobSheet.charge.isNotEmpty
-                                      ? "£${jobSheet.charge}"
-                                      : "-",
-                                  isDark,
-                                ),
+                                if (!jobSheet.form.toLowerCase().contains("daily")) ...[
+                                  _buildDetailRow(
+                                    "Material Cost",
+                                    jobSheet.materialCost.isNotEmpty
+                                        ? "£${jobSheet.materialCost}"
+                                        : "-",
+                                    isDark,
+                                  ),
+                                  _buildDetailRow(
+                                    "Charge",
+                                    jobSheet.charge.isNotEmpty
+                                        ? "£${jobSheet.charge}"
+                                        : "-",
+                                    isDark,
+                                  ),
+                                ],
                                 _buildDetailRow(
                                   "Comments",
                                   jobSheet.comments,
@@ -582,23 +585,27 @@ class _JobSheetDetailsScreenState extends State<JobSheetDetailsScreen> {
                       ),
                       const SizedBox(height: 24),
                       _buildSectionCard(
-                        title: "Financials & Notes",
+                        title: jobSheet.form.toLowerCase().contains("daily")
+                            ? "Notes"
+                            : "Financials & Notes",
                         isDark: isDark,
                         children: [
-                          _buildDetailRow(
-                            "Material Cost",
-                            jobSheet.materialCost.isNotEmpty
-                                ? "£${jobSheet.materialCost}"
-                                : "-",
-                            isDark,
-                          ),
-                          _buildDetailRow(
-                            "Charge",
-                            jobSheet.charge.isNotEmpty
-                                ? "£${jobSheet.charge}"
-                                : "-",
-                            isDark,
-                          ),
+                          if (!jobSheet.form.toLowerCase().contains("daily")) ...[
+                            _buildDetailRow(
+                              "Material Cost",
+                              jobSheet.materialCost.isNotEmpty
+                                  ? "£${jobSheet.materialCost}"
+                                  : "-",
+                              isDark,
+                            ),
+                            _buildDetailRow(
+                              "Charge",
+                              jobSheet.charge.isNotEmpty
+                                  ? "£${jobSheet.charge}"
+                                  : "-",
+                              isDark,
+                            ),
+                          ],
                           _buildDetailRow(
                             "Comments",
                             jobSheet.comments,

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
 import '../../../../models/announcement_model.dart';
+import '../../../../core/utils/date_helper.dart';
 import 'admin_announcements_controller.dart';
-import 'package:intl/intl.dart';
 
 class AnnouncementDetailsDialog extends StatefulWidget {
   final int announcementId;
@@ -322,11 +322,6 @@ class _AnnouncementDetailsDialogState extends State<AnnouncementDetailsDialog> {
   }
 
   String _formatDate(String dateString) {
-    try {
-      final date = DateTime.parse(dateString);
-      return DateFormat('MMM d, yyyy h:mm a').format(date);
-    } catch (e) {
-      return dateString;
-    }
+    return DateHelper.formatToLocal(dateString);
   }
 }
