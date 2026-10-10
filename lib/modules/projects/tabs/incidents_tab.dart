@@ -47,6 +47,83 @@ class _IncidentsTabState extends State<IncidentsTab> {
     }
   }
 
+  Color _statusColor(String status) {
+    switch (status) {
+      case 'closed':
+        return const Color(0xFF16A34A);
+      case 'investigating':
+        return const Color(0xFFF59E0B);
+      default:
+        return const Color(0xFF0D6EFD);
+    }
+  }
+
+  String _formatOccurred(DateTime? dt) {
+    if (dt == null) return '';
+    final local = dt.toLocal();
+    final d = local.day.toString().padLeft(2, '0');
+    final m = local.month.toString().padLeft(2, '0');
+    final y = local.year.toString();
+    final hour12 = local.hour % 12 == 0 ? 12 : local.hour % 12;
+    final amPm = local.hour >= 12 ? 'PM' : 'AM';
+    final min = local.minute.toString().padLeft(2, '0');
+    return '$d/$m/$y $hour12:$min $amPm';
+  }
+
+  Future<void> _confirmDelete(IncidentModel incident) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text("Delete Incident"),
+        content: Text('Delete "${incident.title}"? This cannot be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text("Cancel")),
+          TextButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text("Delete", style: TextStyle(color: Colors.red))),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    final result = await _controller.deleteIncident(incident.id);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(result['message']?.toString() ?? ''), backgroundColor: result['success'] == true ? Colors.green : Colors.red),
+    );
+  }
+
+  void _openIncidentDetail(IncidentModel incident) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: isDark ? AppTheme.darkSurface : Colors.white,
+        title: Text(incident.title),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text("${incident.referenceNo} · ${incident.isNearMiss ? 'Near Miss' : 'Incident'}",
+                  style: TextStyle(fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : Colors.black54)),
+              const SizedBox(height: 8),
+              Text("Severity: ${incident.severityLabel}"),
+              Text("Status: ${incident.statusLabel}"),
+              if (incident.occurredAt != null) Text("Occurred: ${_formatOccurred(incident.occurredAt)}"),
+              if (incident.locationText.isNotEmpty) Text("Location: ${incident.locationText}"),
+              if (incident.reportedByName.isNotEmpty) Text("Reported by: ${incident.reportedByName}"),
+              if (incident.description.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(incident.description),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text("Close")),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -66,19 +143,44 @@ class _IncidentsTabState extends State<IncidentsTab> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFDC2626),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      height: 40,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.white10 : Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade300),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          dropdownColor: isDark ? AppTheme.darkSurface : Colors.white,
+                          value: _controller.incidentStatusFilter ?? 'all',
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: isDark ? Colors.white : Colors.black87),
+                          items: [
+                            const DropdownMenuItem(value: 'all', child: Text('All statuses')),
+                            ..._controller.incidentStatusChoices.map(
+                              (c) => DropdownMenuItem(value: c['value']?.toString(), child: Text(c['label']?.toString() ?? '')),
+                            ),
+                          ],
+                          onChanged: (val) => _controller.setIncidentStatusFilter(val),
+                        ),
+                      ),
                     ),
-                    onPressed: _showReportDialog,
-                    icon: const Icon(IconlyBold.danger, size: 18),
-                    label: const Text("Report Incident", style: TextStyle(fontWeight: FontWeight.bold)),
-                  ),
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFDC2626),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: _showReportDialog,
+                      icon: const Icon(IconlyBold.danger, size: 18),
+                      label: const Text("Report Incident", style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 16),
                 if (_controller.isLoadingIncidents)
@@ -127,6 +229,7 @@ class _IncidentsTabState extends State<IncidentsTab> {
 
   Widget _buildIncidentCard(IncidentModel incident, Color cardColor, Color borderColor, Color textColor, Color textSecondary) {
     final severityColor = _severityColor(incident.severity);
+    final statusColor = _statusColor(incident.status);
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -148,11 +251,27 @@ class _IncidentsTabState extends State<IncidentsTab> {
                 decoration: BoxDecoration(color: severityColor.withOpacity(0.12), borderRadius: BorderRadius.circular(6)),
                 child: Text(incident.severityLabel, style: TextStyle(color: severityColor, fontWeight: FontWeight.bold, fontSize: 11)),
               ),
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(color: statusColor.withOpacity(0.12), borderRadius: BorderRadius.circular(6)),
+                child: Text(incident.statusLabel, style: TextStyle(color: statusColor, fontWeight: FontWeight.bold, fontSize: 11)),
+              ),
             ],
           ),
           const SizedBox(height: 4),
           Text("${incident.referenceNo} · ${incident.isNearMiss ? 'Near Miss' : 'Incident'}",
               style: TextStyle(fontSize: 12, color: textSecondary, fontWeight: FontWeight.w600)),
+          if (incident.occurredAt != null) ...[
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Icon(IconlyLight.time_circle, size: 13, color: textSecondary),
+                const SizedBox(width: 4),
+                Text(_formatOccurred(incident.occurredAt), style: TextStyle(fontSize: 12, color: textSecondary)),
+              ],
+            ),
+          ],
           if (incident.description.isNotEmpty) ...[
             const SizedBox(height: 8),
             Text(incident.description, style: TextStyle(fontSize: 13, color: textSecondary)),
@@ -163,13 +282,23 @@ class _IncidentsTabState extends State<IncidentsTab> {
               Icon(IconlyLight.location, size: 14, color: textSecondary),
               const SizedBox(width: 4),
               Expanded(child: Text(incident.locationText.isEmpty ? 'No location given' : incident.locationText, style: TextStyle(fontSize: 12, color: textSecondary), overflow: TextOverflow.ellipsis)),
-              Text(incident.statusLabel, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textColor)),
             ],
           ),
           if (incident.reportedByName.isNotEmpty) ...[
             const SizedBox(height: 4),
             Text("Reported by ${incident.reportedByName}", style: TextStyle(fontSize: 11, color: textSecondary)),
           ],
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton(onPressed: () => _openIncidentDetail(incident), child: const Text("Open")),
+              IconButton(
+                icon: const Icon(IconlyLight.delete, size: 18, color: Colors.red),
+                onPressed: () => _confirmDelete(incident),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -191,6 +320,25 @@ class _ReportIncidentDialogState extends State<_ReportIncidentDialog> {
   String _severity = 'low';
   bool _isNearMiss = false;
   bool _isSubmitting = false;
+  DateTime _occurredAt = DateTime.now();
+
+  Future<void> _pickOccurredAt() async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _occurredAt,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2101),
+    );
+    if (date == null || !mounted) return;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_occurredAt),
+    );
+    if (time == null) return;
+    setState(() {
+      _occurredAt = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    });
+  }
 
   final _severities = const [
     ('low', 'Low'),
@@ -219,6 +367,7 @@ class _ReportIncidentDialogState extends State<_ReportIncidentDialog> {
       'location_text': _locationController.text.trim(),
       'severity': _severity,
       'is_near_miss': _isNearMiss,
+      'occurred_at': _occurredAt.toIso8601String(),
     });
     if (!mounted) return;
     setState(() => _isSubmitting = false);
@@ -242,6 +391,18 @@ class _ReportIncidentDialogState extends State<_ReportIncidentDialog> {
             TextField(controller: _descriptionController, maxLines: 3, decoration: const InputDecoration(labelText: "Description")),
             const SizedBox(height: 12),
             TextField(controller: _locationController, decoration: const InputDecoration(labelText: "Location")),
+            const SizedBox(height: 12),
+            InkWell(
+              onTap: _pickOccurredAt,
+              child: InputDecorator(
+                decoration: const InputDecoration(labelText: "When did it happen?"),
+                child: Text(
+                  "${_occurredAt.day.toString().padLeft(2, '0')}/${_occurredAt.month.toString().padLeft(2, '0')}/${_occurredAt.year} "
+                  "${(_occurredAt.hour % 12 == 0 ? 12 : _occurredAt.hour % 12)}:${_occurredAt.minute.toString().padLeft(2, '0')} "
+                  "${_occurredAt.hour >= 12 ? 'PM' : 'AM'}",
+                ),
+              ),
+            ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               initialValue: _severity,

@@ -17,6 +17,7 @@ class ApiEndpoints {
   static String projectAllInOneDetails(int id) => '/projects/all-in-one/$id/';
   static String projectAssignments(int id) => '/projects/$id/assignments/';
   static String projectIncidents(int projectId) => '/projects/$projectId/incidents/';
+  static String projectIncidentDetail(int projectId, int incidentId) => '/projects/$projectId/incidents/$incidentId/';
   static String projectSnags(int projectId) => '/projects/$projectId/snags/';
   static String projectSnagDetail(int projectId, int snagId) => '/projects/$projectId/snags/$snagId/';
   static String snagDetail(int snagId) => '/snags/$snagId/';

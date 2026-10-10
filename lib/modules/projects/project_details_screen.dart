@@ -125,7 +125,6 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
       'Snags',
       'Inspections',
       'Drawings',
-      'Site Manager',
       'Locations',
       'Specifications',
       'Project Template',
@@ -158,15 +157,11 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                 as List?,
         drawings: _allInOneData?.drawings,
       ),
-      SiteManagerTab(
-        projectId: widget.project.id,
-        rawBlocks:
-            _allInOneData
-                    ?.projectSetup?['dropdown_options']?['available_blocks']
-                as List?,
-        drawings: _allInOneData?.drawings,
-        onChanged: _fetchData,
-      ),
+      // Matches the web admin portal: a single "Locations" tab backed by
+      // the site_manager view/block-level hierarchy - there is no separate
+      // "Site Manager" tab on web. (This used to be listed twice here,
+      // rendering the exact same SiteManagerTab widget under two
+      // differently-labelled tabs.)
       SiteManagerTab(
         projectId: widget.project.id,
         rawBlocks:

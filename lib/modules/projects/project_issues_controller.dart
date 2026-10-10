@@ -24,18 +24,28 @@ class ProjectIssuesController extends ChangeNotifier {
   List<SnagModel> snags = [];
   List<InspectionModel> inspections = [];
 
+  List<Map<String, dynamic>> incidentStatusChoices = [];
+  String? incidentStatusFilter;
+
   Future<void> fetchIncidents() async {
     isLoadingIncidents = true;
     incidentsError = null;
     notifyListeners();
     try {
-      final url = ApiEndpoints.baseUrl + ApiEndpoints.projectIncidents(projectId);
+      var url = ApiEndpoints.baseUrl + ApiEndpoints.projectIncidents(projectId);
+      if (incidentStatusFilter != null && incidentStatusFilter!.isNotEmpty && incidentStatusFilter != 'all') {
+        url += '?status=$incidentStatusFilter';
+      }
       final response = await ApiClient.get(url);
       final decoded = jsonDecode(response.body);
       if (response.statusCode == 200 && decoded['status'] == true) {
         incidents = (decoded['data'] as List? ?? [])
             .whereType<Map>()
             .map((e) => IncidentModel.fromJson(e.cast<String, dynamic>()))
+            .toList();
+        incidentStatusChoices = (decoded['status_choices'] as List? ?? [])
+            .whereType<Map>()
+            .map((e) => e.cast<String, dynamic>())
             .toList();
       } else {
         incidentsError = decoded['message']?.toString() ?? 'Failed to fetch incidents.';
@@ -48,6 +58,11 @@ class ProjectIssuesController extends ChangeNotifier {
     }
   }
 
+  void setIncidentStatusFilter(String? status) {
+    incidentStatusFilter = status;
+    fetchIncidents();
+  }
+
   Future<Map<String, dynamic>> reportIncident(Map<String, dynamic> payload) async {
     try {
       final url = ApiEndpoints.baseUrl + ApiEndpoints.projectIncidents(projectId);
@@ -58,6 +73,21 @@ class ProjectIssuesController extends ChangeNotifier {
         return {'success': true, 'message': decoded['message'] ?? 'Incident reported.'};
       }
       return {'success': false, 'message': decoded['message'] ?? 'Failed to report incident.'};
+    } catch (e) {
+      return {'success': false, 'message': 'An error occurred: $e'};
+    }
+  }
+
+  Future<Map<String, dynamic>> deleteIncident(int incidentId) async {
+    try {
+      final url = ApiEndpoints.baseUrl + ApiEndpoints.projectIncidentDetail(projectId, incidentId);
+      final response = await ApiClient.delete(url);
+      final decoded = response.body.isNotEmpty ? jsonDecode(response.body) : {};
+      if (response.statusCode == 200 && decoded['status'] == true) {
+        await fetchIncidents();
+        return {'success': true, 'message': decoded['message'] ?? 'Incident deleted.'};
+      }
+      return {'success': false, 'message': decoded['message'] ?? 'Failed to delete incident.'};
     } catch (e) {
       return {'success': false, 'message': 'An error occurred: $e'};
     }
