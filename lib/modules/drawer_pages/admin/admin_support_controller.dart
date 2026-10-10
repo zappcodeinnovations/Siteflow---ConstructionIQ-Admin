@@ -58,17 +58,21 @@ class AdminSupportController extends ChangeNotifier {
     required String category,
     required String priority,
     required String body,
+    String? attachmentBase64,
+    String? attachmentName,
   }) async {
     _isSubmitting = true;
     notifyListeners();
 
     try {
       final url = '${ApiEndpoints.baseUrl}/admin/support/tickets/';
-      final payload = {
+      final payload = <String, dynamic>{
         "subject": subject,
         "body": body,
         "category": category,
         "priority": priority,
+        if (attachmentBase64 != null) "attachment": attachmentBase64,
+        if (attachmentName != null) "attachment_name": attachmentName,
       };
 
       final response = await ApiClient.post(url, body: payload); 
