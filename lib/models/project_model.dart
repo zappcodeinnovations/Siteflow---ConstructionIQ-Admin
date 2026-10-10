@@ -193,10 +193,19 @@ class Project {
             json['managers'] ??
             json['ecg_manager'] ??
             json['created_by_name'] ??
-            json['created_by'];
+            json['created_by'] ??
+            // The Projects list API (ProjectListSerializer) only exposes
+            // the project's manager as a nested "contractor" object - none
+            // of the flat keys above exist on that response, so without
+            // this the Owner column on every project card silently fell
+            // back to "N/A".
+            json['contractor'];
         if (val == null) return null;
         if (val is Map) {
-          return val['name'] ?? val['email'] ?? val['display_name'] ?? val['username']?.toString();
+          // display_name first: the "contractor" object (ProjectUserSerializer)
+          // has no "name" key, only display_name/email/username, and a
+          // person's name reads better here than their raw email.
+          return val['display_name'] ?? val['name'] ?? val['email'] ?? val['username']?.toString();
         }
         if (val is List) {
           final names = val.map((e) {

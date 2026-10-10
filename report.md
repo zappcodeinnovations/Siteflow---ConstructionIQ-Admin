@@ -40,7 +40,7 @@ changed on ClickUp itself — reporting back to user instead).
 | 28 | 14yjutqffqz | Docs & Files: folder counter slow to update after delete | | | |
 | 29 | 14yjutqffqj | Docs & Files: folder counter slow to update after upload | | | |
 | 30 | 14yjutqffmv | Project cards: missing Assign/View team buttons | | | |
-| 31 | 14yjutqffmn | Project cards: missing Project Code / Owner / Locations count | | | |
+| 31 | 14yjutqffmn | Project cards: missing Project Code / Owner / Locations count | yes | yes | UI for all 3 already existed on the card - the *data* behind Owner and Locations was fake. Root cause: the Projects list API (`ProjectListSerializer`) never included a location-count field (model always fell back to a hardcoded `1`) and only exposed the manager as a nested `contractor` object, which the Flutter model's owner-fallback chain never checked (always fell back to "N/A"). Added `location_count` to the backend serializer; added `contractor` to the Flutter owner fallback chain (preferring `display_name` over `email`). Project Code was already fine (`displayNameWithCode`). |
 | 32 | 14yjutqffhr | Notification dropdown: incorrect timestamps | yes | yes | Root cause: `AdminNotification.formattedUpdatedAt` parsed the UTC-aware timestamp correctly but never called `.toLocal()`, so it showed raw UTC time. Fixed via shared `DateHelper.formatToLocal()`; also added a timestamp line to the appbar's notification dropdown rows (had none). |
 | 33 | 14yjutqffgz | Dashboard: only 7/9 metric cards, wrong counts (Pending Tasks, Not Clocked In) | | | |
 

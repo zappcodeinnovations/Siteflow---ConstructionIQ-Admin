@@ -167,3 +167,38 @@ timestamp at all before this fix - added one (`sent_at`, falling back to
 
 Committed locally (`e792fdb`), not pushed, per the standing rule for this
 repo.
+
+## 2026-10-10 — Project cards: Owner/Locations count were silently fake (#31)
+
+User reported (from the original 33-item ClickUp audit): "Project cards in
+the mobile app omit essential project attributes present in the web admin
+portal (such as inline Project Code, Owner, and Locations count)."
+
+Verified first: all three UI elements already existed on the Projects
+screen's card (`projects_screen.dart:_buildProjectCardItem`) - Code via
+`Project.displayNameWithCode`, Owner, and Locations. So the bug wasn't a
+missing UI element; it was the *data* behind two of the three being wrong:
+
+- **Locations count** was always the model's hardcoded fallback `1`,
+  because `ProjectListSerializer` (the API the mobile Projects list actually
+  calls, `GET /api/projects/`) never included any location-count field at
+  all - `locations_count`/`location_count`/`total_locations`/`locations`
+  were all absent from that response.
+- **Owner** was always "N/A", because that same serializer only exposes the
+  project's manager as a nested `contractor: {...}` object, but
+  `Project.fromJson`'s owner-resolution chain in the Flutter model checked
+  only flat keys (`owner`, `owner_name`, `manager`, `created_by_name`,
+  etc.) that don't exist on this response - it never looked at `contractor`
+  at all.
+
+Fix:
+- Backend (`API/serializers.py`): added a `location_count` SerializerMethodField
+  to `ProjectListSerializer` (`obj.drawing_locations.count()`).
+- Flutter (`lib/models/project_model.dart`): added `json['contractor']` as a
+  fallback source in the owner-resolution chain, preferring `display_name`
+  over `email` when reading a Map value (contractor has no `name` key, and
+  showing someone's name reads better than their raw email address).
+
+Backend: `manage.py test API.tests -k Project` (new test
+`test_project_list_includes_owner_contractor_and_location_count` added).
+Flutter: `flutter analyze` on `project_model.dart` clean.
