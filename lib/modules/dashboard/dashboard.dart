@@ -156,6 +156,13 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                 final data = _dashboardController.dashboardData;
                 final kpis = data?.kpis;
                 final recentProjects = data?.recentProjects ?? [];
+                // Manager/contractor users get the web admin's
+                // contractor_dashboard.html card set (project-counts
+                // focused), not the Admin-only 9-card set (which leaks
+                // operative/manager/supervisor headcounts a Manager isn't
+                // meant to manage) - previously every role saw the same
+                // fixed Admin card layout regardless of who was logged in.
+                final isManagerRole = (data?.user?.effectiveRole ?? '').toLowerCase() == 'manager';
 
                 return RefreshIndicator(
                   onRefresh: () => _dashboardController.fetchDashboard(),
@@ -180,7 +187,66 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                             mainAxisSpacing: 16,
                             childAspectRatio: 1.3,
                           ),
-                          children: [
+                          children: isManagerRole
+                              ? [
+                                  // Mirrors contractor_dashboard.html's 6
+                                  // manager-stat-cards exactly.
+                                  ModernKpiCard(
+                                    title: "Total Projects",
+                                    value: "${kpis?.projects['total'] ?? 0}",
+                                    icon: IconlyLight.folder,
+                                    bgColor: const Color(0xff185EA5),
+                                    topAction: "",
+                                    onTap: widget.onProjectsTap,
+                                  ),
+                                  ModernKpiCard(
+                                    title: "Active Projects",
+                                    value: "${kpis?.projects['active'] ?? 0}",
+                                    icon: IconlyLight.play,
+                                    bgColor: const Color(0xff16A34A),
+                                    topAction: "",
+                                    onTap: widget.onProjectsTap,
+                                  ),
+                                  ModernKpiCard(
+                                    title: "Completed Projects",
+                                    value: "${kpis?.projects['completed'] ?? 0}",
+                                    icon: IconlyLight.tick_square,
+                                    bgColor: const Color(0xff6B7280),
+                                    topAction: "",
+                                    onTap: widget.onProjectsTap,
+                                  ),
+                                  ModernKpiCard(
+                                    title: "Clocked In Today",
+                                    value: "${kpis?.attendance['clocked_in_today'] ?? 0}",
+                                    icon: IconlyLight.profile,
+                                    bgColor: const Color(0xff0891B2),
+                                    topAction: "Today",
+                                    onTap: () => Navigator.pushNamed(context, '/managerAttendance').then((_) {
+                                      if (mounted) _dashboardController.fetchDashboard(silent: true);
+                                    }),
+                                  ),
+                                  ModernKpiCard(
+                                    title: "Not Clocked In Today",
+                                    value: "${kpis?.attendance['not_clocked_in'] ?? kpis?.attendance['not_clocked_in_today'] ?? 0}",
+                                    icon: IconlyLight.danger,
+                                    bgColor: const Color(0xffDC2626),
+                                    topAction: "View List",
+                                    onTap: () => Navigator.pushNamed(context, '/managerAttendance').then((_) {
+                                      if (mounted) _dashboardController.fetchDashboard(silent: true);
+                                    }),
+                                  ),
+                                  ModernKpiCard(
+                                    title: "Not Clocked Out",
+                                    value: "${kpis?.attendance['not_clocked_out'] ?? 0}",
+                                    icon: IconlyLight.logout,
+                                    bgColor: const Color(0xffD97706),
+                                    topAction: "Action",
+                                    onTap: () => Navigator.pushNamed(context, '/managerAttendance').then((_) {
+                                      if (mounted) _dashboardController.fetchDashboard(silent: true);
+                                    }),
+                                  ),
+                                ]
+                              : [
                             // 1. Active Projects
                             ModernKpiCard(
                               title: "Active Projects",
