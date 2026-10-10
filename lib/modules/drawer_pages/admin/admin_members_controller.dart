@@ -23,13 +23,33 @@ class AdminMembersController extends ChangeNotifier {
   int? _invitedCount;
   int? get invitedCount => _invitedCount;
 
-  Future<void> fetchMembers() async {
+  String _statusFilter = 'active';
+  String get statusFilter => _statusFilter;
+
+  String _roleFilter = 'all';
+  String get roleFilter => _roleFilter;
+
+  Future<void> fetchMembers({String? status, String? role, String? search}) async {
+    if (status != null) _statusFilter = status;
+    if (role != null) _roleFilter = role;
+
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      final url = '${ApiEndpoints.baseUrl}/admin/members/?page_size=1000';
+      final queryParams = <String>['page_size=1000'];
+      if (_statusFilter.isNotEmpty && _statusFilter != 'all') {
+        queryParams.add('status=$_statusFilter');
+      }
+      if (_roleFilter.isNotEmpty && _roleFilter != 'all') {
+        queryParams.add('role=$_roleFilter');
+      }
+      if (search != null && search.isNotEmpty) {
+        queryParams.add('search=${Uri.encodeComponent(search)}');
+      }
+
+      final url = '${ApiEndpoints.baseUrl}/admin/members/?${queryParams.join('&')}';
       final response = await ApiClient.get(url);
       final decodedData = jsonDecode(response.body);
 
@@ -37,8 +57,12 @@ class AdminMembersController extends ChangeNotifier {
         final parsedResponse = AdminMemberResponse.fromJson(decodedData);
         _members = parsedResponse.data;
         _totalCount = parsedResponse.totalCount ?? _members.length;
-        _assignedCount = parsedResponse.assignedCount;
-        _invitedCount = parsedResponse.invitedCount;
+        if (parsedResponse.assignedCount != null) {
+          _assignedCount = parsedResponse.assignedCount;
+        }
+        if (parsedResponse.invitedCount != null) {
+          _invitedCount = parsedResponse.invitedCount;
+        }
       } else {
         _errorMessage = decodedData['message'] ?? 'Failed to fetch members';
       }
@@ -47,6 +71,48 @@ class AdminMembersController extends ChangeNotifier {
     } finally {
       _isLoading = false;
       notifyListeners();
+    }
+  }
+
+  void setStatusFilter(String status) {
+    if (_statusFilter == status) return;
+    _statusFilter = status;
+    fetchMembers();
+  }
+
+  void setRoleFilter(String role) {
+    if (_roleFilter == role) return;
+    _roleFilter = role;
+    fetchMembers();
+  }
+
+  Future<Map<String, dynamic>> resendInvite(int id, {String? email}) async {
+    try {
+      final url = '${ApiEndpoints.baseUrl}/admin/members/$id/resend-invite/';
+      final response = await ApiClient.post(url, body: {
+        if (email != null && email.isNotEmpty) "email": email,
+      });
+      final decodedData = jsonDecode(response.body);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return {"success": true, "message": decodedData['message'] ?? "Invitation resent successfully."};
+      }
+
+      // Fallback endpoint
+      final fallbackUrl = '${ApiEndpoints.baseUrl}/admin/members/invite/resend/';
+      final fallbackRes = await ApiClient.post(fallbackUrl, body: {
+        "member_id": id,
+        if (email != null && email.isNotEmpty) "email": email,
+      });
+      final fallbackDecoded = jsonDecode(fallbackRes.body);
+
+      if (fallbackRes.statusCode == 200 || fallbackRes.statusCode == 201) {
+        return {"success": true, "message": fallbackDecoded['message'] ?? "Invitation resent successfully."};
+      }
+
+      return {"success": false, "message": decodedData['message'] ?? fallbackDecoded['message'] ?? "Failed to resend invite."};
+    } catch (e) {
+      return {"success": false, "message": "An error occurred: $e"};
     }
   }
 
