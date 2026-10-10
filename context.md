@@ -532,3 +532,43 @@ Backend tests, each run individually and passing: `test_never_logged_in_member_e
 (8 tests) as a sanity check since this touched the same view file
 repeatedly. Flutter: full `flutter analyze` clean (0 errors) after
 every change. Backend pushed to origin/main (`23a81ae`).
+
+## 2026-10-10 — Job Sheet PDF download: missing images + needs horizontal scroll
+
+User reported downloading a Job Sheet PDF on mobile has no images and
+the sheet doesn't display in full, needing left-right scroll to read
+it.
+
+Traced the Flutter download flow (`job_sheet_screen.dart`'s
+`_downloadJobSheetPdf()` and the project-level PDF download) - both
+hit `GET /api/job-sheets/?ids=...&export=pdf`, check the response for
+a real PDF (content-type + `%PDF` magic bytes), and if it's NOT a
+real PDF, fall back to opening the job sheet's HTML form view in an
+in-app `JobSheetWebviewScreen`. That fallback logic was already
+correct - the actual bug was on the backend: `JobSheetListAPIView`
+only ever handled `export` values of `csv`/`excel`/`true`; `pdf` fell
+straight through to the normal JSON list response, so the Flutter
+check always failed and always took the webview fallback. The webview
+is the literal source of both symptoms: it loads the form's raw HTML
+(unauthenticated image sub-resource requests silently fail) and isn't
+styled responsively for a phone width (hence the horizontal scroll).
+
+Fix: added an `export_format == "pdf"` branch to
+`JobSheetListAPIView.get()` that calls the web's own
+`render_job_sheets_list_combined_pdf(rows)` - the exact function the
+web's `job_sheets_list` view already uses for its own `?report=pdf`,
+operating on the same `rows` this mobile view already builds via
+`build_job_sheets_list_rows`/`apply_job_sheets_list_filters`. Verified
+by reading the ReportLab renderers themselves
+(`render_single_job_sheet_pdf`/`render_form_submission_pdf`, depending
+on whether the row is template- or form-based) that images are
+embedded from local `MEDIA_ROOT` file paths (not fetched over HTTP),
+and pages are fixed-width A4 - so this one fix resolves both symptoms
+at once, and also covers the "Download Project PDF" button since it
+hits the same endpoint with a different `ids` list.
+
+No Flutter changes needed - its PDF-vs-fallback detection was already
+correct, it just never got handed a real PDF to detect. New backend
+test `test_export_single_job_sheet_as_pdf` (plus the 5 sibling tests
+in that class, rerun as a sanity check). Pushed to origin/main
+(`4e4ac53`).

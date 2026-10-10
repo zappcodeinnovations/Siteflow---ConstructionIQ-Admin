@@ -156,4 +156,6 @@ individually and passing. Backend pushed to `origin/main` (`a4d94d0`).
 Flutter merge commit (`62ae3f5`) is local-only per standing rule;
 not yet pushed pending explicit confirmation.
 
+**User-reported (2026-10-10): Job Sheet PDF download has no images and needs left-right scroll** - **done**, backend only. `JobSheetListAPIView`'s `export=pdf` query param was never actually handled server-side - it silently fell through to the normal JSON response. The Flutter app's `_downloadJobSheetPdf()`/project-PDF download already correctly detected "not a real PDF" and fell back to opening the job sheet's HTML form in an in-app webview - which is exactly what the user was seeing: no images (webview sub-resource requests have no auth header) and not mobile-responsive (needs horizontal scroll). Fixed by wiring `export=pdf` to the web's existing `render_job_sheets_list_combined_pdf()` (same rows the view already builds, same ReportLab renderer used by the web's own `?report=pdf`) - produces a real, correctly-paginated A4 PDF with images embedded from disk. No Flutter change needed; its PDF-detection logic was already correct, it just never received a real PDF before. New test `test_export_single_job_sheet_as_pdf`. Pushed to origin/main (`4e4ac53`).
+
 Work log (chronological, appended as each item is verified/fixed):
