@@ -1,5 +1,8 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/api_endpoints.dart';
 import '../../../../models/admin_member_model.dart';
@@ -219,6 +222,84 @@ class AdminMembersController extends ChangeNotifier {
     } catch (e) {
       debugPrint("Error fetching member details: $e");
       return null;
+    }
+  }
+
+  Future<Map<String, dynamic>> addQualification(
+    int memberId, {
+    required String title,
+    String? issuer,
+    String? referenceNumber,
+    String? issueDate,
+    String? expiryDate,
+    String? notes,
+    String? attachmentPath,
+  }) async {
+    try {
+      final url = '${ApiEndpoints.baseUrl}/admin/members/$memberId/qualifications/';
+      final fields = <String, String>{
+        "title": title,
+        if (issuer != null && issuer.isNotEmpty) "issuer": issuer,
+        if (referenceNumber != null && referenceNumber.isNotEmpty) "reference_number": referenceNumber,
+        if (issueDate != null && issueDate.isNotEmpty) "issue_date": issueDate,
+        if (expiryDate != null && expiryDate.isNotEmpty) "expiry_date": expiryDate,
+        if (notes != null && notes.isNotEmpty) "notes": notes,
+      };
+      final response = attachmentPath != null
+          ? await ApiClient.postMultipart(url, fields: fields, filePath: attachmentPath, fileFieldName: "attachment")
+          : await ApiClient.post(url, body: fields);
+      final decodedData = jsonDecode(response.body);
+      if ((response.statusCode == 200 || response.statusCode == 201) && decodedData['status'] == true) {
+        return {"success": true, "message": decodedData['message'] ?? 'Qualification added.', "data": decodedData['data']};
+      }
+      return {"success": false, "message": decodedData['message'] ?? 'Failed to add qualification.'};
+    } catch (e) {
+      return {"success": false, "message": "An error occurred: $e"};
+    }
+  }
+
+  Future<Map<String, dynamic>> deleteQualification(int memberId, int qualificationId) async {
+    try {
+      final url = '${ApiEndpoints.baseUrl}/admin/members/$memberId/qualifications/$qualificationId/';
+      final response = await ApiClient.delete(url);
+      final decodedData = jsonDecode(response.body);
+      if (response.statusCode == 200 && decodedData['status'] == true) {
+        return {"success": true, "message": decodedData['message'] ?? 'Qualification removed.', "data": decodedData['data']};
+      }
+      return {"success": false, "message": decodedData['message'] ?? 'Failed to remove qualification.'};
+    } catch (e) {
+      return {"success": false, "message": "An error occurred: $e"};
+    }
+  }
+
+  Future<bool> downloadImportTemplate() async {
+    try {
+      final url = '${ApiEndpoints.baseUrl}/admin/members/import-template/';
+      final response = await ApiClient.get(url);
+      if (response.statusCode != 200 || response.bodyBytes.isEmpty) return false;
+      final directory = await getTemporaryDirectory();
+      final file = File('${directory.path}/member-import-template.xlsx');
+      await file.writeAsBytes(response.bodyBytes);
+      await Share.shareXFiles([XFile(file.path)], text: "Member Import Template");
+      return true;
+    } catch (e) {
+      debugPrint("Error downloading member import template: $e");
+      return false;
+    }
+  }
+
+  Future<Map<String, dynamic>> importMembersExcel(String filePath) async {
+    try {
+      final url = '${ApiEndpoints.baseUrl}/admin/members/import/';
+      final response = await ApiClient.postMultipart(url, filePath: filePath, fileFieldName: "xlsx_file");
+      final decodedData = jsonDecode(response.body);
+      if (response.statusCode == 200 && decodedData['status'] == true) {
+        await fetchMembers();
+        return {"success": true, "message": decodedData['message'] ?? 'Import complete.', "data": decodedData['data']};
+      }
+      return {"success": false, "message": decodedData['message'] ?? 'Failed to import members.'};
+    } catch (e) {
+      return {"success": false, "message": "An error occurred: $e"};
     }
   }
 }

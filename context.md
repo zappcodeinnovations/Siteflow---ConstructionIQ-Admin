@@ -466,3 +466,69 @@ Flutter merge commit is local-only so far (standing rule - never
 pushed without explicit instruction), pending the user's confirmation
 since merging another developer's branch into shared main is exactly
 the kind of action worth a check before it goes out.
+
+## 2026-10-10 — Closed the four remaining "not done" items (J5 Add
+## Qualification, J5/J6 Import Excel, ClickUp member-count mismatch)
+
+User asked which points from the whole session were still outstanding;
+answered with a 7-item list, then asked to fix 4 of them (the other 3 -
+J10 redesign, I3, I12 - stayed deferred, too open-ended/unverifiable to
+just pick up).
+
+- **Member count mismatch (ClickUp 14yjutqf9c4)**: investigated by
+  diff-ing the mobile `AdminMemberListAPIView` query against the web's
+  `member_list` view line by line. Role scoping was already identical
+  (both use `member_role_values()`, confirmed). The real difference:
+  web's final queryset chains `.filter(is_active=True).exclude(
+  is_password_set=False, last_login__isnull=True)` - an account that's
+  technically active but never completed setup is still a pending
+  invite in web's eyes, not a counted member. Mobile's query stopped
+  at the plain `is_active=True` filter, so it always counted a
+  different (larger) set than web. Fixed both
+  `AdminMemberListAPIView` and `AdminMemberExportAPIView` to apply the
+  same exclude; while in there, deduplicated both to call the shared
+  `member_role_values()` helper instead of each repeating
+  `list(dict(EuroUser.MEMBER_ROLE_CHOICES).keys()) + [EuroUser.ROLE_CUSTOM]`
+  inline - a second grep for the same literal turned up the export
+  view too, which the first edit pass had missed despite already
+  adding the (then-unused) import there.
+- **Add Qualification**: before building anything, checked the web for
+  what this even was - turned out `MemberQualification` is a real,
+  already-existing model with full `add_qualification`/
+  `delete_qualification` actions on `member_detail`, not a feature
+  that needs inventing. Added `AdminMemberQualificationsAPIView`
+  (POST) / `AdminMemberQualificationDetailAPIView` (DELETE) reusing
+  that exact model and validation (title required, expiry can't
+  predate issue date); `AdminMemberDetailAPIView.get()` now attaches
+  a `qualifications` list via a small serializer helper (kept out of
+  the list endpoint's serializer deliberately, to avoid N+1 queries
+  across 20-100 members on every list fetch). Flutter: new
+  `QualificationsDialog` (list/add/delete, with an optional file
+  attachment via `FilePicker`), wired as a new "Add Qualification"
+  item in the member three-dots menu; it fetches the member detail
+  fresh on open since the list screen's own member objects never
+  carry qualifications.
+- **Import Excel (Members + Guests)**: same investigation first - the
+  web already has complete `import_members_from_xlsx()` /
+  `import_guests_from_xlsx()` helpers and
+  `user_import_template_response(kind)` for the template download,
+  all exercised by existing web actions. Added four thin mobile
+  endpoints that call these helpers directly (not reimplementations):
+  `AdminMembersImportTemplateAPIView`/`AdminMembersImportAPIView`,
+  `AdminGuestsImportTemplateAPIView`/`AdminGuestsImportAPIView`.
+  Members import blocks managers explicitly, matching web's own
+  `is_manager_member_scope` guard on that specific action (web doesn't
+  apply the same restriction to guest import, so mobile doesn't
+  either). Flutter: both Members and Guests screens gained an upload-
+  icon toolbar button opening an Import dialog (Download Template /
+  Choose .xlsx File / Import), reusing the same
+  `getTemporaryDirectory()` + `Share.shareXFiles()` pattern already
+  used for every other download/export in this app.
+
+Backend tests, each run individually and passing: `test_never_logged_in_member_excluded_from_active_count`,
+3 new tests in `AdminMemberQualificationsAPITests`, 4 new tests across
+`AdminMembersImportAPITests`/`AdminGuestsImportAPITests`; also reran
+`LibraryCatalogAPITests` and `AdminMemberChangePasswordAndConvertToGuestAPITests`
+(8 tests) as a sanity check since this touched the same view file
+repeatedly. Flutter: full `flutter analyze` clean (0 errors) after
+every change. Backend pushed to origin/main (`23a81ae`).

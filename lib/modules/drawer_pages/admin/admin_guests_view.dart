@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
 import 'package:path_provider/path_provider.dart';
@@ -72,6 +73,78 @@ class _AdminGuestsViewState extends State<AdminGuestsView> {
         );
       }
     }
+  }
+
+  Future<void> _showImportGuestsDialog() async {
+    PlatformFile? pickedFile;
+    bool isSubmitting = false;
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: const Text("Import Guests from Excel"),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextButton.icon(
+                  onPressed: isSubmitting ? null : () => _controller.downloadImportTemplate(),
+                  icon: const Icon(IconlyLight.download, size: 16),
+                  label: const Text("Download Template"),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          final result = await FilePicker.platform.pickFiles(
+                            type: FileType.custom,
+                            allowedExtensions: ['xlsx'],
+                          );
+                          if (result != null && result.files.isNotEmpty) {
+                            setDialogState(() => pickedFile = result.files.first);
+                          }
+                        },
+                  icon: const Icon(Icons.attach_file, size: 16),
+                  label: const Text("Choose .xlsx File"),
+                ),
+                const SizedBox(height: 6),
+                Text(pickedFile?.name ?? "No file chosen", style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+              ],
+            ),
+            actions: [
+              TextButton(onPressed: isSubmitting ? null : () => Navigator.pop(dialogContext), child: const Text("Cancel")),
+              ElevatedButton(
+                onPressed: (isSubmitting || pickedFile?.path == null)
+                    ? null
+                    : () async {
+                        setDialogState(() => isSubmitting = true);
+                        final result = await _controller.importGuestsExcel(pickedFile!.path!);
+                        if (!dialogContext.mounted) return;
+                        Navigator.pop(dialogContext);
+                        if (!mounted) return;
+                        final data = result['data'] as Map<String, dynamic>?;
+                        final errors = (data?['errors'] as List?) ?? [];
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(errors.isNotEmpty ? "${result['message']} ${errors.length} row(s) skipped." : result['message'] ?? ''),
+                            backgroundColor: result['success'] == true ? Colors.green : Colors.red,
+                            duration: const Duration(seconds: 4),
+                          ),
+                        );
+                      },
+                child: isSubmitting
+                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Text("Import"),
+              ),
+            ],
+          );
+        },
+      ),
+    );
   }
 
   Future<void> _confirmConvertToMember(AdminGuest guest) async {
@@ -518,6 +591,11 @@ class _AdminGuestsViewState extends State<AdminGuestsView> {
                           ),
                         ),
                         const SizedBox(width: 8),
+                        IconButton(
+                          tooltip: "Import guests from Excel",
+                          onPressed: _showImportGuestsDialog,
+                          icon: Icon(IconlyLight.upload, color: subtitleColor),
+                        ),
                         IconButton(
                           tooltip: "Reset filters",
                           onPressed: _resetFilters,

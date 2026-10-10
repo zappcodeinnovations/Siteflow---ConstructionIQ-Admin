@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:iconly/iconly.dart';
@@ -15,6 +16,7 @@ import 'admin_members_controller.dart';
 import 'edit_member_dialog.dart';
 import 'invite_member_dialog.dart';
 import 'member_details_dialog.dart';
+import 'qualifications_dialog.dart';
 
 class AdminMembersView extends StatefulWidget {
   const AdminMembersView({super.key});
@@ -78,6 +80,78 @@ class _AdminMembersViewState extends State<AdminMembersView> {
         );
       }
     }
+  }
+
+  Future<void> _showImportMembersDialog() async {
+    PlatformFile? pickedFile;
+    bool isSubmitting = false;
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: const Text("Import Members from Excel"),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextButton.icon(
+                  onPressed: isSubmitting ? null : () => _controller.downloadImportTemplate(),
+                  icon: const Icon(IconlyLight.download, size: 16),
+                  label: const Text("Download Template"),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          final result = await FilePicker.platform.pickFiles(
+                            type: FileType.custom,
+                            allowedExtensions: ['xlsx'],
+                          );
+                          if (result != null && result.files.isNotEmpty) {
+                            setDialogState(() => pickedFile = result.files.first);
+                          }
+                        },
+                  icon: const Icon(Icons.attach_file, size: 16),
+                  label: const Text("Choose .xlsx File"),
+                ),
+                const SizedBox(height: 6),
+                Text(pickedFile?.name ?? "No file chosen", style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+              ],
+            ),
+            actions: [
+              TextButton(onPressed: isSubmitting ? null : () => Navigator.pop(dialogContext), child: const Text("Cancel")),
+              ElevatedButton(
+                onPressed: (isSubmitting || pickedFile?.path == null)
+                    ? null
+                    : () async {
+                        setDialogState(() => isSubmitting = true);
+                        final result = await _controller.importMembersExcel(pickedFile!.path!);
+                        if (!dialogContext.mounted) return;
+                        Navigator.pop(dialogContext);
+                        if (!mounted) return;
+                        final data = result['data'] as Map<String, dynamic>?;
+                        final errors = (data?['errors'] as List?) ?? [];
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(errors.isNotEmpty ? "${result['message']} ${errors.length} row(s) skipped." : result['message'] ?? ''),
+                            backgroundColor: result['success'] == true ? Colors.green : Colors.red,
+                            duration: const Duration(seconds: 4),
+                          ),
+                        );
+                      },
+                child: isSubmitting
+                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Text("Import"),
+              ),
+            ],
+          );
+        },
+      ),
+    );
   }
 
   void _showInviteDialog() {
@@ -205,6 +279,13 @@ class _AdminMembersViewState extends State<AdminMembersView> {
         content: Text(result['message'] ?? ''),
         backgroundColor: result['success'] == true ? Colors.green : Colors.red,
       ),
+    );
+  }
+
+  void _showQualificationsDialog(AdminMember member) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => QualificationsDialog(member: member, controller: _controller),
     );
   }
 
@@ -642,6 +723,11 @@ class _AdminMembersViewState extends State<AdminMembersView> {
                 icon: Icon(IconlyLight.download, color: subtitleColor, size: 20),
               ),
               IconButton(
+                tooltip: "Import members from Excel",
+                onPressed: _showImportMembersDialog,
+                icon: Icon(IconlyLight.upload, color: subtitleColor, size: 20),
+              ),
+              IconButton(
                 tooltip: "Reset filters",
                 onPressed: _resetFilters,
                 icon: Icon(Icons.refresh, color: subtitleColor, size: 20),
@@ -787,6 +873,7 @@ class _AdminMembersViewState extends State<AdminMembersView> {
                         if (val == 'view') _showMemberDetails(member);
                         if (val == 'edit') _showEditDialog(member);
                         if (val == 'password') _showChangePasswordDialog(member);
+                        if (val == 'qualification') _showQualificationsDialog(member);
                         if (val == 'convert') _confirmConvertToGuest(member);
                         if (val == 'delete') _deleteMember(member);
                       },
@@ -802,6 +889,10 @@ class _AdminMembersViewState extends State<AdminMembersView> {
                         const PopupMenuItem(
                           value: 'password',
                           child: Text("Change Password"),
+                        ),
+                        const PopupMenuItem(
+                          value: 'qualification',
+                          child: Text("Add Qualification"),
                         ),
                         const PopupMenuItem(
                           value: 'convert',

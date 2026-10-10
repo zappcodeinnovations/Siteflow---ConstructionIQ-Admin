@@ -1,5 +1,8 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/api_endpoints.dart';
 import '../../../../models/admin_guest_model.dart';
@@ -118,6 +121,37 @@ class AdminGuestsController extends ChangeNotifier {
         }
       }
       return {"success": false, "message": decodedData['message'] ?? "Failed to delete guest."};
+    } catch (e) {
+      return {"success": false, "message": "An error occurred: $e"};
+    }
+  }
+
+  Future<bool> downloadImportTemplate() async {
+    try {
+      final url = '${ApiEndpoints.baseUrl}/admin/guests/import-template/';
+      final response = await ApiClient.get(url);
+      if (response.statusCode != 200 || response.bodyBytes.isEmpty) return false;
+      final directory = await getTemporaryDirectory();
+      final file = File('${directory.path}/guest-import-template.xlsx');
+      await file.writeAsBytes(response.bodyBytes);
+      await Share.shareXFiles([XFile(file.path)], text: "Guest Import Template");
+      return true;
+    } catch (e) {
+      debugPrint("Error downloading guest import template: $e");
+      return false;
+    }
+  }
+
+  Future<Map<String, dynamic>> importGuestsExcel(String filePath) async {
+    try {
+      final url = '${ApiEndpoints.baseUrl}/admin/guests/import/';
+      final response = await ApiClient.postMultipart(url, filePath: filePath, fileFieldName: "xlsx_file");
+      final decodedData = jsonDecode(response.body);
+      if (response.statusCode == 200 && decodedData['status'] == true) {
+        await fetchGuests();
+        return {"success": true, "message": decodedData['message'] ?? 'Import complete.', "data": decodedData['data']};
+      }
+      return {"success": false, "message": decodedData['message'] ?? 'Failed to import guests.'};
     } catch (e) {
       return {"success": false, "message": "An error occurred: $e"};
     }

@@ -14,6 +14,7 @@ class AdminMember {
   final String teamName;
   final bool onetraceProEnabled;
   final String createdAt;
+  final List<Map<String, dynamic>> qualifications;
 
   AdminMember({
     required this.id,
@@ -31,6 +32,7 @@ class AdminMember {
     required this.teamName,
     required this.onetraceProEnabled,
     required this.createdAt,
+    this.qualifications = const [],
   });
 
   factory AdminMember.fromJson(Map<String, dynamic> json) {
@@ -50,6 +52,10 @@ class AdminMember {
       teamName: json['team_name'] ?? '-',
       onetraceProEnabled: json['onetrace_pro_enabled'] ?? false,
       createdAt: json['created_at'] ?? '',
+      qualifications: (json['qualifications'] as List? ?? [])
+          .whereType<Map>()
+          .map((e) => e.cast<String, dynamic>())
+          .toList(),
     );
   }
 }
