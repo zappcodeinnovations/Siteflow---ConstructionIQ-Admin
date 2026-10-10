@@ -143,3 +143,27 @@ investigated the signature pad's CSS/JS, already correctly built with
 `touch-action: none` and canvas-scoped listeners; likely a Flutter-WebView-
 Android gesture-arena interaction that needs a physical device to pin down -
 did not risk blind edits to the shared form-HTML renderer).
+
+## 2026-10-10 — Notification dropdown timestamp fix (#32 from the original 33-item ClickUp audit)
+
+User reported (outside eurosideclickuppoints.md, from the original ClickUp
+list): "Incorrect timestamps displayed in the notification dropdown on the
+mobile app (event timestamps mismatch actual activity timing and device
+time)."
+
+Root cause found in `lib/models/admin_notification_model.dart`:
+`formattedUpdatedAt` parsed the backend's UTC-aware ISO timestamp with
+`DateTime.parse()` (correct), then read `.hour`/`.day`/etc directly off that
+UTC-flagged `DateTime` without ever calling `.toLocal()` - so it displayed
+the raw UTC clock time instead of converting to the device's own timezone.
+Replaced the whole hand-rolled formatter with the shared
+`DateHelper.formatToLocal()` (already correct, already used by the full
+Notifications screen for the same data).
+
+Also discovered the appbar's actual notification "dropdown"
+(`PopupMenuButton` in `custom_appbar.dart`, `_NotificationRow`) displayed no
+timestamp at all before this fix - added one (`sent_at`, falling back to
+`created_at`), formatted correctly from the start.
+
+Committed locally (`e792fdb`), not pushed, per the standing rule for this
+repo.

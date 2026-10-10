@@ -41,7 +41,7 @@ changed on ClickUp itself — reporting back to user instead).
 | 29 | 14yjutqffqj | Docs & Files: folder counter slow to update after upload | | | |
 | 30 | 14yjutqffmv | Project cards: missing Assign/View team buttons | | | |
 | 31 | 14yjutqffmn | Project cards: missing Project Code / Owner / Locations count | | | |
-| 32 | 14yjutqffhr | Notification dropdown: incorrect timestamps | | | |
+| 32 | 14yjutqffhr | Notification dropdown: incorrect timestamps | yes | yes | Root cause: `AdminNotification.formattedUpdatedAt` parsed the UTC-aware timestamp correctly but never called `.toLocal()`, so it showed raw UTC time. Fixed via shared `DateHelper.formatToLocal()`; also added a timestamp line to the appbar's notification dropdown rows (had none). |
 | 33 | 14yjutqffgz | Dashboard: only 7/9 metric cards, wrong counts (Pending Tasks, Not Clocked In) | | | |
 
 ## Active work queue (2026-10-09, from eurosideclickuppoints.md)
