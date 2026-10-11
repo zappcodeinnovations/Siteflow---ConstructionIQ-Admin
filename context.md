@@ -572,3 +572,61 @@ correct, it just never got handed a real PDF to detect. New backend
 test `test_export_single_job_sheet_as_pdf` (plus the 5 sibling tests
 in that class, rerun as a sanity check). Pushed to origin/main
 (`4e4ac53`).
+
+## 2026-10-11 — Daily Diary view + Weekly Diary PDF: same missing-images bug, two more trigger points
+
+User reported images/signatures were still missing both when viewing
+Daily Diary and in its PDF download, even after the Job Sheet PDF fix
+above. Investigated both as genuinely separate code paths, not a
+regression of that fix.
+
+- **"View Form in Browser" (Job Sheets/Daily Reports "View" action)**:
+  traced through `SubmittedFormHTMLPreviewAPIView` ->
+  `_render_submission_html` -> `_fill_submission_html_controls`. Found
+  the real, structural reason file fields never show a preview:
+  `_fill_submission_html_controls` deliberately returns `type="file"`
+  `<input>` tags unchanged (`if input_type == 'file': return
+  tag_source`) - correctly, since a browser will never let JS set a
+  file input's value to a server-side file, so there's nothing useful
+  to fill in. For a raw-HTML form that includes its own `<img>`
+  placeholders this is fine (the existing zoom-lightbox enhancement
+  script just makes them clickable), but Daily Diary is a *structured*
+  form with no HTML template at all - so it rendered nothing visual
+  whatsoever. Found the exact fix already proven elsewhere: the print/
+  PDF template (`templates/dashboard/library/form_submission_print.html`)
+  has had this exact problem solved for months via an explicit "Images
+  & Files" section built from `_split_submission_file_entries()`
+  (Live Signature / Client Signature / Live Photos / other, grouped).
+  Ported that same section into `_render_submission_html` as a new
+  `_submission_images_section_html()` helper, appended before
+  `</body>` - and since the existing zoom-lightbox script auto-detects
+  every `<img>` on the page, the newly-injected images get the same
+  click-to-zoom behavior for free.
+- **Weekly Diary PDF download**: traced the Flutter
+  `weekly_diary_screen.dart`'s `_downloadRowPdf()` - it calls
+  `/api/weekly-diary/?...&export=pdf` first, and only falls back to
+  the (now-fixed) job-sheets PDF endpoint `if (response.statusCode !=
+  200 && ...)`. `WeeklyDiaryAPIView` never implemented `export`/
+  `report` at all, though - it always returns the normal JSON rows
+  payload with status **200**, so that fallback condition can never
+  fire, and the code falls through further down to the raw-HTML-
+  webview path instead (the exact same missing-images symptom, from a
+  completely different trigger). Found the web already has a
+  dedicated, already-correct PDF for this exact case -
+  `admin_app.views.weekly_diary_pdf` / `render_weekly_diary_pdf()`,
+  which embeds images from local `MEDIA_ROOT` paths and groups a full
+  week's Daily Diary submissions per operative+project. Wired
+  `export=pdf` on the mobile endpoint to call that same function
+  directly, with the same `operative_id`/`project_id`/`week` scoping
+  the web's own view uses (including the same manager-can't-see-other-
+  managers'-projects guard).
+
+Neither fix needed any Flutter change - both of the app's "is this a
+real PDF / did I get real HTML" checks were already correct, they
+just never had real content to detect. New tests:
+`test_user_form_html_preview_includes_submitted_images`,
+`test_weekly_diary_pdf_export_returns_real_pdf` (+
+`test_weekly_diary_pdf_export_requires_operative_and_project`,
+`test_manager_cannot_pdf_export_other_managers_project`). Ran combined
+with the earlier Job Sheet PDF test class as a sanity check (20 tests,
+all passing). Pushed to origin/main (`d27fbc9`).
