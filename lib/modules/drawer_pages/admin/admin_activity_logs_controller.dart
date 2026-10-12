@@ -45,29 +45,6 @@ class AdminActivityLogsController extends ChangeNotifier {
           .whereType<Map<String, dynamic>>()
           .toList();
     }
-
-    if (_filterOptions['users'] is List) {
-      final usersList = (_filterOptions['users'] as List)
-          .whereType<Map<String, dynamic>>()
-          .toList();
-      final filtered = usersList.where((u) {
-        final role = (u['role'] ??
-                u['role_name'] ??
-                u['role_display_name'] ??
-                u['user_type'] ??
-                '')
-            .toString()
-            .toLowerCase();
-        if (role.isNotEmpty) {
-          return role.contains('manager') && !role.contains('operative');
-        }
-        return true;
-      }).toList();
-
-      if (filtered.isNotEmpty) return filtered;
-      return usersList;
-    }
-
     return [];
   }
 
@@ -138,7 +115,10 @@ class AdminActivityLogsController extends ChangeNotifier {
 
   Future<void> fetchManagers() async {
     try {
-      final url = '${ApiEndpoints.baseUrl}/admin/members/?page_size=1000';
+      // The activity-log filter is manager-specific.  Ask the API for that
+      // role instead of downloading the whole member directory and trying to
+      // infer roles on the device.
+      final url = '${ApiEndpoints.baseUrl}/admin/members/?role=manager&page_size=1000';
       final response = await ApiClient.get(url);
       if (response.statusCode == 200) {
         final decodedData = jsonDecode(response.body);
@@ -163,10 +143,7 @@ class AdminActivityLogsController extends ChangeNotifier {
                   '')
               .toString()
               .toLowerCase();
-          // Exclude operatives and non-managers
-          return (role.contains('manager') || role == 'admin' || role == 'superadmin') &&
-              !role.contains('operative') &&
-              !role.contains('guest');
+          return role == 'manager';
         }).map((item) {
           final first = item['first_name']?.toString() ?? '';
           final last = item['last_name']?.toString() ?? '';
