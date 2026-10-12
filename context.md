@@ -673,3 +673,70 @@ directly). Ran combined with the prior day's
 `DailyDiarySubmissionRenderingTests` as a sanity check (10 tests, all
 passing). Pushed to origin/main (`004ccc5`). No Flutter changes in
 either item this round.
+
+## 2026-10-12 — Batch of 12 user-reported items, one pasted message
+
+User pasted 9 ClickUp-style reports in one message (one item - Invite
+Member email autofill - duplicated 3x in the paste, and "duplicate
+Employee Code validation" arrived title-only then got full detail
+in a follow-up, along with 2 more: Assigned Operators selector,
+Tasks count mismatch), 12 unique items total. Worked through them
+backend-first (grouping related root causes), then Flutter, per the
+user's repeated "kitne point bache hai" check-ins mid-batch - see
+report.md's table for the full per-item breakdown; this entry covers
+the two investigations worth remembering the reasoning for.
+
+- **Members Assigned/Invited/Seats + Pending "Invited 0"**: both
+  reports trace to the same gap - `AdminMemberListAPIView` never sent
+  `assigned`/`invited` counters, so the Flutter summary card's
+  fallback logic (`assignedCount ?? totalCount`, `invitedCount ?? 0`)
+  papered over the missing data with numbers that happened to look
+  plausible. Computed both the same way as web's `assigned_seat_total`/
+  `pending_invite_total` - org-wide, independent of which tab is
+  open. Testing this for real (not just reading the code) surfaced a
+  second, unrelated, more serious bug: `AdminMemberInviteSerializer`
+  declared `role_display` as a field but never listed it in
+  `Meta.fields`, so DRF's own field-name assertion crashed the whole
+  Pending tab (500) the instant it had to serialize a real row -
+  this had been broken for every "Invited 0" report all along,
+  independent of the counter fix.
+- **Notification/Ticket date "wrong format" reports (×2)**: both
+  described as MM/DD/YYYY, but `DateHelper.formatToLocal` already
+  uses an explicit `dd/MM/yyyy` pattern string, which `intl`'s
+  `DateFormat` keeps literal regardless of device locale - traced
+  both all the way through and found no code bug in the date
+  ordering. What *was* real: every timestamp in this app is shown in
+  the UK operational timezone with nothing marking it as such, so a
+  time like "3:48 PM" next to an IST device clock reads as
+  obviously-wrong even though it's correct UK time - added an
+  explicit BST/GMT suffix (`DateHelper.ukTimezoneAbbreviation()`) to
+  Ticket Details specifically (where it was asked for), reusing the
+  existing BST date-math `toUkDateTime` already had inline. The
+  Notification report's "BST" example inside the message body itself
+  is literal free text an admin typed when composing that
+  notification (`notification_text` is a plain `TextField`, nothing
+  auto-generates it) - not something code can or should "fix".
+- **Assigned Operators selector (Tasks) & Schedule Jobs**: both
+  screens share `CreateTaskController`, which fetched the full
+  org-wide `/admin/members/?role=operative` directory with zero
+  project scoping - the dropdown had no way to narrow down even
+  after a project was picked, because nothing re-fetched on project
+  change. Checked the web's own "Start New Task Online" modal
+  template first: its `<select>` starts completely empty and only
+  gets populated via JS once a project is chosen, reading a
+  `job_project_operative_map` the Django view already builds per
+  project via `available_job_operatives()`. Added that exact mapping
+  to the mobile `OperativeProjectJobCreateAPIView` response and made
+  the controller's `operatives` a pure getter off `setup.operatives`
+  (removing the now-dead org-wide fetch entirely, used by both
+  `CreateTaskDialog` and `ScheduleJobsDialog`, which also always
+  opens with a project already known).
+
+Backend tests, each run individually plus close siblings as a sanity
+check: `test_assigned_and_invited_counters_match_web_definitions`,
+`test_pending_tab_does_not_crash_when_an_invite_exists`,
+`AdminMemberInviteDuplicateEmployeeIdAPITests` (4 cases), 2 new cases
+in `OperativeProjectJobCreateApiTests`. Flutter: full `flutter
+analyze` clean (0 errors) after every change this batch. Backend
+pushed to origin/main (`c1f0f91`, `42dec36`); Flutter committed
+locally (`ee58917`, `cfb78cb`), not yet pushed per standing rule.
