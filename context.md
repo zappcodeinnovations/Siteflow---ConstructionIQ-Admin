@@ -740,3 +740,16 @@ in `OperativeProjectJobCreateApiTests`. Flutter: full `flutter
 analyze` clean (0 errors) after every change this batch. Backend
 pushed to origin/main (`c1f0f91`, `42dec36`); Flutter committed
 locally (`ee58917`, `cfb78cb`), not yet pushed per standing rule.
+
+## 2026-10-12 — Admin app vs web timings (manager login)
+
+`lib/modules/projects/tabs/job_sheets_tab.dart`: the project Job Sheets tab
+passed the server's `created` label (already rendered in the viewer's
+timezone, no offset) to `DateHelper.formatToLocal()`, which treats naive
+strings as UTC and shifted it again (+5:30 in India: 10:17 PM instead of
+4:47 PM). It now formats `created_at` (the UTC instant), falling back to
+`created`. The rest of the mismatch was backend-side (mobile API honoured
+the legacy per-account "Force UK time" flag that the web ignores; a few
+naive timestamps in the all-in-one payload) - fixed in Euroside_Project,
+see its context.md. Shipped in `8f7e261` (committed/pushed by Prem with
+other work). `flutter analyze` clean on the file (one pre-existing hint).
