@@ -35,7 +35,14 @@ class _TicketDetailsViewState extends State<TicketDetailsView> {
     if (RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(trimmed)) {
       return DateHelper.formatDate(trimmed);
     }
-    return DateHelper.formatToLocal(trimmed, includeTime: true);
+    final formatted = DateHelper.formatToLocal(trimmed, includeTime: true);
+    if (formatted == '-' || formatted.isEmpty) return formatted;
+    // Every timestamp in this app is shown in the UK operational timezone,
+    // not the viewer's device timezone - label it explicitly so "3:48 PM"
+    // doesn't read as already being the viewer's own local time.
+    final parsed = DateTime.tryParse(trimmed.replaceAll(' ', 'T'));
+    if (parsed == null) return formatted;
+    return '$formatted ${DateHelper.ukTimezoneAbbreviation(parsed)}';
   }
 
   Future<void> _sendReply() async {

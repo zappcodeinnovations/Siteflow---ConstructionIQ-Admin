@@ -5,7 +5,6 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/date_helper.dart';
 import 'admin_notifications_controller.dart';
 import 'add_notification_dialog.dart';
-import 'edit_notification_dialog.dart';
 import 'notification_details_dialog.dart';
 import '../../../../core/services/auth_service.dart';
 
@@ -26,7 +25,6 @@ class _AdminNotificationsViewState extends State<AdminNotificationsView> {
   String _appliedAudience = "all_notifications";
 
   bool _canCreate = false;
-  bool _canEdit = false;
   bool _canDelete = false;
 
   @override
@@ -38,14 +36,12 @@ class _AdminNotificationsViewState extends State<AdminNotificationsView> {
   Future<void> _loadPermissions() async {
     final access = await Future.wait([
       AuthService.can('admin_notifications', action: 'create'),
-      AuthService.can('admin_notifications', action: 'edit'),
       AuthService.can('admin_notifications', action: 'delete'),
     ]);
     if (!mounted) return;
     setState(() {
       _canCreate = access[0];
-      _canEdit = access[1];
-      _canDelete = access[2];
+      _canDelete = access[1];
     });
     await _controller.fetchNotifications();
   }
@@ -114,16 +110,6 @@ class _AdminNotificationsViewState extends State<AdminNotificationsView> {
             child: const Text("Delete", style: TextStyle(color: Colors.white)),
           ),
         ],
-      ),
-    );
-  }
-
-  void _editNotification(AdminNotification notification) {
-    showDialog(
-      context: context,
-      builder: (context) => EditNotificationDialog(
-        notification: notification,
-        controller: _controller,
       ),
     );
   }
@@ -296,7 +282,11 @@ class _AdminNotificationsViewState extends State<AdminNotificationsView> {
                   ),
                 ),
                 const SizedBox(height: 14),
-                // Bottom Row: Delivery summary + Actions (Delete/Edit)
+                // Bottom Row: Delivery summary + Delete action - a sent/
+                // broadcast notification has no Edit action on the web
+                // either (templates/dashboard/notifications/list.html
+                // only ever renders a Delete button), so there's nothing
+                // to mirror here beyond removing it.
                 Row(
                   children: [
                     Expanded(
@@ -309,32 +299,6 @@ class _AdminNotificationsViewState extends State<AdminNotificationsView> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    if (_canEdit)
-                      InkWell(
-                        borderRadius: BorderRadius.circular(6),
-                        onTap: () => _editNotification(notification),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 5,
-                          ),
-                          margin: const EdgeInsets.only(right: 6),
-                          decoration: BoxDecoration(
-                            color: isDark
-                                ? Colors.white.withValues(alpha: 0.1)
-                                : Colors.grey.shade200,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            "Edit",
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: textColor,
-                            ),
-                          ),
-                        ),
-                      ),
                     if (_canDelete)
                       InkWell(
                         borderRadius: BorderRadius.circular(6),

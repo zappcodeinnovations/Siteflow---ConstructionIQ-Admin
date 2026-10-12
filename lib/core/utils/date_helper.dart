@@ -41,9 +41,7 @@ class DateHelper {
     return _cachedTimezone!;
   }
 
-  /// Converts a UTC DateTime to Europe/London (GMT / BST) DateTime.
-  static DateTime toUkDateTime(DateTime dt) {
-    final utc = dt.isUtc ? dt : dt.toUtc();
+  static bool _isBst(DateTime utc) {
     final year = utc.year;
 
     // Last Sunday of March at 01:00 UTC (BST starts)
@@ -56,9 +54,22 @@ class DateHelper {
     final lastSundayOct = 31 - (oct31.weekday % 7);
     final bstEnd = DateTime.utc(year, 10, lastSundayOct, 1, 0, 0);
 
-    final isBst = (utc.isAfter(bstStart) || utc.isAtSameMomentAs(bstStart)) && utc.isBefore(bstEnd);
-    final offsetHours = isBst ? 1 : 0;
+    return (utc.isAfter(bstStart) || utc.isAtSameMomentAs(bstStart)) && utc.isBefore(bstEnd);
+  }
+
+  /// Converts a UTC DateTime to Europe/London (GMT / BST) DateTime.
+  static DateTime toUkDateTime(DateTime dt) {
+    final utc = dt.isUtc ? dt : dt.toUtc();
+    final offsetHours = _isBst(utc) ? 1 : 0;
     return utc.add(Duration(hours: offsetHours));
+  }
+
+  /// Returns "BST" or "GMT" for the given moment, so a displayed UK time
+  /// can carry an explicit label instead of leaving the reader to guess
+  /// whether it's already timezone-adjusted.
+  static String ukTimezoneAbbreviation(DateTime dt) {
+    final utc = dt.isUtc ? dt : dt.toUtc();
+    return _isBst(utc) ? 'BST' : 'GMT';
   }
 
   /// Formats a date string to the configured UK operational timezone (Europe/London: GMT/BST).

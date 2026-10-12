@@ -869,12 +869,17 @@ class ProjectProgressChart extends StatelessWidget {
     final interval = (dynamicMaxY / 5).ceilToDouble().clamp(1.0, double.infinity);
     final chartMaxY = dynamicMaxY + (interval * 1.0);
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
+    final borderColor = isDark ? AppTheme.darkBorder : Colors.grey.withOpacity(0.1);
+    final titleTextColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
+
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.withOpacity(0.1)),
+        border: Border.all(color: borderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -886,13 +891,13 @@ class ProjectProgressChart extends StatelessWidget {
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
+                  children: [
                     Text(
                       "Project Progress",
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: titleTextColor),
                     ),
-                    SizedBox(height: 4),
-                    Text(
+                    const SizedBox(height: 4),
+                    const Text(
                       "Portfolio completion statistics and task movement",
                       style: TextStyle(color: Colors.grey, fontSize: 13),
                     ),

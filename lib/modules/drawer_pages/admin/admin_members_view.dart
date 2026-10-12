@@ -1015,12 +1015,19 @@ class _AdminMembersViewState extends State<AdminMembersView> {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          Text(
-                            member.roleDisplayName.isNotEmpty ? member.roleDisplayName : member.role,
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: _getRoleTextColor(member.role),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: _getRoleColor(member.role),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              member.roleDisplayName.isNotEmpty ? member.roleDisplayName : member.role,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: _getRoleTextColor(member.role),
+                              ),
                             ),
                           ),
                         ],
