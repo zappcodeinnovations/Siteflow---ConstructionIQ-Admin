@@ -630,3 +630,46 @@ just never had real content to detect. New tests:
 `test_manager_cannot_pdf_export_other_managers_project`). Ran combined
 with the earlier Job Sheet PDF test class as a sanity check (20 tests,
 all passing). Pushed to origin/main (`d27fbc9`).
+
+## 2026-10-12 — Two more ClickUp-style reports: Daily Diary raw timestamps (real bug), Support attachment delete (already fixed)
+
+- **Raw ISO timestamps for "Work Started At"/"Work Finished At"**:
+  pulled on the thread of the two functions touched the day before
+  (`_fill_submission_html_controls`, `_build_friendly_submission_fields`)
+  and found neither had ever attempted any date formatting - they
+  both just inserted whatever string was stored, verbatim.
+  `_fill_submission_html_controls` feeds the "View Form in Browser"
+  webview (so a Daily Diary's own datetime fields showed the full
+  microsecond-precision ISO string in a plain `<input>`'s `value`);
+  `_build_friendly_submission_fields` feeds the mobile job sheet API's
+  `raw_fields`/`friendly_fields` and the ReportLab PDF's field table.
+  The fix was a straight swap, not new logic: the web's own submission
+  detail page already has a correct, tested formatter
+  (`_format_submission_display_value`) and a business-label mapper
+  (`_submission_business_label_for_raw_key`, "work_started_at" ->
+  "Work Started") used by `_display_submission_raw_payload` - neither
+  of the two mobile-facing functions had ever been pointed at them.
+  Swapped both over, with one guard: `_fill_submission_html_controls`
+  explicitly skips the reformat for `date`/`datetime-local`/`time`/
+  `month`/`week` input types, since those need their own value format
+  to stay valid in a real browser - only plain `text` (or untyped,
+  which defaults to text) controls get the human-readable string,
+  which matches what was actually happening in production (a native
+  date picker showing a full ISO-with-microseconds string isn't
+  possible - that symptom only happens on a plain text field).
+- **Missing delete button on Support ticket attachments**: checked
+  `create_ticket_dialog.dart` before writing any code, per the
+  verify-first habit, and found the entire described feature already
+  present - preview card, thumbnail, filename, formatted size, and a
+  dedicated red delete/trash `IconButton` wired to `_removeAttachment()`.
+  Traced it to commit `eba406e` from Harman's branch (merged into main
+  on 2026-10-10), which the report was filed independently of. No
+  change made.
+
+New tests: `SubmissionHtmlDateFormattingTests` (4 cases: plain-text
+reformatting, untyped input defaulting to text and being reformatted,
+native `date` input kept untouched, and the formatter function
+directly). Ran combined with the prior day's
+`DailyDiarySubmissionRenderingTests` as a sanity check (10 tests, all
+passing). Pushed to origin/main (`004ccc5`). No Flutter changes in
+either item this round.
