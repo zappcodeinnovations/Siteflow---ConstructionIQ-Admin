@@ -5,6 +5,18 @@ import '../../../../core/network/api_endpoints.dart';
 import '../../../../models/admin_permission_model.dart';
 
 class AdminPermissionsController extends ChangeNotifier {
+  // These are hard manager restrictions in the backend RBAC policy.  Keep the
+  // editor aligned with it so an administrator never sees a misleading toggle
+  // that cannot grant access.
+  static const Set<String> _managerHiddenPermissionKeys = {
+    'members',
+    'teams',
+    'settings_teams',
+    'admin_members',
+    'admin_permissions',
+    'admin_activity_logs',
+  };
+
   bool _isDisposed = false;
 
   @override
@@ -41,6 +53,32 @@ class AdminPermissionsController extends ChangeNotifier {
   List<PermissionItem> _menuKeys = [];
   List<PermissionItem> get menuKeys => _menuKeys;
 
+  bool get isSelectedRoleFullAccess => _isFullAccessRole(_selectedRole);
+
+  static bool _isFullAccessRole(AdminRole? role) {
+    if (role == null || !role.isSystem) return false;
+    return const {'admin', 'superuser'}.contains(role.code.toLowerCase());
+  }
+
+  static bool _isManagerRole(AdminRole? role) {
+    return role?.isSystem == true && role!.code.toLowerCase() == 'manager';
+  }
+
+  bool _isVisibleForRole(String menuKey, AdminRole role) {
+    return !_isManagerRole(role) ||
+        !_managerHiddenPermissionKeys.contains(menuKey.toLowerCase());
+  }
+
+  void _applyFixedFullAccess() {
+    if (!isSelectedRoleFullAccess) return;
+    for (final permission in _permissions) {
+      permission.canView = true;
+      permission.canCreate = true;
+      permission.canEdit = true;
+      permission.canDelete = true;
+    }
+  }
+
   static const List<Map<String, String>> _fallbackMenuKeys = [
     {'key': 'dashboard', 'label': 'Dashboard'},
     {'key': 'clients', 'label': 'Clients'},
@@ -68,20 +106,20 @@ class AdminPermissionsController extends ChangeNotifier {
     try {
       final url = '${ApiEndpoints.baseUrl}/admin/permissions/menu-keys/';
       final response = await ApiClient.get(url);
-      
+
       if (response.statusCode == 200) {
         final decodedData = jsonDecode(response.body);
         if (decodedData['status'] == true && decodedData['data'] != null) {
           final keysList = decodedData['data'] as List;
           _menuKeys = keysList.map((item) {
-             return PermissionItem(
-               menuKey: item['key'] ?? '',
-               label: item['label'] ?? '',
-               canView: false,
-               canCreate: false,
-               canEdit: false,
-               canDelete: false,
-             );
+            return PermissionItem(
+              menuKey: item['key'] ?? '',
+              label: item['label'] ?? '',
+              canView: false,
+              canCreate: false,
+              canEdit: false,
+              canDelete: false,
+            );
           }).toList();
         }
       }
@@ -107,14 +145,14 @@ class AdminPermissionsController extends ChangeNotifier {
     try {
       final url = '${ApiEndpoints.baseUrl}/admin/permissions/roles/';
       final response = await ApiClient.get(url);
-      
+
       if (response.statusCode == 200) {
         dynamic decodedData = jsonDecode(response.body);
-        
+
         if (decodedData['status'] == true && decodedData['data'] != null) {
           final rolesList = decodedData['data'] as List;
           _roles = rolesList.map((i) => AdminRole.fromJson(i)).toList();
-          
+
           if (_roles.isNotEmpty && _selectedRole == null) {
             // Automatically select the first role by default
             selectRole(_roles.first);
@@ -128,19 +166,28 @@ class AdminPermissionsController extends ChangeNotifier {
     }
   }
 
-  Future<Map<String, dynamic>> createRole(String name, String description) async {
+  Future<Map<String, dynamic>> createRole(
+    String name,
+    String description,
+  ) async {
     try {
       final url = '${ApiEndpoints.baseUrl}/admin/permissions/roles/';
       final payload = {"name": name, "description": description};
-      
+
       final response = await ApiClient.post(url, body: payload);
       final decodedData = jsonDecode(response.body);
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         await fetchRoles();
-        return {"success": true, "message": decodedData['message'] ?? "Role created successfully."};
+        return {
+          "success": true,
+          "message": decodedData['message'] ?? "Role created successfully.",
+        };
       }
-      return {"success": false, "message": decodedData['message'] ?? "Failed to create role."};
+      return {
+        "success": false,
+        "message": decodedData['message'] ?? "Failed to create role.",
+      };
     } catch (e) {
       return {"success": false, "message": "An error occurred: $e"};
     }
@@ -155,17 +202,27 @@ class AdminPermissionsController extends ChangeNotifier {
   /// Rename/delete only apply to custom roles - [role.code] is the bare
   /// numeric CustomRole id (unlike [role.id], which is prefixed e.g.
   /// "custom:5"/"system:admin" to disambiguate built-in roles elsewhere).
-  Future<Map<String, dynamic>> renameRole(AdminRole role, String newName) async {
+  Future<Map<String, dynamic>> renameRole(
+    AdminRole role,
+    String newName,
+  ) async {
     try {
-      final url = '${ApiEndpoints.baseUrl}/admin/permissions/roles/${role.code}/';
+      final url =
+          '${ApiEndpoints.baseUrl}/admin/permissions/roles/${role.code}/';
       final response = await ApiClient.patch(url, body: {"name": newName});
       final decodedData = jsonDecode(response.body);
 
       if (response.statusCode == 200 && decodedData['status'] == true) {
         await fetchRoles();
-        return {"success": true, "message": decodedData['message'] ?? "Role renamed successfully."};
+        return {
+          "success": true,
+          "message": decodedData['message'] ?? "Role renamed successfully.",
+        };
       }
-      return {"success": false, "message": decodedData['message'] ?? "Failed to rename role."};
+      return {
+        "success": false,
+        "message": decodedData['message'] ?? "Failed to rename role.",
+      };
     } catch (e) {
       return {"success": false, "message": "An error occurred: $e"};
     }
@@ -173,7 +230,8 @@ class AdminPermissionsController extends ChangeNotifier {
 
   Future<Map<String, dynamic>> deleteRole(AdminRole role) async {
     try {
-      final url = '${ApiEndpoints.baseUrl}/admin/permissions/roles/${role.code}/';
+      final url =
+          '${ApiEndpoints.baseUrl}/admin/permissions/roles/${role.code}/';
       final response = await ApiClient.delete(url);
       final decodedData = jsonDecode(response.body);
 
@@ -182,9 +240,15 @@ class AdminPermissionsController extends ChangeNotifier {
           _selectedRole = null;
         }
         await fetchRoles();
-        return {"success": true, "message": decodedData['message'] ?? "Role deleted successfully."};
+        return {
+          "success": true,
+          "message": decodedData['message'] ?? "Role deleted successfully.",
+        };
       }
-      return {"success": false, "message": decodedData['message'] ?? "Failed to delete role."};
+      return {
+        "success": false,
+        "message": decodedData['message'] ?? "Failed to delete role.",
+      };
     } catch (e) {
       return {"success": false, "message": "An error occurred: $e"};
     }
@@ -207,16 +271,18 @@ class AdminPermissionsController extends ChangeNotifier {
         .replaceAll('_', ' ')
         .replaceAll('/', ' / ')
         .split(' ')
-        .map((word) => word.isNotEmpty
-            ? '${word[0].toUpperCase()}${word.substring(1)}'
-            : '')
+        .map(
+          (word) => word.isNotEmpty
+              ? '${word[0].toUpperCase()}${word.substring(1)}'
+              : '',
+        )
         .join(' ');
   }
 
   Future<void> fetchPermissions(AdminRole role) async {
     _isLoading = true;
     _errorMessage = null;
-    
+
     if (_menuKeys.isEmpty) {
       _menuKeys = _fallbackMenuKeys.map((item) {
         return PermissionItem(
@@ -231,15 +297,20 @@ class AdminPermissionsController extends ChangeNotifier {
     }
 
     // Initialize permissions from menu keys to show all options as false by default
-    _permissions = _menuKeys.map((k) => PermissionItem(
-       menuKey: k.menuKey,
-       label: k.label,
-       canView: false,
-       canCreate: false,
-       canEdit: false,
-       canDelete: false,
-    )).toList();
-    
+    _permissions = _menuKeys
+        .where((k) => _isVisibleForRole(k.menuKey, role))
+        .map(
+          (k) => PermissionItem(
+            menuKey: k.menuKey,
+            label: k.label,
+            canView: false,
+            canCreate: false,
+            canEdit: false,
+            canDelete: false,
+          ),
+        )
+        .toList();
+
     notifyListeners();
 
     try {
@@ -250,12 +321,13 @@ class AdminPermissionsController extends ChangeNotifier {
       // every checkbox at its all-false initial state. The actual
       // permissions live under .../roles/<id>/permissions/
       // (AdminRolePermissionsAPIView), which does accept the prefixed id.
-      final url = '${ApiEndpoints.baseUrl}/admin/permissions/roles/${role.id}/permissions/';
+      final url =
+          '${ApiEndpoints.baseUrl}/admin/permissions/roles/${role.id}/permissions/';
       final response = await ApiClient.get(url);
-      
+
       if (response.statusCode == 200) {
         final decodedData = jsonDecode(response.body);
-        
+
         if (decodedData['status'] == true && decodedData['data'] != null) {
           final permsData = decodedData['data'];
           Map<String, dynamic> permsMap = {};
@@ -275,16 +347,19 @@ class AdminPermissionsController extends ChangeNotifier {
             if (permsMap.containsKey(altKey1)) return permsMap[altKey1];
             final altKey2 = key.replaceAll('/', '_');
             if (permsMap.containsKey(altKey2)) return permsMap[altKey2];
-            
+
             for (var entry in permsMap.entries) {
-              if (entry.key.toLowerCase().replaceAll('_', '').replaceAll('/', '') ==
+              if (entry.key
+                      .toLowerCase()
+                      .replaceAll('_', '')
+                      .replaceAll('/', '') ==
                   key.toLowerCase().replaceAll('_', '').replaceAll('/', '')) {
                 return entry.value;
               }
             }
             return null;
           }
-           
+
           for (int i = 0; i < _permissions.length; i++) {
             final key = _permissions[i].menuKey;
             final item = getPermEntry(key);
@@ -300,18 +375,25 @@ class AdminPermissionsController extends ChangeNotifier {
             final key = entry.key;
             if (entry.value is! Map) continue;
             final item = entry.value as Map;
-            final alreadyExists = _permissions.any((p) =>
-                p.menuKey.toLowerCase().replaceAll('_', '').replaceAll('/', '') ==
-                key.toLowerCase().replaceAll('_', '').replaceAll('/', ''));
-            if (!alreadyExists) {
-              _permissions.add(PermissionItem(
-                menuKey: key,
-                label: _formatLabel(key),
-                canView: _parseBool(item['view']),
-                canCreate: _parseBool(item['create']),
-                canEdit: _parseBool(item['edit']),
-                canDelete: _parseBool(item['delete']),
-              ));
+            final alreadyExists = _permissions.any(
+              (p) =>
+                  p.menuKey
+                      .toLowerCase()
+                      .replaceAll('_', '')
+                      .replaceAll('/', '') ==
+                  key.toLowerCase().replaceAll('_', '').replaceAll('/', ''),
+            );
+            if (!alreadyExists && _isVisibleForRole(key, role)) {
+              _permissions.add(
+                PermissionItem(
+                  menuKey: key,
+                  label: _formatLabel(key),
+                  canView: _parseBool(item['view']),
+                  canCreate: _parseBool(item['create']),
+                  canEdit: _parseBool(item['edit']),
+                  canDelete: _parseBool(item['delete']),
+                ),
+              );
             }
           }
         }
@@ -321,12 +403,17 @@ class AdminPermissionsController extends ChangeNotifier {
     } catch (e) {
       _errorMessage = 'An error occurred: $e';
     } finally {
+      // Admin is deliberately a non-configurable, full access system role.
+      // This also keeps older API deployments visually correct while their
+      // RolePermission rows are still being migrated.
+      _applyFixedFullAccess();
       _isLoading = false;
       notifyListeners();
     }
   }
 
   void updatePermission(int index, String field, bool value) {
+    if (isSelectedRoleFullAccess) return;
     if (index < 0 || index >= _permissions.length) return;
     final item = _permissions[index];
     switch (field) {
@@ -350,7 +437,15 @@ class AdminPermissionsController extends ChangeNotifier {
   }
 
   Future<Map<String, dynamic>> savePermissions() async {
-    if (_selectedRole == null) return {"success": false, "message": "No role selected"};
+    if (_selectedRole == null)
+      return {"success": false, "message": "No role selected"};
+    if (isSelectedRoleFullAccess) {
+      return {
+        "success": false,
+        "message":
+            "The Admin system role has fixed full access and cannot be edited.",
+      };
+    }
 
     _isSaving = true;
     notifyListeners();
@@ -360,20 +455,31 @@ class AdminPermissionsController extends ChangeNotifier {
       // roles/<id>/ route), and AdminRolePermissionsAPIView only defines
       // GET/POST (no PATCH, which would 405), and expects the menu-key map
       // wrapped under a top-level "permissions" key, not sent bare.
-      final url = '${ApiEndpoints.baseUrl}/admin/permissions/roles/${_selectedRole!.id}/permissions/';
+      final url =
+          '${ApiEndpoints.baseUrl}/admin/permissions/roles/${_selectedRole!.id}/permissions/';
 
       Map<String, dynamic> permissionsMap = {};
       for (var p in _permissions) {
         permissionsMap[p.menuKey] = p.toJsonValue();
       }
 
-      final response = await ApiClient.post(url, body: {"permissions": permissionsMap});
+      final response = await ApiClient.post(
+        url,
+        body: {"permissions": permissionsMap},
+      );
       final decodedData = jsonDecode(response.body);
-      
+
       if (response.statusCode == 200 || response.statusCode == 201) {
-        return {"success": true, "message": decodedData['message'] ?? "Permissions updated successfully."};
+        return {
+          "success": true,
+          "message":
+              decodedData['message'] ?? "Permissions updated successfully.",
+        };
       }
-      return {"success": false, "message": decodedData['message'] ?? "Failed to save permissions."};
+      return {
+        "success": false,
+        "message": decodedData['message'] ?? "Failed to save permissions.",
+      };
     } catch (e) {
       return {"success": false, "message": "An error occurred: $e"};
     } finally {

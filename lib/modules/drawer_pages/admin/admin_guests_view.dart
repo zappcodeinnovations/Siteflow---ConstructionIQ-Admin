@@ -7,11 +7,11 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/api_endpoints.dart';
-import '../../../../models/admin_guest_model.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/date_helper.dart';
+import '../../../../models/admin_guest_model.dart';
 import 'admin_guests_controller.dart';
 import 'invite_guest_dialog.dart';
-import 'edit_guest_dialog.dart';
 import 'guest_details_dialog.dart';
 
 class AdminGuestsView extends StatefulWidget {
@@ -44,23 +44,38 @@ class _AdminGuestsViewState extends State<AdminGuestsView> {
       _searchQuery = '';
       _searchController.clear();
     });
+    _controller.setStatusFilter('active');
   }
 
   Future<void> _exportGuests() async {
     try {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Exporting guests..."), duration: Duration(seconds: 2)),
+        const SnackBar(
+          content: Text("Exporting guests..."),
+          duration: Duration(seconds: 2),
+        ),
       );
-      var url = '${ApiEndpoints.baseUrl}/admin/guests/export/';
-      if (_searchQuery.isNotEmpty) url += '?search=${Uri.encodeQueryComponent(_searchQuery)}';
+      final queryParams = <String>[
+        'status=${Uri.encodeQueryComponent(_controller.statusFilter)}',
+      ];
+      if (_searchQuery.isNotEmpty) {
+        queryParams.add('search=${Uri.encodeQueryComponent(_searchQuery)}');
+      }
+      final url =
+          '${ApiEndpoints.baseUrl}/admin/guests/export/?${queryParams.join('&')}';
       final response = await ApiClient.get(url);
       if (!mounted) return;
       if (response.statusCode == 200 && response.bodyBytes.isNotEmpty) {
         final directory = await getTemporaryDirectory();
-        final file = File('${directory.path}/guests_export_${DateTime.now().millisecondsSinceEpoch}.xlsx');
+        final file = File(
+          '${directory.path}/guests_export_${DateTime.now().millisecondsSinceEpoch}.xlsx',
+        );
         await file.writeAsBytes(response.bodyBytes);
+        if (!mounted) return;
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        await Share.shareXFiles([XFile(file.path)], text: "Guests Export");
+        await SharePlus.instance.share(
+          ShareParams(files: [XFile(file.path)], text: 'Guests Export'),
+        );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Failed to export (${response.statusCode}).")),
@@ -68,9 +83,9 @@ class _AdminGuestsViewState extends State<AdminGuestsView> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error exporting guests: $e")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Error exporting guests: $e")));
       }
     }
   }
@@ -91,7 +106,9 @@ class _AdminGuestsViewState extends State<AdminGuestsView> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 TextButton.icon(
-                  onPressed: isSubmitting ? null : () => _controller.downloadImportTemplate(),
+                  onPressed: isSubmitting
+                      ? null
+                      : () => _controller.downloadImportTemplate(),
                   icon: const Icon(IconlyLight.download, size: 16),
                   label: const Text("Download Template"),
                 ),
@@ -105,24 +122,36 @@ class _AdminGuestsViewState extends State<AdminGuestsView> {
                             allowedExtensions: ['xlsx'],
                           );
                           if (result != null && result.files.isNotEmpty) {
-                            setDialogState(() => pickedFile = result.files.first);
+                            setDialogState(
+                              () => pickedFile = result.files.first,
+                            );
                           }
                         },
                   icon: const Icon(Icons.attach_file, size: 16),
                   label: const Text("Choose .xlsx File"),
                 ),
                 const SizedBox(height: 6),
-                Text(pickedFile?.name ?? "No file chosen", style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                Text(
+                  pickedFile?.name ?? "No file chosen",
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                ),
               ],
             ),
             actions: [
-              TextButton(onPressed: isSubmitting ? null : () => Navigator.pop(dialogContext), child: const Text("Cancel")),
+              TextButton(
+                onPressed: isSubmitting
+                    ? null
+                    : () => Navigator.pop(dialogContext),
+                child: const Text("Cancel"),
+              ),
               ElevatedButton(
                 onPressed: (isSubmitting || pickedFile?.path == null)
                     ? null
                     : () async {
                         setDialogState(() => isSubmitting = true);
-                        final result = await _controller.importGuestsExcel(pickedFile!.path!);
+                        final result = await _controller.importGuestsExcel(
+                          pickedFile!.path!,
+                        );
                         if (!dialogContext.mounted) return;
                         Navigator.pop(dialogContext);
                         if (!mounted) return;
@@ -130,14 +159,24 @@ class _AdminGuestsViewState extends State<AdminGuestsView> {
                         final errors = (data?['errors'] as List?) ?? [];
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text(errors.isNotEmpty ? "${result['message']} ${errors.length} row(s) skipped." : result['message'] ?? ''),
-                            backgroundColor: result['success'] == true ? Colors.green : Colors.red,
+                            content: Text(
+                              errors.isNotEmpty
+                                  ? "${result['message']} ${errors.length} row(s) skipped."
+                                  : result['message'] ?? '',
+                            ),
+                            backgroundColor: result['success'] == true
+                                ? Colors.green
+                                : Colors.red,
                             duration: const Duration(seconds: 4),
                           ),
                         );
                       },
                 child: isSubmitting
-                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
                     : const Text("Import"),
               ),
             ],
@@ -148,16 +187,135 @@ class _AdminGuestsViewState extends State<AdminGuestsView> {
   }
 
   Future<void> _confirmConvertToMember(AdminGuest guest) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final dialogSurface = isDark ? AppTheme.darkSurfaceRaised : Colors.white;
+    final dialogText = isDark ? AppTheme.darkText : const Color(0xFF0F2C4A);
+    final mutedText = isDark ? AppTheme.darkMuted : Colors.grey.shade600;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text("Convert to Member"),
-        content: Text("Convert ${guest.displayName} to a member (Operative)? They will gain member access."),
+        backgroundColor: dialogSurface,
+        title: Row(
+          children: [
+            const Icon(IconlyLight.swap, color: Color(0xFF0D6EFD)),
+            const SizedBox(width: 10),
+            Text('Convert to Member', style: TextStyle(color: dialogText)),
+          ],
+        ),
+        content: SizedBox(
+          width: 400,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Assign product access',
+                style: TextStyle(
+                  fontSize: 19,
+                  fontWeight: FontWeight.bold,
+                  color: dialogText,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '${guest.displayName} (${guest.email})',
+                style: TextStyle(color: mutedText, fontSize: 13),
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 18),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? AppTheme.darkSurface
+                      : const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isDark
+                        ? AppTheme.darkBorder
+                        : const Color(0xFFE2E8F0),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0D6EFD).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        IconlyLight.category,
+                        color: Color(0xFF0D6EFD),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Euroside',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: dialogText,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Project operations access',
+                            style: TextStyle(fontSize: 12, color: mutedText),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 9,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withValues(
+                          alpha: isDark ? 0.18 : 0.10,
+                        ),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        'Available',
+                        style: TextStyle(
+                          color: isDark
+                              ? Colors.green.shade300
+                              : Colors.green.shade700,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'This will convert the guest to an Operative and assign Euroside member access.',
+                style: TextStyle(fontSize: 12, color: mutedText, height: 1.35),
+              ),
+            ],
+          ),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text("Cancel")),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
           ElevatedButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text("Convert"),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0D6EFD),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Convert to Member'),
           ),
         ],
       ),
@@ -183,29 +341,28 @@ class _AdminGuestsViewState extends State<AdminGuestsView> {
   void _deleteGuest(AdminGuest guest) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text("Delete Guest"),
         content: Text("Are you sure you want to remove ${guest.email}?"),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text("Cancel"),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () async {
-              Navigator.pop(context);
+              Navigator.pop(dialogContext);
               final result = await _controller.deleteGuest(guest.id);
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(result['message']),
-                    backgroundColor: result['success'] == true
-                        ? Colors.green
-                        : Colors.red,
-                  ),
-                );
-              }
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(result['message']),
+                  backgroundColor: result['success'] == true
+                      ? Colors.green
+                      : Colors.red,
+                ),
+              );
             },
             child: const Text("Delete", style: TextStyle(color: Colors.white)),
           ),
@@ -214,11 +371,22 @@ class _AdminGuestsViewState extends State<AdminGuestsView> {
     );
   }
 
-  void _editGuest(AdminGuest guest) {
-    showDialog(
+  void _showGuestDetails(AdminGuest guest) {
+    showGeneralDialog(
       context: context,
-      builder: (context) =>
-          EditGuestDialog(guest: guest, controller: _controller),
+      barrierDismissible: true,
+      barrierLabel: 'Dismiss',
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (context, animation, secondaryAnimation) =>
+          GuestDetailsDialog(guestId: guest.id, controller: _controller),
+      transitionBuilder: (context, animation, secondaryAnimation, child) =>
+          ScaleTransition(
+            scale: CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeOutBack,
+            ),
+            child: FadeTransition(opacity: animation, child: child),
+          ),
     );
   }
 
@@ -258,30 +426,7 @@ class _AdminGuestsViewState extends State<AdminGuestsView> {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
-          onTap: () {
-            showGeneralDialog(
-              context: context,
-              barrierDismissible: true,
-              barrierLabel: "Dismiss",
-              transitionDuration: const Duration(milliseconds: 300),
-              pageBuilder: (context, animation, secondaryAnimation) {
-                return GuestDetailsDialog(
-                  guestId: guest.id,
-                  controller: _controller,
-                );
-              },
-              transitionBuilder:
-                  (context, animation, secondaryAnimation, child) {
-                    return ScaleTransition(
-                      scale: CurvedAnimation(
-                        parent: animation,
-                        curve: Curves.easeOutBack,
-                      ),
-                      child: FadeTransition(opacity: animation, child: child),
-                    );
-                  },
-            );
-          },
+          onTap: () => _showGuestDetails(guest),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -357,7 +502,9 @@ class _AdminGuestsViewState extends State<AdminGuestsView> {
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: isDark ? Colors.white12 : Colors.grey.shade200,
+                              color: isDark
+                                  ? Colors.white12
+                                  : Colors.grey.shade200,
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
@@ -378,24 +525,50 @@ class _AdminGuestsViewState extends State<AdminGuestsView> {
                         color: Colors.grey,
                       ),
                       onSelected: (val) {
-                        if (val == 'edit') _editGuest(guest);
+                        if (val == 'view') _showGuestDetails(guest);
                         if (val == 'convert') _confirmConvertToMember(guest);
                         if (val == 'delete') _deleteGuest(guest);
                       },
                       itemBuilder: (context) => [
                         const PopupMenuItem(
-                          value: 'edit',
-                          child: Text("Edit Guest"),
+                          value: 'view',
+                          child: Row(
+                            children: [
+                              Icon(
+                                IconlyLight.profile,
+                                size: 16,
+                                color: Color(0xFF0D6EFD),
+                              ),
+                              SizedBox(width: 8),
+                              Text('View Profile'),
+                            ],
+                          ),
                         ),
                         const PopupMenuItem(
                           value: 'convert',
-                          child: Text("Convert to Member"),
+                          child: Row(
+                            children: [
+                              Icon(IconlyLight.swap, size: 16),
+                              SizedBox(width: 8),
+                              Text('Convert to Member'),
+                            ],
+                          ),
                         ),
                         const PopupMenuItem(
                           value: 'delete',
-                          child: Text(
-                            "Remove Guest",
-                            style: TextStyle(color: Colors.red),
+                          child: Row(
+                            children: [
+                              Icon(
+                                IconlyLight.delete,
+                                size: 16,
+                                color: Colors.red,
+                              ),
+                              SizedBox(width: 8),
+                              Text(
+                                'Remove Guest',
+                                style: TextStyle(color: Colors.red),
+                              ),
+                            ],
                           ),
                         ),
                       ],
@@ -424,10 +597,7 @@ class _AdminGuestsViewState extends State<AdminGuestsView> {
                         const SizedBox(height: 4),
                         Text(
                           guest.username.isNotEmpty ? guest.username : "N/A",
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: textColor,
-                          ),
+                          style: TextStyle(fontSize: 14, color: textColor),
                         ),
                       ],
                     ),
@@ -445,11 +615,40 @@ class _AdminGuestsViewState extends State<AdminGuestsView> {
                         const SizedBox(height: 4),
                         Text(
                           guest.phone.isNotEmpty ? guest.phone : "N/A",
+                          style: TextStyle(fontSize: 14, color: textColor),
+                        ),
+                      ],
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'PROJECTS',
                           style: TextStyle(
-                            fontSize: 14,
-                            color: textColor,
+                            fontSize: 10,
+                            color: Colors.grey,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${guest.projectCount} ${guest.projectCount == 1 ? 'Project' : 'Projects'}',
+                          style: TextStyle(fontSize: 14, color: textColor),
+                        ),
+                        if (guest.projects.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 180),
+                            child: Text(
+                              guest.projectSummary,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: subtitleColor,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ],
@@ -459,6 +658,268 @@ class _AdminGuestsViewState extends State<AdminGuestsView> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildStatusSegmentedControl(bool isDark) {
+    final selectedStatus = _controller.statusFilter;
+    final inactiveText = isDark ? AppTheme.darkMuted : const Color(0xFF64748B);
+
+    Widget buildTab({
+      required String status,
+      required String label,
+      required int count,
+      required IconData icon,
+    }) {
+      final isSelected = selectedStatus == status;
+      return Expanded(
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(8),
+            onTap: () => _controller.setStatusFilter(status),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? const Color(0xFF0D6EFD)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    icon,
+                    size: 15,
+                    color: isSelected ? Colors.white : inactiveText,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: isSelected ? Colors.white : inactiveText,
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? Colors.white.withValues(alpha: 0.22)
+                          : (isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      '$count',
+                      style: TextStyle(
+                        color: isSelected ? Colors.white : inactiveText,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: isDark ? AppTheme.darkSurfaceRaised : const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          buildTab(
+            status: 'active',
+            label: 'Active',
+            count: _controller.activeCount,
+            icon: IconlyLight.user_1,
+          ),
+          const SizedBox(width: 4),
+          buildTab(
+            status: 'pending',
+            label: 'Pending',
+            count: _controller.invitedCount,
+            icon: IconlyLight.send,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPendingGuestCard(
+    AdminGuest guest, {
+    required bool isDark,
+    required Color cardColor,
+    required Color borderColor,
+    required Color textColor,
+    required Color subtitleColor,
+  }) {
+    final statusLabel = guest.inviteStatus.isEmpty
+        ? 'Pending'
+        : '${guest.inviteStatus[0].toUpperCase()}${guest.inviteStatus.substring(1)}';
+    final sentAt = guest.sentAt.isNotEmpty ? guest.sentAt : guest.createdAt;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: borderColor),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0D6EFD).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(11),
+                  ),
+                  child: const Icon(
+                    IconlyLight.message,
+                    color: Color(0xFF0D6EFD),
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        guest.displayName,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                          color: textColor,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        guest.email,
+                        style: TextStyle(fontSize: 12, color: subtitleColor),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 7),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.withValues(
+                            alpha: isDark ? 0.20 : 0.13,
+                          ),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(
+                            color: Colors.amber.withValues(alpha: 0.45),
+                          ),
+                        ),
+                        child: Text(
+                          statusLabel,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: isDark
+                                ? Colors.amber.shade200
+                                : Colors.orange.shade800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Divider(
+              height: 1,
+              color: isDark ? Colors.white12 : Colors.grey.shade200,
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 24,
+              runSpacing: 10,
+              children: [
+                _buildPendingDetail(
+                  label: 'PROJECTS',
+                  value:
+                      '${guest.projectCount} ${guest.projectCount == 1 ? 'Project' : 'Projects'}',
+                  textColor: textColor,
+                  subtitleColor: subtitleColor,
+                ),
+                _buildPendingDetail(
+                  label: 'SENT',
+                  value: sentAt.isEmpty
+                      ? '-'
+                      : DateHelper.formatToLocal(sentAt),
+                  textColor: textColor,
+                  subtitleColor: subtitleColor,
+                ),
+              ],
+            ),
+            if (guest.projects.isNotEmpty) ...[
+              const SizedBox(height: 9),
+              Text(
+                guest.projects.map((project) => project.label).join(', '),
+                style: TextStyle(color: subtitleColor, fontSize: 12),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPendingDetail({
+    required String label,
+    required String value,
+    required Color textColor,
+    required Color subtitleColor,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 10,
+            color: subtitleColor,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 13,
+            color: textColor,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
     );
   }
 
@@ -474,23 +935,31 @@ class _AdminGuestsViewState extends State<AdminGuestsView> {
     final searchFillColor = isDark ? AppTheme.darkSurface : Colors.white;
 
     return Scaffold(
-      backgroundColor: isDark ? AppTheme.darkBackground : null,
+      backgroundColor: isDark
+          ? AppTheme.darkBackground
+          : const Color(0xFFF8FAFC),
       body: AnimatedBuilder(
         animation: _controller,
         builder: (context, _) {
-          final filteredGuests = _controller.guests
-              .where(
-                (g) =>
-                    g.displayName.toLowerCase().contains(_searchQuery) ||
-                    g.email.toLowerCase().contains(_searchQuery),
-              )
-              .toList();
-
-          final totalGuests = _controller.guests.length;
+          final isPendingTab = _controller.statusFilter == 'pending';
+          final filteredGuests = _controller.guests.where((guest) {
+            if (_searchQuery.isEmpty) return true;
+            return guest.displayName.toLowerCase().contains(_searchQuery) ||
+                guest.email.toLowerCase().contains(_searchQuery) ||
+                guest.projectSummary.toLowerCase().contains(_searchQuery) ||
+                guest.projects.any(
+                  (project) =>
+                      project.label.toLowerCase().contains(_searchQuery),
+                );
+          }).toList();
+          final summaryTotal =
+              _controller.activeCount + _controller.invitedCount;
+          final totalGuests = summaryTotal > 0
+              ? summaryTotal
+              : _controller.guests.length;
 
           return Column(
             children: [
-              // Header & Search
               Container(
                 color: headerBg,
                 padding: const EdgeInsets.all(16),
@@ -505,7 +974,7 @@ class _AdminGuestsViewState extends State<AdminGuestsView> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                "Guests\nDirectory",
+                                'Guests\nDirectory',
                                 style: TextStyle(
                                   fontSize: 24,
                                   fontWeight: FontWeight.bold,
@@ -515,7 +984,7 @@ class _AdminGuestsViewState extends State<AdminGuestsView> {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                "$totalGuests Guests Total",
+                                '$totalGuests Guests Total',
                                 style: TextStyle(
                                   color: subtitleColor,
                                   fontSize: 14,
@@ -524,28 +993,24 @@ class _AdminGuestsViewState extends State<AdminGuestsView> {
                             ],
                           ),
                         ),
-                        const SizedBox(width: 16),
+                        const SizedBox(width: 12),
                         ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF0D6EFD),
+                            foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 14,
+                              horizontal: 14,
+                              vertical: 12,
                             ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),
                             ),
                           ),
                           onPressed: _showInviteDialog,
-                          icon: const Icon(
-                            IconlyLight.add_user,
-                            color: Colors.white,
-                            size: 20,
-                          ),
+                          icon: const Icon(IconlyLight.add_user, size: 18),
                           label: const Text(
-                            "Invite Guest",
+                            'Invite Guest',
                             style: TextStyle(
-                              color: Colors.white,
                               fontSize: 13,
                               fontWeight: FontWeight.bold,
                             ),
@@ -553,18 +1018,32 @@ class _AdminGuestsViewState extends State<AdminGuestsView> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 20),
-                    // Search Bar
+                    const SizedBox(height: 16),
                     TextField(
                       controller: _searchController,
                       style: TextStyle(color: textColor),
                       decoration: InputDecoration(
-                        hintText: "Search guests...",
+                        hintText: isPendingTab
+                            ? 'Search pending guests...'
+                            : 'Search guests, projects...',
                         hintStyle: TextStyle(color: subtitleColor),
                         prefixIcon: Icon(
                           IconlyLight.search,
                           color: subtitleColor,
                         ),
+                        suffixIcon: _searchQuery.isEmpty
+                            ? null
+                            : IconButton(
+                                icon: Icon(
+                                  Icons.clear,
+                                  size: 18,
+                                  color: subtitleColor,
+                                ),
+                                onPressed: () {
+                                  _searchController.clear();
+                                  setState(() => _searchQuery = '');
+                                },
+                              ),
                         filled: true,
                         fillColor: searchFillColor,
                         contentPadding: const EdgeInsets.symmetric(vertical: 0),
@@ -576,9 +1055,16 @@ class _AdminGuestsViewState extends State<AdminGuestsView> {
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide(color: borderColor),
                         ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFF0D6EFD),
+                          ),
+                        ),
                       ),
-                      onChanged: (val) =>
-                          setState(() => _searchQuery = val.toLowerCase()),
+                      onChanged: (value) => setState(
+                        () => _searchQuery = value.toLowerCase().trim(),
+                      ),
                     ),
                     const SizedBox(height: 12),
                     Row(
@@ -587,17 +1073,19 @@ class _AdminGuestsViewState extends State<AdminGuestsView> {
                           child: OutlinedButton.icon(
                             onPressed: _exportGuests,
                             icon: const Icon(IconlyLight.download, size: 16),
-                            label: const Text("Export Excel"),
+                            label: Text(
+                              isPendingTab ? 'Export Pending' : 'Export Excel',
+                            ),
                           ),
                         ),
                         const SizedBox(width: 8),
                         IconButton(
-                          tooltip: "Import guests from Excel",
+                          tooltip: 'Import guests from Excel',
                           onPressed: _showImportGuestsDialog,
                           icon: Icon(IconlyLight.upload, color: subtitleColor),
                         ),
                         IconButton(
-                          tooltip: "Reset filters",
+                          tooltip: 'Reset filters',
                           onPressed: _resetFilters,
                           icon: Icon(Icons.refresh, color: subtitleColor),
                         ),
@@ -606,16 +1094,10 @@ class _AdminGuestsViewState extends State<AdminGuestsView> {
                   ],
                 ),
               ),
-
-              // Guests List
+              _buildStatusSegmentedControl(isDark),
               Expanded(
                 child: _controller.isLoading && _controller.guests.isEmpty
-                    ? const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(48.0),
-                          child: CircularProgressIndicator(),
-                        ),
-                      )
+                    ? const Center(child: CircularProgressIndicator())
                     : _controller.errorMessage != null &&
                           _controller.guests.isEmpty
                     ? Center(
@@ -624,19 +1106,63 @@ class _AdminGuestsViewState extends State<AdminGuestsView> {
                           style: const TextStyle(color: Colors.red),
                         ),
                       )
+                    : filteredGuests.isEmpty
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(32),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                isPendingTab
+                                    ? IconlyLight.send
+                                    : IconlyLight.user_1,
+                                size: 48,
+                                color: subtitleColor,
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                isPendingTab
+                                    ? 'No pending guest invitations found.'
+                                    : 'No active guests found.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(color: subtitleColor),
+                              ),
+                              if (isPendingTab) ...[
+                                const SizedBox(height: 14),
+                                ElevatedButton.icon(
+                                  onPressed: _showInviteDialog,
+                                  icon: const Icon(
+                                    IconlyLight.add_user,
+                                    size: 16,
+                                  ),
+                                  label: const Text('Invite Guest'),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      )
                     : ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                         itemCount: filteredGuests.length,
-                        itemBuilder: (context, index) {
-                          return _buildGuestCard(
-                            filteredGuests[index],
-                            isDark: isDark,
-                            cardColor: cardColor,
-                            borderColor: borderColor,
-                            textColor: textColor,
-                            subtitleColor: subtitleColor,
-                          );
-                        },
+                        itemBuilder: (context, index) => isPendingTab
+                            ? _buildPendingGuestCard(
+                                filteredGuests[index],
+                                isDark: isDark,
+                                cardColor: cardColor,
+                                borderColor: borderColor,
+                                textColor: textColor,
+                                subtitleColor: subtitleColor,
+                              )
+                            : _buildGuestCard(
+                                filteredGuests[index],
+                                isDark: isDark,
+                                cardColor: cardColor,
+                                borderColor: borderColor,
+                                textColor: textColor,
+                                subtitleColor: subtitleColor,
+                              ),
                       ),
               ),
             ],

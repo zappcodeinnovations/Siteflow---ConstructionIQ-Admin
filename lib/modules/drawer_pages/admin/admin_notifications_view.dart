@@ -21,8 +21,6 @@ class _AdminNotificationsViewState extends State<AdminNotificationsView> {
   final TextEditingController _searchController = TextEditingController();
 
   String _selectedAudience = "all_notifications";
-  String _appliedSearch = "";
-  String _appliedAudience = "all_notifications";
 
   bool _canCreate = false;
   bool _canDelete = false;
@@ -53,20 +51,20 @@ class _AdminNotificationsViewState extends State<AdminNotificationsView> {
     super.dispose();
   }
 
-  void _applyFilter() {
-    setState(() {
-      _appliedSearch = _searchController.text.trim().toLowerCase();
-      _appliedAudience = _selectedAudience;
-    });
+  Future<void> _applyFilter() async {
+    final search = _searchController.text.trim();
+    final audience = _selectedAudience == "all_notifications"
+        ? null
+        : _selectedAudience;
+    await _controller.fetchNotifications(search: search, audience: audience);
   }
 
-  void _resetFilter() {
+  Future<void> _resetFilter() async {
     setState(() {
       _searchController.clear();
       _selectedAudience = "all_notifications";
-      _appliedSearch = "";
-      _appliedAudience = "all_notifications";
     });
+    await _controller.fetchNotifications();
   }
 
   void _showAddDialog() {
@@ -197,14 +195,14 @@ class _AdminNotificationsViewState extends State<AdminNotificationsView> {
               },
               transitionBuilder:
                   (context, animation, secondaryAnimation, child) {
-                return ScaleTransition(
-                  scale: CurvedAnimation(
-                    parent: animation,
-                    curve: Curves.easeOutBack,
-                  ),
-                  child: FadeTransition(opacity: animation, child: child),
-                );
-              },
+                    return ScaleTransition(
+                      scale: CurvedAnimation(
+                        parent: animation,
+                        curve: Curves.easeOutBack,
+                      ),
+                      child: FadeTransition(opacity: animation, child: child),
+                    );
+                  },
             );
           },
           child: Padding(
@@ -292,10 +290,7 @@ class _AdminNotificationsViewState extends State<AdminNotificationsView> {
                     Expanded(
                       child: Text(
                         deliveryStatus,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: subtitleColor,
-                        ),
+                        style: TextStyle(fontSize: 11, color: subtitleColor),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -350,39 +345,18 @@ class _AdminNotificationsViewState extends State<AdminNotificationsView> {
     final textColor = isDark ? AppTheme.darkText : Colors.black87;
     final subtitleColor = isDark ? AppTheme.darkMuted : Colors.grey.shade600;
     final borderColor = isDark ? AppTheme.darkBorder : Colors.grey.shade300;
-    final searchFillColor = isDark
-        ? AppTheme.darkSurface
-        : Colors.white;
+    final searchFillColor = isDark ? AppTheme.darkSurface : Colors.white;
 
     return Scaffold(
       backgroundColor: isDark ? AppTheme.darkBackground : null,
       body: AnimatedBuilder(
         animation: _controller,
         builder: (context, _) {
-          final filtered = _controller.notifications.where((a) {
-            if (_appliedSearch.isNotEmpty) {
-              final matchesSearch = a.headline
-                      .toLowerCase()
-                      .contains(_appliedSearch) ||
-                  a.notificationText.toLowerCase().contains(_appliedSearch) ||
-                  a.audience.toLowerCase().contains(_appliedSearch) ||
-                  a.createdByName.toLowerCase().contains(_appliedSearch);
-              if (!matchesSearch) return false;
-            }
-
-            if (_appliedAudience == "all_operators") {
-              final aud = a.audience.toLowerCase();
-              return aud == "all_operators" || aud == "all" || a.isForAllOperators;
-            } else if (_appliedAudience == "selected_operators") {
-              final aud = a.audience.toLowerCase();
-              return aud == "selected_operators";
-            } else if (_appliedAudience == "all_admins") {
-              final aud = a.audience.toLowerCase();
-              return aud == "all_admins" || aud == "admins";
-            }
-
-            return true;
-          }).toList();
+          // The API applies the same search/audience predicate as the web
+          // portal.  Do not re-filter locally: recipient names are matched
+          // through the API's selected-operator relation and are not present
+          // on every notification card payload.
+          final filtered = _controller.notifications;
 
           return Column(
             children: [
@@ -461,7 +435,10 @@ class _AdminNotificationsViewState extends State<AdminNotificationsView> {
                       style: TextStyle(color: textColor, fontSize: 13),
                       decoration: InputDecoration(
                         hintText: "Search notifications",
-                        hintStyle: TextStyle(color: subtitleColor, fontSize: 13),
+                        hintStyle: TextStyle(
+                          color: subtitleColor,
+                          fontSize: 13,
+                        ),
                         prefixIcon: Icon(
                           IconlyLight.search,
                           color: subtitleColor,
@@ -488,7 +465,9 @@ class _AdminNotificationsViewState extends State<AdminNotificationsView> {
                           ),
                         ),
                       ),
-                      onSubmitted: (_) => _applyFilter(),
+                      onSubmitted: (_) {
+                        _applyFilter();
+                      },
                     ),
                     const SizedBox(height: 10),
 
@@ -498,9 +477,7 @@ class _AdminNotificationsViewState extends State<AdminNotificationsView> {
                         Expanded(
                           child: Container(
                             height: 38,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
                             decoration: BoxDecoration(
                               color: searchFillColor,
                               borderRadius: BorderRadius.circular(8),
@@ -555,9 +532,7 @@ class _AdminNotificationsViewState extends State<AdminNotificationsView> {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF0D6EFD),
                             minimumSize: const Size(64, 38),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
@@ -602,41 +577,41 @@ class _AdminNotificationsViewState extends State<AdminNotificationsView> {
               Expanded(
                 child:
                     _controller.isLoading && _controller.notifications.isEmpty
-                        ? const Center(
-                            child: Padding(
-                              padding: EdgeInsets.all(48.0),
-                              child: CircularProgressIndicator(),
-                            ),
-                          )
-                        : _controller.errorMessage != null &&
-                                _controller.notifications.isEmpty
-                            ? Center(
-                                child: Text(
-                                  _controller.errorMessage!,
-                                  style: const TextStyle(color: Colors.red),
-                                ),
-                              )
-                            : filtered.isEmpty
-                                ? Center(
-                                    child: Text(
-                                      "No notifications found.",
-                                      style: TextStyle(color: subtitleColor),
-                                    ),
-                                  )
-                                : ListView.builder(
-                                    padding: const EdgeInsets.all(16),
-                                    itemCount: filtered.length,
-                                    itemBuilder: (context, index) {
-                                      return _buildNotificationCard(
-                                        filtered[index],
-                                        cardColor: cardColor,
-                                        borderColor: borderColor,
-                                        textColor: textColor,
-                                        subtitleColor: subtitleColor,
-                                        isDark: isDark,
-                                      );
-                                    },
-                                  ),
+                    ? const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(48.0),
+                          child: CircularProgressIndicator(),
+                        ),
+                      )
+                    : _controller.errorMessage != null &&
+                          _controller.notifications.isEmpty
+                    ? Center(
+                        child: Text(
+                          _controller.errorMessage!,
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                      )
+                    : filtered.isEmpty
+                    ? Center(
+                        child: Text(
+                          "No notifications found.",
+                          style: TextStyle(color: subtitleColor),
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: filtered.length,
+                        itemBuilder: (context, index) {
+                          return _buildNotificationCard(
+                            filtered[index],
+                            cardColor: cardColor,
+                            borderColor: borderColor,
+                            textColor: textColor,
+                            subtitleColor: subtitleColor,
+                            isDark: isDark,
+                          );
+                        },
+                      ),
               ),
             ],
           );

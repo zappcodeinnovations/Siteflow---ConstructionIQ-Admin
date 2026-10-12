@@ -17,19 +17,39 @@ class AdminGuestsController extends ChangeNotifier {
   List<AdminGuest> _guests = [];
   List<AdminGuest> get guests => _guests;
 
-  Future<void> fetchGuests() async {
+  int? _activeCount;
+  int get activeCount => _activeCount ?? 0;
+
+  int? _invitedCount;
+  int get invitedCount => _invitedCount ?? 0;
+
+  String _statusFilter = 'active';
+  String get statusFilter => _statusFilter;
+
+  Future<void> fetchGuests({String? status, String? search}) async {
+    if (status != null) _statusFilter = status;
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      final url = '${ApiEndpoints.baseUrl}/admin/guests/?page_size=1000';
+      final queryParams = <String>[
+        'page_size=1000',
+        'status=${Uri.encodeQueryComponent(_statusFilter)}',
+      ];
+      if (search != null && search.trim().isNotEmpty) {
+        queryParams.add('search=${Uri.encodeQueryComponent(search.trim())}');
+      }
+      final url =
+          '${ApiEndpoints.baseUrl}/admin/guests/?${queryParams.join('&')}';
       final response = await ApiClient.get(url);
       final decodedData = jsonDecode(response.body);
 
       if (response.statusCode == 200 && decodedData['status'] == true) {
         final parsedResponse = AdminGuestResponse.fromJson(decodedData);
         _guests = parsedResponse.data;
+        _activeCount = parsedResponse.activeCount;
+        _invitedCount = parsedResponse.invitedCount;
       } else {
         _errorMessage = decodedData['message'] ?? 'Failed to fetch guests';
       }
@@ -41,6 +61,15 @@ class AdminGuestsController extends ChangeNotifier {
     }
   }
 
+  void setStatusFilter(String status) {
+    if (_statusFilter == status) return;
+    _statusFilter = status;
+    _guests = [];
+    _errorMessage = null;
+    notifyListeners();
+    fetchGuests();
+  }
+
   Future<Map<String, dynamic>> inviteGuest(Map<String, dynamic> payload) async {
     try {
       final url = '${ApiEndpoints.baseUrl}/admin/guests/invite/';
@@ -50,10 +79,16 @@ class AdminGuestsController extends ChangeNotifier {
       if (response.statusCode == 200 || response.statusCode == 201) {
         if (decodedData['status'] == true) {
           await fetchGuests();
-          return {"success": true, "message": decodedData['message'] ?? "Guest invited successfully."};
+          return {
+            "success": true,
+            "message": decodedData['message'] ?? "Guest invited successfully.",
+          };
         }
       }
-      return {"success": false, "message": decodedData['message'] ?? "Failed to invite guest."};
+      return {
+        "success": false,
+        "message": decodedData['message'] ?? "Failed to invite guest.",
+      };
     } catch (e) {
       return {"success": false, "message": "An error occurred: $e"};
     }
@@ -75,7 +110,10 @@ class AdminGuestsController extends ChangeNotifier {
     }
   }
 
-  Future<Map<String, dynamic>> updateGuest(int id, Map<String, dynamic> payload) async {
+  Future<Map<String, dynamic>> updateGuest(
+    int id,
+    Map<String, dynamic> payload,
+  ) async {
     try {
       final url = '${ApiEndpoints.baseUrl}/admin/guests/$id/';
       final response = await ApiClient.put(url, body: payload);
@@ -84,25 +122,40 @@ class AdminGuestsController extends ChangeNotifier {
       if (response.statusCode == 200) {
         if (decodedData['status'] == true) {
           await fetchGuests();
-          return {"success": true, "message": decodedData['message'] ?? "Guest updated successfully."};
+          return {
+            "success": true,
+            "message": decodedData['message'] ?? "Guest updated successfully.",
+          };
         }
       }
-      return {"success": false, "message": decodedData['message'] ?? "Failed to update guest."};
+      return {
+        "success": false,
+        "message": decodedData['message'] ?? "Failed to update guest.",
+      };
     } catch (e) {
       return {"success": false, "message": "An error occurred: $e"};
     }
   }
 
-  Future<Map<String, dynamic>> convertToMember(int id, {String role = 'operative'}) async {
+  Future<Map<String, dynamic>> convertToMember(
+    int id, {
+    String role = 'operative',
+  }) async {
     try {
       final url = '${ApiEndpoints.baseUrl}/admin/guests/$id/convert-to-member/';
       final response = await ApiClient.post(url, body: {"role": role});
       final decodedData = jsonDecode(response.body);
       if (response.statusCode == 200 && decodedData['status'] == true) {
         await fetchGuests();
-        return {"success": true, "message": decodedData['message'] ?? "Converted to member."};
+        return {
+          "success": true,
+          "message": decodedData['message'] ?? "Converted to member.",
+        };
       }
-      return {"success": false, "message": decodedData['message'] ?? "Failed to convert guest."};
+      return {
+        "success": false,
+        "message": decodedData['message'] ?? "Failed to convert guest.",
+      };
     } catch (e) {
       return {"success": false, "message": "An error occurred: $e"};
     }
@@ -117,10 +170,16 @@ class AdminGuestsController extends ChangeNotifier {
       if (response.statusCode == 200) {
         if (decodedData['status'] == true) {
           await fetchGuests();
-          return {"success": true, "message": decodedData['message'] ?? "Guest deleted successfully."};
+          return {
+            "success": true,
+            "message": decodedData['message'] ?? "Guest deleted successfully.",
+          };
         }
       }
-      return {"success": false, "message": decodedData['message'] ?? "Failed to delete guest."};
+      return {
+        "success": false,
+        "message": decodedData['message'] ?? "Failed to delete guest.",
+      };
     } catch (e) {
       return {"success": false, "message": "An error occurred: $e"};
     }
@@ -130,11 +189,15 @@ class AdminGuestsController extends ChangeNotifier {
     try {
       final url = '${ApiEndpoints.baseUrl}/admin/guests/import-template/';
       final response = await ApiClient.get(url);
-      if (response.statusCode != 200 || response.bodyBytes.isEmpty) return false;
+      if (response.statusCode != 200 || response.bodyBytes.isEmpty) {
+        return false;
+      }
       final directory = await getTemporaryDirectory();
       final file = File('${directory.path}/guest-import-template.xlsx');
       await file.writeAsBytes(response.bodyBytes);
-      await Share.shareXFiles([XFile(file.path)], text: "Guest Import Template");
+      await SharePlus.instance.share(
+        ShareParams(files: [XFile(file.path)], text: 'Guest Import Template'),
+      );
       return true;
     } catch (e) {
       debugPrint("Error downloading guest import template: $e");
@@ -145,13 +208,24 @@ class AdminGuestsController extends ChangeNotifier {
   Future<Map<String, dynamic>> importGuestsExcel(String filePath) async {
     try {
       final url = '${ApiEndpoints.baseUrl}/admin/guests/import/';
-      final response = await ApiClient.postMultipart(url, filePath: filePath, fileFieldName: "xlsx_file");
+      final response = await ApiClient.postMultipart(
+        url,
+        filePath: filePath,
+        fileFieldName: "xlsx_file",
+      );
       final decodedData = jsonDecode(response.body);
       if (response.statusCode == 200 && decodedData['status'] == true) {
         await fetchGuests();
-        return {"success": true, "message": decodedData['message'] ?? 'Import complete.', "data": decodedData['data']};
+        return {
+          "success": true,
+          "message": decodedData['message'] ?? 'Import complete.',
+          "data": decodedData['data'],
+        };
       }
-      return {"success": false, "message": decodedData['message'] ?? 'Failed to import guests.'};
+      return {
+        "success": false,
+        "message": decodedData['message'] ?? 'Failed to import guests.',
+      };
     } catch (e) {
       return {"success": false, "message": "An error occurred: $e"};
     }

@@ -8,18 +8,33 @@ class AdminNotificationsController extends ChangeNotifier {
   List<AdminNotification> _notifications = [];
   bool _isLoading = false;
   String? _errorMessage;
+  String _activeSearch = '';
+  String? _activeAudience;
 
   List<AdminNotification> get notifications => _notifications;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
 
-  Future<void> fetchNotifications() async {
+  Future<void> fetchNotifications({
+    String search = '',
+    String? audience,
+  }) async {
     _isLoading = true;
     _errorMessage = null;
+    _activeSearch = search.trim();
+    final normalizedAudience = audience?.trim();
+    _activeAudience = normalizedAudience == null || normalizedAudience.isEmpty
+        ? null
+        : normalizedAudience;
     notifyListeners();
 
     try {
-      final url = '${ApiEndpoints.baseUrl}/admin/notifications/?page_size=1000';
+      final query = <String, String>{'page_size': '1000'};
+      if (_activeSearch.isNotEmpty) query['search'] = _activeSearch;
+      if (_activeAudience != null) query['audience'] = _activeAudience!;
+      final url = Uri.parse(
+        '${ApiEndpoints.baseUrl}/admin/notifications/',
+      ).replace(queryParameters: query).toString();
       final response = await ApiClient.get(url);
       final decodedData = jsonDecode(response.body);
 
@@ -27,7 +42,8 @@ class AdminNotificationsController extends ChangeNotifier {
         final res = AdminNotificationResponse.fromJson(decodedData);
         _notifications = res.data;
       } else {
-        _errorMessage = decodedData['message'] ?? "Failed to load notifications.";
+        _errorMessage =
+            decodedData['message'] ?? "Failed to load notifications.";
       }
     } catch (e) {
       _errorMessage = "An error occurred: $e";
@@ -37,17 +53,29 @@ class AdminNotificationsController extends ChangeNotifier {
     }
   }
 
-  Future<Map<String, dynamic>> createNotification(Map<String, dynamic> payload) async {
+  Future<Map<String, dynamic>> createNotification(
+    Map<String, dynamic> payload,
+  ) async {
     try {
       final url = '${ApiEndpoints.baseUrl}/admin/notifications/';
       final response = await ApiClient.post(url, body: payload);
       final decodedData = jsonDecode(response.body);
 
       if (decodedData['status'] == true) {
-        await fetchNotifications();
-        return {'success': true, 'message': decodedData['message'] ?? 'Notification created successfully'};
+        await fetchNotifications(
+          search: _activeSearch,
+          audience: _activeAudience,
+        );
+        return {
+          'success': true,
+          'message':
+              decodedData['message'] ?? 'Notification created successfully',
+        };
       } else {
-        return {'success': false, 'message': decodedData['message'] ?? 'Failed to create notification'};
+        return {
+          'success': false,
+          'message': decodedData['message'] ?? 'Failed to create notification',
+        };
       }
     } catch (e) {
       return {'success': false, 'message': 'An error occurred: $e'};
@@ -69,17 +97,30 @@ class AdminNotificationsController extends ChangeNotifier {
     return null;
   }
 
-  Future<Map<String, dynamic>> updateNotification(int id, Map<String, dynamic> payload) async {
+  Future<Map<String, dynamic>> updateNotification(
+    int id,
+    Map<String, dynamic> payload,
+  ) async {
     try {
       final url = '${ApiEndpoints.baseUrl}/admin/notifications/$id/';
       final response = await ApiClient.patch(url, body: payload);
       final decodedData = jsonDecode(response.body);
 
       if (decodedData['status'] == true) {
-        await fetchNotifications();
-        return {'success': true, 'message': decodedData['message'] ?? 'Notification updated successfully'};
+        await fetchNotifications(
+          search: _activeSearch,
+          audience: _activeAudience,
+        );
+        return {
+          'success': true,
+          'message':
+              decodedData['message'] ?? 'Notification updated successfully',
+        };
       } else {
-        return {'success': false, 'message': decodedData['message'] ?? 'Failed to update notification'};
+        return {
+          'success': false,
+          'message': decodedData['message'] ?? 'Failed to update notification',
+        };
       }
     } catch (e) {
       return {'success': false, 'message': 'An error occurred: $e'};
@@ -95,9 +136,16 @@ class AdminNotificationsController extends ChangeNotifier {
       if (decodedData['status'] == true) {
         _notifications.removeWhere((n) => n.id == id);
         notifyListeners();
-        return {'success': true, 'message': decodedData['message'] ?? 'Notification deleted successfully'};
+        return {
+          'success': true,
+          'message':
+              decodedData['message'] ?? 'Notification deleted successfully',
+        };
       } else {
-        return {'success': false, 'message': decodedData['message'] ?? 'Failed to delete notification'};
+        return {
+          'success': false,
+          'message': decodedData['message'] ?? 'Failed to delete notification',
+        };
       }
     } catch (e) {
       return {'success': false, 'message': 'An error occurred: $e'};

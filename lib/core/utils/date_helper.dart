@@ -3,16 +3,28 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:intl/intl.dart';
 
 class DateHelper {
+  /// UTC is only a safe fallback when the native platform cannot report its
+  /// IANA timezone.  Do not default all mobile users to the UK: that made an
+  /// India-based admin see a different timestamp than the web portal.
+  static const String defaultTimezone = 'UTC';
+
+  /// Retained for the few places that explicitly request a UK conversion.
   static const String defaultUkTimezone = 'Europe/London';
   static String? _cachedTimezone;
 
+  static const Map<String, String> _timezoneAliases = {
+    'Asia/Calcutta': 'Asia/Kolkata',
+  };
+
+  static String _canonicalTimezone(String timezone) =>
+      _timezoneAliases[timezone.trim()] ?? timezone.trim();
+
   /// Sets or overrides the active application timezone.
   static void setAppTimezone(String tz) {
-    _cachedTimezone = tz;
+    _cachedTimezone = _canonicalTimezone(tz);
   }
 
-  /// Returns the configured application timezone. Defaults to "Europe/London" (UK timezone setting)
-  /// matching the Euroside ConstructionIQ backend configuration.
+  /// Returns the device's real IANA timezone for API display payloads.
   static Future<String> getDeviceTimezone() async {
     if (_cachedTimezone != null && _cachedTimezone!.isNotEmpty) {
       return _cachedTimezone!;
@@ -20,24 +32,16 @@ class DateHelper {
 
     try {
       final tz = await FlutterTimezone.getLocalTimezone();
-      String tzName = '';
-      try {
-        tzName = (tz as dynamic).identifier?.toString().trim() ?? '';
-      } catch (_) {}
-      if (tzName.isEmpty) {
-        tzName = tz.toString().trim();
-      }
-      // If the device explicitly resolved to a UK / European timezone, cache it
+      final tzName = _canonicalTimezone(tz.identifier);
       if (tzName.isNotEmpty && tzName != 'null') {
-        // Respect UK timezone configuration as default
-        _cachedTimezone = defaultUkTimezone;
+        _cachedTimezone = tzName;
         return _cachedTimezone!;
       }
     } catch (e) {
       debugPrint("[DateHelper] Error getting timezone: $e");
     }
 
-    _cachedTimezone = defaultUkTimezone;
+    _cachedTimezone = defaultTimezone;
     return _cachedTimezone!;
   }
 
@@ -54,7 +58,8 @@ class DateHelper {
     final lastSundayOct = 31 - (oct31.weekday % 7);
     final bstEnd = DateTime.utc(year, 10, lastSundayOct, 1, 0, 0);
 
-    return (utc.isAfter(bstStart) || utc.isAtSameMomentAs(bstStart)) && utc.isBefore(bstEnd);
+    return (utc.isAfter(bstStart) || utc.isAtSameMomentAs(bstStart)) &&
+        utc.isBefore(bstEnd);
   }
 
   /// Converts a UTC DateTime to Europe/London (GMT / BST) DateTime.
@@ -72,31 +77,19 @@ class DateHelper {
     return _isBst(utc) ? 'BST' : 'GMT';
   }
 
-  /// Formats a date string to the configured UK operational timezone (Europe/London: GMT/BST).
-  static String formatToUkTime(String? rawDate, {bool includeTime = true}) {
-    if (rawDate == null || rawDate.trim().isEmpty || rawDate == 'null' || rawDate == '-') {
-      return '-';
-    }
-
+  static DateTime? _parseServerTimestamp(String rawDate) {
     final trimmed = rawDate.trim();
-
-    // 1. If it has explicit UTC or timezone offset
-    final hasExplicitOffset = trimmed.endsWith('Z') ||
+    final hasExplicitOffset =
+        trimmed.endsWith('Z') ||
         trimmed.endsWith('z') ||
         RegExp(r'[+-]\d{2}:?\d{2}$').hasMatch(trimmed);
 
     if (hasExplicitOffset) {
-      try {
-        final parsed = DateTime.tryParse(trimmed);
-        if (parsed != null) {
-          final uk = toUkDateTime(parsed);
-          final format = includeTime ? DateFormat('dd/MM/yyyy hh:mm a') : DateFormat('dd/MM/yyyy');
-          return format.format(uk);
-        }
-      } catch (_) {}
+      return DateTime.tryParse(trimmed);
     }
 
-    // 2. Try parsing custom formatted strings as UTC
+    // Historical endpoints sent unqualified server timestamps.  Those were
+    // UTC, so make that explicit before converting to the device timezone.
     final patterns = [
       'yyyy-MM-dd HH:mm:ss',
       'yyyy-MM-dd HH:mm',
@@ -120,41 +113,76 @@ class DateHelper {
     for (final pattern in patterns) {
       try {
         final date = DateFormat(pattern, 'en_US').parse(trimmed);
-        final uk = toUkDateTime(DateTime.utc(
+        return DateTime.utc(
           date.year,
           date.month,
           date.day,
           date.hour,
           date.minute,
           date.second,
-        ));
-        final format = includeTime ? DateFormat('dd/MM/yyyy hh:mm a') : DateFormat('dd/MM/yyyy');
-        return format.format(uk);
+        );
       } catch (_) {}
     }
 
-    // 3. Try parsing ISO string
-    try {
-      final isoStr = trimmed.replaceAll(' ', 'T');
-      final parsed = DateTime.tryParse(isoStr) ?? DateTime.tryParse(trimmed);
-      if (parsed != null) {
-        final uk = toUkDateTime(parsed);
-        final format = includeTime ? DateFormat('dd/MM/yyyy hh:mm a') : DateFormat('dd/MM/yyyy');
-        return format.format(uk);
-      }
-    } catch (_) {}
-
-    return trimmed;
+    final parsed =
+        DateTime.tryParse(trimmed.replaceAll(' ', 'T')) ??
+        DateTime.tryParse(trimmed);
+    if (parsed == null) return null;
+    return parsed.isUtc
+        ? parsed
+        : DateTime.utc(
+            parsed.year,
+            parsed.month,
+            parsed.day,
+            parsed.hour,
+            parsed.minute,
+            parsed.second,
+          );
   }
 
-  /// Formats a date string to the configured operational timezone (dd/MM/yyyy hh:mm a).
+  /// Formats a date string to the explicitly requested UK operational
+  /// timezone. Use [formatToLocal] for normal mobile UI timestamps.
+  static String formatToUkTime(String? rawDate, {bool includeTime = true}) {
+    if (rawDate == null ||
+        rawDate.trim().isEmpty ||
+        rawDate == 'null' ||
+        rawDate == '-') {
+      return '-';
+    }
+
+    final parsed = _parseServerTimestamp(rawDate);
+    if (parsed == null) return rawDate.trim();
+    final format = includeTime
+        ? DateFormat('dd/MM/yyyy hh:mm a')
+        : DateFormat('dd/MM/yyyy');
+    return format.format(toUkDateTime(parsed));
+  }
+
+  /// Formats a server timestamp in the viewer's real device timezone.
+  /// API responses include an offset for the requested X-Timezone, and Dart
+  /// converts that instant safely to the same device timezone for display.
   static String formatToLocal(String? rawDate, {bool includeTime = true}) {
-    return formatToUkTime(rawDate, includeTime: includeTime);
+    if (rawDate == null ||
+        rawDate.trim().isEmpty ||
+        rawDate == 'null' ||
+        rawDate == '-') {
+      return '-';
+    }
+
+    final parsed = _parseServerTimestamp(rawDate);
+    if (parsed == null) return rawDate.trim();
+    final format = includeTime
+        ? DateFormat('dd/MM/yyyy hh:mm a')
+        : DateFormat('dd/MM/yyyy');
+    return format.format(parsed.toLocal());
   }
 
   /// Formats a date string (e.g. "yyyy-MM-dd" or ISO format) to "dd/MM/yyyy".
   static String formatDate(String? rawDate) {
-    if (rawDate == null || rawDate.trim().isEmpty || rawDate == '-' || rawDate == 'null') {
+    if (rawDate == null ||
+        rawDate.trim().isEmpty ||
+        rawDate == '-' ||
+        rawDate == 'null') {
       return '-';
     }
 

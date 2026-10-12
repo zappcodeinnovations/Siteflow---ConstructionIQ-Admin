@@ -9,6 +9,34 @@ import '../../models/client_model.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/date_helper.dart';
 
+class ProjectAssignableOperative {
+  final int id;
+  final String displayName;
+  final String email;
+
+  const ProjectAssignableOperative({
+    required this.id,
+    required this.displayName,
+    required this.email,
+  });
+
+  factory ProjectAssignableOperative.fromJson(Map<String, dynamic> json) {
+    final firstName = (json['first_name'] ?? '').toString().trim();
+    final lastName = (json['last_name'] ?? '').toString().trim();
+    final email = (json['email'] ?? '').toString().trim();
+    final fallbackName = '$firstName $lastName'.trim();
+    return ProjectAssignableOperative(
+      id: json['id'] is int
+          ? json['id'] as int
+          : int.tryParse('${json['id'] ?? ''}') ?? 0,
+      displayName: (json['display_name'] ?? '').toString().trim().isNotEmpty
+          ? (json['display_name'] ?? '').toString().trim()
+          : (fallbackName.isNotEmpty ? fallbackName : email),
+      email: email,
+    );
+  }
+}
+
 class ProjectController extends ChangeNotifier {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
@@ -41,7 +69,9 @@ class ProjectController extends ChangeNotifier {
     try {
       final tz = await DateHelper.getDeviceTimezone();
       final tzParam = tz.isNotEmpty ? '&tz=${Uri.encodeComponent(tz)}' : '';
-      final response = await ApiClient.get('${ApiEndpoints.baseUrl}${ApiEndpoints.projects}?page=1&page_size=25$tzParam');
+      final response = await ApiClient.get(
+        '${ApiEndpoints.baseUrl}${ApiEndpoints.projects}?page=1&page_size=25$tzParam',
+      );
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200 && data['status'] == true) {
@@ -75,7 +105,9 @@ class ProjectController extends ChangeNotifier {
       );
       final data = jsonDecode(response.body);
       if (response.statusCode == 200 && data['status'] == true) {
-        final next = ((data['data'] as List?) ?? []).map((json) => Project.fromJson(json)).toList();
+        final next = ((data['data'] as List?) ?? [])
+            .map((json) => Project.fromJson(json))
+            .toList();
         _projects = [..._projects, ...next];
         _applyFilters(notify: false);
         _currentPage = data['page'] ?? _currentPage + 1;
@@ -98,7 +130,9 @@ class ProjectController extends ChangeNotifier {
     try {
       final tz = await DateHelper.getDeviceTimezone();
       final queryParam = tz.isNotEmpty ? '?tz=${Uri.encodeComponent(tz)}' : '';
-      final response = await ApiClient.get(ApiEndpoints.baseUrl + ApiEndpoints.projectDetails(id) + queryParam);
+      final response = await ApiClient.get(
+        ApiEndpoints.baseUrl + ApiEndpoints.projectDetails(id) + queryParam,
+      );
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200 && data['status'] == true) {
@@ -129,7 +163,11 @@ class ProjectController extends ChangeNotifier {
     try {
       final tz = await DateHelper.getDeviceTimezone();
       final queryParam = tz.isNotEmpty ? '?tz=${Uri.encodeComponent(tz)}' : '';
-      final response = await ApiClient.get(ApiEndpoints.baseUrl + ApiEndpoints.projectAllInOneDetails(id) + queryParam);
+      final response = await ApiClient.get(
+        ApiEndpoints.baseUrl +
+            ApiEndpoints.projectAllInOneDetails(id) +
+            queryParam,
+      );
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200 && data['status'] == true) {
@@ -138,7 +176,8 @@ class ProjectController extends ChangeNotifier {
         notifyListeners();
         return allInOneData;
       }
-      _errorMessage = data['message'] ?? 'Failed to fetch all-in-one project details';
+      _errorMessage =
+          data['message'] ?? 'Failed to fetch all-in-one project details';
       return null;
     } catch (e) {
       _errorMessage = 'An error occurred: $e';
@@ -154,11 +193,15 @@ class ProjectController extends ChangeNotifier {
 
   Future<List<Client>> fetchAvailableClients() async {
     try {
-      final response = await ApiClient.get(ApiEndpoints.baseUrl + ApiEndpoints.clients);
+      final response = await ApiClient.get(
+        ApiEndpoints.baseUrl + ApiEndpoints.clients,
+      );
       final data = jsonDecode(response.body);
       if (response.statusCode == 200 && data['status'] == true) {
         final List<dynamic> clientList = data['data'];
-        _availableClients = clientList.map((json) => Client.fromJson(json)).toList();
+        _availableClients = clientList
+            .map((json) => Client.fromJson(json))
+            .toList();
         notifyListeners();
         return _availableClients;
       }
@@ -186,7 +229,9 @@ class ProjectController extends ChangeNotifier {
       } else if (newClientName != null && newClientName.trim().isNotEmpty) {
         body['new_client_name'] = newClientName.trim();
       }
-      if (description != null && description.isNotEmpty) body['description'] = description;
+      if (description != null && description.isNotEmpty) {
+        body['description'] = description;
+      }
       if (priority != null && priority.isNotEmpty) body['priority'] = priority;
 
       final response = await ApiClient.post(
@@ -195,9 +240,12 @@ class ProjectController extends ChangeNotifier {
       );
       final data = jsonDecode(response.body);
 
-      if ((response.statusCode == 200 || response.statusCode == 201) && data['status'] == true) {
+      if ((response.statusCode == 200 || response.statusCode == 201) &&
+          data['status'] == true) {
         if (data['data'] != null && data['data'] is Map) {
-          final newProject = Project.fromJson((data['data'] as Map).cast<String, dynamic>());
+          final newProject = Project.fromJson(
+            (data['data'] as Map).cast<String, dynamic>(),
+          );
           _projects.insert(0, newProject);
           _applyFilters();
         } else {
@@ -226,7 +274,9 @@ class ProjectController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await ApiClient.delete(ApiEndpoints.baseUrl + ApiEndpoints.projectDetails(id));
+      final response = await ApiClient.delete(
+        ApiEndpoints.baseUrl + ApiEndpoints.projectDetails(id),
+      );
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200 && data['status'] == true) {
@@ -255,7 +305,9 @@ class ProjectController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await ApiClient.get(ApiEndpoints.baseUrl + ApiEndpoints.projectAssignments(id));
+      final response = await ApiClient.get(
+        ApiEndpoints.baseUrl + ApiEndpoints.projectAssignments(id),
+      );
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200 && data['status'] == true) {
@@ -275,7 +327,42 @@ class ProjectController extends ChangeNotifier {
     }
   }
 
-  Future<bool> assignProject(int id, {int? contractorId, List<int>? teamIds, List<int>? workerIds}) async {
+  /// Returns only the operatives the signed-in user can assign.  The API
+  /// applies manager project/team scope, so this never relies on the Admin
+  /// Members directory (which managers are intentionally not allowed to use).
+  Future<List<ProjectAssignableOperative>> fetchAssignableOperatives() async {
+    try {
+      final response = await ApiClient.get(
+        ApiEndpoints.baseUrl + ApiEndpoints.projectOptions,
+      );
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200 && data['status'] == true) {
+        final rawWorkers = data['data'] is Map
+            ? (data['data']['workers'] as List? ?? const [])
+            : const [];
+        return rawWorkers
+            .whereType<Map>()
+            .map(
+              (worker) => ProjectAssignableOperative.fromJson(
+                Map<String, dynamic>.from(worker),
+              ),
+            )
+            .where((worker) => worker.id > 0)
+            .toList(growable: false);
+      }
+    } catch (_) {
+      // The assignment dialog surfaces a concise retry message if its data
+      // cannot be fetched. Existing project data remains untouched.
+    }
+    return const [];
+  }
+
+  Future<bool> assignProject(
+    int id, {
+    int? contractorId,
+    List<int>? teamIds,
+    List<int>? workerIds,
+  }) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
@@ -308,7 +395,12 @@ class ProjectController extends ChangeNotifier {
     }
   }
 
-  Future<bool> createAnnouncement(int projectId, String title, String message, bool isActive) async {
+  Future<bool> createAnnouncement(
+    int projectId,
+    String title,
+    String message,
+    bool isActive,
+  ) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
@@ -325,7 +417,8 @@ class ProjectController extends ChangeNotifier {
       );
       final data = jsonDecode(response.body);
 
-      if ((response.statusCode == 200 || response.statusCode == 201) && data['status'] == true) {
+      if ((response.statusCode == 200 || response.statusCode == 201) &&
+          data['status'] == true) {
         _isLoading = false;
         notifyListeners();
         return true;
@@ -341,13 +434,16 @@ class ProjectController extends ChangeNotifier {
       notifyListeners();
     }
   }
+
   Future<Announcement?> fetchAnnouncementDetails(int id) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      final response = await ApiClient.get(ApiEndpoints.baseUrl + ApiEndpoints.announcementDetails(id));
+      final response = await ApiClient.get(
+        ApiEndpoints.baseUrl + ApiEndpoints.announcementDetails(id),
+      );
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200 && data['status'] == true) {
@@ -355,7 +451,8 @@ class ProjectController extends ChangeNotifier {
         notifyListeners();
         return Announcement.fromJson(data['data']);
       } else {
-        _errorMessage = data['message'] ?? 'Failed to fetch announcement details';
+        _errorMessage =
+            data['message'] ?? 'Failed to fetch announcement details';
         return null;
       }
     } catch (e) {
@@ -384,8 +481,10 @@ class ProjectController extends ChangeNotifier {
     _filteredProjects = _projects.where((project) {
       bool matchesClient = true;
       if (_activeClientFilter != null) {
-        matchesClient = project.client?.id == _activeClientFilter!.id || 
-                        project.client?.name.toLowerCase() == _activeClientFilter!.name.toLowerCase();
+        matchesClient =
+            project.client?.id == _activeClientFilter!.id ||
+            project.client?.name.toLowerCase() ==
+                _activeClientFilter!.name.toLowerCase();
       }
       if (!matchesClient) return false;
 
@@ -416,7 +515,6 @@ class ProjectController extends ChangeNotifier {
     notifyListeners();
   }
 
-
   Future<bool> deleteSelectedProjects() async {
     if (_selectedProjectIds.isEmpty) return true;
 
@@ -428,7 +526,9 @@ class ProjectController extends ChangeNotifier {
     try {
       final idsToDelete = List<int>.from(_selectedProjectIds);
       for (final id in idsToDelete) {
-        final response = await ApiClient.delete(ApiEndpoints.baseUrl + ApiEndpoints.projectDetails(id));
+        final response = await ApiClient.delete(
+          ApiEndpoints.baseUrl + ApiEndpoints.projectDetails(id),
+        );
         final data = jsonDecode(response.body);
 
         if (response.statusCode == 200 && data['status'] == true) {
@@ -447,7 +547,7 @@ class ProjectController extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
-    
+
     return allSuccess;
   }
 }

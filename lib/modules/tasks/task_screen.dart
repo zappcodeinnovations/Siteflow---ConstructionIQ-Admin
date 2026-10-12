@@ -1,10 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
-import '../../models/job_sheet_model.dart';
+import '../../models/admin_task_model.dart';
 import '../projects/widgets/create_task_dialog.dart';
 import '../projects/create_task_controller.dart';
-import '../drawer_pages/job_sheet_controller.dart';
-import '../drawer_pages/job_sheet_details_screen.dart';
+import 'admin_tasks_controller.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/background_stripes_painter.dart';
 import '../../core/services/auth_service.dart';
@@ -17,10 +18,10 @@ class TasksScreen extends StatefulWidget {
 }
 
 class _TasksScreenState extends State<TasksScreen> {
-  final JobSheetController _controller = JobSheetController();
+  final AdminTasksController _controller = AdminTasksController();
   final ScrollController _verticalScrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
-  bool _isSearchVisible = false;
+  Timer? _searchDebounce;
   String _searchQuery = "";
   String _selectedStatus = "Status: All";
   String _selectedProject = "All";
@@ -32,11 +33,9 @@ class _TasksScreenState extends State<TasksScreen> {
 
   final List<String> _statusOptions = [
     'Status: All',
-    'Status: Pending',
+    'Status: Awaiting',
     'Status: In Progress',
     'Status: Completed',
-    'Status: Awaiting',
-    'Status: Draft',
   ];
 
   @override
@@ -44,7 +43,7 @@ class _TasksScreenState extends State<TasksScreen> {
     super.initState();
     _controller.addListener(_onControllerUpdate);
     _verticalScrollController.addListener(_loadNextPageWhenNeeded);
-    _controller.fetchJobSheets();
+    _controller.fetchTasks();
     _loadPermissions();
   }
 
@@ -65,6 +64,7 @@ class _TasksScreenState extends State<TasksScreen> {
     _controller.dispose();
     _verticalScrollController.dispose();
     _searchController.dispose();
+    _searchDebounce?.cancel();
     super.dispose();
   }
 
@@ -86,14 +86,15 @@ class _TasksScreenState extends State<TasksScreen> {
 
   List<String> get _projectOptions {
     final set = <String>{'All'};
-    if (_controller.filterOptions['projects'] is List) {
-      for (final p in _controller.filterOptions['projects']) {
-        if (p != null && p.toString().trim().isNotEmpty) {
+    final options = _controller.filterOptions['projects'];
+    if (options != null) {
+      for (final p in options) {
+        if (p.trim().isNotEmpty) {
           set.add(p.toString().trim());
         }
       }
     }
-    for (final t in _controller.jobSheets) {
+    for (final t in _controller.tasks) {
       if (t.projectName.trim().isNotEmpty) set.add(t.projectName.trim());
     }
     return set.toList();
@@ -101,14 +102,15 @@ class _TasksScreenState extends State<TasksScreen> {
 
   List<String> get _clientOptions {
     final set = <String>{'All'};
-    if (_controller.filterOptions['clients'] is List) {
-      for (final c in _controller.filterOptions['clients']) {
-        if (c != null && c.toString().trim().isNotEmpty) {
+    final options = _controller.filterOptions['clients'];
+    if (options != null) {
+      for (final c in options) {
+        if (c.trim().isNotEmpty) {
           set.add(c.toString().trim());
         }
       }
     }
-    for (final t in _controller.jobSheets) {
+    for (final t in _controller.tasks) {
       if (t.clientName.trim().isNotEmpty) set.add(t.clientName.trim());
     }
     return set.toList();
@@ -116,18 +118,18 @@ class _TasksScreenState extends State<TasksScreen> {
 
   List<String> get _operativeOptions {
     final set = <String>{'All'};
-    if (_controller.filterOptions['operatives'] is List) {
-      for (final o in _controller.filterOptions['operatives']) {
-        if (o != null) {
-          final str = o.toString().trim();
-          if (str.isNotEmpty && CreateTaskController.isEligibleOperativeName(str)) {
-            set.add(str);
-          }
+    final options = _controller.filterOptions['operatives'];
+    if (options != null) {
+      for (final o in options) {
+        final str = o.toString().trim();
+        if (str.isNotEmpty &&
+            CreateTaskController.isEligibleOperativeName(str)) {
+          set.add(str);
         }
       }
     }
-    for (final t in _controller.jobSheets) {
-      final op = t.operative.trim();
+    for (final t in _controller.tasks) {
+      final op = t.operativeName.trim();
       if (op.isNotEmpty && CreateTaskController.isEligibleOperativeName(op)) {
         set.add(op);
       }
@@ -136,95 +138,38 @@ class _TasksScreenState extends State<TasksScreen> {
   }
 
   bool get _hasActiveFilters =>
+      _searchQuery.isNotEmpty ||
       _selectedStatus != 'Status: All' ||
       _selectedProject != 'All' ||
       _selectedClient != 'All' ||
       _selectedOperative != 'All';
 
-  List<JobSheet> get _filteredTasks {
-    final query = _searchQuery.trim().toLowerCase();
+  List<AdminTaskModel> get _filteredTasks => _controller.tasks;
 
-    return _controller.jobSheets.where((task) {
-      // 1. Status Filter
-      if (_selectedStatus != 'Status: All' && _selectedStatus != 'All') {
-        final targetStatus = _selectedStatus
-            .replaceAll('Status: ', '')
-            .toLowerCase()
-            .replaceAll(' ', '_');
-        final taskStatus = task.status.toLowerCase().replaceAll(' ', '_');
-        final taskStatusLabel =
-            task.statusLabel.toLowerCase().replaceAll(' ', '_');
+  String _statusValue(String label) => label
+      .replaceFirst('Status: ', '')
+      .trim()
+      .toLowerCase()
+      .replaceAll(' ', '_');
 
-        final matchesStatus = taskStatus == targetStatus ||
-            taskStatusLabel == targetStatus ||
-            (targetStatus == 'awaiting' &&
-                (taskStatus.contains('await') ||
-                    taskStatusLabel.contains('await'))) ||
-            (targetStatus == 'in_progress' &&
-                (taskStatus.contains('progress') ||
-                    taskStatusLabel.contains('progress'))) ||
-            (targetStatus == 'completed' &&
-                (taskStatus.contains('complete') ||
-                    taskStatusLabel.contains('complete'))) ||
-            (targetStatus == 'pending' &&
-                (taskStatus.contains('pend') ||
-                    taskStatusLabel.contains('pend'))) ||
-            (targetStatus == 'draft' &&
-                (taskStatus.contains('draft') ||
-                    taskStatusLabel.contains('draft')));
+  void _applyFilters() {
+    _controller.setFilters(
+      status: _statusValue(_selectedStatus),
+      project: _selectedProject == 'All' ? null : _selectedProject,
+      client: _selectedClient == 'All' ? null : _selectedClient,
+      operative: _selectedOperative == 'All' ? null : _selectedOperative,
+      search: _searchQuery,
+    );
+  }
 
-        if (!matchesStatus) return false;
-      }
-
-      // 2. Project Filter
-      if (_selectedProject != 'All') {
-        if (task.projectName.trim().toLowerCase() !=
-            _selectedProject.trim().toLowerCase()) {
-          return false;
-        }
-      }
-
-      // 3. Client Filter
-      if (_selectedClient != 'All') {
-        if (task.clientName.trim().toLowerCase() !=
-            _selectedClient.trim().toLowerCase()) {
-          return false;
-        }
-      }
-
-      // 4. Operative Filter
-      if (_selectedOperative != 'All') {
-        if (task.operative.trim().toLowerCase() !=
-            _selectedOperative.trim().toLowerCase()) {
-          return false;
-        }
-      }
-
-      // 5. Search Query Filter
-      if (query.isNotEmpty) {
-        final taskNo =
-            (task.jobNo.isNotEmpty ? task.jobNo : task.sheetNo).toLowerCase();
-        final sheetNo = task.sheetNo.toLowerCase();
-        final project = task.projectName.toLowerCase();
-        final client = task.clientName.toLowerCase();
-        final operative = task.operative.toLowerCase();
-        final form = task.form.toLowerCase();
-
-        final matches = taskNo.contains(query) ||
-            sheetNo.contains(query) ||
-            project.contains(query) ||
-            client.contains(query) ||
-            operative.contains(query) ||
-            form.contains(query);
-
-        if (!matches) return false;
-      }
-
-      return true;
-    }).toList();
+  void _scheduleSearch(String value) {
+    _searchDebounce?.cancel();
+    setState(() => _searchQuery = value.trim());
+    _searchDebounce = Timer(const Duration(milliseconds: 350), _applyFilters);
   }
 
   void _resetFilters() {
+    _searchDebounce?.cancel();
     setState(() {
       _searchController.clear();
       _searchQuery = "";
@@ -242,28 +187,17 @@ class _TasksScreenState extends State<TasksScreen> {
     final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
     final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
     final borderColor = isDark ? Colors.white24 : Colors.grey.shade300;
-    final inputBg =
-        isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF8FAFC);
+    final inputBg = isDark
+        ? Colors.white.withValues(alpha: 0.05)
+        : const Color(0xFFF8FAFC);
 
     String tempProject = _selectedProject;
     String tempClient = _selectedClient;
     String tempOperative = _selectedOperative;
-    String tempStatus =
-        _selectedStatus.startsWith('Status: ')
-            ? _selectedStatus.substring(8)
-            : _selectedStatus;
 
     final projectOptions = _projectOptions;
     final clientOptions = _clientOptions;
     final operativeOptions = _operativeOptions;
-    final statusList = [
-      'All',
-      'Pending',
-      'In Progress',
-      'Completed',
-      'Awaiting',
-      'Draft',
-    ];
 
     showModalBottomSheet<void>(
       context: context,
@@ -317,32 +251,31 @@ class _TasksScreenState extends State<TasksScreen> {
                       child: DropdownButton<String>(
                         value: selectedValue,
                         isExpanded: true,
-                        dropdownColor:
-                            isDark ? const Color(0xFF162A42) : Colors.white,
+                        dropdownColor: isDark
+                            ? const Color(0xFF162A42)
+                            : Colors.white,
                         style: TextStyle(color: textColor, fontSize: 14),
                         icon: Icon(
                           IconlyLight.arrow_down_2,
                           size: 18,
                           color: textSecondary,
                         ),
-                        items:
-                            items.map((item) {
-                              return DropdownMenuItem<String>(
-                                value: item,
-                                child: Text(
-                                  item,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: textColor,
-                                    fontSize: 14,
-                                    fontWeight:
-                                        item == selectedValue
-                                            ? FontWeight.bold
-                                            : FontWeight.normal,
-                                  ),
-                                ),
-                              );
-                            }).toList(),
+                        items: items.map((item) {
+                          return DropdownMenuItem<String>(
+                            value: item,
+                            child: Text(
+                              item,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: textColor,
+                                fontSize: 14,
+                                fontWeight: item == selectedValue
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                              ),
+                            ),
+                          );
+                        }).toList(),
                         onChanged: (val) {
                           if (val != null) {
                             setModalState(() => onChanged(val));
@@ -386,7 +319,7 @@ class _TasksScreenState extends State<TasksScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          "Filter Tasks",
+                          "More Filters",
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
@@ -399,7 +332,6 @@ class _TasksScreenState extends State<TasksScreen> {
                               tempProject = 'All';
                               tempClient = 'All';
                               tempOperative = 'All';
-                              tempStatus = 'All';
                             });
                           },
                           icon: const Icon(
@@ -445,15 +377,6 @@ class _TasksScreenState extends State<TasksScreen> {
                               onChanged: (val) => tempClient = val!,
                             ),
 
-                            // Status
-                            buildFilterDropdown(
-                              label: "Status",
-                              value: tempStatus,
-                              items: statusList,
-                              icon: IconlyLight.info_square,
-                              onChanged: (val) => tempStatus = val!,
-                            ),
-
                             // Operative
                             buildFilterDropdown(
                               label: "Operative",
@@ -475,8 +398,9 @@ class _TasksScreenState extends State<TasksScreen> {
                         Expanded(
                           child: OutlinedButton(
                             style: OutlinedButton.styleFrom(
-                              foregroundColor:
-                                  isDark ? Colors.white70 : Colors.black87,
+                              foregroundColor: isDark
+                                  ? Colors.white70
+                                  : Colors.black87,
                               side: BorderSide(color: borderColor),
                               padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(
@@ -507,11 +431,8 @@ class _TasksScreenState extends State<TasksScreen> {
                                 _selectedProject = tempProject;
                                 _selectedClient = tempClient;
                                 _selectedOperative = tempOperative;
-                                _selectedStatus =
-                                    tempStatus == 'All'
-                                        ? 'Status: All'
-                                        : 'Status: $tempStatus';
                               });
+                              _applyFilters();
                               Navigator.pop(context);
                             },
                             child: const Text(
@@ -555,11 +476,11 @@ class _TasksScreenState extends State<TasksScreen> {
     );
 
     if (result == true && mounted) {
-      _controller.fetchJobSheets();
+      _controller.fetchTasks();
     }
   }
 
-  Future<void> _viewDetails(JobSheet task) async {
+  Future<void> _viewDetails(AdminTaskModel task) async {
     if (!await AuthService.can('tasks')) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -573,11 +494,88 @@ class _TasksScreenState extends State<TasksScreen> {
       return;
     }
     if (!mounted) return;
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => JobSheetDetailsScreen(jobSheet: task),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = isDark ? AppTheme.darkSurface : Colors.white;
+    final primaryText = isDark ? Colors.white : const Color(0xFF172033);
+    final mutedText = isDark ? AppTheme.darkMuted : Colors.grey.shade600;
+
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
+      builder: (sheetContext) {
+        Widget detailRow(String label, String value) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: 9),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: 112,
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: mutedText,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Text(
+                  value.isEmpty ? '-' : value,
+                  style: TextStyle(color: primaryText, fontSize: 14),
+                ),
+              ),
+            ],
+          ),
+        );
+
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 12, 24, 28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 44,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white24 : Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  task.taskDisplayNo.isNotEmpty
+                      ? task.taskDisplayNo
+                      : (task.taskNo.isNotEmpty
+                            ? task.taskNo
+                            : 'Task ${task.id}'),
+                  style: TextStyle(
+                    color: primaryText,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 20,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                detailRow('Reference', task.reference),
+                detailRow('Project', task.projectName),
+                detailRow('Client', task.clientName),
+                detailRow('Operative', task.operativeName),
+                detailRow('Status', task.statusLabel),
+                detailRow('Form', task.formName),
+                detailRow('Scheduled', task.scheduledDate ?? ''),
+                detailRow('Job sheets', '${task.sheetCount}'),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -586,8 +584,7 @@ class _TasksScreenState extends State<TasksScreen> {
     Color text = Colors.grey.shade700;
     IconData icon = IconlyLight.info_square;
 
-    final lower =
-        (statusLabel.isNotEmpty ? statusLabel : status).toLowerCase();
+    final lower = (statusLabel.isNotEmpty ? statusLabel : status).toLowerCase();
 
     if (lower.contains('complete')) {
       bg = Colors.green.shade50;
@@ -611,10 +608,9 @@ class _TasksScreenState extends State<TasksScreen> {
       icon = IconlyLight.document;
     }
 
-    final displayText =
-        statusLabel.isNotEmpty
-            ? statusLabel
-            : (status.isNotEmpty ? status : 'Pending');
+    final displayText = statusLabel.isNotEmpty
+        ? statusLabel
+        : (status.isNotEmpty ? status : 'Pending');
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -655,7 +651,7 @@ class _TasksScreenState extends State<TasksScreen> {
 
     return RefreshIndicator(
       onRefresh: () async {
-        await _controller.fetchJobSheets();
+        await _controller.fetchTasks();
       },
       child: Container(
         color: bgColor,
@@ -680,42 +676,6 @@ class _TasksScreenState extends State<TasksScreen> {
                       // Header & Actions
                       Row(
                         children: [
-                          IconButton(
-                            onPressed:
-                                () => setState(
-                                  () => _isSearchVisible = !_isSearchVisible,
-                                ),
-                            icon: Icon(
-                              IconlyLight.search,
-                              color: isDark ? Colors.white : Colors.black87,
-                            ),
-                            tooltip: "Toggle Search",
-                          ),
-                          IconButton(
-                            onPressed: () => _showFilterBottomSheet(context),
-                            icon: Stack(
-                              children: [
-                                Icon(
-                                  IconlyLight.filter,
-                                  color: isDark ? Colors.white : Colors.black87,
-                                ),
-                                if (_hasActiveFilters)
-                                  Positioned(
-                                    right: 0,
-                                    top: 0,
-                                    child: Container(
-                                      width: 8,
-                                      height: 8,
-                                      decoration: const BoxDecoration(
-                                        color: Color(0xFF0D6EFD),
-                                        shape: BoxShape.circle,
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                            tooltip: "Filter Tasks",
-                          ),
                           const Spacer(),
                           if (_canCreate)
                             ElevatedButton.icon(
@@ -749,187 +709,207 @@ class _TasksScreenState extends State<TasksScreen> {
                       const SizedBox(height: 24),
 
                       // Filter Bar
-                      if (_isSearchVisible)
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: cardColor,
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.02),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                            border: Border.all(color: borderColor),
-                          ),
-                          child: Wrap(
-                            spacing: 12,
-                            runSpacing: 12,
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            alignment: WrapAlignment.spaceBetween,
-                            children: [
-                              Wrap(
-                                spacing: 12,
-                                runSpacing: 12,
-                                crossAxisAlignment: WrapCrossAlignment.center,
-                                children: [
-                                  // Search Field
-                                  SizedBox(
-                                    width: 200,
-                                    height: 40,
-                                    child: TextField(
-                                      controller: _searchController,
-                                      style: TextStyle(
-                                        color: textColor,
-                                        fontSize: 14,
-                                      ),
-                                      decoration: InputDecoration(
-                                        hintText: "Search tasks...",
-                                        hintStyle: TextStyle(
-                                          color: textSecondary,
-                                          fontSize: 14,
-                                        ),
-                                        prefixIcon: Icon(
-                                          IconlyLight.search,
-                                          size: 20,
-                                          color: textSecondary,
-                                        ),
-                                        suffixIcon:
-                                            _searchController.text.isNotEmpty
-                                                ? IconButton(
-                                                  icon: Icon(
-                                                    Icons.close,
-                                                    size: 18,
-                                                    color: textSecondary,
-                                                  ),
-                                                  onPressed: () {
-                                                    _searchController.clear();
-                                                    setState(() {
-                                                      _searchQuery = "";
-                                                    });
-                                                  },
-                                                )
-                                                : null,
-                                        contentPadding:
-                                            const EdgeInsets.symmetric(
-                                              horizontal: 16,
-                                            ),
-                                        border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            6,
-                                          ),
-                                          borderSide: BorderSide(
-                                            color: borderColor,
-                                          ),
-                                        ),
-                                        enabledBorder: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            6,
-                                          ),
-                                          borderSide: BorderSide(
-                                            color: borderColor,
-                                          ),
-                                        ),
-                                        focusedBorder: const OutlineInputBorder(
-                                          borderRadius: BorderRadius.all(
-                                            Radius.circular(6),
-                                          ),
-                                          borderSide: BorderSide(
-                                            color: Color(0xFF0D6EFD),
-                                          ),
-                                        ),
-                                      ),
-                                      onChanged:
-                                          (val) => setState(
-                                            () =>
-                                                _searchQuery =
-                                                    val.toLowerCase().trim(),
-                                          ),
-                                    ),
-                                  ),
-
-                                  // Status Dropdown
-                                  Container(
-                                    height: 40,
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      border: Border.all(color: borderColor),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: DropdownButtonHideUnderline(
-                                      child: DropdownButton<String>(
-                                        value: _selectedStatus,
-                                        dropdownColor:
-                                            isDark
-                                                ? const Color(0xFF0F2C4A)
-                                                : Colors.white,
-                                        items:
-                                            _statusOptions
-                                                .map(
-                                                  (e) => DropdownMenuItem(
-                                                    value: e,
-                                                    child: Text(
-                                                      e,
-                                                      style: TextStyle(
-                                                        fontSize: 14,
-                                                        color: textColor,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                )
-                                                .toList(),
-                                        onChanged: (val) {
-                                          if (val != null) {
-                                            setState(
-                                              () => _selectedStatus = val,
-                                            );
-                                          }
-                                        },
-                                        icon: Icon(
-                                          IconlyLight.arrow_down_2,
-                                          color: textSecondary,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-
-                                  // Refresh / Reset Icon
-                                  IconButton(
-                                    icon: Icon(
-                                      Icons.refresh,
-                                      color: textColor,
-                                    ),
-                                    onPressed: _resetFilters,
-                                    tooltip: 'Reset Filters',
-                                  ),
-                                ],
-                              ),
-
-                              // Right Actions (Counts)
-                              Wrap(
-                                spacing: 12,
-                                runSpacing: 12,
-                                crossAxisAlignment: WrapCrossAlignment.center,
-                                children: [
-                                  Text(
-                                    filteredTasks.isNotEmpty
-                                        ? "1 - ${filteredTasks.length} of $totalCount"
-                                        : "0 of $totalCount",
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: cardColor,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.02),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                          border: Border.all(color: borderColor),
+                        ),
+                        child: Wrap(
+                          spacing: 12,
+                          runSpacing: 12,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          alignment: WrapAlignment.spaceBetween,
+                          children: [
+                            Wrap(
+                              spacing: 12,
+                              runSpacing: 12,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                // Search Field
+                                SizedBox(
+                                  width: 200,
+                                  height: 40,
+                                  child: TextField(
+                                    controller: _searchController,
                                     style: TextStyle(
-                                      color: textSecondary,
+                                      color: textColor,
                                       fontSize: 14,
                                     ),
+                                    decoration: InputDecoration(
+                                      hintText: "Search tasks...",
+                                      hintStyle: TextStyle(
+                                        color: textSecondary,
+                                        fontSize: 14,
+                                      ),
+                                      prefixIcon: Icon(
+                                        IconlyLight.search,
+                                        size: 20,
+                                        color: textSecondary,
+                                      ),
+                                      suffixIcon:
+                                          _searchController.text.isNotEmpty
+                                          ? IconButton(
+                                              icon: Icon(
+                                                Icons.close,
+                                                size: 18,
+                                                color: textSecondary,
+                                              ),
+                                              onPressed: () {
+                                                _searchController.clear();
+                                                _scheduleSearch('');
+                                              },
+                                            )
+                                          : null,
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                            horizontal: 16,
+                                          ),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(6),
+                                        borderSide: BorderSide(
+                                          color: borderColor,
+                                        ),
+                                      ),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(6),
+                                        borderSide: BorderSide(
+                                          color: borderColor,
+                                        ),
+                                      ),
+                                      focusedBorder: const OutlineInputBorder(
+                                        borderRadius: BorderRadius.all(
+                                          Radius.circular(6),
+                                        ),
+                                        borderSide: BorderSide(
+                                          color: Color(0xFF0D6EFD),
+                                        ),
+                                      ),
+                                    ),
+                                    onChanged: _scheduleSearch,
                                   ),
-                                ],
-                              ),
-                            ],
-                          ),
+                                ),
+
+                                // Status Dropdown
+                                Container(
+                                  height: 40,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: borderColor),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: DropdownButtonHideUnderline(
+                                    child: DropdownButton<String>(
+                                      value: _selectedStatus,
+                                      dropdownColor: isDark
+                                          ? const Color(0xFF0F2C4A)
+                                          : Colors.white,
+                                      items: _statusOptions
+                                          .map(
+                                            (e) => DropdownMenuItem(
+                                              value: e,
+                                              child: Text(
+                                                e,
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  color: textColor,
+                                                ),
+                                              ),
+                                            ),
+                                          )
+                                          .toList(),
+                                      onChanged: (val) {
+                                        if (val != null) {
+                                          setState(() => _selectedStatus = val);
+                                          _applyFilters();
+                                        }
+                                      },
+                                      icon: Icon(
+                                        IconlyLight.arrow_down_2,
+                                        color: textSecondary,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+
+                                // Refresh / Reset Icon
+                                IconButton(
+                                  icon: Icon(Icons.refresh, color: textColor),
+                                  onPressed: _resetFilters,
+                                  tooltip: 'Reset Filters',
+                                ),
+                                OutlinedButton.icon(
+                                  onPressed: () =>
+                                      _showFilterBottomSheet(context),
+                                  icon: Stack(
+                                    clipBehavior: Clip.none,
+                                    children: [
+                                      Icon(
+                                        IconlyLight.filter,
+                                        size: 17,
+                                        color: textColor,
+                                      ),
+                                      if (_hasActiveFilters)
+                                        Positioned(
+                                          right: -3,
+                                          top: -3,
+                                          child: Container(
+                                            width: 7,
+                                            height: 7,
+                                            decoration: const BoxDecoration(
+                                              color: Color(0xFF0D6EFD),
+                                              shape: BoxShape.circle,
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                  label: Text(
+                                    'More filters',
+                                    style: TextStyle(color: textColor),
+                                  ),
+                                  style: OutlinedButton.styleFrom(
+                                    side: BorderSide(color: borderColor),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 10,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+
+                            // Right Actions (Counts)
+                            Wrap(
+                              spacing: 12,
+                              runSpacing: 12,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                Text(
+                                  filteredTasks.isNotEmpty
+                                      ? "1 - ${filteredTasks.length} of $totalCount"
+                                      : "0 of $totalCount",
+                                  style: TextStyle(
+                                    color: textSecondary,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
+                      ),
                       const SizedBox(height: 24),
 
                       // Task Card List / Loading State
@@ -940,7 +920,34 @@ class _TasksScreenState extends State<TasksScreen> {
                             child: CircularProgressIndicator(),
                           ),
                         )
-                      else if (filteredTasks.isEmpty)
+                      else if (_controller.errorMessage != null)
+                        Padding(
+                          padding: const EdgeInsets.all(40),
+                          child: Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  IconlyLight.danger,
+                                  size: 42,
+                                  color: textSecondary,
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  _controller.errorMessage!,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(color: textSecondary),
+                                ),
+                                const SizedBox(height: 16),
+                                OutlinedButton(
+                                  onPressed: _applyFilters,
+                                  child: const Text('Retry'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      else if (totalCount == 0)
                         Padding(
                           padding: const EdgeInsets.all(40.0),
                           child: Center(
@@ -964,21 +971,47 @@ class _TasksScreenState extends State<TasksScreen> {
                             ),
                           ),
                         )
+                      else if (filteredTasks.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.all(40),
+                          child: Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  IconlyLight.document,
+                                  size: 48,
+                                  color: textSecondary.withValues(alpha: 0.5),
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  'Tasks are available but could not be loaded.',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(color: textSecondary),
+                                ),
+                                const SizedBox(height: 16),
+                                OutlinedButton(
+                                  onPressed: _applyFilters,
+                                  child: const Text('Retry'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
                       else
                         ListView.separated(
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
                           itemCount: filteredTasks.length,
-                          separatorBuilder:
-                              (context, index) => const SizedBox(height: 16),
+                          separatorBuilder: (context, index) =>
+                              const SizedBox(height: 16),
                           itemBuilder: (context, index) {
                             final task = filteredTasks[index];
-                            final taskDisplayNo =
-                                task.jobNo.isNotEmpty
-                                    ? task.jobNo
-                                    : (task.sheetNo.isNotEmpty
-                                        ? task.sheetNo
-                                        : "JOB ${task.id}");
+                            final taskDisplayNo = task.taskDisplayNo.isNotEmpty
+                                ? task.taskDisplayNo
+                                : (task.taskNo.isNotEmpty
+                                      ? task.taskNo
+                                      : "TASK ${task.id}");
 
                             return Container(
                               margin: EdgeInsets.zero,
@@ -1055,25 +1088,24 @@ class _TasksScreenState extends State<TasksScreen> {
                                                     _viewDetails(task);
                                                   }
                                                 },
-                                                itemBuilder:
-                                                    (context) => [
-                                                      const PopupMenuItem(
-                                                        value: 'view',
-                                                        child: Row(
-                                                          children: [
-                                                            Icon(
-                                                              IconlyLight.show,
-                                                              size: 18,
-                                                              color: Color(
-                                                                0xFF0D6EFD,
-                                                              ),
-                                                            ),
-                                                            SizedBox(width: 12),
-                                                            Text("View Details"),
-                                                          ],
+                                                itemBuilder: (context) => [
+                                                  const PopupMenuItem(
+                                                    value: 'view',
+                                                    child: Row(
+                                                      children: [
+                                                        Icon(
+                                                          IconlyLight.show,
+                                                          size: 18,
+                                                          color: Color(
+                                                            0xFF0D6EFD,
+                                                          ),
                                                         ),
-                                                      ),
-                                                    ],
+                                                        SizedBox(width: 12),
+                                                        Text("View Details"),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
                                           ],
                                         ),
@@ -1116,10 +1148,9 @@ class _TasksScreenState extends State<TasksScreen> {
                                     const SizedBox(height: 20),
                                     Divider(
                                       height: 1,
-                                      color:
-                                          isDark
-                                              ? const Color(0xFF1F2E40)
-                                              : Colors.grey.shade100,
+                                      color: isDark
+                                          ? const Color(0xFF1F2E40)
+                                          : Colors.grey.shade100,
                                     ),
                                     const SizedBox(height: 16),
 
@@ -1128,19 +1159,17 @@ class _TasksScreenState extends State<TasksScreen> {
                                       width: double.infinity,
                                       child: OutlinedButton(
                                         style: OutlinedButton.styleFrom(
-                                          foregroundColor:
-                                              isDark
-                                                  ? Colors.white
-                                                  : const Color(0xFF0D6EFD),
+                                          foregroundColor: isDark
+                                              ? Colors.white
+                                              : const Color(0xFF0D6EFD),
                                           side: BorderSide(
-                                            color:
-                                                isDark
-                                                    ? Colors.white.withValues(
-                                                      alpha: 0.5,
-                                                    )
-                                                    : const Color(
-                                                      0xFF0D6EFD,
-                                                    ).withValues(alpha: 0.4),
+                                            color: isDark
+                                                ? Colors.white.withValues(
+                                                    alpha: 0.5,
+                                                  )
+                                                : const Color(
+                                                    0xFF0D6EFD,
+                                                  ).withValues(alpha: 0.4),
                                           ),
                                           shape: RoundedRectangleBorder(
                                             borderRadius: BorderRadius.circular(
@@ -1161,22 +1190,18 @@ class _TasksScreenState extends State<TasksScreen> {
                                               style: TextStyle(
                                                 fontSize: 12,
                                                 fontWeight: FontWeight.bold,
-                                                color:
-                                                    isDark
-                                                        ? Colors.white
-                                                        : const Color(
-                                                          0xFF0D6EFD,
-                                                        ),
+                                                color: isDark
+                                                    ? Colors.white
+                                                    : const Color(0xFF0D6EFD),
                                               ),
                                             ),
                                             const SizedBox(width: 6),
                                             Icon(
                                               Icons.arrow_forward_ios,
                                               size: 11,
-                                              color:
-                                                  isDark
-                                                      ? Colors.white70
-                                                      : const Color(0xFF0D6EFD),
+                                              color: isDark
+                                                  ? Colors.white70
+                                                  : const Color(0xFF0D6EFD),
                                             ),
                                           ],
                                         ),
@@ -1193,10 +1218,12 @@ class _TasksScreenState extends State<TasksScreen> {
                           padding: EdgeInsets.symmetric(vertical: 20),
                           child: Center(child: CircularProgressIndicator()),
                         )
-                      else if (_controller.hasMore)
+                      else if (filteredTasks.isNotEmpty && _controller.hasMore)
                         const Padding(
                           padding: EdgeInsets.only(top: 12),
-                          child: Center(child: Text('Scroll to load more tasks')),
+                          child: Center(
+                            child: Text('Scroll to load more tasks'),
+                          ),
                         ),
                     ],
                   ),

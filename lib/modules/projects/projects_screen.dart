@@ -9,8 +9,6 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 import 'project_controller.dart';
 import 'project_details_screen.dart';
-import '../drawer_pages/admin_team_controller.dart';
-import '../drawer_pages/admin/admin_members_controller.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/background_stripes_painter.dart';
 import '../../models/client_model.dart';
@@ -89,8 +87,12 @@ class ProjectsScreenState extends State<ProjectsScreen> {
             final titleColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
             final textColor = isDark ? Colors.white : Colors.black87;
             final hintColor = isDark ? Colors.white54 : Colors.grey;
-            final inputBorderColor = isDark ? AppTheme.darkBorder : Colors.grey.shade300;
-            final inputFillColor = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.transparent;
+            final inputBorderColor = isDark
+                ? AppTheme.darkBorder
+                : Colors.grey.shade300;
+            final inputFillColor = isDark
+                ? Colors.white.withValues(alpha: 0.08)
+                : Colors.transparent;
 
             final clients = _controller.availableClients;
 
@@ -98,7 +100,9 @@ class ProjectsScreenState extends State<ProjectsScreen> {
               backgroundColor: dialogBg,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
-                side: isDark ? const BorderSide(color: AppTheme.darkBorder) : BorderSide.none,
+                side: isDark
+                    ? const BorderSide(color: AppTheme.darkBorder)
+                    : BorderSide.none,
               ),
               title: Text(
                 "Create Project",
@@ -121,7 +125,9 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+                          color: isDark
+                              ? Colors.grey.shade300
+                              : Colors.grey.shade700,
                         ),
                       ),
                       const SizedBox(height: 6),
@@ -133,7 +139,10 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                           hintStyle: TextStyle(color: hintColor, fontSize: 14),
                           filled: true,
                           fillColor: inputFillColor,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
                             borderSide: BorderSide(color: inputBorderColor),
@@ -144,7 +153,10 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                           ),
                           focusedBorder: const OutlineInputBorder(
                             borderRadius: BorderRadius.all(Radius.circular(8)),
-                            borderSide: BorderSide(color: Color(0xFF0D6EFD), width: 1.5),
+                            borderSide: BorderSide(
+                              color: Color(0xFF0D6EFD),
+                              width: 1.5,
+                            ),
                           ),
                         ),
                       ),
@@ -159,7 +171,9 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+                              color: isDark
+                                  ? Colors.grey.shade300
+                                  : Colors.grey.shade700,
                             ),
                           ),
                           GestureDetector(
@@ -172,7 +186,9 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                               });
                             },
                             child: Text(
-                              isCreatingNewClient ? "Select Existing" : "+ New Client",
+                              isCreatingNewClient
+                                  ? "Select Existing"
+                                  : "+ New Client",
                               style: const TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
@@ -190,10 +206,16 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                           style: TextStyle(color: textColor, fontSize: 14),
                           decoration: InputDecoration(
                             hintText: "Enter new client name",
-                            hintStyle: TextStyle(color: hintColor, fontSize: 14),
+                            hintStyle: TextStyle(
+                              color: hintColor,
+                              fontSize: 14,
+                            ),
                             filled: true,
                             fillColor: inputFillColor,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 12,
+                            ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
                               borderSide: BorderSide(color: inputBorderColor),
@@ -203,8 +225,13 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                               borderSide: BorderSide(color: inputBorderColor),
                             ),
                             focusedBorder: const OutlineInputBorder(
-                              borderRadius: BorderRadius.all(Radius.circular(8)),
-                              borderSide: BorderSide(color: Color(0xFF0D6EFD), width: 1.5),
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(8),
+                              ),
+                              borderSide: BorderSide(
+                                color: Color(0xFF0D6EFD),
+                                width: 1.5,
+                              ),
                             ),
                           ),
                         )
@@ -221,14 +248,28 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                               isExpanded: true,
                               value: selectedClientId,
                               dropdownColor: dialogBg,
-                              hint: Text("Select a client", style: TextStyle(color: hintColor, fontSize: 14)),
-                              icon: Icon(Icons.arrow_drop_down, color: isDark ? Colors.white70 : Colors.grey.shade700),
+                              hint: Text(
+                                "Select a client",
+                                style: TextStyle(
+                                  color: hintColor,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              icon: Icon(
+                                Icons.arrow_drop_down,
+                                color: isDark
+                                    ? Colors.white70
+                                    : Colors.grey.shade700,
+                              ),
                               items: clients.map((client) {
                                 return DropdownMenuItem<int>(
                                   value: client.id,
                                   child: Text(
                                     client.name,
-                                    style: TextStyle(color: textColor, fontSize: 14),
+                                    style: TextStyle(
+                                      color: textColor,
+                                      fontSize: 14,
+                                    ),
                                   ),
                                 );
                               }).toList(),
@@ -248,7 +289,9 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+                          color: isDark
+                              ? Colors.grey.shade300
+                              : Colors.grey.shade700,
                         ),
                       ),
                       const SizedBox(height: 6),
@@ -264,12 +307,29 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                             isExpanded: true,
                             value: selectedPriority,
                             dropdownColor: dialogBg,
-                            icon: Icon(Icons.arrow_drop_down, color: isDark ? Colors.white70 : Colors.grey.shade700),
+                            icon: Icon(
+                              Icons.arrow_drop_down,
+                              color: isDark
+                                  ? Colors.white70
+                                  : Colors.grey.shade700,
+                            ),
                             items: const [
-                              DropdownMenuItem(value: 'low', child: Text('Low')),
-                              DropdownMenuItem(value: 'medium', child: Text('Medium')),
-                              DropdownMenuItem(value: 'high', child: Text('High')),
-                              DropdownMenuItem(value: 'urgent', child: Text('Urgent')),
+                              DropdownMenuItem(
+                                value: 'low',
+                                child: Text('Low'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'medium',
+                                child: Text('Medium'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'high',
+                                child: Text('High'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'urgent',
+                                child: Text('Urgent'),
+                              ),
                             ],
                             onChanged: (val) {
                               if (val != null) {
@@ -288,7 +348,12 @@ class ProjectsScreenState extends State<ProjectsScreen> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(dialogContext),
-                  child: Text("Cancel", style: TextStyle(color: isDark ? Colors.white70 : Colors.grey)),
+                  child: Text(
+                    "Cancel",
+                    style: TextStyle(
+                      color: isDark ? Colors.white70 : Colors.grey,
+                    ),
+                  ),
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
@@ -301,21 +366,30 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                     final name = nameController.text.trim();
                     if (name.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("Please enter a project name")),
+                        const SnackBar(
+                          content: Text("Please enter a project name"),
+                        ),
                       );
                       return;
                     }
 
                     if (!isCreatingNewClient && selectedClientId == null) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("Please select a client or click '+ New Client'")),
+                        const SnackBar(
+                          content: Text(
+                            "Please select a client or click '+ New Client'",
+                          ),
+                        ),
                       );
                       return;
                     }
 
-                    if (isCreatingNewClient && newClientController.text.trim().isEmpty) {
+                    if (isCreatingNewClient &&
+                        newClientController.text.trim().isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("Please enter the new client name")),
+                        const SnackBar(
+                          content: Text("Please enter the new client name"),
+                        ),
                       );
                       return;
                     }
@@ -323,7 +397,9 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                     final success = await _controller.createProject(
                       name,
                       clientId: selectedClientId,
-                      newClientName: isCreatingNewClient ? newClientController.text.trim() : null,
+                      newClientName: isCreatingNewClient
+                          ? newClientController.text.trim()
+                          : null,
                       priority: selectedPriority,
                     );
 
@@ -339,7 +415,8 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(
-                            _controller.errorMessage ?? "Failed to create project",
+                            _controller.errorMessage ??
+                                "Failed to create project",
                           ),
                           backgroundColor: Colors.redAccent,
                         ),
@@ -348,7 +425,10 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                   },
                   child: const Text(
                     "Create",
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ],
@@ -372,7 +452,9 @@ class ProjectsScreenState extends State<ProjectsScreen> {
           backgroundColor: dialogBg,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
-            side: isDark ? const BorderSide(color: AppTheme.darkBorder) : BorderSide.none,
+            side: isDark
+                ? const BorderSide(color: AppTheme.darkBorder)
+                : BorderSide.none,
           ),
           title: Text(
             "Delete Projects",
@@ -385,7 +467,10 @@ class ProjectsScreenState extends State<ProjectsScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text("Cancel", style: TextStyle(color: isDark ? Colors.white70 : Colors.grey)),
+              child: Text(
+                "Cancel",
+                style: TextStyle(color: isDark ? Colors.white70 : Colors.grey),
+              ),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -441,9 +526,10 @@ class ProjectsScreenState extends State<ProjectsScreen> {
 
       final projects = allProjects.where((p) {
         // Status Filter
-        final status = (p.statusLabel.isEmpty ? p.status : p.statusLabel).toLowerCase();
+        final status = (p.statusLabel.isEmpty ? p.status : p.statusLabel)
+            .toLowerCase();
         if (_selectedStatusTab == "Active Projects") {
-          if (status == 'archived') return false;
+          if (status != 'active') return false;
         } else if (_selectedStatusTab == "Archived Projects") {
           if (status != 'archived') return false;
         }
@@ -470,11 +556,13 @@ class ProjectsScreenState extends State<ProjectsScreen> {
 
       for (final project in projects) {
         final code = project.code;
-        final escapedName = project.name.contains(',') || project.name.contains('"')
+        final escapedName =
+            project.name.contains(',') || project.name.contains('"')
             ? '"${project.name.replaceAll('"', '""')}"'
             : project.name;
         final clientName = project.client?.name ?? '-';
-        final escapedClient = clientName.contains(',') || clientName.contains('"')
+        final escapedClient =
+            clientName.contains(',') || clientName.contains('"')
             ? '"${clientName.replaceAll('"', '""')}"'
             : clientName;
         final status = project.statusLabel.isNotEmpty
@@ -514,30 +602,30 @@ class ProjectsScreenState extends State<ProjectsScreen> {
       }
 
       // Trigger the system share/save sheet
-      await Share.shareXFiles(
-        [XFile(file.path)],
-        text: 'Projects Report CSV',
+      await SharePlus.instance.share(
+        ShareParams(files: [XFile(file.path)], text: 'Projects Report CSV'),
       );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error: $e")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Error: $e")));
       }
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     // Custom Palette based on theme mode
     final bgColor = isDark ? AppTheme.darkBackground : const Color(0xFFF8FAFC);
     final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
     final borderColor = isDark ? const Color(0xFF1F2E40) : Colors.grey.shade200;
     final primaryTextColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
-    final secondaryTextColor = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+    final secondaryTextColor = isDark
+        ? Colors.grey.shade400
+        : Colors.grey.shade600;
 
     return Container(
       color: bgColor,
@@ -549,7 +637,7 @@ class ProjectsScreenState extends State<ProjectsScreen> {
               painter: BackgroundStripesPainter(isDark: isDark),
             ),
           ),
-          
+
           // Main Content
           SafeArea(
             child: Column(
@@ -557,7 +645,10 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                 Expanded(
                   child: SingleChildScrollView(
                     controller: _verticalScrollController,
-                    padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 20.0),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20.0,
+                      vertical: 20.0,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -604,13 +695,22 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                         const SizedBox(height: 16),
 
                         // Search & Filter Settings Row
-                        _buildSearchAndSettingsRow(isDark, borderColor, cardColor),
+                        _buildSearchAndSettingsRow(
+                          isDark,
+                          borderColor,
+                          cardColor,
+                        ),
                         if (_isSearchVisible) const SizedBox(height: 16),
 
                         // Client Filter Selector
-                        _buildClientFilterDropdown(isDark, borderColor, cardColor, primaryTextColor),
+                        _buildClientFilterDropdown(
+                          isDark,
+                          borderColor,
+                          cardColor,
+                          primaryTextColor,
+                        ),
                         const SizedBox(height: 14),
-                        
+
                         // Status Categories Tabs (All Projects, Active Projects, Archived Projects)
                         _buildStatusTabs(isDark, borderColor, cardColor),
                         const SizedBox(height: 20),
@@ -620,7 +720,13 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                         const SizedBox(height: 12),
 
                         // List of Project Cards
-                        _buildProjectsList(isDark, cardColor, borderColor, primaryTextColor, secondaryTextColor),
+                        _buildProjectsList(
+                          isDark,
+                          cardColor,
+                          borderColor,
+                          primaryTextColor,
+                          secondaryTextColor,
+                        ),
                       ],
                     ),
                   ),
@@ -633,7 +739,12 @@ class ProjectsScreenState extends State<ProjectsScreen> {
     );
   }
 
-  Widget _buildClientFilterDropdown(bool isDark, Color borderColor, Color cardColor, Color primaryTextColor) {
+  Widget _buildClientFilterDropdown(
+    bool isDark,
+    Color borderColor,
+    Color cardColor,
+    Color primaryTextColor,
+  ) {
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, _) {
@@ -651,10 +762,17 @@ class ProjectsScreenState extends State<ProjectsScreen> {
               isExpanded: true,
               value: _selectedClient?.id,
               dropdownColor: isDark ? AppTheme.darkSurfaceRaised : Colors.white,
-              icon: Icon(Icons.arrow_drop_down, color: isDark ? Colors.white70 : Colors.grey.shade700),
+              icon: Icon(
+                Icons.arrow_drop_down,
+                color: isDark ? Colors.white70 : Colors.grey.shade700,
+              ),
               hint: Row(
                 children: [
-                  Icon(Icons.business_outlined, size: 18, color: const Color(0xFF0D6EFD)),
+                  Icon(
+                    Icons.business_outlined,
+                    size: 18,
+                    color: const Color(0xFF0D6EFD),
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
@@ -674,13 +792,21 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                   value: null,
                   child: Row(
                     children: [
-                      Icon(Icons.group_outlined, size: 18, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                      Icon(
+                        Icons.group_outlined,
+                        size: 18,
+                        color: isDark
+                            ? Colors.grey.shade400
+                            : Colors.grey.shade600,
+                      ),
                       const SizedBox(width: 10),
                       Text(
                         "All Clients",
                         style: TextStyle(
                           fontSize: 13,
-                          fontWeight: _selectedClient == null ? FontWeight.bold : FontWeight.normal,
+                          fontWeight: _selectedClient == null
+                              ? FontWeight.bold
+                              : FontWeight.normal,
                           color: isDark ? Colors.white : Colors.black87,
                         ),
                       ),
@@ -694,7 +820,9 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                       client.name,
                       style: TextStyle(
                         fontSize: 13,
-                        fontWeight: _selectedClient?.id == client.id ? FontWeight.bold : FontWeight.normal,
+                        fontWeight: _selectedClient?.id == client.id
+                            ? FontWeight.bold
+                            : FontWeight.normal,
                         color: isDark ? Colors.white : Colors.black87,
                       ),
                       overflow: TextOverflow.ellipsis,
@@ -721,7 +849,11 @@ class ProjectsScreenState extends State<ProjectsScreen> {
     );
   }
 
-  Widget _buildSearchAndSettingsRow(bool isDark, Color borderColor, Color cardColor) {
+  Widget _buildSearchAndSettingsRow(
+    bool isDark,
+    Color borderColor,
+    Color cardColor,
+  ) {
     if (!_isSearchVisible) return const SizedBox.shrink();
     return Row(
       children: [
@@ -740,11 +872,18 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                 _controller.searchProjects(value);
                 setState(() {});
               },
-              style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 14),
+              style: TextStyle(
+                color: isDark ? Colors.white : Colors.black87,
+                fontSize: 14,
+              ),
               decoration: InputDecoration(
                 hintText: "Search projects...",
                 hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-                prefixIcon: Icon(Icons.search, color: Colors.grey.shade400, size: 20),
+                prefixIcon: Icon(
+                  Icons.search,
+                  color: Colors.grey.shade400,
+                  size: 20,
+                ),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
                         icon: Icon(
@@ -804,7 +943,11 @@ class ProjectsScreenState extends State<ProjectsScreen> {
             border: Border.all(color: borderColor),
           ),
           child: IconButton(
-            icon: Icon(Icons.tune, color: isDark ? Colors.grey.shade300 : Colors.grey.shade600, size: 20),
+            icon: Icon(
+              Icons.tune,
+              color: isDark ? Colors.grey.shade300 : Colors.grey.shade600,
+              size: 20,
+            ),
             tooltip: "Filter",
             onPressed: () {
               // Custom dialog / filter trigger
@@ -816,8 +959,12 @@ class ProjectsScreenState extends State<ProjectsScreen> {
   }
 
   Widget _buildStatusTabs(bool isDark, Color borderColor, Color cardColor) {
-    final List<String> statusTabs = ["All Projects", "Active Projects", "Archived Projects"];
-    
+    final List<String> statusTabs = [
+      "All Projects",
+      "Active Projects",
+      "Archived Projects",
+    ];
+
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
@@ -832,7 +979,10 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                 });
               },
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: isSelected ? const Color(0xFF0D6EFD) : cardColor,
                   borderRadius: BorderRadius.circular(20),
@@ -847,7 +997,9 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                     fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
                     color: isSelected
                         ? Colors.white
-                        : (isDark ? Colors.grey.shade400 : Colors.grey.shade700),
+                        : (isDark
+                              ? Colors.grey.shade400
+                              : Colors.grey.shade700),
                     fontFamily: 'Inter',
                   ),
                 ),
@@ -871,21 +1023,41 @@ class ProjectsScreenState extends State<ProjectsScreen> {
           children: [
             Text(
               "${_controller.selectedProjectIds.length} projects selected",
-              style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 13),
+              style: TextStyle(
+                color: textColor,
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+              ),
             ),
             TextButton.icon(
               onPressed: _confirmDeleteSelected,
               icon: const Icon(Icons.delete, color: Colors.redAccent, size: 18),
-              label: const Text("Delete Selected", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 13)),
-              style: TextButton.styleFrom(padding: EdgeInsets.zero, tapTargetSize: MaterialTapTargetSize.shrinkWrap),
-            )
+              label: const Text(
+                "Delete Selected",
+                style: TextStyle(
+                  color: Colors.redAccent,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
+              ),
+              style: TextButton.styleFrom(
+                padding: EdgeInsets.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
           ],
         );
       },
     );
   }
 
-  Widget _buildProjectsList(bool isDark, Color cardColor, Color borderColor, Color primaryTextColor, Color secondaryTextColor) {
+  Widget _buildProjectsList(
+    bool isDark,
+    Color cardColor,
+    Color borderColor,
+    Color primaryTextColor,
+    Color secondaryTextColor,
+  ) {
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, child) {
@@ -898,11 +1070,15 @@ class ProjectsScreenState extends State<ProjectsScreen> {
           );
         }
 
-        if (_controller.errorMessage != null && _controller.filteredProjects.isEmpty) {
+        if (_controller.errorMessage != null &&
+            _controller.filteredProjects.isEmpty) {
           return Center(
             child: Padding(
               padding: const EdgeInsets.all(40.0),
-              child: Text(_controller.errorMessage!, style: const TextStyle(color: Colors.red)),
+              child: Text(
+                _controller.errorMessage!,
+                style: const TextStyle(color: Colors.red),
+              ),
             ),
           );
         }
@@ -910,9 +1086,10 @@ class ProjectsScreenState extends State<ProjectsScreen> {
         // Apply status and client filter
         final filteredList = _controller.filteredProjects.where((p) {
           // Status filter
-          final status = (p.statusLabel.isEmpty ? p.status : p.statusLabel).toLowerCase();
+          final status = (p.statusLabel.isEmpty ? p.status : p.statusLabel)
+              .toLowerCase();
           if (_selectedStatusTab == "Active Projects") {
-            if (status == 'archived') return false;
+            if (status != 'active') return false;
           } else if (_selectedStatusTab == "Archived Projects") {
             if (status != 'archived') return false;
           }
@@ -938,7 +1115,10 @@ class ProjectsScreenState extends State<ProjectsScreen> {
           return const Center(
             child: Padding(
               padding: EdgeInsets.all(40.0),
-              child: Text("No projects found matching the selected filters.", style: TextStyle(color: Colors.grey)),
+              child: Text(
+                "No projects found matching the selected filters.",
+                style: TextStyle(color: Colors.grey),
+              ),
             ),
           );
         }
@@ -952,21 +1132,25 @@ class ProjectsScreenState extends State<ProjectsScreen> {
               separatorBuilder: (context, index) => const SizedBox(height: 16),
               itemBuilder: (context, index) {
                 final project = filteredList[index];
-                final isSelected = _controller.selectedProjectIds.contains(project.id);
-                
+                final isSelected = _controller.selectedProjectIds.contains(
+                  project.id,
+                );
+
                 // Format labels with web portal parity
                 final projectTitle = project.displayNameWithCode;
                 final clientName = project.client?.name ?? 'N/A';
                 final ownerName = project.ownerDisplay;
                 final locationsCount = project.locationsCount;
-                final statusLabel = project.statusLabel.isNotEmpty 
-                    ? project.statusLabel 
+                final statusLabel = project.statusLabel.isNotEmpty
+                    ? project.statusLabel
                     : (project.status.isNotEmpty ? project.status : "Active");
                 return _buildProjectCardItem(
                   context,
                   isDark: isDark,
                   cardColor: cardColor,
-                  borderColor: isSelected ? const Color(0xFF0D6EFD) : borderColor,
+                  borderColor: isSelected
+                      ? const Color(0xFF0D6EFD)
+                      : borderColor,
                   borderWidth: isSelected ? 2.0 : 1.0,
                   primaryTextColor: primaryTextColor,
                   secondaryTextColor: secondaryTextColor,
@@ -984,7 +1168,8 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => ProjectDetailsScreen(project: project),
+                        builder: (context) =>
+                            ProjectDetailsScreen(project: project),
                       ),
                     );
                   },
@@ -1002,7 +1187,10 @@ class ProjectsScreenState extends State<ProjectsScreen> {
             else if (_controller.hasMore)
               Padding(
                 padding: const EdgeInsets.all(16),
-                child: Text('Scroll to load more projects', style: TextStyle(color: secondaryTextColor)),
+                child: Text(
+                  'Scroll to load more projects',
+                  style: TextStyle(color: secondaryTextColor),
+                ),
               ),
           ],
         );
@@ -1010,16 +1198,21 @@ class ProjectsScreenState extends State<ProjectsScreen> {
     );
   }
 
-  Future<void> _downloadQrCode(BuildContext context, String qrData, Project project) async {
+  Future<void> _downloadQrCode(
+    BuildContext context,
+    String qrData,
+    Project project,
+  ) async {
     try {
       final painter = QrPainter(
         data: qrData,
         version: QrVersions.auto,
-        color: const Color(0xFF000000),
-        emptyColor: const Color(0xFFFFFFFF),
         gapless: true,
       );
-      final picData = await painter.toImageData(1024, format: ui.ImageByteFormat.png);
+      final picData = await painter.toImageData(
+        1024,
+        format: ui.ImageByteFormat.png,
+      );
       if (picData == null) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -1030,25 +1223,29 @@ class ProjectsScreenState extends State<ProjectsScreen> {
       }
 
       final tempDir = await getTemporaryDirectory();
-      final sanitizedCode = (project.code.isNotEmpty ? project.code : 'PROJ_${project.id}')
-          .replaceAll(RegExp(r'[^a-zA-Z0-9_\-]'), '_');
+      final sanitizedCode =
+          (project.code.isNotEmpty ? project.code : 'PROJ_${project.id}')
+              .replaceAll(RegExp(r'[^a-zA-Z0-9_\-]'), '_');
       final file = File('${tempDir.path}/QR_$sanitizedCode.png');
       await file.writeAsBytes(picData.buffer.asUint8List());
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("QR Code exported ($sanitizedCode.png)"),
-          ),
+          SnackBar(content: Text("QR Code exported ($sanitizedCode.png)")),
         );
       }
 
-      await Share.shareXFiles([XFile(file.path)], text: 'Project QR Code: ${project.name} ($sanitizedCode)');
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path)],
+          text: 'Project QR Code: ${project.name} ($sanitizedCode)',
+        ),
+      );
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error saving QR Code: $e")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Error saving QR Code: $e")));
       }
     }
   }
@@ -1066,7 +1263,9 @@ class ProjectsScreenState extends State<ProjectsScreen> {
     } else {
       qrData = jsonEncode({
         "project_id": project.id,
-        "project_code": project.code.isNotEmpty ? project.code : "PROJ-${project.id}",
+        "project_code": project.code.isNotEmpty
+            ? project.code
+            : "PROJ-${project.id}",
         "project_name": project.name,
       });
     }
@@ -1077,13 +1276,18 @@ class ProjectsScreenState extends State<ProjectsScreen> {
         final isDark = Theme.of(dialogContext).brightness == Brightness.dark;
         final bgColor = isDark ? AppTheme.darkSurfaceRaised : Colors.white;
         final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
-        final secondaryTextColor = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+        final secondaryTextColor = isDark
+            ? Colors.grey.shade400
+            : Colors.grey.shade600;
         final borderColor = isDark ? AppTheme.darkBorder : Colors.grey.shade200;
 
         return Dialog(
           backgroundColor: Colors.transparent,
           elevation: 0,
-          insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 24,
+            vertical: 24,
+          ),
           child: Container(
             constraints: const BoxConstraints(maxWidth: 360),
             padding: const EdgeInsets.all(20),
@@ -1124,7 +1328,10 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                       color: textColor.withValues(alpha: 0.7),
                       splashRadius: 20,
                       padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      constraints: const BoxConstraints(
+                        minWidth: 32,
+                        minHeight: 32,
+                      ),
                       onPressed: () => Navigator.pop(dialogContext),
                     ),
                   ],
@@ -1168,10 +1375,7 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                 Text(
                   project.code.isNotEmpty ? project.code : 'PROJ-${project.id}',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: secondaryTextColor,
-                    fontSize: 14,
-                  ),
+                  style: TextStyle(color: secondaryTextColor, fontSize: 14),
                 ),
                 const SizedBox(height: 24),
                 // Bottom Actions: Close and Download QR
@@ -1183,7 +1387,9 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                         style: OutlinedButton.styleFrom(
                           foregroundColor: textColor,
                           side: BorderSide(
-                            color: isDark ? Colors.white24 : Colors.grey.shade300,
+                            color: isDark
+                                ? Colors.white24
+                                : Colors.grey.shade300,
                           ),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(
@@ -1244,29 +1450,41 @@ class ProjectsScreenState extends State<ProjectsScreen> {
             final isDark = Theme.of(context).brightness == Brightness.dark;
             final dialogBg = isDark ? AppTheme.darkSurfaceRaised : Colors.white;
             final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
-            final secondaryTextColor = isDark ? Colors.white60 : Colors.grey.shade600;
-            final borderColor = isDark ? AppTheme.darkBorder : Colors.grey.shade200;
-            final itemBg = isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF8FAFC);
+            final secondaryTextColor = isDark
+                ? Colors.white60
+                : Colors.grey.shade600;
+            final borderColor = isDark
+                ? AppTheme.darkBorder
+                : Colors.grey.shade200;
+            final itemBg = isDark
+                ? Colors.white.withValues(alpha: 0.05)
+                : const Color(0xFFF8FAFC);
 
             Widget bodyContent;
 
             if (snapshot.connectionState == ConnectionState.waiting) {
               bodyContent = const SizedBox(
                 height: 180,
-                child: Center(
-                  child: CircularProgressIndicator(),
-                ),
+                child: Center(child: CircularProgressIndicator()),
               );
             } else if (snapshot.hasError || snapshot.data == null) {
               bodyContent = Padding(
                 padding: const EdgeInsets.symmetric(vertical: 24.0),
                 child: Column(
                   children: [
-                    Icon(IconlyLight.danger, size: 40, color: Colors.orange.shade400),
+                    Icon(
+                      IconlyLight.danger,
+                      size: 40,
+                      color: Colors.orange.shade400,
+                    ),
                     const SizedBox(height: 12),
                     Text(
                       "No assignments found",
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: textColor),
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: textColor,
+                      ),
                     ),
                     const SizedBox(height: 6),
                     Text(
@@ -1280,10 +1498,16 @@ class ProjectsScreenState extends State<ProjectsScreen> {
             } else {
               final data = snapshot.data!;
               final rawTeams = data['teams'] ?? data['assigned_teams'] ?? [];
-              final rawWorkers = data['workers'] ?? data['assigned_workers'] ?? data['members'] ?? [];
+              final rawWorkers =
+                  data['workers'] ??
+                  data['assigned_workers'] ??
+                  data['members'] ??
+                  [];
 
               final List<dynamic> teams = rawTeams is List ? rawTeams : [];
-              final List<dynamic> workers = rawWorkers is List ? rawWorkers : [];
+              final List<dynamic> workers = rawWorkers is List
+                  ? rawWorkers
+                  : [];
 
               final hasNoAssignments = teams.isEmpty && workers.isEmpty;
 
@@ -1292,17 +1516,28 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 24.0),
                   child: Column(
                     children: [
-                      Icon(IconlyLight.user_1, size: 44, color: isDark ? Colors.white38 : Colors.grey.shade400),
+                      Icon(
+                        IconlyLight.user_1,
+                        size: 44,
+                        color: isDark ? Colors.white38 : Colors.grey.shade400,
+                      ),
                       const SizedBox(height: 12),
                       Text(
                         "No Team Assigned",
-                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: textColor),
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: textColor,
+                        ),
                       ),
                       const SizedBox(height: 6),
                       Text(
                         "This project currently has no assigned teams or operatives.",
                         textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 13, color: secondaryTextColor),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: secondaryTextColor,
+                        ),
                       ),
                     ],
                   ),
@@ -1319,7 +1554,11 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                         if (teams.isNotEmpty) ...[
                           Row(
                             children: [
-                              const Icon(Icons.group_outlined, size: 16, color: Color(0xFF0D6EFD)),
+                              const Icon(
+                                Icons.group_outlined,
+                                size: 16,
+                                color: Color(0xFF0D6EFD),
+                              ),
                               const SizedBox(width: 6),
                               Text(
                                 "Assigned Teams (${teams.length})",
@@ -1334,10 +1573,16 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                           const SizedBox(height: 8),
                           ...teams.map((teamItem) {
                             final String teamName = teamItem is Map
-                                ? (teamItem['name'] ?? teamItem['display_name'] ?? 'Team #${teamItem['id'] ?? ''}')
+                                ? (teamItem['name'] ??
+                                      teamItem['display_name'] ??
+                                      'Team #${teamItem['id'] ?? ''}')
                                 : 'Team #$teamItem';
-                            final String? leadName = teamItem is Map ? teamItem['lead_name'] : null;
-                            final int? memberCount = teamItem is Map ? teamItem['member_count'] : null;
+                            final String? leadName = teamItem is Map
+                                ? teamItem['lead_name']
+                                : null;
+                            final int? memberCount = teamItem is Map
+                                ? teamItem['member_count']
+                                : null;
 
                             return Container(
                               margin: const EdgeInsets.only(bottom: 8),
@@ -1352,15 +1597,22 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                                   Container(
                                     padding: const EdgeInsets.all(8),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFF0D6EFD).withValues(alpha: 0.1),
+                                      color: const Color(
+                                        0xFF0D6EFD,
+                                      ).withValues(alpha: 0.1),
                                       borderRadius: BorderRadius.circular(8),
                                     ),
-                                    child: const Icon(Icons.group_outlined, size: 18, color: Color(0xFF0D6EFD)),
+                                    child: const Icon(
+                                      Icons.group_outlined,
+                                      size: 18,
+                                      color: Color(0xFF0D6EFD),
+                                    ),
                                   ),
                                   const SizedBox(width: 10),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           teamName,
@@ -1370,19 +1622,28 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                                             color: textColor,
                                           ),
                                         ),
-                                        if (leadName != null && leadName.isNotEmpty)
+                                        if (leadName != null &&
+                                            leadName.isNotEmpty)
                                           Text(
                                             "Lead: $leadName",
-                                            style: TextStyle(fontSize: 12, color: secondaryTextColor),
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: secondaryTextColor,
+                                            ),
                                           ),
                                       ],
                                     ),
                                   ),
                                   if (memberCount != null)
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 3,
+                                      ),
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFF0D6EFD).withValues(alpha: 0.1),
+                                        color: const Color(
+                                          0xFF0D6EFD,
+                                        ).withValues(alpha: 0.1),
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                       child: Text(
@@ -1403,7 +1664,11 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                         if (workers.isNotEmpty) ...[
                           Row(
                             children: [
-                              const Icon(IconlyLight.user_1, size: 16, color: Color(0xFF0D6EFD)),
+                              const Icon(
+                                IconlyLight.user_1,
+                                size: 16,
+                                color: Color(0xFF0D6EFD),
+                              ),
                               const SizedBox(width: 6),
                               Text(
                                 "Assigned Operatives / Members (${workers.length})",
@@ -1419,12 +1684,22 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                           ...workers.map((workerItem) {
                             final String name = workerItem is Map
                                 ? (workerItem['display_name'] ??
-                                    '${workerItem['first_name'] ?? ''} ${workerItem['last_name'] ?? ''}'.trim().isNotEmpty
-                                        ? '${workerItem['first_name'] ?? ''} ${workerItem['last_name'] ?? ''}'.trim()
-                                        : workerItem['name'] ?? workerItem['email'] ?? 'Member #${workerItem['id'] ?? ''}')
+                                          '${workerItem['first_name'] ?? ''} ${workerItem['last_name'] ?? ''}'
+                                              .trim()
+                                              .isNotEmpty
+                                      ? '${workerItem['first_name'] ?? ''} ${workerItem['last_name'] ?? ''}'
+                                            .trim()
+                                      : workerItem['name'] ??
+                                            workerItem['email'] ??
+                                            'Member #${workerItem['id'] ?? ''}')
                                 : 'Member #$workerItem';
-                            final String? role = workerItem is Map ? (workerItem['role_display_name'] ?? workerItem['role']) : null;
-                            final String? email = workerItem is Map ? workerItem['email'] : null;
+                            final String? role = workerItem is Map
+                                ? (workerItem['role_display_name'] ??
+                                      workerItem['role'])
+                                : null;
+                            final String? email = workerItem is Map
+                                ? workerItem['email']
+                                : null;
 
                             return Container(
                               margin: const EdgeInsets.only(bottom: 8),
@@ -1438,9 +1713,13 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                                 children: [
                                   CircleAvatar(
                                     radius: 16,
-                                    backgroundColor: const Color(0xFF0D6EFD).withValues(alpha: 0.15),
+                                    backgroundColor: const Color(
+                                      0xFF0D6EFD,
+                                    ).withValues(alpha: 0.15),
                                     child: Text(
-                                      name.isNotEmpty ? name[0].toUpperCase() : 'U',
+                                      name.isNotEmpty
+                                          ? name[0].toUpperCase()
+                                          : 'U',
                                       style: const TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 13,
@@ -1451,7 +1730,8 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                                   const SizedBox(width: 10),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           name,
@@ -1464,12 +1744,19 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                                         if (role != null && role.isNotEmpty)
                                           Text(
                                             role,
-                                            style: TextStyle(fontSize: 11, color: secondaryTextColor),
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: secondaryTextColor,
+                                            ),
                                           )
-                                        else if (email != null && email.isNotEmpty)
+                                        else if (email != null &&
+                                            email.isNotEmpty)
                                           Text(
                                             email,
-                                            style: TextStyle(fontSize: 11, color: secondaryTextColor),
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: secondaryTextColor,
+                                            ),
                                           ),
                                       ],
                                     ),
@@ -1490,7 +1777,9 @@ class ProjectsScreenState extends State<ProjectsScreen> {
               backgroundColor: dialogBg,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
-                side: isDark ? const BorderSide(color: AppTheme.darkBorder) : BorderSide.none,
+                side: isDark
+                    ? const BorderSide(color: AppTheme.darkBorder)
+                    : BorderSide.none,
               ),
               child: Padding(
                 padding: const EdgeInsets.all(20.0),
@@ -1532,7 +1821,10 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                           color: textColor.withValues(alpha: 0.7),
                           splashRadius: 20,
                           padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                          constraints: const BoxConstraints(
+                            minWidth: 32,
+                            minHeight: 32,
+                          ),
                           onPressed: () => Navigator.pop(dialogContext),
                         ),
                       ],
@@ -1549,7 +1841,9 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                             style: OutlinedButton.styleFrom(
                               foregroundColor: textColor,
                               side: BorderSide(
-                                color: isDark ? Colors.white24 : Colors.grey.shade300,
+                                color: isDark
+                                    ? Colors.white24
+                                    : Colors.grey.shade300,
                               ),
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               shape: RoundedRectangleBorder(
@@ -1558,7 +1852,10 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                             ),
                             child: const Text(
                               "Close",
-                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
                         ),
@@ -1571,8 +1868,11 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                             },
                             icon: const Icon(IconlyLight.user_1, size: 16),
                             label: const Text(
-                              "Assign / Edit",
-                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                              "Assign Operatives",
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF0D6EFD),
@@ -1598,17 +1898,15 @@ class ProjectsScreenState extends State<ProjectsScreen> {
   }
 
   void _showAssignTeamDialog(BuildContext context, Project project) {
-    final teamController = AdminTeamController();
-    final membersController = AdminMembersController();
     final searchWorkerController = TextEditingController();
 
     bool isLoadingData = true;
+    bool hasStartedLoading = false;
     bool isSaving = false;
     String? errorMessage;
     String searchWorkerQuery = '';
-
-    final List<int> selectedTeamIds = [];
     final List<int> selectedWorkerIds = [];
+    final List<ProjectAssignableOperative> operatives = [];
 
     showDialog(
       context: context,
@@ -1618,70 +1916,84 @@ class ProjectsScreenState extends State<ProjectsScreen> {
             final isDark = Theme.of(context).brightness == Brightness.dark;
             final dialogBg = isDark ? AppTheme.darkSurfaceRaised : Colors.white;
             final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
-            final secondaryTextColor = isDark ? Colors.white60 : Colors.grey.shade600;
-            final borderColor = isDark ? AppTheme.darkBorder : Colors.grey.shade300;
-            final itemBg = isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF8FAFC);
+            final secondaryTextColor = isDark
+                ? Colors.white60
+                : Colors.grey.shade600;
+            final borderColor = isDark
+                ? AppTheme.darkBorder
+                : Colors.grey.shade300;
+            final itemBg = isDark
+                ? Colors.white.withValues(alpha: 0.05)
+                : const Color(0xFFF8FAFC);
 
-            // Fetch initial data once
-            if (isLoadingData && errorMessage == null) {
+            // Fetch once. The assignment response gives the current selected
+            // worker IDs and the project options endpoint gives only the
+            // operatives this signed-in user is allowed to assign.
+            if (!hasStartedLoading) {
+              hasStartedLoading = true;
               Future.wait([
-                _controller.fetchAssignments(project.id),
-                teamController.fetchTeams(),
-                membersController.fetchMembers(),
-              ]).then((results) {
-                final assignmentData = results[0] as Map<String, dynamic>?;
-                if (assignmentData != null) {
-                  final rawTeams = assignmentData['teams'] ?? assignmentData['assigned_teams'] ?? [];
-                  final rawWorkers = assignmentData['workers'] ?? assignmentData['assigned_workers'] ?? assignmentData['members'] ?? [];
-
-                  if (rawTeams is List) {
-                    for (var t in rawTeams) {
-                      if (t is int) {
-                        selectedTeamIds.add(t);
-                      } else if (t is Map && t['id'] != null) {
-                        final id = int.tryParse(t['id'].toString());
-                        if (id != null) selectedTeamIds.add(id);
+                    _controller.fetchAssignments(project.id),
+                    _controller.fetchAssignableOperatives(),
+                  ])
+                  .then((results) {
+                    final assignmentData = results[0] as Map<String, dynamic>?;
+                    final loadedOperatives =
+                        results[1] as List<ProjectAssignableOperative>;
+                    if (assignmentData != null) {
+                      final rawWorkers =
+                          assignmentData['selected_worker_ids'] ??
+                          assignmentData['worker_ids'] ??
+                          assignmentData['assigned_worker_ids'] ??
+                          const [];
+                      if (rawWorkers is List) {
+                        for (var w in rawWorkers) {
+                          if (w is int) {
+                            if (!selectedWorkerIds.contains(w)) {
+                              selectedWorkerIds.add(w);
+                            }
+                          } else if (w is Map && w['id'] != null) {
+                            final id = int.tryParse(w['id'].toString());
+                            if (id != null && !selectedWorkerIds.contains(id)) {
+                              selectedWorkerIds.add(id);
+                            }
+                          } else {
+                            final id = int.tryParse(w.toString());
+                            if (id != null && !selectedWorkerIds.contains(id)) {
+                              selectedWorkerIds.add(id);
+                            }
+                          }
+                        }
                       }
                     }
-                  }
-                  if (rawWorkers is List) {
-                    for (var w in rawWorkers) {
-                      if (w is int) {
-                        selectedWorkerIds.add(w);
-                      } else if (w is Map && w['id'] != null) {
-                        final id = int.tryParse(w['id'].toString());
-                        if (id != null) selectedWorkerIds.add(id);
-                      }
-                    }
-                  }
-                }
-                setDialogState(() {
-                  isLoadingData = false;
-                });
-              }).catchError((e) {
-                setDialogState(() {
-                  isLoadingData = false;
-                  errorMessage = 'Failed to load team data: $e';
-                });
-              });
+                    setDialogState(() {
+                      operatives
+                        ..clear()
+                        ..addAll(loadedOperatives);
+                      isLoadingData = false;
+                    });
+                  })
+                  .catchError((e) {
+                    setDialogState(() {
+                      isLoadingData = false;
+                      errorMessage = 'Failed to load team data: $e';
+                    });
+                  });
             }
 
-            final teams = teamController.teams;
-            final allMembers = membersController.members;
-            final filteredMembers = allMembers.where((m) {
+            final filteredOperatives = operatives.where((operative) {
               if (searchWorkerQuery.isEmpty) return true;
               final query = searchWorkerQuery.toLowerCase();
-              return m.displayName.toLowerCase().contains(query) ||
-                  m.email.toLowerCase().contains(query) ||
-                  m.roleDisplayName.toLowerCase().contains(query) ||
-                  m.role.toLowerCase().contains(query);
+              return operative.displayName.toLowerCase().contains(query) ||
+                  operative.email.toLowerCase().contains(query);
             }).toList();
 
             return Dialog(
               backgroundColor: dialogBg,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
-                side: isDark ? const BorderSide(color: AppTheme.darkBorder) : BorderSide.none,
+                side: isDark
+                    ? const BorderSide(color: AppTheme.darkBorder)
+                    : BorderSide.none,
               ),
               child: Container(
                 constraints: BoxConstraints(
@@ -1702,7 +2014,7 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                "Assign Team",
+                                "Assign Operatives",
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
@@ -1727,7 +2039,10 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                           color: textColor.withValues(alpha: 0.7),
                           splashRadius: 20,
                           padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                          constraints: const BoxConstraints(
+                            minWidth: 32,
+                            minHeight: 32,
+                          ),
                           onPressed: () => Navigator.pop(dialogContext),
                         ),
                       ],
@@ -1744,9 +2059,19 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                         padding: const EdgeInsets.symmetric(vertical: 24),
                         child: Column(
                           children: [
-                            const Icon(Icons.error_outline, color: Colors.redAccent, size: 36),
+                            const Icon(
+                              Icons.error_outline,
+                              color: Colors.redAccent,
+                              size: 36,
+                            ),
                             const SizedBox(height: 8),
-                            Text(errorMessage!, style: const TextStyle(color: Colors.redAccent, fontSize: 13)),
+                            Text(
+                              errorMessage!,
+                              style: const TextStyle(
+                                color: Colors.redAccent,
+                                fontSize: 13,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -1756,13 +2081,20 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // TEAMS SECTION
+                              // Operatives only. Team pickers were removed
+                              // because they exposed unrelated teams and
+                              // made an already assigned operative appear
+                              // unselected in the mobile dialog.
                               Row(
                                 children: [
-                                  const Icon(Icons.group_outlined, size: 16, color: Color(0xFF0D6EFD)),
+                                  const Icon(
+                                    IconlyLight.user_1,
+                                    size: 16,
+                                    color: Color(0xFF0D6EFD),
+                                  ),
                                   const SizedBox(width: 6),
                                   Text(
-                                    "Teams",
+                                    "Assign Operatives",
                                     style: TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.bold,
@@ -1771,79 +2103,7 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
-                                    "(${selectedTeamIds.length} selected)",
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: Color(0xFF0D6EFD),
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              if (teams.isEmpty)
-                                Text(
-                                  "No teams configured yet.",
-                                  style: TextStyle(fontSize: 12, color: secondaryTextColor),
-                                )
-                              else
-                                Wrap(
-                                  spacing: 8,
-                                  runSpacing: 8,
-                                  children: teams.map((team) {
-                                    final isSelected = selectedTeamIds.contains(team.id);
-                                    return FilterChip(
-                                      selected: isSelected,
-                                      showCheckmark: true,
-                                      checkmarkColor: Colors.white,
-                                      avatar: !isSelected ? const Icon(Icons.group_outlined, size: 14) : null,
-                                      label: Text(
-                                        "${team.name} (${team.memberCount})",
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                          color: isSelected ? Colors.white : textColor,
-                                        ),
-                                      ),
-                                      selectedColor: const Color(0xFF0D6EFD),
-                                      backgroundColor: itemBg,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(20),
-                                        side: BorderSide(
-                                          color: isSelected ? const Color(0xFF0D6EFD) : borderColor,
-                                        ),
-                                      ),
-                                      onSelected: (selected) {
-                                        setDialogState(() {
-                                          if (selected) {
-                                            selectedTeamIds.add(team.id);
-                                          } else {
-                                            selectedTeamIds.remove(team.id);
-                                          }
-                                        });
-                                      },
-                                    );
-                                  }).toList(),
-                                ),
-
-                              const SizedBox(height: 20),
-
-                              // OPERATIVES / MEMBERS SECTION
-                              Row(
-                                children: [
-                                  const Icon(IconlyLight.user_1, size: 16, color: Color(0xFF0D6EFD)),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    "Operatives / Members",
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold,
-                                      color: textColor,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    "(${selectedWorkerIds.length} selected)",
+                                    "(${selectedWorkerIds.length} assigned)",
                                     style: const TextStyle(
                                       fontSize: 12,
                                       color: Color(0xFF0D6EFD),
@@ -1862,14 +2122,28 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                                     searchWorkerQuery = val;
                                   });
                                 },
-                                style: TextStyle(color: textColor, fontSize: 13),
+                                style: TextStyle(
+                                  color: textColor,
+                                  fontSize: 13,
+                                ),
                                 decoration: InputDecoration(
-                                  hintText: "Search operatives by name, role or email...",
-                                  hintStyle: TextStyle(color: secondaryTextColor, fontSize: 13),
-                                  prefixIcon: Icon(Icons.search, size: 18, color: secondaryTextColor),
+                                  hintText:
+                                      "Search operatives by name, role or email...",
+                                  hintStyle: TextStyle(
+                                    color: secondaryTextColor,
+                                    fontSize: 13,
+                                  ),
+                                  prefixIcon: Icon(
+                                    Icons.search,
+                                    size: 18,
+                                    color: secondaryTextColor,
+                                  ),
                                   suffixIcon: searchWorkerQuery.isNotEmpty
                                       ? IconButton(
-                                          icon: const Icon(Icons.clear, size: 16),
+                                          icon: const Icon(
+                                            Icons.clear,
+                                            size: 16,
+                                          ),
                                           onPressed: () {
                                             searchWorkerController.clear();
                                             setDialogState(() {
@@ -1879,7 +2153,10 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                                         )
                                       : null,
                                   isDense: true,
-                                  contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    vertical: 10,
+                                    horizontal: 12,
+                                  ),
                                   filled: true,
                                   fillColor: itemBg,
                                   border: OutlineInputBorder(
@@ -1892,75 +2169,113 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                                   ),
                                   focusedBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(10),
-                                    borderSide: const BorderSide(color: Color(0xFF0D6EFD)),
+                                    borderSide: const BorderSide(
+                                      color: Color(0xFF0D6EFD),
+                                    ),
                                   ),
                                 ),
                               ),
                               const SizedBox(height: 10),
 
-                              if (allMembers.isEmpty)
+                              if (operatives.isEmpty)
                                 Text(
                                   "No operatives found.",
-                                  style: TextStyle(fontSize: 12, color: secondaryTextColor),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: secondaryTextColor,
+                                  ),
                                 )
-                              else if (filteredMembers.isEmpty)
+                              else if (filteredOperatives.isEmpty)
                                 Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
                                   child: Center(
                                     child: Text(
                                       "No operatives match '$searchWorkerQuery'",
-                                      style: TextStyle(fontSize: 12, color: secondaryTextColor),
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: secondaryTextColor,
+                                      ),
                                     ),
                                   ),
                                 )
                               else
                                 Container(
-                                  constraints: const BoxConstraints(maxHeight: 220),
+                                  constraints: const BoxConstraints(
+                                    maxHeight: 220,
+                                  ),
                                   decoration: BoxDecoration(
                                     border: Border.all(color: borderColor),
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                   child: ListView.separated(
                                     shrinkWrap: true,
-                                    itemCount: filteredMembers.length,
-                                    separatorBuilder: (c, i) => Divider(height: 1, color: borderColor),
+                                    itemCount: filteredOperatives.length,
+                                    separatorBuilder: (c, i) =>
+                                        Divider(height: 1, color: borderColor),
                                     itemBuilder: (context, index) {
-                                      final member = filteredMembers[index];
-                                      final isSelected = selectedWorkerIds.contains(member.id);
+                                      final operative =
+                                          filteredOperatives[index];
+                                      final isSelected = selectedWorkerIds
+                                          .contains(operative.id);
 
                                       return InkWell(
                                         onTap: () {
                                           setDialogState(() {
                                             if (isSelected) {
-                                              selectedWorkerIds.remove(member.id);
+                                              selectedWorkerIds.remove(
+                                                operative.id,
+                                              );
                                             } else {
-                                              selectedWorkerIds.add(member.id);
+                                              selectedWorkerIds.add(
+                                                operative.id,
+                                              );
                                             }
                                           });
                                         },
                                         child: Padding(
-                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 8,
+                                          ),
                                           child: Row(
                                             children: [
                                               Checkbox(
                                                 value: isSelected,
-                                                activeColor: const Color(0xFF0D6EFD),
+                                                activeColor: const Color(
+                                                  0xFF0D6EFD,
+                                                ),
                                                 onChanged: (val) {
                                                   setDialogState(() {
                                                     if (val == true) {
-                                                      selectedWorkerIds.add(member.id);
+                                                      if (!selectedWorkerIds
+                                                          .contains(
+                                                            operative.id,
+                                                          )) {
+                                                        selectedWorkerIds.add(
+                                                          operative.id,
+                                                        );
+                                                      }
                                                     } else {
-                                                      selectedWorkerIds.remove(member.id);
+                                                      selectedWorkerIds.remove(
+                                                        operative.id,
+                                                      );
                                                     }
                                                   });
                                                 },
                                               ),
                                               CircleAvatar(
                                                 radius: 14,
-                                                backgroundColor: const Color(0xFF0D6EFD).withValues(alpha: 0.12),
+                                                backgroundColor: const Color(
+                                                  0xFF0D6EFD,
+                                                ).withValues(alpha: 0.12),
                                                 child: Text(
-                                                  member.displayName.isNotEmpty
-                                                      ? member.displayName[0].toUpperCase()
+                                                  operative
+                                                          .displayName
+                                                          .isNotEmpty
+                                                      ? operative.displayName[0]
+                                                            .toUpperCase()
                                                       : 'U',
                                                   style: const TextStyle(
                                                     fontSize: 11,
@@ -1972,23 +2287,26 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                                               const SizedBox(width: 10),
                                               Expanded(
                                                 child: Column(
-                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
                                                   children: [
                                                     Text(
-                                                      member.displayName,
+                                                      operative.displayName,
                                                       style: TextStyle(
                                                         fontSize: 13,
-                                                        fontWeight: FontWeight.w600,
+                                                        fontWeight:
+                                                            FontWeight.w600,
                                                         color: textColor,
                                                       ),
                                                     ),
                                                     Text(
-                                                      member.roleDisplayName.isNotEmpty
-                                                          ? member.roleDisplayName
-                                                          : member.email,
+                                                      operative.email.isNotEmpty
+                                                          ? operative.email
+                                                          : 'Operative',
                                                       style: TextStyle(
                                                         fontSize: 11,
-                                                        color: secondaryTextColor,
+                                                        color:
+                                                            secondaryTextColor,
                                                       ),
                                                     ),
                                                   ],
@@ -2012,20 +2330,29 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                         children: [
                           Expanded(
                             child: OutlinedButton(
-                              onPressed: isSaving ? null : () => Navigator.pop(dialogContext),
+                              onPressed: isSaving
+                                  ? null
+                                  : () => Navigator.pop(dialogContext),
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: textColor,
                                 side: BorderSide(
-                                  color: isDark ? Colors.white24 : Colors.grey.shade300,
+                                  color: isDark
+                                      ? Colors.white24
+                                      : Colors.grey.shade300,
                                 ),
-                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
                               child: const Text(
                                 "Cancel",
-                                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ),
                           ),
@@ -2038,21 +2365,27 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                                       setDialogState(() {
                                         isSaving = true;
                                       });
-                                      final success = await _controller.assignProject(
-                                        project.id,
-                                        teamIds: selectedTeamIds,
-                                        workerIds: selectedWorkerIds,
-                                      );
+                                      final success = await _controller
+                                          .assignProject(
+                                            project.id,
+                                            teamIds: const [],
+                                            workerIds: selectedWorkerIds,
+                                          );
                                       if (dialogContext.mounted) {
                                         Navigator.pop(dialogContext);
-                                        ScaffoldMessenger.of(context).showSnackBar(
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
                                           SnackBar(
                                             content: Text(
                                               success
-                                                  ? "Team assignments updated successfully."
-                                                  : (_controller.errorMessage ?? "Failed to update assignments."),
+                                                  ? "Operative assignments updated successfully."
+                                                  : (_controller.errorMessage ??
+                                                        "Failed to update assignments."),
                                             ),
-                                            backgroundColor: success ? Colors.green : Colors.red,
+                                            backgroundColor: success
+                                                ? Colors.green
+                                                : Colors.red,
                                           ),
                                         );
                                       }
@@ -2061,7 +2394,9 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                                 backgroundColor: const Color(0xFF0D6EFD),
                                 foregroundColor: Colors.white,
                                 elevation: 0,
-                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
@@ -2076,8 +2411,11 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                                       ),
                                     )
                                   : const Text(
-                                      "Save Assignments",
-                                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                                      "Save Operatives",
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
                             ),
                           ),
@@ -2106,7 +2444,9 @@ class ProjectsScreenState extends State<ProjectsScreen> {
     if (parts.length >= 2) {
       return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
     }
-    return clean.length >= 2 ? clean.substring(0, 2).toUpperCase() : clean.toUpperCase();
+    return clean.length >= 2
+        ? clean.substring(0, 2).toUpperCase()
+        : clean.toUpperCase();
   }
 
   Widget _buildProjectCardItem(
@@ -2158,7 +2498,7 @@ class ProjectsScreenState extends State<ProjectsScreen> {
             color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 10,
             offset: const Offset(0, 4),
-          )
+          ),
         ],
       ),
       clipBehavior: Clip.antiAlias,
@@ -2184,7 +2524,11 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                         color: const Color(0xFF0D6EFD).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(Icons.business, color: Color(0xFF0D6EFD), size: 22),
+                      child: const Icon(
+                        Icons.business,
+                        color: Color(0xFF0D6EFD),
+                        size: 22,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -2201,7 +2545,10 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                     ),
                     const SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
                       decoration: BoxDecoration(
                         color: statusBg,
                         borderRadius: BorderRadius.circular(12),
@@ -2232,9 +2579,9 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                     ),
                   ],
                 ),
-                
+
                 const SizedBox(height: 20),
-                
+
                 // Details Grid (Client, Owner, Locations) with vertical divider lines
                 IntrinsicHeight(
                   child: Row(
@@ -2248,11 +2595,19 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                           children: [
                             Row(
                               children: [
-                                Icon(Icons.business_outlined, size: 14, color: Colors.grey.shade400),
+                                Icon(
+                                  Icons.business_outlined,
+                                  size: 14,
+                                  color: Colors.grey.shade400,
+                                ),
                                 const SizedBox(width: 4),
                                 Text(
                                   "Client",
-                                  style: TextStyle(fontSize: 11, color: Colors.grey.shade400, fontWeight: FontWeight.bold),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey.shade400,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ],
                             ),
@@ -2273,9 +2628,15 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                         ),
                       ),
                       const SizedBox(width: 10),
-                      VerticalDivider(width: 1, color: isDark ? const Color(0xFF1F2E40) : Colors.grey.shade200, thickness: 1),
+                      VerticalDivider(
+                        width: 1,
+                        color: isDark
+                            ? const Color(0xFF1F2E40)
+                            : Colors.grey.shade200,
+                        thickness: 1,
+                      ),
                       const SizedBox(width: 10),
-                      
+
                       // Owner
                       Expanded(
                         flex: 5,
@@ -2284,24 +2645,35 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                           children: [
                             Row(
                               children: [
-                                Icon(Icons.person_outline, size: 14, color: Colors.grey.shade400),
+                                Icon(
+                                  Icons.person_outline,
+                                  size: 14,
+                                  color: Colors.grey.shade400,
+                                ),
                                 const SizedBox(width: 4),
                                 Text(
                                   "Owner",
-                                  style: TextStyle(fontSize: 11, color: Colors.grey.shade400, fontWeight: FontWeight.bold),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey.shade400,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ],
                             ),
                             const SizedBox(height: 6),
                             Row(
                               children: [
-                                if (ownerName.isNotEmpty && ownerName != 'N/A') ...[
+                                if (ownerName.isNotEmpty &&
+                                    ownerName != 'N/A') ...[
                                   Container(
                                     width: 20,
                                     height: 20,
                                     margin: const EdgeInsets.only(right: 6),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFF0D6EFD).withValues(alpha: 0.15),
+                                      color: const Color(
+                                        0xFF0D6EFD,
+                                      ).withValues(alpha: 0.15),
                                       shape: BoxShape.circle,
                                     ),
                                     alignment: Alignment.center,
@@ -2334,7 +2706,13 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                         ),
                       ),
                       const SizedBox(width: 10),
-                      VerticalDivider(width: 1, color: isDark ? const Color(0xFF1F2E40) : Colors.grey.shade200, thickness: 1),
+                      VerticalDivider(
+                        width: 1,
+                        color: isDark
+                            ? const Color(0xFF1F2E40)
+                            : Colors.grey.shade200,
+                        thickness: 1,
+                      ),
                       const SizedBox(width: 10),
 
                       // Locations
@@ -2345,11 +2723,19 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                           children: [
                             Row(
                               children: [
-                                Icon(Icons.location_on_outlined, size: 14, color: Colors.grey.shade400),
+                                Icon(
+                                  Icons.location_on_outlined,
+                                  size: 14,
+                                  color: Colors.grey.shade400,
+                                ),
                                 const SizedBox(width: 4),
                                 Text(
                                   "Locations",
-                                  style: TextStyle(fontSize: 11, color: Colors.grey.shade400, fontWeight: FontWeight.bold),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey.shade400,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ],
                             ),
@@ -2371,19 +2757,32 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                     ],
                   ),
                 ),
-                
+
                 const SizedBox(height: 20),
-                Divider(height: 1, color: isDark ? const Color(0xFF1F2E40) : Colors.grey.shade100),
+                Divider(
+                  height: 1,
+                  color: isDark
+                      ? const Color(0xFF1F2E40)
+                      : Colors.grey.shade100,
+                ),
                 const SizedBox(height: 16),
 
                 // Bottom Row 1: Last Activity
                 Row(
                   children: [
-                    Icon(Icons.access_time, size: 14, color: Colors.grey.shade400),
+                    Icon(
+                      Icons.access_time,
+                      size: 14,
+                      color: Colors.grey.shade400,
+                    ),
                     const SizedBox(width: 6),
                     Text(
                       "Last Activity: $lastActivity",
-                      style: TextStyle(fontSize: 12, color: secondaryTextColor, fontFamily: 'Inter'),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: secondaryTextColor,
+                        fontFamily: 'Inter',
+                      ),
                     ),
                   ],
                 ),
@@ -2395,9 +2794,15 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                     Expanded(
                       child: OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: isDark ? Colors.white : const Color(0xFF0D6EFD),
+                          foregroundColor: isDark
+                              ? Colors.white
+                              : const Color(0xFF0D6EFD),
                           side: BorderSide(
-                            color: isDark ? Colors.white.withValues(alpha: 0.3) : const Color(0xFF0D6EFD).withValues(alpha: 0.4),
+                            color: isDark
+                                ? Colors.white.withValues(alpha: 0.3)
+                                : const Color(
+                                    0xFF0D6EFD,
+                                  ).withValues(alpha: 0.4),
                           ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
@@ -2420,9 +2825,15 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                     Expanded(
                       child: OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: isDark ? Colors.white : const Color(0xFF0D6EFD),
+                          foregroundColor: isDark
+                              ? Colors.white
+                              : const Color(0xFF0D6EFD),
                           side: BorderSide(
-                            color: isDark ? Colors.white.withValues(alpha: 0.3) : const Color(0xFF0D6EFD).withValues(alpha: 0.4),
+                            color: isDark
+                                ? Colors.white.withValues(alpha: 0.3)
+                                : const Color(
+                                    0xFF0D6EFD,
+                                  ).withValues(alpha: 0.4),
                           ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
@@ -2444,7 +2855,7 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                
+
                 // Bottom Row 2: Project Actions (QR Code & View Details)
                 Row(
                   children: [
@@ -2452,9 +2863,15 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                       Expanded(
                         child: OutlinedButton(
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: isDark ? Colors.white : const Color(0xFF0D6EFD),
+                            foregroundColor: isDark
+                                ? Colors.white
+                                : const Color(0xFF0D6EFD),
                             side: BorderSide(
-                              color: isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF0D6EFD).withValues(alpha: 0.4),
+                              color: isDark
+                                  ? Colors.white.withValues(alpha: 0.5)
+                                  : const Color(
+                                      0xFF0D6EFD,
+                                    ).withValues(alpha: 0.4),
                             ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
@@ -2484,9 +2901,15 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                     Expanded(
                       child: OutlinedButton(
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: isDark ? Colors.white : const Color(0xFF0D6EFD),
+                          foregroundColor: isDark
+                              ? Colors.white
+                              : const Color(0xFF0D6EFD),
                           side: BorderSide(
-                            color: isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF0D6EFD).withValues(alpha: 0.4),
+                            color: isDark
+                                ? Colors.white.withValues(alpha: 0.5)
+                                : const Color(
+                                    0xFF0D6EFD,
+                                  ).withValues(alpha: 0.4),
                           ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
@@ -2507,9 +2930,11 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                             ),
                             const SizedBox(width: 6),
                             Icon(
-                              Icons.arrow_forward_ios, 
-                              size: 12, 
-                              color: isDark ? Colors.white70 : const Color(0xFF0D6EFD),
+                              Icons.arrow_forward_ios,
+                              size: 12,
+                              color: isDark
+                                  ? Colors.white70
+                                  : const Color(0xFF0D6EFD),
                             ),
                           ],
                         ),
@@ -2527,4 +2952,3 @@ class ProjectsScreenState extends State<ProjectsScreen> {
 }
 
 // End of ProjectsScreenState
-

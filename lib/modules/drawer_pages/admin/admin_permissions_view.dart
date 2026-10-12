@@ -42,7 +42,10 @@ class _AdminPermissionsViewState extends State<AdminPermissionsView> {
         title: const Text("Rename Role"),
         content: TextField(
           controller: nameController,
-          decoration: const InputDecoration(labelText: "Role name", border: OutlineInputBorder()),
+          decoration: const InputDecoration(
+            labelText: "Role name",
+            border: OutlineInputBorder(),
+          ),
           autofocus: true,
         ),
         actions: [
@@ -60,7 +63,9 @@ class _AdminPermissionsViewState extends State<AdminPermissionsView> {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(result['message'] ?? ''),
-                  backgroundColor: result['success'] == true ? Colors.green : Colors.red,
+                  backgroundColor: result['success'] == true
+                      ? Colors.green
+                      : Colors.red,
                 ),
               );
             },
@@ -76,7 +81,9 @@ class _AdminPermissionsViewState extends State<AdminPermissionsView> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text("Delete Role"),
-        content: Text('Delete the role "${role.name}"? Users must be reassigned off it first.'),
+        content: Text(
+          'Delete the role "${role.name}"? Users must be reassigned off it first.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
@@ -90,7 +97,9 @@ class _AdminPermissionsViewState extends State<AdminPermissionsView> {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(result['message'] ?? ''),
-                  backgroundColor: result['success'] == true ? Colors.green : Colors.red,
+                  backgroundColor: result['success'] == true
+                      ? Colors.green
+                      : Colors.red,
                 ),
               );
             },
@@ -102,7 +111,10 @@ class _AdminPermissionsViewState extends State<AdminPermissionsView> {
   }
 
   IconData _getMenuIcon(String key) {
-    final normalized = key.toLowerCase().replaceAll('/', '_').replaceAll(' ', '_');
+    final normalized = key
+        .toLowerCase()
+        .replaceAll('/', '_')
+        .replaceAll(' ', '_');
     switch (normalized) {
       case 'dashboard':
         return IconlyLight.category;
@@ -144,7 +156,9 @@ class _AdminPermissionsViewState extends State<AdminPermissionsView> {
     final textColor = isDark ? AppTheme.darkText : const Color(0xFF0F2C4A);
     final subtitleColor = isDark ? AppTheme.darkMuted : Colors.grey.shade600;
     final borderColor = isDark ? AppTheme.darkBorder : Colors.grey.shade200;
-    final dropdownFillColor = isDark ? AppTheme.darkSurfaceRaised : Colors.grey.shade50;
+    final dropdownFillColor = isDark
+        ? AppTheme.darkSurfaceRaised
+        : Colors.grey.shade50;
 
     return LayoutBuilder(
       builder: (context, screenConstraints) {
@@ -174,10 +188,7 @@ class _AdminPermissionsViewState extends State<AdminPermissionsView> {
                         const SizedBox(height: 4),
                         Text(
                           "Create roles and configure access permissions cleanly.",
-                          style: TextStyle(
-                            color: subtitleColor,
-                            fontSize: 10,
-                          ),
+                          style: TextStyle(color: subtitleColor, fontSize: 10),
                         ),
                       ],
                     ),
@@ -293,21 +304,33 @@ class _AdminPermissionsViewState extends State<AdminPermissionsView> {
                             if (val != null) _controller.selectRole(val);
                           },
                         ),
-                        if (_controller.selectedRole != null && !_controller.selectedRole!.isSystem)
+                        if (_controller.selectedRole != null &&
+                            !_controller.selectedRole!.isSystem)
                           Padding(
                             padding: const EdgeInsets.only(top: 8),
                             child: Row(
                               children: [
                                 TextButton.icon(
-                                  onPressed: () => _showRenameRoleDialog(_controller.selectedRole!),
+                                  onPressed: () => _showRenameRoleDialog(
+                                    _controller.selectedRole!,
+                                  ),
                                   icon: const Icon(IconlyLight.edit, size: 16),
                                   label: const Text("Rename"),
                                 ),
                                 const SizedBox(width: 8),
                                 TextButton.icon(
-                                  onPressed: () => _confirmDeleteRole(_controller.selectedRole!),
-                                  icon: const Icon(IconlyLight.delete, size: 16, color: Colors.red),
-                                  label: const Text("Delete", style: TextStyle(color: Colors.red)),
+                                  onPressed: () => _confirmDeleteRole(
+                                    _controller.selectedRole!,
+                                  ),
+                                  icon: const Icon(
+                                    IconlyLight.delete,
+                                    size: 16,
+                                    color: Colors.red,
+                                  ),
+                                  label: const Text(
+                                    "Delete",
+                                    style: TextStyle(color: Colors.red),
+                                  ),
                                 ),
                               ],
                             ),
@@ -315,62 +338,99 @@ class _AdminPermissionsViewState extends State<AdminPermissionsView> {
                       ],
                     );
 
+                    final isFixedFullAccessRole =
+                        _controller.isSelectedRoleFullAccess;
                     Widget actionButton = _controller.selectedRole != null
-                        ? ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF0D6EFD),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 20,
-                                vertical: 14,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              elevation: 0,
-                            ),
-                            onPressed: _controller.isSaving
-                                ? null
-                                : () async {
-                                    final result = await _controller
-                                        .savePermissions();
-                                    if (mounted) {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            result['message'] ?? 'Permissions saved.',
-                                          ),
-                                          backgroundColor:
-                                              result['success'] == true
-                                              ? Colors.green
-                                              : Colors.red,
-                                        ),
-                                      );
-                                    }
-                                  },
-                            icon: _controller.isSaving
-                                ? const SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                      color: Colors.white,
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : const Icon(
-                                    IconlyLight.tick_square,
-                                    size: 18,
-                                    color: Colors.white,
+                        ? isFixedFullAccessRole
+                              ? Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 13,
                                   ),
-                            label: const Text(
-                              "Save Permissions",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          )
+                                  decoration: BoxDecoration(
+                                    color: Colors.green.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                      color: Colors.green.withValues(
+                                        alpha: 0.35,
+                                      ),
+                                    ),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.lock_outline,
+                                        color: Colors.green,
+                                        size: 18,
+                                      ),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        'Full access (locked)',
+                                        style: TextStyle(
+                                          color: Colors.green,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              : ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF0D6EFD),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 20,
+                                      vertical: 14,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    elevation: 0,
+                                  ),
+                                  onPressed: _controller.isSaving
+                                      ? null
+                                      : () async {
+                                          final result = await _controller
+                                              .savePermissions();
+                                          if (mounted) {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                  result['message'] ??
+                                                      'Permissions saved.',
+                                                ),
+                                                backgroundColor:
+                                                    result['success'] == true
+                                                    ? Colors.green
+                                                    : Colors.red,
+                                              ),
+                                            );
+                                          }
+                                        },
+                                  icon: _controller.isSaving
+                                      ? const SizedBox(
+                                          width: 16,
+                                          height: 16,
+                                          child: CircularProgressIndicator(
+                                            color: Colors.white,
+                                            strokeWidth: 2,
+                                          ),
+                                        )
+                                      : const Icon(
+                                          IconlyLight.tick_square,
+                                          size: 18,
+                                          color: Colors.white,
+                                        ),
+                                  label: const Text(
+                                    "Save Permissions",
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                )
                         : const SizedBox.shrink();
 
                     if (isMobile) {
@@ -457,6 +517,8 @@ class _AdminPermissionsViewState extends State<AdminPermissionsView> {
                         const SizedBox(height: 12),
                     itemBuilder: (context, index) {
                       final p = _controller.permissions[index];
+                      final isFixedFullAccessRole =
+                          _controller.isSelectedRoleFullAccess;
 
                       return Container(
                         decoration: BoxDecoration(
@@ -518,44 +580,52 @@ class _AdminPermissionsViewState extends State<AdminPermissionsView> {
                                   _buildCheckboxControl(
                                     label: "View",
                                     value: p.canView,
-                                    onChanged: (v) => _controller.updatePermission(
-                                      index,
-                                      'view',
-                                      v ?? false,
-                                    ),
+                                    onChanged: isFixedFullAccessRole
+                                        ? null
+                                        : (v) => _controller.updatePermission(
+                                            index,
+                                            'view',
+                                            v ?? false,
+                                          ),
                                     color: Colors.blue,
                                   ),
                                   const SizedBox(width: 6),
                                   _buildCheckboxControl(
                                     label: "Create",
                                     value: p.canCreate,
-                                    onChanged: (v) => _controller.updatePermission(
-                                      index,
-                                      'create',
-                                      v ?? false,
-                                    ),
+                                    onChanged: isFixedFullAccessRole
+                                        ? null
+                                        : (v) => _controller.updatePermission(
+                                            index,
+                                            'create',
+                                            v ?? false,
+                                          ),
                                     color: Colors.green,
                                   ),
                                   const SizedBox(width: 6),
                                   _buildCheckboxControl(
                                     label: "Edit",
                                     value: p.canEdit,
-                                    onChanged: (v) => _controller.updatePermission(
-                                      index,
-                                      'edit',
-                                      v ?? false,
-                                    ),
+                                    onChanged: isFixedFullAccessRole
+                                        ? null
+                                        : (v) => _controller.updatePermission(
+                                            index,
+                                            'edit',
+                                            v ?? false,
+                                          ),
                                     color: Colors.orange,
                                   ),
                                   const SizedBox(width: 6),
                                   _buildCheckboxControl(
                                     label: "Delete",
                                     value: p.canDelete,
-                                    onChanged: (v) => _controller.updatePermission(
-                                      index,
-                                      'delete',
-                                      v ?? false,
-                                    ),
+                                    onChanged: isFixedFullAccessRole
+                                        ? null
+                                        : (v) => _controller.updatePermission(
+                                            index,
+                                            'delete',
+                                            v ?? false,
+                                          ),
                                     color: Colors.red,
                                   ),
                                 ],

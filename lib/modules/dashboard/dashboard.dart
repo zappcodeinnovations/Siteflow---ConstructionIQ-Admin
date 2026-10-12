@@ -1,7 +1,13 @@
 import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../core/widgets/status_chip.dart';
+import '../../core/network/api_client.dart';
+import '../../core/network/api_endpoints.dart';
 import 'dashboard_controller.dart';
 import '../../models/project_model.dart';
 import '../projects/project_details_screen.dart';
@@ -14,17 +20,14 @@ class DashboardScreen extends StatefulWidget {
   final VoidCallback? onProjectsTap;
   final VoidCallback? onTasksTap;
 
-  const DashboardScreen({
-    super.key,
-    this.onProjectsTap,
-    this.onTasksTap,
-  });
+  const DashboardScreen({super.key, this.onProjectsTap, this.onTasksTap});
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObserver {
+class _DashboardScreenState extends State<DashboardScreen>
+    with WidgetsBindingObserver {
   final DashboardController _dashboardController = DashboardController();
   Timer? _autoRefreshTimer;
 
@@ -90,10 +93,20 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   }) {
     if (map == null) return fallback;
     final specificKeys = isCompleted
-        ? ['completed_change', 'completed_trend', 'completed_percentage', 'completed_growth']
+        ? [
+            'completed_change',
+            'completed_trend',
+            'completed_percentage',
+            'completed_growth',
+          ]
         : isPending
-            ? ['pending_change', 'pending_trend', 'pending_percentage', 'pending_growth']
-            : <String>[];
+        ? [
+            'pending_change',
+            'pending_trend',
+            'pending_percentage',
+            'pending_growth',
+          ]
+        : <String>[];
     for (final key in specificKeys) {
       if (map.containsKey(key) && map[key] != null) {
         final res = _formatTrend(map[key], '');
@@ -139,9 +152,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
               listenable: _dashboardController,
               builder: (context, _) {
                 if (_dashboardController.isLoading) {
-                  return const Center(
-                    child: CircularProgressIndicator(),
-                  );
+                  return const Center(child: CircularProgressIndicator());
                 }
 
                 if (_dashboardController.errorMessage != null) {
@@ -162,7 +173,9 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                 // operative/manager/supervisor headcounts a Manager isn't
                 // meant to manage) - previously every role saw the same
                 // fixed Admin card layout regardless of who was logged in.
-                final isManagerRole = (data?.user?.effectiveRole ?? '').toLowerCase() == 'manager';
+                final isManagerRole =
+                    (data?.user?.effectiveRole ?? '').toLowerCase() ==
+                    'manager';
 
                 return RefreshIndicator(
                   onRefresh: () => _dashboardController.fetchDashboard(),
@@ -182,11 +195,11 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                           physics: const NeverScrollableScrollPhysics(),
                           gridDelegate:
                               const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            crossAxisSpacing: 16,
-                            mainAxisSpacing: 16,
-                            childAspectRatio: 1.3,
-                          ),
+                                crossAxisCount: 2,
+                                crossAxisSpacing: 16,
+                                mainAxisSpacing: 16,
+                                childAspectRatio: 1.3,
+                              ),
                           children: isManagerRole
                               ? [
                                   // Mirrors contractor_dashboard.html's 6
@@ -209,7 +222,8 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                                   ),
                                   ModernKpiCard(
                                     title: "Completed Projects",
-                                    value: "${kpis?.projects['completed'] ?? 0}",
+                                    value:
+                                        "${kpis?.projects['completed'] ?? 0}",
                                     icon: IconlyLight.tick_square,
                                     bgColor: const Color(0xff6B7280),
                                     topAction: "",
@@ -217,184 +231,280 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                                   ),
                                   ModernKpiCard(
                                     title: "Clocked In Today",
-                                    value: "${kpis?.attendance['clocked_in_today'] ?? 0}",
+                                    value:
+                                        "${kpis?.attendance['clocked_in_today'] ?? 0}",
                                     icon: IconlyLight.profile,
                                     bgColor: const Color(0xff0891B2),
                                     topAction: "Today",
-                                    onTap: () => Navigator.pushNamed(context, '/managerAttendance').then((_) {
-                                      if (mounted) _dashboardController.fetchDashboard(silent: true);
-                                    }),
+                                    onTap: () =>
+                                        Navigator.pushNamed(
+                                          context,
+                                          '/managerAttendance',
+                                        ).then((_) {
+                                          if (mounted)
+                                            _dashboardController.fetchDashboard(
+                                              silent: true,
+                                            );
+                                        }),
                                   ),
                                   ModernKpiCard(
                                     title: "Not Clocked In Today",
-                                    value: "${kpis?.attendance['not_clocked_in'] ?? kpis?.attendance['not_clocked_in_today'] ?? 0}",
+                                    value:
+                                        "${kpis?.attendance['not_clocked_in'] ?? kpis?.attendance['not_clocked_in_today'] ?? 0}",
                                     icon: IconlyLight.danger,
                                     bgColor: const Color(0xffDC2626),
                                     topAction: "View List",
-                                    onTap: () => Navigator.pushNamed(context, '/managerAttendance').then((_) {
-                                      if (mounted) _dashboardController.fetchDashboard(silent: true);
-                                    }),
+                                    onTap: () =>
+                                        Navigator.pushNamed(
+                                          context,
+                                          '/managerAttendance',
+                                        ).then((_) {
+                                          if (mounted)
+                                            _dashboardController.fetchDashboard(
+                                              silent: true,
+                                            );
+                                        }),
                                   ),
                                   ModernKpiCard(
                                     title: "Not Clocked Out",
-                                    value: "${kpis?.attendance['not_clocked_out'] ?? 0}",
+                                    value:
+                                        "${kpis?.attendance['not_clocked_out'] ?? 0}",
                                     icon: IconlyLight.logout,
                                     bgColor: const Color(0xffD97706),
                                     topAction: "Action",
-                                    onTap: () => Navigator.pushNamed(context, '/managerAttendance').then((_) {
-                                      if (mounted) _dashboardController.fetchDashboard(silent: true);
-                                    }),
+                                    onTap: () =>
+                                        Navigator.pushNamed(
+                                          context,
+                                          '/managerAttendance',
+                                        ).then((_) {
+                                          if (mounted)
+                                            _dashboardController.fetchDashboard(
+                                              silent: true,
+                                            );
+                                        }),
                                   ),
                                 ]
                               : [
-                            // 1. Active Projects
-                            ModernKpiCard(
-                              title: "Active Projects",
-                              value: "${kpis?.projects['active'] ?? kpis?.projects['active_projects'] ?? 0}",
-                              icon: IconlyLight.category,
-                              bgColor: const Color(0xff185EA5), // Blue
-                              topAction: _getTrendFromMap(kpis?.projects, "-50%"),
-                              onTap: widget.onProjectsTap,
-                            ),
-                            // 2. Completed Tasks
-                            ModernKpiCard(
-                              title: "Completed Tasks",
-                              value: "${kpis?.tasks['completed'] ?? kpis?.tasks['completed_tasks'] ?? 0}",
-                              icon: IconlyLight.tick_square,
-                              bgColor: const Color(0xff16A34A), // Green
-                              topAction: _getTrendFromMap(kpis?.tasks, "+100%", isCompleted: true),
-                              onTap: widget.onTasksTap,
-                            ),
-                            // 3. Pending Tasks
-                            ModernKpiCard(
-                              title: "Pending Tasks",
-                              value: "${kpis?.tasks['pending'] ?? kpis?.tasks['pending_tasks'] ?? kpis?.tasks['open'] ?? 0}",
-                              icon: IconlyLight.time_circle,
-                              bgColor: const Color(0xffD97706), // Yellowish/Orange
-                              topAction: _getTrendFromMap(kpis?.tasks, "+100%", isPending: true),
-                              onTap: widget.onTasksTap,
-                            ),
-                            // 4. Total Operatives
-                            ModernKpiCard(
-                              title: "Total Operatives",
-                              value: "${kpis?.users['operatives'] ?? kpis?.users['total_operatives'] ?? kpis?.users['operative'] ?? 0}",
-                              icon: IconlyLight.user,
-                              bgColor: const Color(0xff0F2C59), // Dark Navy Blue
-                              topAction: "",
-                              onTap: () => Navigator.pushNamed(context, '/timesheet').then((_) {
-                                if (mounted) _dashboardController.fetchDashboard(silent: true);
-                              }),
-                            ),
-                            // 5. Total Managers
-                            ModernKpiCard(
-                              title: "Total Managers",
-                              value: "${kpis?.users['managers'] ?? kpis?.users['total_managers'] ?? kpis?.users['manager'] ?? 0}",
-                              icon: IconlyLight.work,
-                              bgColor: const Color(0xff16A34A), // Green
-                              topAction: "",
-                              onTap: () => Navigator.pushNamed(context, '/managerAttendance').then((_) {
-                                if (mounted) _dashboardController.fetchDashboard(silent: true);
-                              }),
-                            ),
-                            // 6. Total Supervisors
-                            ModernKpiCard(
-                              title: "Total Supervisors",
-                              value: "${kpis?.users['supervisors'] ?? kpis?.users['total_supervisors'] ?? kpis?.users['supervisor'] ?? 0}",
-                              icon: IconlyLight.shield_done,
-                              bgColor: const Color(0xffD97706), // Mustard / Orange
-                              topAction: "",
-                              onTap: () => Navigator.pushNamed(context, '/managerAttendance').then((_) {
-                                if (mounted) _dashboardController.fetchDashboard(silent: true);
-                              }),
-                            ),
-                            // 7. Clocked In Today
-                            ModernKpiCard(
-                              title: "Clocked In Today",
-                              value: "${kpis?.attendance['clocked_in_today'] ?? kpis?.attendance['clocked_in'] ?? 0}",
-                              icon: IconlyLight.profile,
-                              bgColor: const Color(0xff2563EB), // Blue
-                              topAction: "Today",
-                              onTap: () => Navigator.pushNamed(context, '/managerAttendance').then((_) {
-                                if (mounted) _dashboardController.fetchDashboard(silent: true);
-                              }),
-                            ),
-                            // 8. Clocked Out Pending
-                            ModernKpiCard(
-                              title: "Clocked Out Pending",
-                              value: "${kpis?.attendance['not_clocked_out'] ?? kpis?.attendance['clocked_out_pending'] ?? 0}",
-                              icon: IconlyLight.logout,
-                              bgColor: const Color(0xffDC2626), // Red
-                              topAction: "Action",
-                              onTap: () => Navigator.pushNamed(context, '/managerAttendance').then((_) {
-                                if (mounted) _dashboardController.fetchDashboard(silent: true);
-                              }),
-                            ),
-                            // 9. Not Clocked In Today
-                            ModernKpiCard(
-                              title: "Not Clocked In Today",
-                              value: "${kpis?.attendance['not_clocked_in'] ?? kpis?.attendance['not_clocked_in_today'] ?? 0}",
-                              icon: IconlyLight.danger,
-                              bgColor: const Color(0xffDC2626), // Red
-                              topAction: "View List",
-                              onTap: () => Navigator.pushNamed(context, '/managerAttendance').then((_) {
-                                if (mounted) _dashboardController.fetchDashboard(silent: true);
-                              }),
-                            ),
-                          ],
+                                  // 1. Active Projects
+                                  ModernKpiCard(
+                                    title: "Active Projects",
+                                    value:
+                                        "${kpis?.projects['active'] ?? kpis?.projects['active_projects'] ?? 0}",
+                                    icon: IconlyLight.category,
+                                    bgColor: const Color(0xff185EA5), // Blue
+                                    topAction: _getTrendFromMap(
+                                      kpis?.projects,
+                                      "-50%",
+                                    ),
+                                    onTap: widget.onProjectsTap,
+                                  ),
+                                  // 2. Completed Tasks
+                                  ModernKpiCard(
+                                    title: "Completed Tasks",
+                                    value:
+                                        "${kpis?.tasks['completed'] ?? kpis?.tasks['completed_tasks'] ?? 0}",
+                                    icon: IconlyLight.tick_square,
+                                    bgColor: const Color(0xff16A34A), // Green
+                                    topAction: _getTrendFromMap(
+                                      kpis?.tasks,
+                                      "+100%",
+                                      isCompleted: true,
+                                    ),
+                                    onTap: widget.onTasksTap,
+                                  ),
+                                  // 3. Pending Tasks
+                                  ModernKpiCard(
+                                    title: "Pending Tasks",
+                                    value:
+                                        "${kpis?.tasks['pending'] ?? kpis?.tasks['pending_tasks'] ?? kpis?.tasks['open'] ?? 0}",
+                                    icon: IconlyLight.time_circle,
+                                    bgColor: const Color(
+                                      0xffD97706,
+                                    ), // Yellowish/Orange
+                                    topAction: _getTrendFromMap(
+                                      kpis?.tasks,
+                                      "+100%",
+                                      isPending: true,
+                                    ),
+                                    onTap: widget.onTasksTap,
+                                  ),
+                                  // 4. Total Operatives
+                                  ModernKpiCard(
+                                    title: "Total Operatives",
+                                    value:
+                                        "${kpis?.users['operatives'] ?? kpis?.users['total_operatives'] ?? kpis?.users['operative'] ?? 0}",
+                                    icon: IconlyLight.user,
+                                    bgColor: const Color(
+                                      0xff0F2C59,
+                                    ), // Dark Navy Blue
+                                    topAction: "",
+                                    onTap: () =>
+                                        Navigator.pushNamed(
+                                          context,
+                                          '/timesheet',
+                                        ).then((_) {
+                                          if (mounted)
+                                            _dashboardController.fetchDashboard(
+                                              silent: true,
+                                            );
+                                        }),
+                                  ),
+                                  // 5. Total Managers
+                                  ModernKpiCard(
+                                    title: "Total Managers",
+                                    value:
+                                        "${kpis?.users['managers'] ?? kpis?.users['total_managers'] ?? kpis?.users['manager'] ?? 0}",
+                                    icon: IconlyLight.work,
+                                    bgColor: const Color(0xff16A34A), // Green
+                                    topAction: "",
+                                    onTap: () =>
+                                        Navigator.pushNamed(
+                                          context,
+                                          '/managerAttendance',
+                                        ).then((_) {
+                                          if (mounted)
+                                            _dashboardController.fetchDashboard(
+                                              silent: true,
+                                            );
+                                        }),
+                                  ),
+                                  // 6. Total Supervisors
+                                  ModernKpiCard(
+                                    title: "Total Supervisors",
+                                    value:
+                                        "${kpis?.users['supervisors'] ?? kpis?.users['total_supervisors'] ?? kpis?.users['supervisor'] ?? 0}",
+                                    icon: IconlyLight.shield_done,
+                                    bgColor: const Color(
+                                      0xffD97706,
+                                    ), // Mustard / Orange
+                                    topAction: "",
+                                    onTap: () =>
+                                        Navigator.pushNamed(
+                                          context,
+                                          '/managerAttendance',
+                                        ).then((_) {
+                                          if (mounted)
+                                            _dashboardController.fetchDashboard(
+                                              silent: true,
+                                            );
+                                        }),
+                                  ),
+                                  // 7. Clocked In Today
+                                  ModernKpiCard(
+                                    title: "Clocked In Today",
+                                    value:
+                                        "${kpis?.attendance['clocked_in_today'] ?? kpis?.attendance['clocked_in'] ?? 0}",
+                                    icon: IconlyLight.profile,
+                                    bgColor: const Color(0xff2563EB), // Blue
+                                    topAction: "Today",
+                                    onTap: () =>
+                                        Navigator.pushNamed(
+                                          context,
+                                          '/managerAttendance',
+                                        ).then((_) {
+                                          if (mounted)
+                                            _dashboardController.fetchDashboard(
+                                              silent: true,
+                                            );
+                                        }),
+                                  ),
+                                  // 8. Clocked Out Pending
+                                  ModernKpiCard(
+                                    title: "Clocked Out Pending",
+                                    value:
+                                        "${kpis?.attendance['not_clocked_out'] ?? kpis?.attendance['clocked_out_pending'] ?? 0}",
+                                    icon: IconlyLight.logout,
+                                    bgColor: const Color(0xffDC2626), // Red
+                                    topAction: "Action",
+                                    onTap: () =>
+                                        Navigator.pushNamed(
+                                          context,
+                                          '/managerAttendance',
+                                        ).then((_) {
+                                          if (mounted)
+                                            _dashboardController.fetchDashboard(
+                                              silent: true,
+                                            );
+                                        }),
+                                  ),
+                                  // 9. Not Clocked In Today
+                                  ModernKpiCard(
+                                    title: "Not Clocked In Today",
+                                    value:
+                                        "${kpis?.attendance['not_clocked_in'] ?? kpis?.attendance['not_clocked_in_today'] ?? 0}",
+                                    icon: IconlyLight.danger,
+                                    bgColor: const Color(0xffDC2626), // Red
+                                    topAction: "View List",
+                                    onTap: () =>
+                                        Navigator.pushNamed(
+                                          context,
+                                          '/managerAttendance',
+                                        ).then((_) {
+                                          if (mounted)
+                                            _dashboardController.fetchDashboard(
+                                              silent: true,
+                                            );
+                                        }),
+                                  ),
+                                ],
                         ),
 
-                  const SizedBox(height: 24),
-                  DashboardAttendancePanel(
-                    present: data?.presentOperativesToday ?? const [],
-                    absent: data?.absentOperativesToday ?? const [],
-                  ),
-                  const SizedBox(height: 24),
+                        const SizedBox(height: 24),
+                        DashboardAttendancePanel(
+                          present: data?.presentOperativesToday ?? const [],
+                          absent: data?.absentOperativesToday ?? const [],
+                        ),
+                        const SizedBox(height: 24),
 
-                  // LISTS
-                  Text(
-                    "Recent Activity",
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : Colors.black,
+                        // LISTS
+                        Text(
+                          "Recent Activity",
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white : Colors.black,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        RecentProjectsList(
+                          projects: recentProjects,
+                          onViewAll: widget.onProjectsTap,
+                        ),
+                        const SizedBox(height: 32),
+
+                        // CHARTS ROW
+                        width > 900
+                            ? Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
+                                    child: ProjectProgressChart(kpis: kpis),
+                                  ),
+                                  const SizedBox(width: 24),
+                                  Expanded(
+                                    child: AttendanceTrendChart(kpis: kpis),
+                                  ),
+                                ],
+                              )
+                            : Column(
+                                children: [
+                                  ProjectProgressChart(kpis: kpis),
+                                  const SizedBox(height: 24),
+                                  AttendanceTrendChart(kpis: kpis),
+                                ],
+                              ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 16),
-
-                  RecentProjectsList(
-                    projects: recentProjects,
-                    onViewAll: widget.onProjectsTap,
-                  ),
-                  const SizedBox(height: 32),
-
-                  // CHARTS ROW
-                  width > 900
-                      ? Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(child: ProjectProgressChart(kpis: kpis)),
-                            const SizedBox(width: 24),
-                            Expanded(child: AttendanceTrendChart(kpis: kpis)),
-                          ],
-                        )
-                      : Column(
-                          children: [
-                            ProjectProgressChart(kpis: kpis),
-                            const SizedBox(height: 24),
-                            AttendanceTrendChart(kpis: kpis),
-                          ],
-                        ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        ],
+                );
+              },
+            ),
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 }
 
 class DashboardAttendancePanel extends StatefulWidget {
@@ -408,17 +518,152 @@ class DashboardAttendancePanel extends StatefulWidget {
   });
 
   @override
-  State<DashboardAttendancePanel> createState() => _DashboardAttendancePanelState();
+  State<DashboardAttendancePanel> createState() =>
+      _DashboardAttendancePanelState();
 }
 
 class _DashboardAttendancePanelState extends State<DashboardAttendancePanel> {
   bool _showPresent = true;
+  final TextEditingController _searchController = TextEditingController();
+  String _search = '';
+  String? _selectedTeam;
+  String? _selectedProject;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<String> _distinctValues(Iterable<String> values) {
+    final seen = <String>{};
+    final result = <String>[];
+    for (final rawValue in values) {
+      final value = rawValue.trim();
+      if (value.isEmpty || value == '-') continue;
+      if (seen.add(value.toLowerCase())) result.add(value);
+    }
+    result.sort(
+      (left, right) => left.toLowerCase().compareTo(right.toLowerCase()),
+    );
+    return result;
+  }
+
+  List<String> _projectsFor(Iterable<AttendanceOperative> entries) {
+    return _distinctValues(
+      entries.expand((person) sync* {
+        if (person.projectNames.isNotEmpty) {
+          yield* person.projectNames;
+        } else {
+          yield person.projectName;
+        }
+      }),
+    );
+  }
+
+  bool _matches(
+    AttendanceOperative person, {
+    required String? team,
+    required String? project,
+  }) {
+    final normalizedSearch = _search.trim().toLowerCase();
+    if (normalizedSearch.isNotEmpty) {
+      final haystack = [
+        person.name,
+        person.employeeId,
+        person.roleLabel,
+        person.teamName,
+        person.projectName,
+        ...person.projectNames,
+      ].join(' ').toLowerCase();
+      if (!haystack.contains(normalizedSearch)) return false;
+    }
+    if (team != null && person.teamName.toLowerCase() != team.toLowerCase()) {
+      return false;
+    }
+    if (project != null) {
+      final projects = person.projectNames.isNotEmpty
+          ? person.projectNames
+          : [person.projectName];
+      if (!projects.any(
+        (item) => item.toLowerCase() == project.toLowerCase(),
+      )) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  Future<void> _exportAttendance({
+    required String? team,
+    required String? project,
+  }) async {
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Preparing attendance Excel export...'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      final params = <String, String>{};
+      if (_search.trim().isNotEmpty) params['search'] = _search.trim();
+      if (team != null) params['team'] = team;
+      if (project != null) params['project'] = project;
+      final query = params.entries
+          .map(
+            (entry) =>
+                '${Uri.encodeQueryComponent(entry.key)}=${Uri.encodeQueryComponent(entry.value)}',
+          )
+          .join('&');
+      final url =
+          '${ApiEndpoints.baseUrl}/admin/dashboard/attendance/export/${query.isEmpty ? '' : '?$query'}';
+      final response = await ApiClient.get(url);
+      if (!mounted) return;
+      if (response.statusCode != 200 || response.bodyBytes.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Attendance export failed (${response.statusCode}).'),
+          ),
+        );
+        return;
+      }
+      final directory = await getTemporaryDirectory();
+      final file = File(
+        '${directory.path}/attendance_${DateTime.now().millisecondsSinceEpoch}.xlsx',
+      );
+      await file.writeAsBytes(response.bodyBytes, flush: true);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      await Share.shareXFiles([XFile(file.path)], text: "Today's Attendance");
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not export attendance: $error')),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final entries = _showPresent ? widget.present : widget.absent;
-    final accent = _showPresent ? const Color(0xff16A34A) : const Color(0xffDC2626);
+    final allEntries = [...widget.present, ...widget.absent];
+    final teams = _distinctValues(allEntries.map((person) => person.teamName));
+    final projects = _projectsFor(allEntries);
+    final activeTeam = teams.contains(_selectedTeam) ? _selectedTeam : null;
+    final activeProject = projects.contains(_selectedProject)
+        ? _selectedProject
+        : null;
+    final sourceEntries = _showPresent ? widget.present : widget.absent;
+    final entries = sourceEntries
+        .where(
+          (person) =>
+              _matches(person, team: activeTeam, project: activeProject),
+        )
+        .toList();
+    final accent = _showPresent
+        ? const Color(0xff16A34A)
+        : const Color(0xffDC2626);
     final surface = isDark ? AppTheme.darkSurface : Colors.white;
     final textColor = isDark ? Colors.white : const Color(0xff152238);
     final muted = isDark ? AppTheme.darkMuted : const Color(0xff667085);
@@ -434,40 +679,83 @@ class _DashboardAttendancePanelState extends State<DashboardAttendancePanel> {
         border: Border.all(color: border),
         boxShadow: isDark
             ? null
-            : const [BoxShadow(color: Color(0x120F2C4A), blurRadius: 16, offset: Offset(0, 6))],
+            : const [
+                BoxShadow(
+                  color: Color(0x120F2C4A),
+                  blurRadius: 16,
+                  offset: Offset(0, 6),
+                ),
+              ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "Today's Attendance",
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: textColor),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final exportButton = FilledButton.icon(
+                onPressed: () =>
+                    _exportAttendance(team: activeTeam, project: activeProject),
+                icon: const Icon(Icons.file_download_outlined, size: 18),
+                label: const Text('Export Excel'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xff0D6EFD),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 11,
+                  ),
+                ),
+              );
+              final heading = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Today's Attendance",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: textColor,
                     ),
-                    const SizedBox(height: 3),
-                    Text(
-                      'Live operative attendance',
-                      style: TextStyle(fontSize: 13, color: muted),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    'Live operative attendance',
+                    style: TextStyle(fontSize: 13, color: muted),
+                  ),
+                ],
+              );
+              if (constraints.maxWidth < 540) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    heading,
+                    const SizedBox(height: 12),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: exportButton,
                     ),
                   ],
-                ),
-              ),
-              Icon(IconlyLight.calendar, color: accent, size: 21),
-            ],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(child: heading),
+                  Icon(IconlyLight.calendar, color: accent, size: 21),
+                  const SizedBox(width: 12),
+                  exportButton,
+                ],
+              );
+            },
           ),
           const SizedBox(height: 16),
           Row(
             children: [
               Expanded(
                 child: _AttendanceTab(
-                  label: 'Present',
+                  label: 'Present Operatives',
                   count: widget.present.length,
                   color: const Color(0xff16A34A),
+                  isPresent: true,
                   selected: _showPresent,
                   onTap: () => setState(() => _showPresent = true),
                 ),
@@ -475,9 +763,10 @@ class _DashboardAttendancePanelState extends State<DashboardAttendancePanel> {
               const SizedBox(width: 10),
               Expanded(
                 child: _AttendanceTab(
-                  label: 'Absent',
+                  label: 'Absent Operatives',
                   count: widget.absent.length,
                   color: const Color(0xffDC2626),
+                  isPresent: false,
                   selected: !_showPresent,
                   onTap: () => setState(() => _showPresent = false),
                 ),
@@ -485,12 +774,149 @@ class _DashboardAttendancePanelState extends State<DashboardAttendancePanel> {
             ],
           ),
           const SizedBox(height: 12),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final compact = constraints.maxWidth < 760;
+              final inputDecoration = InputDecoration(
+                isDense: true,
+                filled: true,
+                fillColor: isDark
+                    ? AppTheme.darkSurfaceRaised
+                    : const Color(0xffF8FAFC),
+                hintStyle: TextStyle(color: muted),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(color: border),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(color: border),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 12,
+                ),
+              );
+              final searchField = TextField(
+                controller: _searchController,
+                onChanged: (value) => setState(() => _search = value),
+                style: TextStyle(color: textColor),
+                decoration: inputDecoration.copyWith(
+                  hintText: 'Search by name, employee ID or team',
+                  prefixIcon: Icon(Icons.search, color: muted, size: 20),
+                  suffixIcon: _search.isEmpty
+                      ? null
+                      : IconButton(
+                          tooltip: 'Clear search',
+                          icon: Icon(Icons.close, color: muted, size: 18),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() => _search = '');
+                          },
+                        ),
+                ),
+              );
+              final teamFilter = DropdownButtonFormField<String>(
+                value: activeTeam,
+                isExpanded: true,
+                dropdownColor: surface,
+                style: TextStyle(color: textColor, fontSize: 13),
+                iconEnabledColor: muted,
+                decoration: inputDecoration.copyWith(hintText: 'All teams'),
+                items: [
+                  const DropdownMenuItem<String>(
+                    value: null,
+                    child: Text('All teams'),
+                  ),
+                  ...teams.map(
+                    (team) => DropdownMenuItem<String>(
+                      value: team,
+                      child: Text(team, overflow: TextOverflow.ellipsis),
+                    ),
+                  ),
+                ],
+                onChanged: (value) => setState(() => _selectedTeam = value),
+              );
+              final projectFilter = DropdownButtonFormField<String>(
+                value: activeProject,
+                isExpanded: true,
+                dropdownColor: surface,
+                style: TextStyle(color: textColor, fontSize: 13),
+                iconEnabledColor: muted,
+                decoration: inputDecoration.copyWith(hintText: 'All projects'),
+                items: [
+                  const DropdownMenuItem<String>(
+                    value: null,
+                    child: Text('All projects'),
+                  ),
+                  ...projects.map(
+                    (project) => DropdownMenuItem<String>(
+                      value: project,
+                      child: Text(project, overflow: TextOverflow.ellipsis),
+                    ),
+                  ),
+                ],
+                onChanged: (value) => setState(() => _selectedProject = value),
+              );
+              final resetButton = TextButton.icon(
+                onPressed:
+                    _search.isEmpty &&
+                        activeTeam == null &&
+                        activeProject == null
+                    ? null
+                    : () {
+                        _searchController.clear();
+                        setState(() {
+                          _search = '';
+                          _selectedTeam = null;
+                          _selectedProject = null;
+                        });
+                      },
+                icon: const Icon(Icons.restart_alt, size: 18),
+                label: const Text('Reset'),
+              );
+              if (compact) {
+                return Column(
+                  children: [
+                    searchField,
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(child: teamFilter),
+                        const SizedBox(width: 10),
+                        Expanded(child: projectFilter),
+                      ],
+                    ),
+                    Align(alignment: Alignment.centerRight, child: resetButton),
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(flex: 3, child: searchField),
+                  const SizedBox(width: 10),
+                  SizedBox(width: 170, child: teamFilter),
+                  const SizedBox(width: 10),
+                  SizedBox(width: 190, child: projectFilter),
+                  const SizedBox(width: 4),
+                  resetButton,
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 12),
           if (entries.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 28),
               child: Center(
                 child: Text(
-                  _showPresent ? 'No one has clocked in yet today.' : 'No absent operatives today.',
+                  _search.isNotEmpty ||
+                          activeTeam != null ||
+                          activeProject != null
+                      ? 'No ${_showPresent ? 'present' : 'absent'} operatives match these filters.'
+                      : (_showPresent
+                            ? 'No one has clocked in yet today.'
+                            : 'No absent operatives today.'),
                   style: TextStyle(color: muted),
                 ),
               ),
@@ -499,24 +925,120 @@ class _DashboardAttendancePanelState extends State<DashboardAttendancePanel> {
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: DataTable(
-                headingRowColor: WidgetStatePropertyAll(isDark ? AppTheme.darkSurfaceRaised : const Color(0xffF8FAFC)),
+                headingRowColor: WidgetStatePropertyAll(
+                  isDark ? AppTheme.darkSurfaceRaised : const Color(0xffF8FAFC),
+                ),
                 columnSpacing: 28,
                 columns: [
-                  DataColumn(label: Text('#', style: TextStyle(color: textColor, fontWeight: FontWeight.w700))),
-                  DataColumn(label: Text('EMPLOYEE', style: TextStyle(color: textColor, fontWeight: FontWeight.w700))),
-                  DataColumn(label: Text('TEAM', style: TextStyle(color: textColor, fontWeight: FontWeight.w700))),
-                  DataColumn(label: Text(_showPresent ? 'CHECK IN' : 'LAST SEEN', style: TextStyle(color: textColor, fontWeight: FontWeight.w700))),
-                  DataColumn(label: Text(_showPresent ? 'WORK HOURS' : 'STATUS', style: TextStyle(color: textColor, fontWeight: FontWeight.w700))),
+                  DataColumn(
+                    label: Text(
+                      '#',
+                      style: TextStyle(
+                        color: textColor,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Text(
+                      'EMPLOYEE',
+                      style: TextStyle(
+                        color: textColor,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Text(
+                      'PROJECT',
+                      style: TextStyle(
+                        color: textColor,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Text(
+                      'TEAM',
+                      style: TextStyle(
+                        color: textColor,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Text(
+                      _showPresent ? 'CHECK IN' : 'LAST SEEN',
+                      style: TextStyle(
+                        color: textColor,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Text(
+                      _showPresent ? 'WORK HOURS' : 'STATUS',
+                      style: TextStyle(
+                        color: textColor,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
                 ],
                 rows: [
                   for (var index = 0; index < entries.length; index++)
-                    DataRow(cells: [
-                      DataCell(Text('${index + 1}', style: TextStyle(color: muted))),
-                      DataCell(_AttendanceEmployee(person: entries[index], textColor: textColor, muted: muted)),
-                      DataCell(Text(entries[index].teamName, style: TextStyle(color: textColor))),
-                      DataCell(Text(_showPresent ? (entries[index].checkInTime ?? '-') : (entries[index].lastSeen ?? '-'), style: TextStyle(color: textColor))),
-                      DataCell(Text(_showPresent ? (entries[index].workHours ?? '-') : 'Absent', style: TextStyle(color: accent, fontWeight: FontWeight.w600))),
-                    ]),
+                    DataRow(
+                      cells: [
+                        DataCell(
+                          Text('${index + 1}', style: TextStyle(color: muted)),
+                        ),
+                        DataCell(
+                          _AttendanceEmployee(
+                            person: entries[index],
+                            textColor: textColor,
+                            muted: muted,
+                          ),
+                        ),
+                        DataCell(
+                          SizedBox(
+                            width: 170,
+                            child: Text(
+                              entries[index].projectNames.isNotEmpty
+                                  ? entries[index].projectNames.join(', ')
+                                  : entries[index].projectName,
+                              style: TextStyle(color: textColor),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ),
+                        DataCell(
+                          Text(
+                            entries[index].teamName,
+                            style: TextStyle(color: textColor),
+                          ),
+                        ),
+                        DataCell(
+                          Text(
+                            _showPresent
+                                ? (entries[index].checkInTime ?? '-')
+                                : (entries[index].lastSeen ?? '-'),
+                            style: TextStyle(color: textColor),
+                          ),
+                        ),
+                        DataCell(
+                          Text(
+                            _showPresent
+                                ? (entries[index].workHours ?? '-')
+                                : 'Absent',
+                            style: TextStyle(
+                              color: accent,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                 ],
               ),
             )
@@ -533,7 +1055,8 @@ class _DashboardAttendancePanelState extends State<DashboardAttendancePanel> {
                     border: border,
                     accent: accent,
                   ),
-                  if (index < entries.length - 1) Divider(height: 1, color: border),
+                  if (index < entries.length - 1)
+                    Divider(height: 1, color: border),
                 ],
               ],
             ),
@@ -547,6 +1070,7 @@ class _AttendanceTab extends StatelessWidget {
   final String label;
   final int count;
   final Color color;
+  final bool isPresent;
   final bool selected;
   final VoidCallback onTap;
 
@@ -554,6 +1078,7 @@ class _AttendanceTab extends StatelessWidget {
     required this.label,
     required this.count,
     required this.color,
+    required this.isPresent,
     required this.selected,
     required this.onTap,
   });
@@ -562,7 +1087,9 @@ class _AttendanceTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Material(
-      color: selected ? color.withOpacity(isDark ? 0.24 : 0.12) : Colors.transparent,
+      color: selected
+          ? color.withOpacity(isDark ? 0.24 : 0.12)
+          : Colors.transparent,
       borderRadius: BorderRadius.circular(10),
       child: InkWell(
         onTap: onTap,
@@ -570,15 +1097,32 @@ class _AttendanceTab extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
           decoration: BoxDecoration(
-            border: Border.all(color: selected ? color : (isDark ? AppTheme.darkBorder : const Color(0xffE3E8EF))),
+            border: Border.all(
+              color: selected
+                  ? color
+                  : (isDark ? AppTheme.darkBorder : const Color(0xffE3E8EF)),
+            ),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(label == 'Present' ? IconlyLight.tick_square : IconlyLight.close_square, size: 16, color: color),
+              Icon(
+                isPresent ? IconlyLight.tick_square : IconlyLight.close_square,
+                size: 16,
+                color: color,
+              ),
               const SizedBox(width: 7),
-              Text('$label ($count)', style: TextStyle(color: color, fontWeight: FontWeight.w700)),
+              Expanded(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    '$label ($count)',
+                    style: TextStyle(color: color, fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -592,26 +1136,45 @@ class _AttendanceEmployee extends StatelessWidget {
   final Color textColor;
   final Color muted;
 
-  const _AttendanceEmployee({required this.person, required this.textColor, required this.muted});
+  const _AttendanceEmployee({
+    required this.person,
+    required this.textColor,
+    required this.muted,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final fallbackInitial = person.name.trim().isEmpty ? '?' : person.name.trim().substring(0, 1).toUpperCase();
+    final fallbackInitial = person.name.trim().isEmpty
+        ? '?'
+        : person.name.trim().substring(0, 1).toUpperCase();
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         CircleAvatar(
           radius: 17,
           backgroundColor: _avatarColor(person.avatarColor),
-          child: Text(person.initials.isEmpty ? fallbackInitial : person.initials, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12)),
+          child: Text(
+            person.initials.isEmpty ? fallbackInitial : person.initials,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+              fontSize: 12,
+            ),
+          ),
         ),
         const SizedBox(width: 10),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(person.name, style: TextStyle(color: textColor, fontWeight: FontWeight.w600)),
-            Text(person.roleLabel, style: TextStyle(color: muted, fontSize: 12)),
+            Text(
+              person.name,
+              style: TextStyle(color: textColor, fontWeight: FontWeight.w600),
+            ),
+            Text(
+              person.roleLabel,
+              style: TextStyle(color: muted, fontSize: 12),
+            ),
           ],
         ),
       ],
@@ -645,15 +1208,39 @@ class _AttendanceMobileRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(width: 24, child: Text('$number', style: TextStyle(color: muted, fontSize: 13))),
-          Expanded(child: _AttendanceEmployee(person: person, textColor: textColor, muted: muted)),
+          SizedBox(
+            width: 24,
+            child: Text(
+              '$number',
+              style: TextStyle(color: muted, fontSize: 13),
+            ),
+          ),
+          Expanded(
+            child: _AttendanceEmployee(
+              person: person,
+              textColor: textColor,
+              muted: muted,
+            ),
+          ),
           const SizedBox(width: 8),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(isPresent ? (person.checkInTime ?? '-') : (person.lastSeen ?? '-'), style: TextStyle(color: textColor, fontSize: 12, fontWeight: FontWeight.w600)),
+              Text(
+                isPresent
+                    ? (person.checkInTime ?? '-')
+                    : (person.lastSeen ?? '-'),
+                style: TextStyle(
+                  color: textColor,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               const SizedBox(height: 4),
-              Text(isPresent ? (person.workHours ?? '-') : person.teamName, style: TextStyle(color: accent, fontSize: 12)),
+              Text(
+                isPresent ? (person.workHours ?? '-') : person.teamName,
+                style: TextStyle(color: accent, fontSize: 12),
+              ),
             ],
           ),
         ],
@@ -766,87 +1353,87 @@ class ModernKpiCard extends StatelessWidget {
             ),
           ],
         ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(icon, color: Colors.white, size: 16),
                 ),
-                child: Icon(icon, color: Colors.white, size: 16),
-              ),
-              if (topAction.isNotEmpty)
-                Flexible(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (topAction.contains('%')) ...[
-                        Icon(
-                          topAction.trim().startsWith('-')
-                              ? Icons.trending_down
-                              : Icons.trending_up,
-                          color: Colors.white,
-                          size: 14,
-                        ),
-                        const SizedBox(width: 3),
-                      ],
-                      Flexible(
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text(
-                            topAction,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
+                if (topAction.isNotEmpty)
+                  Flexible(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (topAction.contains('%')) ...[
+                          Icon(
+                            topAction.trim().startsWith('-')
+                                ? Icons.trending_down
+                                : Icons.trending_up,
+                            color: Colors.white,
+                            size: 14,
+                          ),
+                          const SizedBox(width: 3),
+                        ],
+                        Flexible(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              topAction,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    title.toUpperCase(),
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.9),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.5,
+                    ),
                   ),
                 ),
-            ],
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  title.toUpperCase(),
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.5,
+                const SizedBox(height: 2),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    value,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 2),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  value,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -861,17 +1448,32 @@ class ProjectProgressChart extends StatelessWidget {
     final completed = (kpis?.tasks['completed'] ?? 0).toDouble();
     final inProgress = (kpis?.tasks['in_progress'] ?? 0).toDouble();
     final totalTasks = (kpis?.tasks['total'] ?? 0).toDouble();
-    final pendingTasks = (totalTasks - completed - inProgress).clamp(0.0, double.infinity);
+    final pendingTasks = (totalTasks - completed - inProgress).clamp(
+      0.0,
+      double.infinity,
+    );
 
-    final maxVal = [pendingTasks, inProgress, completed, 5.0]
-        .reduce((a, b) => a > b ? a : b);
-    final dynamicMaxY = (maxVal * 1.35).ceilToDouble().clamp(5.0, double.infinity);
-    final interval = (dynamicMaxY / 5).ceilToDouble().clamp(1.0, double.infinity);
+    final maxVal = [
+      pendingTasks,
+      inProgress,
+      completed,
+      5.0,
+    ].reduce((a, b) => a > b ? a : b);
+    final dynamicMaxY = (maxVal * 1.35).ceilToDouble().clamp(
+      5.0,
+      double.infinity,
+    );
+    final interval = (dynamicMaxY / 5).ceilToDouble().clamp(
+      1.0,
+      double.infinity,
+    );
     final chartMaxY = dynamicMaxY + (interval * 1.0);
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
-    final borderColor = isDark ? AppTheme.darkBorder : Colors.grey.withOpacity(0.1);
+    final borderColor = isDark
+        ? AppTheme.darkBorder
+        : Colors.grey.withOpacity(0.1);
     final titleTextColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
 
     return Container(
@@ -894,7 +1496,11 @@ class ProjectProgressChart extends StatelessWidget {
                   children: [
                     Text(
                       "Project Progress",
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: titleTextColor),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: titleTextColor,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     const Text(
@@ -906,7 +1512,10 @@ class ProjectProgressChart extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xff2563EB).withOpacity(0.08),
                   borderRadius: BorderRadius.circular(20),
@@ -914,7 +1523,11 @@ class ProjectProgressChart extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: const [
-                    Icon(IconlyLight.activity, color: Color(0xff2563EB), size: 14),
+                    Icon(
+                      IconlyLight.activity,
+                      color: Color(0xff2563EB),
+                      size: 14,
+                    ),
                     SizedBox(width: 4),
                     Text(
                       "Live Analytics",
@@ -942,7 +1555,10 @@ class ProjectProgressChart extends StatelessWidget {
                   touchTooltipData: BarTouchTooltipData(
                     fitInsideHorizontally: true,
                     fitInsideVertically: true,
-                    tooltipPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    tooltipPadding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     tooltipMargin: 6,
                     getTooltipColor: (group) => const Color(0xFF1E293B),
                     getTooltipItem: (group, groupIndex, rod, rodIndex) {
@@ -973,13 +1589,25 @@ class ProjectProgressChart extends StatelessWidget {
                         Widget text;
                         switch (value.toInt()) {
                           case 0:
-                            text = const Text('Pending', style: style, textAlign: TextAlign.center);
+                            text = const Text(
+                              'Pending',
+                              style: style,
+                              textAlign: TextAlign.center,
+                            );
                             break;
                           case 1:
-                            text = const Text('In Progress', style: style, textAlign: TextAlign.center);
+                            text = const Text(
+                              'In Progress',
+                              style: style,
+                              textAlign: TextAlign.center,
+                            );
                             break;
                           case 2:
-                            text = const Text('Completed', style: style, textAlign: TextAlign.center);
+                            text = const Text(
+                              'Completed',
+                              style: style,
+                              textAlign: TextAlign.center,
+                            );
                             break;
                           default:
                             return const SizedBox.shrink();
@@ -997,7 +1625,8 @@ class ProjectProgressChart extends StatelessWidget {
                       interval: interval,
                       reservedSize: 32,
                       getTitlesWidget: (value, meta) {
-                        if (value > dynamicMaxY + 0.01) return const SizedBox.shrink();
+                        if (value > dynamicMaxY + 0.01)
+                          return const SizedBox.shrink();
                         return Padding(
                           padding: const EdgeInsets.only(right: 6),
                           child: Text(
@@ -1028,45 +1657,51 @@ class ProjectProgressChart extends StatelessWidget {
                     strokeWidth: 1,
                   ),
                 ),
-                  borderData: FlBorderData(show: false),
-                  barGroups: [
-                    BarChartGroupData(
-                      x: 0,
-                      barRods: [
-                        BarChartRodData(
-                          toY: pendingTasks,
-                          color: const Color(0xffEAB308), // Yellow
-                          width: 36,
-                          borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                borderData: FlBorderData(show: false),
+                barGroups: [
+                  BarChartGroupData(
+                    x: 0,
+                    barRods: [
+                      BarChartRodData(
+                        toY: pendingTasks,
+                        color: const Color(0xffEAB308), // Yellow
+                        width: 36,
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(4),
                         ),
-                      ],
-                    ),
-                    BarChartGroupData(
-                      x: 1,
-                      barRods: [
-                        BarChartRodData(
-                          toY: inProgress,
-                          color: const Color(0xff0F2C59), // Dark Blue
-                          width: 36,
-                          borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                      ),
+                    ],
+                  ),
+                  BarChartGroupData(
+                    x: 1,
+                    barRods: [
+                      BarChartRodData(
+                        toY: inProgress,
+                        color: const Color(0xff0F2C59), // Dark Blue
+                        width: 36,
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(4),
                         ),
-                      ],
-                    ),
-                    BarChartGroupData(
-                      x: 2,
-                      barRods: [
-                        BarChartRodData(
-                          toY: completed,
-                          color: const Color(0xff10B981), // Green
-                          width: 36,
-                          borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                      ),
+                    ],
+                  ),
+                  BarChartGroupData(
+                    x: 2,
+                    barRods: [
+                      BarChartRodData(
+                        toY: completed,
+                        color: const Color(0xff10B981), // Green
+                        width: 36,
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(4),
                         ),
-                      ],
-                    ),
-                  ],
-                ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
+          ),
         ],
       ),
     );
@@ -1091,13 +1726,16 @@ class AttendanceTrendChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final clockedInToday = (kpis?.attendance['clocked_in_today'] ?? 0).toDouble();
-    final notClockedOutToday = (kpis?.attendance['not_clocked_out'] ?? 0).toDouble();
+    final clockedInToday = (kpis?.attendance['clocked_in_today'] ?? 0)
+        .toDouble();
+    final notClockedOutToday = (kpis?.attendance['not_clocked_out'] ?? 0)
+        .toDouble();
 
     List<double> clockedInValues = [];
     List<double> exceptionsValues = [];
 
-    final rawTrend = kpis?.attendance['trend'] ??
+    final rawTrend =
+        kpis?.attendance['trend'] ??
         kpis?.attendance['daily_trend'] ??
         kpis?.attendance['weekly_trend'] ??
         kpis?.attendance['history'] ??
@@ -1106,8 +1744,19 @@ class AttendanceTrendChart extends StatelessWidget {
     if (rawTrend is List && rawTrend.isNotEmpty) {
       for (final item in rawTrend) {
         if (item is Map) {
-          clockedInValues.add(double.tryParse((item['clocked_in'] ?? item['present'] ?? 0).toString()) ?? 0.0);
-          exceptionsValues.add(double.tryParse((item['exceptions'] ?? item['not_clocked_out'] ?? 0).toString()) ?? 0.0);
+          clockedInValues.add(
+            double.tryParse(
+                  (item['clocked_in'] ?? item['present'] ?? 0).toString(),
+                ) ??
+                0.0,
+          );
+          exceptionsValues.add(
+            double.tryParse(
+                  (item['exceptions'] ?? item['not_clocked_out'] ?? 0)
+                      .toString(),
+                ) ??
+                0.0,
+          );
         } else if (item is num) {
           clockedInValues.add(item.toDouble());
           exceptionsValues.add(0.0);
@@ -1124,19 +1773,22 @@ class AttendanceTrendChart extends StatelessWidget {
         clockedInToday > 0 ? clockedInToday : 0.0,
         clockedInToday,
       ];
-      exceptionsValues = [
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        notClockedOutToday,
-      ];
+      exceptionsValues = [0.0, 0.0, 0.0, 0.0, 0.0, notClockedOutToday];
     }
 
-    final maxVal = [...clockedInValues, ...exceptionsValues, 10.0].reduce((a, b) => a > b ? a : b);
-    final dynamicMaxY = (maxVal * 1.3).ceilToDouble().clamp(10.0, double.infinity);
-    final yInterval = (dynamicMaxY / 5).ceilToDouble().clamp(1.0, double.infinity);
+    final maxVal = [
+      ...clockedInValues,
+      ...exceptionsValues,
+      10.0,
+    ].reduce((a, b) => a > b ? a : b);
+    final dynamicMaxY = (maxVal * 1.3).ceilToDouble().clamp(
+      10.0,
+      double.infinity,
+    );
+    final yInterval = (dynamicMaxY / 5).ceilToDouble().clamp(
+      1.0,
+      double.infinity,
+    );
     final chartMaxY = dynamicMaxY + (yInterval * 0.75);
 
     final days = _getLast6DaysLabels();
@@ -1153,7 +1805,9 @@ class AttendanceTrendChart extends StatelessWidget {
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
-    final borderColor = isDark ? AppTheme.darkBorder : Colors.grey.withOpacity(0.1);
+    final borderColor = isDark
+        ? AppTheme.darkBorder
+        : Colors.grey.withOpacity(0.1);
     final titleTextColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
 
     return Container(
@@ -1192,7 +1846,10 @@ class AttendanceTrendChart extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xff10B981).withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(20),
@@ -1236,7 +1893,10 @@ class AttendanceTrendChart extends StatelessWidget {
                   touchTooltipData: LineTouchTooltipData(
                     fitInsideHorizontally: true,
                     fitInsideVertically: true,
-                    tooltipPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    tooltipPadding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     tooltipMargin: 6,
                     getTooltipColor: (touchedSpot) => const Color(0xFF1E293B),
                     getTooltipItems: (touchedSpots) {
@@ -1271,7 +1931,9 @@ class AttendanceTrendChart extends StatelessWidget {
                       reservedSize: 32,
                       getTitlesWidget: (value, meta) {
                         final idx = value.toInt();
-                        if (idx >= 0 && idx < days.length && (value - idx).abs() < 0.01) {
+                        if (idx >= 0 &&
+                            idx < days.length &&
+                            (value - idx).abs() < 0.01) {
                           return Padding(
                             padding: const EdgeInsets.only(top: 8.0),
                             child: Text(
@@ -1294,7 +1956,8 @@ class AttendanceTrendChart extends StatelessWidget {
                       interval: yInterval,
                       reservedSize: 32,
                       getTitlesWidget: (value, meta) {
-                        if (value > dynamicMaxY + 0.01) return const SizedBox.shrink();
+                        if (value > dynamicMaxY + 0.01)
+                          return const SizedBox.shrink();
                         return Padding(
                           padding: const EdgeInsets.only(right: 6),
                           child: Text(
@@ -1391,7 +2054,9 @@ class RecentProjectsList extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
-    final borderColor = isDark ? AppTheme.darkBorder : Colors.grey.withOpacity(0.1);
+    final borderColor = isDark
+        ? AppTheme.darkBorder
+        : Colors.grey.withOpacity(0.1);
     final textColor = isDark ? Colors.white : Colors.black87;
     final displayProjects = projects.take(5).toList();
 
@@ -1410,17 +2075,31 @@ class RecentProjectsList extends StatelessWidget {
             children: [
               Text(
                 "Recent Projects",
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor),
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: textColor,
+                ),
               ),
               if (onViewAll != null)
                 TextButton(
                   onPressed: onViewAll,
                   style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     minimumSize: Size.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
-                  child: const Text("View Projects", style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 13)),
+                  child: const Text(
+                    "View Projects",
+                    style: TextStyle(
+                      color: Colors.blue,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
                 ),
             ],
           ),
@@ -1446,7 +2125,8 @@ class RecentProjectsList extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => ProjectDetailsScreen(project: project),
+                        builder: (context) =>
+                            ProjectDetailsScreen(project: project),
                       ),
                     ).then((_) {
                       DashboardController.triggerGlobalRefresh();
@@ -1497,14 +2177,18 @@ class RecentProjectsList extends StatelessWidget {
                                   Icon(
                                     IconlyLight.profile,
                                     size: 13,
-                                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                                    color: isDark
+                                        ? Colors.grey.shade400
+                                        : Colors.grey.shade600,
                                   ),
                                   const SizedBox(width: 4),
                                   Expanded(
                                     child: Text(
                                       'ECG Manager: ${project.ecgManager?.isNotEmpty == true ? project.ecgManager! : 'Not assigned'}',
                                       style: TextStyle(
-                                        color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                                        color: isDark
+                                            ? Colors.grey.shade400
+                                            : Colors.grey.shade600,
                                         fontSize: 12,
                                         fontWeight: FontWeight.w500,
                                       ),
@@ -1539,7 +2223,9 @@ class RecentTasksList extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
-    final borderColor = isDark ? AppTheme.darkBorder : Colors.grey.withOpacity(0.1);
+    final borderColor = isDark
+        ? AppTheme.darkBorder
+        : Colors.grey.withOpacity(0.1);
     final textColor = isDark ? Colors.white : Colors.black87;
 
     return Container(
@@ -1554,7 +2240,11 @@ class RecentTasksList extends StatelessWidget {
         children: [
           Text(
             "Recent Tasks",
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: textColor,
+            ),
           ),
           const SizedBox(height: 16),
           if (tasks.isEmpty)
@@ -1623,7 +2313,9 @@ class RecentJobSheetsList extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
-    final borderColor = isDark ? AppTheme.darkBorder : Colors.grey.withOpacity(0.1);
+    final borderColor = isDark
+        ? AppTheme.darkBorder
+        : Colors.grey.withOpacity(0.1);
     final textColor = isDark ? Colors.white : Colors.black87;
 
     return Container(
@@ -1638,7 +2330,11 @@ class RecentJobSheetsList extends StatelessWidget {
         children: [
           Text(
             "Recent Job Sheets",
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: textColor,
+            ),
           ),
           const SizedBox(height: 16),
           if (jobSheets.isEmpty)

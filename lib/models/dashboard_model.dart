@@ -41,19 +41,34 @@ class DashboardData {
     final Map<String, dynamic> json = _parseMap(jsonInput);
     return DashboardData(
       today: json['today'] ?? '',
-      user: json['user'] != null ? User.fromJson(_parseMap(json['user'])) : null,
-      kpis: json['kpis'] != null ? Kpis.fromJson(_parseMap(json['kpis'])) : null,
-      recentProjects: json['recent_projects'] != null && json['recent_projects'] is List
-          ? (json['recent_projects'] as List).map((i) => Project.fromJson(_parseMap(i))).toList()
+      user: json['user'] != null
+          ? User.fromJson(_parseMap(json['user']))
+          : null,
+      kpis: json['kpis'] != null
+          ? Kpis.fromJson(_parseMap(json['kpis']))
+          : null,
+      recentProjects:
+          json['recent_projects'] != null && json['recent_projects'] is List
+          ? (json['recent_projects'] as List)
+                .map((i) => Project.fromJson(_parseMap(i)))
+                .toList()
           : [],
       recentTasks: json['recent_tasks'] is List ? json['recent_tasks'] : [],
-      recentJobSheets: json['recent_job_sheets'] is List ? json['recent_job_sheets'] : [],
-      recentClockSessions: json['recent_clock_sessions'] is List ? json['recent_clock_sessions'] : [],
+      recentJobSheets: json['recent_job_sheets'] is List
+          ? json['recent_job_sheets']
+          : [],
+      recentClockSessions: json['recent_clock_sessions'] is List
+          ? json['recent_clock_sessions']
+          : [],
       presentOperativesToday: json['present_operatives_today'] is List
-          ? (json['present_operatives_today'] as List).map((i) => AttendanceOperative.fromJson(_parseMap(i))).toList()
+          ? (json['present_operatives_today'] as List)
+                .map((i) => AttendanceOperative.fromJson(_parseMap(i)))
+                .toList()
           : [],
       absentOperativesToday: json['absent_operatives_today'] is List
-          ? (json['absent_operatives_today'] as List).map((i) => AttendanceOperative.fromJson(_parseMap(i))).toList()
+          ? (json['absent_operatives_today'] as List)
+                .map((i) => AttendanceOperative.fromJson(_parseMap(i)))
+                .toList()
           : [],
     );
   }
@@ -67,6 +82,8 @@ class AttendanceOperative {
   final String employeeId;
   final String roleLabel;
   final String teamName;
+  final String projectName;
+  final List<String> projectNames;
   final String? checkInTime;
   final String? workHours;
   final String? lastSeen;
@@ -80,6 +97,8 @@ class AttendanceOperative {
     required this.employeeId,
     required this.roleLabel,
     this.teamName = '-',
+    this.projectName = '-',
+    this.projectNames = const [],
     this.checkInTime,
     this.workHours,
     this.lastSeen,
@@ -95,10 +114,19 @@ class AttendanceOperative {
       employeeId: json['employee_id']?.toString() ?? '',
       roleLabel: json['role_label']?.toString() ?? '',
       teamName: json['team_name']?.toString() ?? '-',
+      projectName: json['project_name']?.toString() ?? '-',
+      projectNames: json['project_names'] is List
+          ? (json['project_names'] as List)
+                .map((item) => item?.toString() ?? '')
+                .where((item) => item.isNotEmpty)
+                .toList()
+          : const [],
       checkInTime: json['check_in_time']?.toString(),
       workHours: json['work_hours']?.toString(),
       lastSeen: json['last_seen']?.toString(),
-      isClockedOut: json['is_clocked_out'] is bool ? json['is_clocked_out'] as bool : null,
+      isClockedOut: json['is_clocked_out'] is bool
+          ? json['is_clocked_out'] as bool
+          : null,
     );
   }
 }

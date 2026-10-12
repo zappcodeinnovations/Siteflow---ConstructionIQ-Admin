@@ -14,6 +14,18 @@ class AuthService {
   // custom) is treated as a non-admin login.
   static const Set<String> _adminRoles = {'superuser', 'admin'};
 
+  // Fixed restrictions for the Manager system role.  These checks are kept
+  // client-side as well as in server RBAC so a cached permission payload from
+  // an older login cannot make restricted screens appear in the UI.
+  static const Set<String> _managerRestrictedMenus = {
+    'members',
+    'teams',
+    'settings_teams',
+    'admin_members',
+    'admin_permissions',
+    'admin_activity_logs',
+  };
+
   static Future<void> saveTokens({
     required String access,
     required String refresh,
@@ -99,12 +111,15 @@ class AuthService {
 
   static Future<bool> can(String menuKey, {String action = 'view'}) async {
     if (await isAdminUser()) return true;
+    final role = await getUserRole();
+    if (role == 'manager' && _managerRestrictedMenus.contains(menuKey)) {
+      return false;
+    }
     final permissions = await getPermissions();
     final menu = permissions[menuKey];
     if (menu is Map) return menu[action] == true;
 
     // Compatibility for sessions created before the permissions API existed.
-    final role = await getUserRole();
     if (role == 'manager') {
       return action == 'view' &&
           const {
