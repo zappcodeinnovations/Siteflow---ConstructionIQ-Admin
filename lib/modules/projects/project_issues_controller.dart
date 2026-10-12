@@ -24,6 +24,16 @@ class ProjectIssuesController extends ChangeNotifier {
   List<SnagModel> snags = [];
   List<InspectionModel> inspections = [];
 
+  Map<String, dynamic> _safeJsonBody(String body) {
+    if (body.trim().isEmpty) return const {};
+    try {
+      final decoded = jsonDecode(body);
+      return decoded is Map ? decoded.cast<String, dynamic>() : const {};
+    } on FormatException {
+      return const {};
+    }
+  }
+
   List<Map<String, dynamic>> incidentStatusChoices = [];
   String? incidentStatusFilter;
 
@@ -140,14 +150,14 @@ class ProjectIssuesController extends ChangeNotifier {
         final fallbackUrl = ApiEndpoints.baseUrl + ApiEndpoints.snagDetail(snagId);
         response = await ApiClient.delete(fallbackUrl);
       }
-      final decoded = response.body.isNotEmpty ? jsonDecode(response.body) : {};
+      final decoded = _safeJsonBody(response.body);
       if (response.statusCode == 200 || response.statusCode == 204 || decoded['status'] == true) {
         await fetchSnags();
         return {'success': true, 'message': decoded['message'] ?? 'Snag deleted successfully.'};
       }
-      return {'success': false, 'message': decoded['message'] ?? 'Failed to delete snag.'};
-    } catch (e) {
-      return {'success': false, 'message': 'An error occurred: $e'};
+      return {'success': false, 'message': decoded['message'] ?? 'Could not delete the snag. Please try again.'};
+    } catch (_) {
+      return {'success': false, 'message': 'Could not delete the snag. Please try again.'};
     }
   }
 
@@ -159,14 +169,14 @@ class ProjectIssuesController extends ChangeNotifier {
         final fallbackUrl = ApiEndpoints.baseUrl + ApiEndpoints.snagDetail(snagId);
         response = await ApiClient.patch(fallbackUrl, body: {'status': newStatus});
       }
-      final decoded = response.body.isNotEmpty ? jsonDecode(response.body) : {};
+      final decoded = _safeJsonBody(response.body);
       if (response.statusCode == 200 || decoded['status'] == true) {
         await fetchSnags();
         return {'success': true, 'message': decoded['message'] ?? 'Snag status updated.'};
       }
-      return {'success': false, 'message': decoded['message'] ?? 'Failed to update snag status.'};
-    } catch (e) {
-      return {'success': false, 'message': 'An error occurred: $e'};
+      return {'success': false, 'message': decoded['message'] ?? 'Could not update snag status. Please try again.'};
+    } catch (_) {
+      return {'success': false, 'message': 'Could not update snag status. Please try again.'};
     }
   }
 

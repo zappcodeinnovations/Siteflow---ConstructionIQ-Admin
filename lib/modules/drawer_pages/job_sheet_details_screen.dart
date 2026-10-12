@@ -7,6 +7,7 @@ import '../../core/network/api_endpoints.dart';
 import 'package:iconly/iconly.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/date_helper.dart';
 import '../../core/widgets/background_stripes_painter.dart';
 import 'job_sheet_webview_screen.dart';
 
@@ -27,6 +28,69 @@ class _JobSheetDetailsScreenState extends State<JobSheetDetailsScreen> {
   void initState() {
     super.initState();
     jobSheet = widget.jobSheet;
+    _loadDetailedJobSheet();
+  }
+
+  Future<void> _loadDetailedJobSheet() async {
+    if (jobSheet.globalDetailApiUrl.isEmpty) return;
+    var base = ApiEndpoints.baseUrl;
+    if (jobSheet.globalDetailApiUrl.startsWith('/api/') && base.endsWith('/api')) {
+      base = base.substring(0, base.length - 4);
+    }
+    try {
+      final response = await ApiClient.get('$base${jobSheet.globalDetailApiUrl}');
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      if (!mounted || response.statusCode != 200 || body['status'] != true || body['data'] is! Map) return;
+      setState(() => jobSheet = JobSheet.fromJson((body['data'] as Map).cast<String, dynamic>()));
+    } catch (_) {
+      // The list data remains usable if a detailed payload is temporarily unavailable.
+    }
+  }
+
+  String _traceabilityValue(String key, dynamic value) {
+    final normalized = key.toLowerCase().replaceAll(' ', '_');
+    if (normalized == 'materials_used' || normalized == 'materials') {
+      if (jobSheet.material.isNotEmpty) return jobSheet.material;
+    }
+    if (value is String && (normalized.contains('started_at') || normalized.contains('finished_at'))) {
+      return DateHelper.formatToLocal(value);
+    }
+    if (value is List) {
+      return value.map((item) => item is Map ? item.values.where((v) => v != null && '$v'.isNotEmpty).join(' • ') : item.toString()).join(', ');
+    }
+    if (value is Map) return value.values.where((v) => v != null && '$v'.isNotEmpty).join(' • ');
+    return value?.toString().trim().isNotEmpty == true ? value.toString() : '-';
+  }
+
+  String _traceabilityLabel(String key) => key
+      .replaceAll('_', ' ')
+      .split(' ')
+      .where((word) => word.isNotEmpty)
+      .map((word) => '${word[0].toUpperCase()}${word.substring(1)}')
+      .join(' ');
+
+  Widget _buildTraceabilitySection(bool isDark) {
+    const keys = [
+      'specification',
+      'work_type',
+      'work_started_at',
+      'work_finished_at',
+      'labour_hours',
+      'break_time',
+      'materials_used',
+    ];
+    final values = <String, dynamic>{...jobSheet.rawFields};
+    if (jobSheet.material.isNotEmpty) values.putIfAbsent('materials_used', () => jobSheet.material);
+    final rows = keys.where((key) => values[key] != null && values[key].toString().isNotEmpty).toList();
+    if (rows.isEmpty) return const SizedBox.shrink();
+    return Column(children: [
+      const SizedBox(height: 24),
+      _buildSectionCard(
+        title: 'Traceability',
+        isDark: isDark,
+        children: rows.map((key) => _buildDetailRow(_traceabilityLabel(key), _traceabilityValue(key, values[key]), isDark)).toList(),
+      ),
+    ]);
   }
 
   void _openFormBrowser(BuildContext context) {
@@ -101,6 +165,13 @@ class _JobSheetDetailsScreenState extends State<JobSheetDetailsScreen> {
             reviewedBy: jobSheet.reviewedBy,
             reviewed: jobSheet.reviewed,
             resubmissionCount: jobSheet.resubmissionCount,
+            qaStatus: jobSheet.qaStatus,
+            qaStatusLabel: jobSheet.qaStatusLabel,
+            qaNotes: jobSheet.qaNotes,
+            qaCheckedBy: jobSheet.qaCheckedBy,
+            qaChecked: jobSheet.qaChecked,
+            rawFields: jobSheet.rawFields,
+            payload: jobSheet.payload,
           );
         });
         ScaffoldMessenger.of(context).showSnackBar(
@@ -120,6 +191,111 @@ class _JobSheetDetailsScreenState extends State<JobSheetDetailsScreen> {
     } finally {
       if (mounted) setState(() => _submittingDecision = false);
     }
+  }
+
+  Future<void> _submitQaStatus(String qaStatus) async {
+    final notes = await _promptForQaNotes(qaStatus);
+    if (notes == null) return;
+
+    setState(() => _submittingDecision = true);
+    try {
+      final response = await ApiClient.patch(
+        '${ApiEndpoints.baseUrl}/job-sheets/${jobSheet.source}/${jobSheet.id}/qa/',
+        body: {'qa_status': qaStatus, 'qa_notes': notes},
+      );
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      if (!mounted) return;
+      if (response.statusCode == 200 && body['status'] == true) {
+        final data = (body['data'] as Map?)?.cast<String, dynamic>() ?? const {};
+        setState(() {
+          jobSheet = JobSheet(
+            id: jobSheet.id,
+            source: jobSheet.source,
+            sheetNo: jobSheet.sheetNo,
+            status: jobSheet.status,
+            statusLabel: jobSheet.statusLabel,
+            jobNo: jobSheet.jobNo,
+            jobReference: jobSheet.jobReference,
+            projectName: jobSheet.projectName,
+            clientName: jobSheet.clientName,
+            operative: jobSheet.operative,
+            operativeCode: jobSheet.operativeCode,
+            form: jobSheet.form,
+            location: jobSheet.location,
+            comments: jobSheet.comments,
+            materialCost: jobSheet.materialCost,
+            charge: jobSheet.charge,
+            globalDetailApiUrl: jobSheet.globalDetailApiUrl,
+            created: jobSheet.created,
+            submitted: jobSheet.submitted,
+            lastUpdated: jobSheet.lastUpdated,
+            formHtmlUrl: jobSheet.formHtmlUrl,
+            viewFormInBrowserUrl: jobSheet.viewFormInBrowserUrl,
+            rejectionReason: jobSheet.rejectionReason,
+            reviewedBy: jobSheet.reviewedBy,
+            reviewed: jobSheet.reviewed,
+            resubmissionCount: jobSheet.resubmissionCount,
+            qaStatus: data['qa_status']?.toString() ?? jobSheet.qaStatus,
+            qaStatusLabel: data['qa_status_label']?.toString() ?? jobSheet.qaStatusLabel,
+            qaNotes: data['qa_notes']?.toString() ?? jobSheet.qaNotes,
+            qaCheckedBy: data['qa_checked_by']?.toString() ?? jobSheet.qaCheckedBy,
+            qaChecked: data['qa_checked']?.toString() ?? jobSheet.qaChecked,
+            rawFields: jobSheet.rawFields,
+            payload: jobSheet.payload,
+          );
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(body['message']?.toString() ?? 'QA status updated.')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(body['message']?.toString() ?? 'Failed to update QA status.')),
+        );
+      }
+    } on FormatException {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('The server returned an invalid response. Please try again.')),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not update QA status. Please try again.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _submittingDecision = false);
+    }
+  }
+
+  Future<String?> _promptForQaNotes(String qaStatus) async {
+    final controller = TextEditingController(text: jobSheet.qaNotes);
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(qaStatus == 'passed' ? 'QA Pass' : 'QA Fail'),
+        content: TextField(
+          controller: controller,
+          maxLines: 4,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'QA notes (optional)',
+            hintText: 'Add inspection or checklist notes',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            child: Text(qaStatus == 'passed' ? 'Mark Pass' : 'Mark Fail'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    return result;
   }
 
   Future<String?> _promptForReason(String decision) async {
@@ -236,13 +412,6 @@ class _JobSheetDetailsScreenState extends State<JobSheetDetailsScreen> {
   }
 
   Widget _buildReviewSection(bool isDark) {
-    final hasReviewInfo = jobSheet.rejectionReason.isNotEmpty ||
-        jobSheet.reviewedBy.isNotEmpty ||
-        jobSheet.reviewed.isNotEmpty ||
-        jobSheet.resubmissionCount > 0;
-    if (!hasReviewInfo && !jobSheet.isReviewable) {
-      return const SizedBox.shrink();
-    }
     return Column(
       children: [
         const SizedBox(height: 24),
@@ -258,6 +427,47 @@ class _JobSheetDetailsScreenState extends State<JobSheetDetailsScreen> {
               _buildDetailRow("Rejection Reason", jobSheet.rejectionReason, isDark),
             if (jobSheet.resubmissionCount > 0)
               _buildDetailRow("Resubmissions", jobSheet.resubmissionCount.toString(), isDark),
+            _buildDetailRow("QA Status", jobSheet.qaStatusLabel, isDark),
+            if (jobSheet.qaCheckedBy.isNotEmpty)
+              _buildDetailRow("QA Checked By", jobSheet.qaCheckedBy, isDark),
+            if (jobSheet.qaChecked.isNotEmpty)
+              _buildDetailRow("QA Checked At", jobSheet.qaChecked, isDark),
+            if (jobSheet.qaNotes.isNotEmpty)
+              _buildDetailRow("QA Notes", jobSheet.qaNotes, isDark),
+            const SizedBox(height: 12),
+            Text(
+              "QA Evaluation",
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: isDark ? Colors.white : const Color(0xFF0F2C4A),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF16A34A),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  ),
+                  onPressed: _submittingDecision ? null : () => _submitQaStatus('passed'),
+                  icon: const Icon(IconlyLight.tick_square, color: Colors.white, size: 18),
+                  label: const Text("QA Pass", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                ),
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red,
+                    side: const BorderSide(color: Colors.red),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  ),
+                  onPressed: _submittingDecision ? null : () => _submitQaStatus('failed'),
+                  icon: const Icon(IconlyLight.close_square, size: 18),
+                  label: const Text("QA Fail", style: TextStyle(fontWeight: FontWeight.w600)),
+                ),
+              ],
+            ),
             if (jobSheet.isReviewable) ...[
               const SizedBox(height: 8),
               Text(
@@ -478,6 +688,7 @@ class _JobSheetDetailsScreenState extends State<JobSheetDetailsScreen> {
                               ],
                             ),
                             _buildReviewSection(isDark),
+                            _buildTraceabilitySection(isDark),
                           ],
                         ),
                       ),
@@ -636,6 +847,7 @@ class _JobSheetDetailsScreenState extends State<JobSheetDetailsScreen> {
                         ],
                       ),
                       _buildReviewSection(isDark),
+                      _buildTraceabilitySection(isDark),
                     ],
                   ),
               ],

@@ -542,7 +542,13 @@ class _JobSheetsTabState extends State<JobSheetsTab> {
                       operativeName: sheet['operative']?.toString() ?? "N/A",
                       form: sheet['form']?.toString() ?? "N/A",
                       location: sheet['location']?.toString() ?? "N/A",
-                      created: DateHelper.formatToLocal(sheet['created']?.toString()),
+                      // `created` is a label already rendered in the viewer's
+                      // timezone with no offset - formatToLocal() would treat
+                      // it as UTC and shift it again (+5:30 in India).
+                      // `created_at` is the UTC instant, so convert that.
+                      created: DateHelper.formatToLocal(
+                        (sheet['created_at'] ?? sheet['created'])?.toString(),
+                      ),
                     );
                   },
                 ),

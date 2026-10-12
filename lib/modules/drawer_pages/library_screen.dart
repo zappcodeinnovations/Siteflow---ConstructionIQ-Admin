@@ -99,13 +99,7 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
               icon: const Icon(Icons.add),
               label: const Text("Add Form"),
             )
-          : _tabController.index == 2
-              ? FloatingActionButton.extended(
-                  onPressed: () => _showAddTemplateDialog(),
-                  icon: const Icon(Icons.add),
-                  label: const Text("Add Template"),
-                )
-              : _tabController.index == 3
+          : _tabController.index == 3
                   ? FloatingActionButton.extended(
                       onPressed: () => _showAddWorkTypeDialog(),
                       icon: const Icon(Icons.add),
@@ -1428,8 +1422,8 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
                         dropdownColor: cardColor,
                         style: TextStyle(fontSize: 13, color: textColor, fontWeight: FontWeight.w500),
                         items: const [
-                          DropdownMenuItem(value: 'active', child: Text("Active Templates")),
-                          DropdownMenuItem(value: 'archived', child: Text("Archived Templates")),
+                          DropdownMenuItem(value: 'active', child: Text("Active")),
+                          DropdownMenuItem(value: 'archived', child: Text("Archived")),
                         ],
                         onChanged: (val) {
                           if (val != null) {
@@ -1453,7 +1447,7 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
                           hintText: "Search templates",
                           hintStyle: TextStyle(fontSize: 13, color: textSecondary),
                           prefixIcon: Icon(Icons.search, size: 18, color: textSecondary),
-                          contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+                          contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
                           filled: true,
                           fillColor: inputFill,
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: borderColor)),

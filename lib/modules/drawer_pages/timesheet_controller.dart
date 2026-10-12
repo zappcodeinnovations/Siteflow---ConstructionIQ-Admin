@@ -21,10 +21,10 @@ class TimesheetController extends ChangeNotifier {
   bool get hasMore => _currentPage < _totalPages;
 
   // Filters
-  String? _fromDate;
+  String? _fromDate = _todayDate();
   String? get fromDate => _fromDate;
 
-  String? _toDate;
+  String? _toDate = _todayDate();
   String? get toDate => _toDate;
 
   String? _selectedOperator;
@@ -49,6 +49,11 @@ class TimesheetController extends ChangeNotifier {
     if (_selectedAttendanceStatus != null && _selectedAttendanceStatus!.isNotEmpty) queryParams.add('attendance_status=$_selectedAttendanceStatus');
     if (_selectedShiftRule != null && _selectedShiftRule!.isNotEmpty) queryParams.add('shift_rule=$_selectedShiftRule');
     return url + queryParams.join('&');
+  }
+
+  static String _todayDate() {
+    final now = DateTime.now();
+    return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
   }
 
   void _setPagination(TimesheetResponse response) {
@@ -145,8 +150,10 @@ class TimesheetController extends ChangeNotifier {
   }
 
   void resetFilters() {
-    _fromDate = null;
-    _toDate = null;
+    // Web attendance/timesheets open and reset to the current workday.  Do
+    // the same here so KPI cards never accidentally aggregate all history.
+    _fromDate = _todayDate();
+    _toDate = _todayDate();
     _selectedOperator = null;
     _selectedProject = null;
     _selectedAttendanceStatus = null;

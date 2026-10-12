@@ -1726,11 +1726,6 @@ class AttendanceTrendChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final clockedInToday = (kpis?.attendance['clocked_in_today'] ?? 0)
-        .toDouble();
-    final notClockedOutToday = (kpis?.attendance['not_clocked_out'] ?? 0)
-        .toDouble();
-
     List<double> clockedInValues = [];
     List<double> exceptionsValues = [];
 
@@ -1765,15 +1760,11 @@ class AttendanceTrendChart extends StatelessWidget {
     }
 
     if (clockedInValues.isEmpty) {
-      clockedInValues = [
-        0.0,
-        clockedInToday > 0 ? (clockedInToday * 0.9).roundToDouble() : 0.0,
-        clockedInToday > 0 ? (clockedInToday * 0.85).roundToDouble() : 0.0,
-        clockedInToday > 0 ? (clockedInToday * 0.95).roundToDouble() : 0.0,
-        clockedInToday > 0 ? clockedInToday : 0.0,
-        clockedInToday,
-      ];
-      exceptionsValues = [0.0, 0.0, 0.0, 0.0, 0.0, notClockedOutToday];
+      // Never manufacture a historical trend from today's value.  The API
+      // supplies the real six-day series; until it arrives, show an empty
+      // chart rather than misleading, made-up activity.
+      clockedInValues = List<double>.filled(6, 0.0);
+      exceptionsValues = List<double>.filled(6, 0.0);
     }
 
     final maxVal = [

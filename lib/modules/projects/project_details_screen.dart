@@ -130,7 +130,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
       'Project Template',
       'Materials',
       'Docs & Files',
-      'Project Setup',
+      'Project Admin',
     ];
     final tabViews = <Widget>[
       if (_canViewTasks)

@@ -74,6 +74,14 @@ class LoginController extends ChangeNotifier {
               : 'A server error occurred. Please try again.';
         }
 
+        // Never expose token/session internals on the sign-in screen.
+        if (_errorMessage != null &&
+            (_errorMessage!.toLowerCase().contains('token was expired') ||
+                _errorMessage!.toLowerCase().contains('token is invalid') ||
+                _errorMessage!.toLowerCase().contains('token_not_valid'))) {
+          _errorMessage = 'Your session has expired. Please sign in again.';
+        }
+
         // Prevent showing long HTML or backend stack traces
         if (_errorMessage != null &&
             (_errorMessage!.length > 100 || _errorMessage!.contains('<html'))) {

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
 import 'package:file_picker/file_picker.dart';
@@ -6,7 +7,8 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/custom_date_picker_dialog.dart';
 import '../../../models/project_issue_models.dart';
 import '../../../models/admin_member_model.dart';
-import '../../drawer_pages/admin/admin_members_controller.dart';
+import '../../../core/network/api_client.dart';
+import '../../../core/network/api_endpoints.dart';
 import '../project_issues_controller.dart';
 
 class SnagsTab extends StatefulWidget {
@@ -106,6 +108,18 @@ class _SnagsTabState extends State<SnagsTab> {
         );
       }
     }
+  }
+
+  Future<void> _changeSnagStatus(SnagModel snag, String status) async {
+    if (status == snag.status) return;
+    final result = await _controller.updateSnagStatus(snag.id, status);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(result['message']?.toString() ?? 'Snag status updated.'),
+        backgroundColor: result['success'] == true ? Colors.green : Colors.redAccent,
+      ),
+    );
   }
 
   Color _severityColor(String severity) {
@@ -458,35 +472,32 @@ class _SnagsTabState extends State<SnagsTab> {
                 ] else
                   const Spacer(),
                 
-                // Status Badge with dot
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: statusBg,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 6,
-                        height: 6,
-                        decoration: BoxDecoration(
-                          color: statusColor,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 5),
-                      Text(
-                        statusText,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: isDark && statusText.toLowerCase().contains('assigned') ? Colors.white : statusColor,
-                          fontFamily: 'Inter',
-                        ),
-                      ),
-                    ],
+                // Matches the web's lifecycle selector rather than showing a
+                // read-only status pill.
+                PopupMenuButton<String>(
+                  tooltip: 'Change status',
+                  onSelected: (status) => _changeSnagStatus(snag, status),
+                  itemBuilder: (context) => const [
+                    PopupMenuItem(value: 'open', child: Text('Open')),
+                    PopupMenuItem(value: 'assigned', child: Text('Assigned')),
+                    PopupMenuItem(value: 'rectification', child: Text('Rectification')),
+                    PopupMenuItem(value: 'ready_for_inspection', child: Text('Ready for Inspection')),
+                    PopupMenuItem(value: 'verified', child: Text('Verified')),
+                    PopupMenuItem(value: 'closed', child: Text('Closed')),
+                  ],
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(color: statusBg, borderRadius: BorderRadius.circular(12)),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(width: 6, height: 6, decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle)),
+                        const SizedBox(width: 5),
+                        Text(statusText, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isDark && statusText.toLowerCase().contains('assigned') ? Colors.white : statusColor, fontFamily: 'Inter')),
+                        const SizedBox(width: 2),
+                        Icon(Icons.keyboard_arrow_down, size: 14, color: isDark ? Colors.white70 : statusColor),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -554,7 +565,8 @@ class _RaiseSnagSheetState extends State<_RaiseSnagSheet> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _categorySpecifyController = TextEditingController();
-  final AdminMembersController _membersController = AdminMembersController();
+  List<AdminMember> _projectMembers = const [];
+  bool _loadingProjectMembers = false;
 
   String _category = 'Other';
   String _severity = 'Low';
@@ -585,7 +597,34 @@ class _RaiseSnagSheetState extends State<_RaiseSnagSheet> {
   @override
   void initState() {
     super.initState();
-    _membersController.fetchMembers();
+    _fetchProjectMembers();
+  }
+
+  Future<void> _fetchProjectMembers() async {
+    setState(() => _loadingProjectMembers = true);
+    try {
+      final response = await ApiClient.get('${ApiEndpoints.baseUrl}/projects/${widget.controller.projectId}/teammates/');
+      final decoded = jsonDecode(response.body);
+      final data = decoded is Map ? decoded['data'] : null;
+      final teammates = data is Map && data['teammates'] is List ? data['teammates'] as List : const [];
+      if (!mounted) return;
+      setState(() {
+        _projectMembers = teammates.whereType<Map>().map((member) {
+          final map = member.cast<String, dynamic>();
+          return AdminMember.fromJson({
+            ...map,
+            'role': map['effective_role'] ?? '',
+            'role_display_name': map['effective_role'] ?? '',
+            'team_name': '-',
+            'created_at': '',
+          });
+        }).toList();
+      });
+    } catch (_) {
+      // Keep the picker limited to Unassigned until the project roster loads.
+    } finally {
+      if (mounted) setState(() => _loadingProjectMembers = false);
+    }
   }
 
   @override
@@ -830,10 +869,9 @@ class _RaiseSnagSheetState extends State<_RaiseSnagSheet> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               _buildFieldLabel("Assigned To", textColor),
-                              AnimatedBuilder(
-                                animation: _membersController,
-                                builder: (context, _) {
-                                  final members = _membersController.members;
+                              Builder(
+                                builder: (context) {
+                                  final members = _projectMembers;
                                   return DropdownButtonFormField<AdminMember?>(
                                     initialValue: _selectedMember,
                                     dropdownColor: bg,
@@ -844,7 +882,7 @@ class _RaiseSnagSheetState extends State<_RaiseSnagSheet> {
                                     ),
                                     style: TextStyle(color: textColor, fontSize: 13),
                                     isExpanded: true,
-                                    hint: Text("Unassigned", style: TextStyle(color: textSecondary, fontSize: 13)),
+                                    hint: Text(_loadingProjectMembers ? "Loading project members..." : "Unassigned", style: TextStyle(color: textSecondary, fontSize: 13)),
                                     items: [
                                       const DropdownMenuItem<AdminMember?>(
                                         value: null,

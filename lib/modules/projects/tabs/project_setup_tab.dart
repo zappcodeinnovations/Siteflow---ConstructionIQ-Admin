@@ -104,7 +104,7 @@ class _ProjectSetupTabState extends State<ProjectSetupTab> {
   @override
   Widget build(BuildContext context) {
     if (widget.projectSetup == null) {
-      return const Center(child: Text("Project Setup data not available"));
+      return const Center(child: Text("Project Admin data not available"));
     }
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -133,7 +133,7 @@ class _ProjectSetupTabState extends State<ProjectSetupTab> {
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Text(
-                "Project Setup",
+                "Project Admin",
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,

@@ -25,6 +25,14 @@ class JobSheet {
   final String reviewedBy;
   final String reviewed;
   final int resubmissionCount;
+  final String qaStatus;
+  final String qaStatusLabel;
+  final String qaNotes;
+  final String qaCheckedBy;
+  final String qaChecked;
+  final Map<String, dynamic> rawFields;
+  final Map<String, dynamic> payload;
+  final String material;
 
   JobSheet({
     required this.id,
@@ -53,6 +61,14 @@ class JobSheet {
     required this.reviewedBy,
     required this.reviewed,
     required this.resubmissionCount,
+    required this.qaStatus,
+    required this.qaStatusLabel,
+    required this.qaNotes,
+    required this.qaCheckedBy,
+    required this.qaChecked,
+    this.rawFields = const {},
+    this.payload = const {},
+    this.material = '',
   });
 
   // Reviewable from mobile (approve / reject / request rectification) only
@@ -89,6 +105,14 @@ class JobSheet {
       reviewedBy: json['reviewed_by']?.toString() ?? '',
       reviewed: json['reviewed']?.toString() ?? '',
       resubmissionCount: json['resubmission_count'] is int ? json['resubmission_count'] : 0,
+      qaStatus: json['qa_status']?.toString() ?? 'pending',
+      qaStatusLabel: json['qa_status_label']?.toString() ?? 'Pending',
+      qaNotes: json['qa_notes']?.toString() ?? '',
+      qaCheckedBy: json['qa_checked_by']?.toString() ?? '',
+      qaChecked: json['qa_checked']?.toString() ?? '',
+      rawFields: (json['raw_fields'] as Map?)?.cast<String, dynamic>() ?? const {},
+      payload: (json['payload'] as Map?)?.cast<String, dynamic>() ?? const {},
+      material: json['material']?.toString() ?? '',
     );
   }
 }

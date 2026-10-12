@@ -466,7 +466,7 @@ class _AddApprovalStageDialogState extends State<AddApprovalStageDialog> {
                     const SizedBox(height: 20),
                     Text.rich(
                       TextSpan(
-                        text: "Users That Can Sign ",
+                        text: "Members that can sign ",
                         style: TextStyle(color: labelColor, fontWeight: FontWeight.bold, fontSize: 13, fontFamily: 'Inter'),
                         children: const [TextSpan(text: "*", style: TextStyle(color: Colors.red))],
                       ),
@@ -482,7 +482,12 @@ class _AddApprovalStageDialogState extends State<AddApprovalStageDialog> {
                       child: StatefulBuilder(
                         builder: (context, setDialogState) {
                           if (users.isEmpty) {
-                            return const Center(child: Text("No users found.", style: TextStyle(color: Colors.grey)));
+                            return Center(
+                              child: Text(
+                                "No members found.",
+                                style: TextStyle(color: labelColor),
+                              ),
+                            );
                           }
                           return ListView.separated(
                             itemCount: users.length,
@@ -556,7 +561,13 @@ class _AddApprovalStageDialogState extends State<AddApprovalStageDialog> {
                   onPressed: _isSaving ? null : _saveStage,
                   child: _isSaving
                       ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : const Text("Save Stage", style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Inter')),
+                      : Text(
+                          widget.existingStage == null ? "Add Stage" : "Save Changes",
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'Inter',
+                          ),
+                        ),
                 ),
               ],
             )
