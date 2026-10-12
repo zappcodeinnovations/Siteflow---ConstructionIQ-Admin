@@ -237,7 +237,7 @@ class _ScheduleJobsDialogState extends State<ScheduleJobsDialog> {
               Text("Operatives (${_selectedOperativeIds.length} selected)", style: const TextStyle(fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               OutlinedButton.icon(
-                onPressed: _controller.isLoadingOperatives ? null : _showOperativesPicker,
+                onPressed: _controller.isLoadingSetup ? null : _showOperativesPicker,
                 icon: const Icon(IconlyLight.add_user, size: 18),
                 label: const Text("Choose Operatives"),
               ),

@@ -48,6 +48,10 @@ class _CreateTaskDialogState extends State<CreateTaskDialog> {
     setState(() {
       _selectedFormIds.clear();
       _selectedSiteContact = null;
+      // The previously selected operative may not be assigned to the
+      // newly chosen project at all.
+      _selectedOperativeId = null;
+      _selectedOperativeName = null;
     });
     _controller.fetchSetupForProject(newProjectId);
   }
@@ -401,7 +405,7 @@ class _CreateTaskDialogState extends State<CreateTaskDialog> {
                           // 5. Assign Operative *
                           _buildFieldLabel("Assign Operative", isRequired: true, textColor: textColor),
                           const SizedBox(height: 6),
-                          _controller.isLoadingOperatives
+                          _controller.isLoadingSetup
                               ? Container(
                                   height: 48,
                                   padding: const EdgeInsets.symmetric(horizontal: 14),

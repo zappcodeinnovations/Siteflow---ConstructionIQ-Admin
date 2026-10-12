@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../../../core/network/api_client.dart';
@@ -24,26 +25,128 @@ class _InviteMemberDialogState extends State<InviteMemberDialog> {
   final _mobileController = TextEditingController();
 
   int? _selectedTeamId;
+  // 'admin' / 'manager' / 'supervisor' / 'operative', or 'custom:<id>' for
+  // a custom role - parsed back into role='custom'+custom_role_id at
+  // submit time, mirroring the web's <option value="custom"
+  // data-custom-role-id="...">.
   String _selectedRole = 'admin';
 
   List<AdminTeam> _teams = [];
   bool _isLoadingTeams = false;
   bool _isSubmitting = false;
 
+  List<Map<String, dynamic>> _customRoles = [];
+  bool _isLoadingCustomRoles = false;
+
+  bool _emailManuallyEdited = false;
+  String _lastSuggestedEmail = '';
+
+  Timer? _employeeCodeDebounce;
+  bool _checkingEmployeeCode = false;
+  bool _employeeCodeTaken = false;
+
   @override
   void initState() {
     super.initState();
     _loadTeams();
+    _loadCustomRoles();
+    _firstNameController.addListener(_syncSuggestedEmail);
+    _lastNameController.addListener(_syncSuggestedEmail);
+    _emailController.addListener(_onEmailEdited);
+    _employeeCodeController.addListener(_onEmployeeCodeChanged);
   }
 
   @override
   void dispose() {
+    _employeeCodeDebounce?.cancel();
     _firstNameController.dispose();
     _lastNameController.dispose();
     _emailController.dispose();
     _employeeCodeController.dispose();
     _mobileController.dispose();
     super.dispose();
+  }
+
+  String _slugEmailPart(String value) {
+    final cleaned = value.trim().toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '.');
+    return cleaned.replaceAll(RegExp(r'^\.+|\.+$'), '');
+  }
+
+  String _buildSuggestedEmail() {
+    final first = _slugEmailPart(_firstNameController.text);
+    final last = _slugEmailPart(_lastNameController.text);
+    final local = [first, last].where((p) => p.isNotEmpty).join('.');
+    return local.isEmpty ? '' : '$local@euroside.co.uk';
+  }
+
+  void _syncSuggestedEmail() {
+    final suggested = _buildSuggestedEmail();
+    final current = _emailController.text.trim();
+    final shouldApply = suggested.isNotEmpty &&
+        (!_emailManuallyEdited || current.isEmpty || current == _lastSuggestedEmail);
+    _lastSuggestedEmail = suggested;
+    if (shouldApply) {
+      _emailController.text = suggested;
+      _emailManuallyEdited = false;
+    }
+  }
+
+  void _onEmailEdited() {
+    _emailManuallyEdited = _emailController.text.trim() != _lastSuggestedEmail;
+  }
+
+  void _onEmployeeCodeChanged() {
+    _employeeCodeDebounce?.cancel();
+    final code = _employeeCodeController.text.trim();
+    if (code.isEmpty) {
+      setState(() {
+        _checkingEmployeeCode = false;
+        _employeeCodeTaken = false;
+      });
+      return;
+    }
+    _employeeCodeDebounce = Timer(const Duration(milliseconds: 450), () => _checkEmployeeCode(code));
+  }
+
+  Future<void> _checkEmployeeCode(String code) async {
+    setState(() => _checkingEmployeeCode = true);
+    try {
+      final url = '${ApiEndpoints.baseUrl}/admin/members/employee-id-exists/'
+          '?employee_id=${Uri.encodeQueryComponent(code)}'
+          '&email=${Uri.encodeQueryComponent(_emailController.text.trim())}';
+      final response = await ApiClient.get(url);
+      if (!mounted) return;
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        setState(() => _employeeCodeTaken = decoded['exists'] == true);
+      }
+    } catch (e) {
+      debugPrint("Failed to check employee code: $e");
+    } finally {
+      if (mounted) setState(() => _checkingEmployeeCode = false);
+    }
+  }
+
+  Future<void> _loadCustomRoles() async {
+    setState(() => _isLoadingCustomRoles = true);
+    try {
+      final url = '${ApiEndpoints.baseUrl}/admin/members/filter-options/';
+      final response = await ApiClient.get(url);
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        final decodedData = (decoded is Map ? decoded['data'] : null) as Map?;
+        final list = decodedData?['roles'] as List?;
+        if (list != null && mounted) {
+          setState(() {
+            _customRoles = list.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint("Failed to load custom roles: $e");
+    } finally {
+      if (mounted) setState(() => _isLoadingCustomRoles = false);
+    }
   }
 
   Future<void> _loadTeams() async {
@@ -71,6 +174,15 @@ class _InviteMemberDialogState extends State<InviteMemberDialog> {
   }
 
   String _getRoleDescription(String role) {
+    if (role.startsWith('custom:')) {
+      final id = int.tryParse(role.substring('custom:'.length));
+      final match = _customRoles.firstWhere(
+        (r) => r['id'] == id,
+        orElse: () => const {},
+      );
+      final description = match['description']?.toString();
+      return description != null && description.isNotEmpty ? description : 'Custom role access, as configured by an admin.';
+    }
     switch (role.toLowerCase()) {
       case 'admin':
         return 'Full access to everything on all devices.';
@@ -85,13 +197,47 @@ class _InviteMemberDialogState extends State<InviteMemberDialog> {
     }
   }
 
+  List<DropdownMenuItem<String>> _buildRoleDropdownItems(bool isDark) {
+    final groupLabelStyle = TextStyle(
+      fontSize: 11,
+      fontWeight: FontWeight.bold,
+      letterSpacing: 0.4,
+      color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+    );
+    final itemStyle = TextStyle(fontSize: 14, color: isDark ? Colors.white : const Color(0xFF0F2C4A));
+
+    final items = <DropdownMenuItem<String>>[
+      DropdownMenuItem(value: '_group:system', enabled: false, child: Text("SYSTEM ROLES", style: groupLabelStyle)),
+      DropdownMenuItem(value: 'admin', child: Text("Admin", style: itemStyle)),
+      DropdownMenuItem(value: 'manager', child: Text("Manager", style: itemStyle)),
+      DropdownMenuItem(value: 'supervisor', child: Text("Supervisor", style: itemStyle)),
+      DropdownMenuItem(value: 'operative', child: Text("Operative", style: itemStyle)),
+    ];
+
+    if (_customRoles.isNotEmpty) {
+      items.add(DropdownMenuItem(value: '_group:custom', enabled: false, child: Text("CUSTOM ROLES", style: groupLabelStyle)));
+      for (final role in _customRoles) {
+        items.add(DropdownMenuItem(
+          value: 'custom:${role['id']}',
+          child: Text(role['name']?.toString() ?? 'Custom role', style: itemStyle),
+        ));
+      }
+    } else if (_isLoadingCustomRoles) {
+      items.add(DropdownMenuItem(value: '_group:loading', enabled: false, child: Text("Loading custom roles...", style: groupLabelStyle)));
+    }
+
+    return items;
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_employeeCodeTaken) return;
 
     setState(() {
       _isSubmitting = true;
     });
 
+    final isCustomRole = _selectedRole.startsWith('custom:');
     final payload = <String, dynamic>{
       "first_name": _firstNameController.text.trim(),
       "last_name": _lastNameController.text.trim(),
@@ -100,8 +246,11 @@ class _InviteMemberDialogState extends State<InviteMemberDialog> {
       "employee_id": _employeeCodeController.text.trim(),
       "mobile": _mobileController.text.trim(),
       "phone": _mobileController.text.trim(),
-      "role": _selectedRole,
+      "role": isCustomRole ? "custom" : _selectedRole,
     };
+    if (isCustomRole) {
+      payload["custom_role_id"] = int.tryParse(_selectedRole.substring('custom:'.length));
+    }
 
     if (_selectedTeamId != null) {
       payload["team_id"] = _selectedTeamId;
@@ -287,8 +436,22 @@ class _InviteMemberDialogState extends State<InviteMemberDialog> {
                 _buildFieldLabel("Employee Code", isRequired: true, isDark: isDark),
                 TextFormField(
                   controller: _employeeCodeController,
-                  decoration: _inputDecoration(hintText: "Employee Code", isDark: isDark),
-                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Employee Code is required' : null,
+                  decoration: _inputDecoration(hintText: "Employee Code", isDark: isDark).copyWith(
+                    errorText: _employeeCodeTaken ? 'Employee code already exists' : null,
+                    suffixIcon: _checkingEmployeeCode
+                        ? const Padding(
+                            padding: EdgeInsets.all(12),
+                            child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
+                          )
+                        : _employeeCodeTaken
+                            ? const Icon(Icons.error_outline, color: Color(0xFFEF4444), size: 20)
+                            : null,
+                  ),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return 'Employee Code is required';
+                    if (_employeeCodeTaken) return 'Employee code already exists';
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 14),
 
@@ -353,14 +516,9 @@ class _InviteMemberDialogState extends State<InviteMemberDialog> {
                     Icons.keyboard_arrow_down,
                     color: isDark ? Colors.white70 : const Color(0xFF64748B),
                   ),
-                  items: const [
-                    DropdownMenuItem(value: 'admin', child: Text("Admin")),
-                    DropdownMenuItem(value: 'manager', child: Text("Manager")),
-                    DropdownMenuItem(value: 'supervisor', child: Text("Supervisor")),
-                    DropdownMenuItem(value: 'operative', child: Text("Operative")),
-                  ],
+                  items: _buildRoleDropdownItems(isDark),
                   onChanged: (val) {
-                    if (val != null) {
+                    if (val != null && !val.startsWith('_group:')) {
                       setState(() => _selectedRole = val);
                     }
                   },

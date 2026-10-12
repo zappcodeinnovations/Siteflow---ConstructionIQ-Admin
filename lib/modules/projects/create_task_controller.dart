@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../core/network/api_client.dart';
 import '../../core/network/api_endpoints.dart';
-import '../../models/admin_member_model.dart';
 import '../../models/job_create_setup_model.dart';
 import '../../models/project_model.dart';
 
@@ -17,12 +16,20 @@ class OperativeOptionItem {
 class CreateTaskController extends ChangeNotifier {
   int? selectedProjectId;
   List<Project> projects = [];
-  List<OperativeOptionItem> operatives = [];
   JobCreateSetupModel? setup;
+
+  // Scoped to whichever project is currently selected (via setup.operatives)
+  // - empty until a project is chosen, exactly like the web's own "Start
+  // New Task Online" modal, which starts its operative <select> with no
+  // options and only populates it once a project is picked. Previously
+  // this pulled the entire org-wide /admin/members/?role=operative
+  // directory regardless of project.
+  List<OperativeOptionItem> get operatives => (setup?.operatives ?? [])
+      .map((o) => OperativeOptionItem(id: o.id, name: o.name, role: null))
+      .toList();
 
   bool isLoadingProjects = false;
   bool isLoadingSetup = false;
-  bool isLoadingOperatives = false;
   bool isSubmitting = false;
   String? setupError;
 
@@ -30,10 +37,7 @@ class CreateTaskController extends ChangeNotifier {
 
   Future<void> init(int? initialProjectId) async {
     selectedProjectId = initialProjectId;
-    await Future.wait([
-      fetchProjects(),
-      fetchOperatives(),
-    ]);
+    await fetchProjects();
     if (selectedProjectId != null) {
       await fetchSetupForProject(selectedProjectId!);
     } else if (projects.isNotEmpty) {
@@ -118,92 +122,6 @@ class CreateTaskController extends ChangeNotifier {
       }
     }
     return true;
-  }
-
-  Future<void> fetchOperatives() async {
-    isLoadingOperatives = true;
-    notifyListeners();
-    try {
-      final Map<String, OperativeOptionItem> map = {};
-
-      // 1. Fetch from /admin/members/?page_size=1000&role=operative
-      try {
-        final res = await ApiClient.get('${ApiEndpoints.baseUrl}/admin/members/?page_size=1000&role=operative');
-        final data = jsonDecode(res.body);
-        if (res.statusCode == 200 && (data['status'] == true || data is List || data.containsKey('data'))) {
-          final parsed = AdminMemberResponse.fromJson(data);
-          for (final m in parsed.data) {
-            final name = m.displayName.isNotEmpty
-                ? m.displayName
-                : '${m.firstName} ${m.lastName}'.trim();
-            final role = m.roleDisplayName.isNotEmpty ? m.roleDisplayName : m.role;
-            if (isEligibleOperativeMember(role: m.role, roleDisplayName: m.roleDisplayName, name: name)) {
-              map[m.id.toString()] = OperativeOptionItem(
-                id: m.id.toString(),
-                name: name,
-                role: role.isNotEmpty ? role : 'Operative',
-              );
-            }
-          }
-        }
-      } catch (e) {
-        debugPrint("Error fetching members with role=operative: $e");
-      }
-
-      // If map is still empty, fallback to fetching all members and filtering strictly by operative role
-      if (map.isEmpty) {
-        try {
-          final res = await ApiClient.get('${ApiEndpoints.baseUrl}/admin/members/?page_size=1000');
-          final data = jsonDecode(res.body);
-          if (res.statusCode == 200 && (data['status'] == true || data is List || data.containsKey('data'))) {
-            final parsed = AdminMemberResponse.fromJson(data);
-            for (final m in parsed.data) {
-              final name = m.displayName.isNotEmpty
-                  ? m.displayName
-                  : '${m.firstName} ${m.lastName}'.trim();
-              final role = m.roleDisplayName.isNotEmpty ? m.roleDisplayName : m.role;
-              if (isEligibleOperativeMember(role: m.role, roleDisplayName: m.roleDisplayName, name: name)) {
-                map[m.id.toString()] = OperativeOptionItem(
-                  id: m.id.toString(),
-                  name: name,
-                  role: role.isNotEmpty ? role : 'Operative',
-                );
-              }
-            }
-          }
-        } catch (e) {
-          debugPrint("Error fetching all members fallback: $e");
-        }
-      }
-
-      // 2. Fetch from /job-sheets/filter-options/
-      try {
-        final res = await ApiClient.get('${ApiEndpoints.baseUrl}/job-sheets/filter-options/');
-        final data = jsonDecode(res.body);
-        if (res.statusCode == 200 && data['data'] != null) {
-          final ops = data['data']['operatives'] as List?;
-          if (ops != null) {
-            for (final op in ops) {
-              final name = op.toString().trim();
-              if (isEligibleOperativeName(name) &&
-                  !map.values.any((item) => item.name.toLowerCase() == name.toLowerCase())) {
-                map[name] = OperativeOptionItem(id: name, name: name, role: 'Operative');
-              }
-            }
-          }
-        }
-      } catch (e) {
-        debugPrint("Error fetching job-sheet operatives: $e");
-      }
-
-      operatives = map.values.toList()
-        ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
-    } catch (e) {
-      debugPrint("Error loading operatives: $e");
-    } finally {
-      isLoadingOperatives = false;
-      notifyListeners();
-    }
   }
 
   Future<void> fetchSetupForProject(int projectId) async {
