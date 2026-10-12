@@ -124,85 +124,6 @@ class _TasksTabState extends State<TasksTab> {
     return widget.tasks;
   }
 
-  void _openFiltersBottomSheet() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: isDark ? AppTheme.darkSurface : Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) {
-        return Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    "Filter Tasks",
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : Colors.black87,
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      setState(() {
-                        _selectedStatus = 'Status: All';
-                      });
-                      Navigator.pop(ctx);
-                    },
-                    child: const Text("Reset All"),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Text(
-                "Status",
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: _statusDropdownOptions.map((opt) {
-                  final isSelected = _selectedStatus == opt;
-                  return ChoiceChip(
-                    label: Text(opt.startsWith('Status: ') ? opt.replaceFirst('Status: ', '') : opt),
-                    selected: isSelected,
-                    selectedColor: const Color(0xFF0D6EFD),
-                    labelStyle: TextStyle(
-                      color: isSelected ? Colors.white : (isDark ? Colors.white : Colors.black87),
-                      fontWeight: FontWeight.w600,
-                    ),
-                    onSelected: (selected) {
-                      if (selected) {
-                        setState(() {
-                          _selectedStatus = opt;
-                        });
-                        Navigator.pop(ctx);
-                      }
-                    },
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 24),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -270,24 +191,9 @@ class _TasksTabState extends State<TasksTab> {
                         ),
                       ),
                     ),
-                    SizedBox(
-                      height: 36,
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: isDark ? Colors.white10 : Colors.white,
-                          foregroundColor: isDark ? Colors.white : Colors.black87,
-                          elevation: 0,
-                          side: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20)),
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                        ),
-                        onPressed: _openFiltersBottomSheet,
-                        icon: Icon(IconlyLight.filter, size: 16, color: isDark ? Colors.white : Colors.black87),
-                        label: const Text("Filters",
-                            style: TextStyle(fontWeight: FontWeight.w600)),
-                      ),
-                    ),
+                    // A separate "Filters" button opened a sheet with only the
+                    // same status choices as this dropdown - removed as a
+                    // duplicate filter control (ClickUp 14yjutqfkug).
                   ],
                 ),
                 Text("Total: ${displayedTasks.length}",

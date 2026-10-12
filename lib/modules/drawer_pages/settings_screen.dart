@@ -5,6 +5,7 @@ import 'package:iconly/iconly.dart';
 import '../../core/network/api_client.dart';
 import '../../core/network/api_endpoints.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/date_helper.dart';
 import '../../core/widgets/background_stripes_painter.dart';
 import '../../models/admin_team_model.dart';
 import 'admin_team_controller.dart';
@@ -74,6 +75,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _showAddTeamDialog() async {
     final nameController = TextEditingController();
     final nicknameController = TextEditingController();
+    final shiftTimezoneController = TextEditingController();
     String? selectedLeadId;
     final Set<int> selectedProjectIds = {};
     TimeOfDay? shiftStart;
@@ -88,7 +90,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Add Team'),
+          title: Row(
+            children: [
+              const Expanded(child: Text('New Team')),
+              IconButton(
+                icon: const Icon(Icons.close),
+                tooltip: 'Close',
+                onPressed: () => Navigator.pop(dialogContext),
+              ),
+            ],
+          ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -178,6 +189,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     if (picked != null) setDialogState(() => shiftEnd = picked);
                   },
                 ),
+                const SizedBox(height: 8),
+                // Same field and help text as the web's New Team modal
+                // (ClickUp 14yjutqfmf6).
+                TextField(
+                  controller: shiftTimezoneController,
+                  decoration: const InputDecoration(
+                    labelText: 'Shift Timezone',
+                    hintText: 'e.g. Europe/Berlin',
+                    helperText: "IANA timezone the site's shift times above are in. Leave blank to use each operator's own clock-in timezone.",
+                    helperMaxLines: 3,
+                  ),
+                ),
               ],
             ),
           ),
@@ -187,6 +210,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: const Text('Cancel'),
             ),
             ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0D6EFD),
+                foregroundColor: Colors.white,
+              ),
               onPressed: () async {
                 final name = nameController.text.trim();
                 if (name.isEmpty) return;
@@ -198,6 +225,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   projectIds: selectedProjectIds.toList(),
                   shiftStartTime: formatTime(shiftStart),
                   shiftEndTime: formatTime(shiftEnd),
+                  shiftTimezone: shiftTimezoneController.text.trim(),
                 );
                 if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -207,7 +235,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 );
               },
-              child: const Text('Create'),
+              child: const Text('Add Team'),
             ),
           ],
         ),
@@ -542,8 +570,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required Color borderColor,
   }) {
     final name = team.displayName;
+    // Date and time in the viewer's timezone, like the web's
+    // "12 Oct 2026, 07:21 PM" (ClickUp 14yjutqfmfg).
     final createdAt = team.createdAt != null
-        ? '${team.createdAt!.day.toString().padLeft(2, '0')}/${team.createdAt!.month.toString().padLeft(2, '0')}/${team.createdAt!.year}'
+        ? DateHelper.formatToLocal(team.createdAt!.toUtc().toIso8601String())
         : 'Unknown date';
     final lead = team.leadName ?? 'No team lead assigned';
     final shift = (team.shiftStartTime != null && team.shiftEndTime != null)

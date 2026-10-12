@@ -103,6 +103,21 @@ class ProjectIssuesController extends ChangeNotifier {
     }
   }
 
+  Future<Map<String, dynamic>> updateIncidentStatus(int incidentId, String status) async {
+    try {
+      final url = ApiEndpoints.baseUrl + ApiEndpoints.projectIncidentDetail(projectId, incidentId);
+      final response = await ApiClient.patch(url, body: {'status': status});
+      final decoded = response.body.isNotEmpty ? jsonDecode(response.body) : {};
+      if (response.statusCode == 200 && decoded['status'] == true) {
+        await fetchIncidents();
+        return {'success': true, 'message': decoded['message'] ?? 'Status updated.'};
+      }
+      return {'success': false, 'message': decoded['message'] ?? 'Failed to update status.'};
+    } catch (e) {
+      return {'success': false, 'message': 'An error occurred: $e'};
+    }
+  }
+
   Future<void> fetchSnags() async {
     isLoadingSnags = true;
     snagsError = null;

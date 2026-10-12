@@ -4,11 +4,24 @@ import '../approval_stages_screen.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../models/approval_request_model.dart';
 import '../project_approvals_controller.dart';
+import '../../../models/site_structure_models.dart';
 import 'site_manager_tab.dart';
 
 class ApprovalsTab extends StatefulWidget {
   final int projectId;
-  const ApprovalsTab({Key? key, required this.projectId}) : super(key: key);
+  // The project's real block/level structure and drawings - the site filter
+  // and the Site Manager screen used to have neither (hard-coded mock blocks,
+  // and a Site Manager with no project, so "Select level" was always empty).
+  final List<dynamic>? rawBlocks;
+  final List<dynamic>? drawings;
+  final VoidCallback? onChanged;
+  const ApprovalsTab({
+    Key? key,
+    required this.projectId,
+    this.rawBlocks,
+    this.drawings,
+    this.onChanged,
+  }) : super(key: key);
 
   @override
   State<ApprovalsTab> createState() => _ApprovalsTabState();
@@ -48,7 +61,12 @@ class _ApprovalsTabState extends State<ApprovalsTab> {
           appBar: AppBar(
             title: const Text("Site Manager"),
           ),
-          body: const SiteManagerTab(),
+          body: SiteManagerTab(
+            projectId: widget.projectId,
+            rawBlocks: widget.rawBlocks,
+            drawings: widget.drawings,
+            onChanged: widget.onChanged,
+          ),
         ),
       ),
     );
@@ -171,9 +189,8 @@ class _ApprovalsTabState extends State<ApprovalsTab> {
                 ),
                 items: [
                   'Site: All Blocks, All Levels',
-                  'Site: Block A',
-                  'Site: Block B',
-                  'Site: Main Building',
+                  for (final block in SiteBlockModel.listFromRaw(widget.rawBlocks))
+                    for (final level in block.levels) 'Site: ${block.name} / ${level.name}',
                 ].map((site) {
                   return DropdownMenuItem(
                     value: site,
@@ -482,23 +499,27 @@ class _ApprovalsTabState extends State<ApprovalsTab> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "Forms",
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold,
-                        color: textColor,
+                // Expanded so the long caption wraps instead of pushing the
+                // "Enable All Forms" switch off-screen (ClickUp 14yjutqfkuz).
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Forms",
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                          color: textColor,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      "Approvals are enabled on $enabledCount of ${forms.length} forms.",
-                      style: TextStyle(fontSize: 12, color: textSecondary),
-                    ),
-                  ],
+                      const SizedBox(height: 2),
+                      Text(
+                        "Approvals are enabled on $enabledCount of ${forms.length} forms.",
+                        style: TextStyle(fontSize: 12, color: textSecondary),
+                      ),
+                    ],
+                  ),
                 ),
                 Row(
                   mainAxisSize: MainAxisSize.min,

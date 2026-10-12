@@ -216,19 +216,9 @@ class _ProjectSetupTabState extends State<ProjectSetupTab> {
                             dropdowns['available_priorities'] ?? [],
                           ),
                         ]),
-                        const SizedBox(height: 16),
-                        _buildResponsiveRow(context, [
-                          _buildTextField(
-                            context,
-                            "Progress (%)",
-                            metadata['progress']?.toString() ?? '0',
-                          ),
-                          _buildTextField(
-                            context,
-                            "Budget",
-                            metadata['budget']?.toString() ?? '',
-                          ),
-                        ]),
+                        // "Progress (%)" and "Budget" removed - not part of
+                        // the web's Project Admin form (ClickUp 14yjutqfmek);
+                        // progress is computed from task completion.
                         const SizedBox(height: 16),
                         _buildTextField(
                           context,

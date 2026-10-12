@@ -32,6 +32,28 @@ class _DrawingPinViewerScreenState extends State<DrawingPinViewerScreen> {
   List<Map<String, dynamic>> _matchingDrawings = [];
   int _selectedDrawingIndex = 0;
 
+  // Width/height of each drawing image, so the pin layer can be sized to the
+  // image itself. Pins/taps used to be positioned against the whole canvas
+  // while the image was letterboxed (BoxFit.contain), so pins drifted off the
+  // drawing and ended up under the legend bar (ClickUp 14yjutqfm2b).
+  final Map<String, double> _aspectRatios = {};
+
+  void _resolveAspectRatio(String url) {
+    if (_aspectRatios.containsKey(url)) return;
+    _aspectRatios[url] = 0; // in flight
+    final stream = NetworkImage(url).resolve(const ImageConfiguration());
+    late final ImageStreamListener listener;
+    listener = ImageStreamListener(
+      (info, _) {
+        final ratio = info.image.width / info.image.height;
+        stream.removeListener(listener);
+        if (mounted && ratio.isFinite && ratio > 0) setState(() => _aspectRatios[url] = ratio);
+      },
+      onError: (_, __) => stream.removeListener(listener),
+    );
+    stream.addListener(listener);
+  }
+
   static const Map<String, Color> _statusColors = {
     'assigned': Color(0xFF0D6EFD),
     'in_progress': Color(0xFFF59E0B),
@@ -425,12 +447,24 @@ class _DrawingPinViewerScreenState extends State<DrawingPinViewerScreen> {
       return const Center(child: Text("Drawing file URL is not available."));
     }
 
+    _resolveAspectRatio(fileUrl);
+    final aspectRatio = _aspectRatios[fileUrl] ?? 0;
+    if (aspectRatio <= 0) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
     return InteractiveViewer(
       minScale: 0.2,
       maxScale: 6.0,
       boundaryMargin: const EdgeInsets.all(40),
       child: Center(
-        child: LayoutBuilder(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          // The pin layer is exactly the image's box, so a pin's 0..1
+          // coordinates map onto the drawing, never onto letterbox space.
+          child: AspectRatio(
+            aspectRatio: aspectRatio,
+            child: LayoutBuilder(
           builder: (context, constraints) {
             return GestureDetector(
               onTapUp: (details) {
@@ -440,10 +474,13 @@ class _DrawingPinViewerScreenState extends State<DrawingPinViewerScreen> {
               },
               child: Stack(
                 alignment: Alignment.center,
+                clipBehavior: Clip.none,
                 children: [
                   Image.network(
                     fileUrl,
-                    fit: BoxFit.contain,
+                    width: constraints.maxWidth,
+                    height: constraints.maxHeight,
+                    fit: BoxFit.fill,
                     loadingBuilder: (context, child, progress) {
                       if (progress == null) return child;
                       return SizedBox(
@@ -521,6 +558,8 @@ class _DrawingPinViewerScreenState extends State<DrawingPinViewerScreen> {
               ),
             );
           },
+            ),
+          ),
         ),
       ),
     );

@@ -52,6 +52,7 @@ class AdminTeamController extends ChangeNotifier {
     List<int>? projectIds,
     String? shiftStartTime,
     String? shiftEndTime,
+    String? shiftTimezone,
   }) async {
     _isSaving = true;
     notifyListeners();
@@ -59,6 +60,7 @@ class AdminTeamController extends ChangeNotifier {
     try {
       final url = '${ApiEndpoints.baseUrl}/admin/teams/';
       final response = await ApiClient.post(url, body: {
+        if (shiftTimezone != null && shiftTimezone.isNotEmpty) "shift_timezone": shiftTimezone,
         "name": name,
         if (nickname != null && nickname.isNotEmpty) "nickname": nickname,
         if (leadId != null && leadId.isNotEmpty) "lead_id": leadId,

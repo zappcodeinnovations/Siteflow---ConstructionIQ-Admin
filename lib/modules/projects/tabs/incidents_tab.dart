@@ -252,10 +252,41 @@ class _IncidentsTabState extends State<IncidentsTab> {
                 child: Text(incident.severityLabel, style: TextStyle(color: severityColor, fontWeight: FontWeight.bold, fontSize: 11)),
               ),
               const SizedBox(width: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(color: statusColor.withOpacity(0.12), borderRadius: BorderRadius.circular(6)),
-                child: Text(incident.statusLabel, style: TextStyle(color: statusColor, fontWeight: FontWeight.bold, fontSize: 11)),
+              // Tappable status pill - changes Open / Investigating / Closed
+              // like the web's status selector (ClickUp 14yjutqfmef).
+              PopupMenuButton<String>(
+                tooltip: "Change status",
+                onSelected: (value) async {
+                  final result = await _controller.updateIncidentStatus(incident.id, value);
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text(result['message'].toString()),
+                    backgroundColor: result['success'] == true ? Colors.green : Colors.red,
+                  ));
+                },
+                itemBuilder: (_) => (_controller.incidentStatusChoices.isNotEmpty
+                        ? _controller.incidentStatusChoices
+                        : const [
+                            {'value': 'open', 'label': 'Open'},
+                            {'value': 'investigating', 'label': 'Investigating'},
+                            {'value': 'closed', 'label': 'Closed'},
+                          ])
+                    .map((choice) => PopupMenuItem<String>(
+                          value: choice['value'].toString(),
+                          child: Text(choice['label'].toString()),
+                        ))
+                    .toList(),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(color: statusColor.withOpacity(0.12), borderRadius: BorderRadius.circular(6)),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(incident.statusLabel, style: TextStyle(color: statusColor, fontWeight: FontWeight.bold, fontSize: 11)),
+                      Icon(Icons.arrow_drop_down, size: 16, color: statusColor),
+                    ],
+                  ),
+                ),
               ),
             ],
           ),

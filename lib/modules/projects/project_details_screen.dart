@@ -143,7 +143,16 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
           jobSheets: _allInOneData?.jobSheets ?? [],
           filterOptions: _allInOneData?.jobSheetsFilterOptions ?? {},
         ),
-      if (_canViewApprovals) ApprovalsTab(projectId: widget.project.id),
+      if (_canViewApprovals)
+        ApprovalsTab(
+          projectId: widget.project.id,
+          rawBlocks:
+              _allInOneData
+                      ?.projectSetup?['dropdown_options']?['available_blocks']
+                  as List?,
+          drawings: _allInOneData?.drawings,
+          onChanged: _fetchData,
+        ),
       HseTab(projectId: widget.project.id),
       IncidentsTab(projectId: widget.project.id),
       SnagsTab(projectId: widget.project.id),

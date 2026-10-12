@@ -481,10 +481,11 @@ class _DrawingsTabState extends State<DrawingsTab> {
               );
             } else if (snapshot.hasError || snapshot.data == null || snapshot.data!.isEmpty) {
               content = Padding(
-                padding: const EdgeInsets.symmetric(vertical: 32.0),
+                padding: const EdgeInsets.symmetric(vertical: 12.0),
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(IconlyLight.delete, size: 48, color: textSecondary),
+                    Icon(IconlyLight.delete, size: 36, color: textSecondary),
                     const SizedBox(height: 12),
                     Text("Recycle Bin is Empty", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: textColor)),
                     const SizedBox(height: 4),
@@ -550,15 +551,27 @@ class _DrawingsTabState extends State<DrawingsTab> {
 
             return AlertDialog(
               backgroundColor: bg,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              surfaceTintColor: Colors.transparent,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: borderColor),
+              ),
+              insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+              titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+              contentPadding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
+              actionsPadding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
               title: Row(
                 children: [
                   const Icon(IconlyLight.delete, size: 20, color: Color(0xFF0D6EFD)),
                   const SizedBox(width: 8),
-                  Text("Drawings Recycle Bin", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: textColor)),
+                  Expanded(
+                    child: Text("Drawings Recycle Bin", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: textColor)),
+                  ),
                 ],
               ),
-              content: content,
+              // Fixed width so the empty state doesn't stretch the dialog and
+              // the list/actions line up (ClickUp 14yjutqfm2e).
+              content: SizedBox(width: 420, child: content),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(dialogCtx),
@@ -570,6 +583,79 @@ class _DrawingsTabState extends State<DrawingsTab> {
         );
       },
     );
+  }
+
+  Widget _buildDrawingRow(Map<String, dynamic> drawing, Color textColor, Color textSecondary) {
+    final name = (drawing['name'] ?? drawing['file_name'] ?? 'Drawing #${drawing['id']}').toString();
+    final url = _resolveUrl((drawing['file_url'] ?? drawing['file_path'] ?? drawing['file'] ?? drawing['url'])?.toString());
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Row(
+        children: [
+          Icon(IconlyLight.paper, size: 16, color: textSecondary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: textColor)),
+          ),
+          IconButton(
+            tooltip: "View File",
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(IconlyLight.show, size: 18, color: Color(0xFF0D6EFD)),
+            onPressed: url.isEmpty
+                ? null
+                : () => launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
+          ),
+          IconButton(
+            tooltip: "Delete",
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(IconlyLight.delete, size: 18, color: Colors.redAccent),
+            onPressed: drawing['id'] == null ? null : () => _confirmDeleteDrawing(drawing['id'], name),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmDeleteDrawing(dynamic drawingId, String name) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Delete Drawing"),
+        content: Text('Move "$name" to the Recycle Bin?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Cancel")),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text("Delete", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || widget.projectId == null) return;
+    try {
+      // Soft delete (moves to the Recycle Bin), same as the web.
+      final url = '${ApiEndpoints.baseUrl}${ApiEndpoints.projectAllInOneDetails(widget.projectId!)}'
+          '?module=drawings&drawing_id=$drawingId';
+      final response = await ApiClient.delete(url);
+      if (!mounted) return;
+      final ok = response.statusCode == 200;
+      if (ok) {
+        widget.onChanged?.call();
+        _fetchLiveDrawings();
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(ok ? "Drawing moved to Recycle Bin." : "Failed to delete drawing."),
+          backgroundColor: ok ? Colors.green : Colors.redAccent,
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Delete failed: $e"), backgroundColor: Colors.redAccent),
+        );
+      }
+    }
   }
 
   Future<List<Map<String, dynamic>>> _fetchRecycledDrawings() async {
@@ -1246,6 +1332,14 @@ class _DrawingsTabState extends State<DrawingsTab> {
                             ),
                           ],
                         ),
+                        // Every drawing on this level with its own View and
+                        // Delete (web parity) - "View File" above only ever
+                        // opened the first one (ClickUp 14yjutqfm2p).
+                        if (hasDrawings) ...[
+                          const SizedBox(height: 10),
+                          for (final drawing in matchingDrawings)
+                            _buildDrawingRow(drawing, textColor, textSecondary),
+                        ],
                       ],
                     ),
                   );

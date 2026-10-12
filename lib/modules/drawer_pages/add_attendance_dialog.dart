@@ -26,6 +26,12 @@ class _AddAttendanceDialogState extends State<AddAttendanceDialog> {
   List<Map<String, dynamic>> _projectTaskSheets = [];
   bool _isLoadingTasks = false;
 
+  // Flat job list from /timesheets/entry-options/ (each tagged with its
+  // operator_id/project_id, a "JOB-no - reference" label and form names) -
+  // the same data the web's Add Attendance modal cascades from.
+  List<Map<String, dynamic>> _entryJobs = [];
+  bool _entryJobsLoaded = false;
+
   DateTime? _clockIn;
   DateTime? _clockOut;
 
@@ -42,6 +48,87 @@ class _AddAttendanceDialogState extends State<AddAttendanceDialog> {
     _clockOut = now.hour >= 8
         ? DateTime(now.year, now.month, now.day, now.hour, now.minute)
         : DateTime(now.year, now.month, now.day, 16, 3);
+    _loadEntryJobs();
+  }
+
+  Future<void> _loadEntryJobs() async {
+    setState(() => _isLoadingTasks = true);
+    try {
+      final res = await ApiClient.get('${ApiEndpoints.baseUrl}/timesheets/entry-options/');
+      final decoded = jsonDecode(res.body);
+      if (res.statusCode == 200 && decoded is Map && decoded['status'] == true) {
+        final jobs = (decoded['data']?['jobs'] as List? ?? const [])
+            .whereType<Map>()
+            .map((j) => j.cast<String, dynamic>())
+            .toList();
+        if (mounted) {
+          setState(() {
+            _entryJobs = jobs;
+            _entryJobsLoaded = true;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint("Error fetching attendance entry options: $e");
+    } finally {
+      if (mounted) setState(() => _isLoadingTasks = false);
+    }
+  }
+
+  /// Projects the selected operative has tasks on (operative -> project
+  /// cascade, as on the web). Falls back to every project only if the entry
+  /// options could not be loaded at all.
+  List<Map<String, dynamic>> _projectsForSelectedOperator(List allProjects) {
+    if (_selectedOperatorId == null) return const [];
+    if (!_entryJobsLoaded) {
+      return allProjects.whereType<Map>().map((p) => p.cast<String, dynamic>()).toList();
+    }
+    final seen = <String>{};
+    final projects = <Map<String, dynamic>>[];
+    for (final job in _entryJobs) {
+      if (job['operator_id']?.toString() != _selectedOperatorId) continue;
+      final id = job['project_id']?.toString();
+      if (id == null || !seen.add(id)) continue;
+      projects.add({'id': id, 'name': (job['project_name'] ?? 'Project').toString()});
+    }
+    projects.sort((a, b) => a['name'].toString().toLowerCase().compareTo(b['name'].toString().toLowerCase()));
+    return projects;
+  }
+
+  void _selectProject(String projectId) {
+    final tasks = _entryJobs
+        .where((job) =>
+            job['operator_id']?.toString() == _selectedOperatorId &&
+            job['project_id']?.toString() == projectId)
+        .map((job) => <String, dynamic>{
+              'id': job['id'].toString(),
+              'name': (job['label'] ?? 'Task').toString(),
+              'form_names': job['form_names'] ?? const [],
+            })
+        .toList();
+    setState(() {
+      _selectedProjectId = projectId;
+      _selectedJobId = null;
+      _selectedTaskSheets.clear();
+      _projectTasks = tasks;
+      _projectTaskSheets = [];
+    });
+  }
+
+  void _selectJob(String? jobId) {
+    final job = _projectTasks.firstWhere((t) => t['id'] == jobId, orElse: () => const {});
+    // The backend submits the task's own sheets (job.selected_forms) - show
+    // exactly those, pre-selected, instead of a generic/mock form list.
+    final sheets = ((job['form_names'] as List?) ?? const [])
+        .map((name) => <String, dynamic>{'id': name.toString(), 'name': name.toString()})
+        .toList();
+    setState(() {
+      _selectedJobId = jobId;
+      _projectTaskSheets = sheets;
+      _selectedTaskSheets
+        ..clear()
+        ..addAll(sheets.map((s) => s['id'].toString()));
+    });
   }
 
   @override
@@ -97,15 +184,6 @@ class _AddAttendanceDialogState extends State<AddAttendanceDialog> {
             }
           }
         }
-        if (allSheets.isEmpty) {
-          allSheets.addAll([
-            {'id': 'drilling', 'name': 'Drilling Form'},
-            {'id': 'daily_diary', 'name': 'Daily Diary'},
-            {'id': 'fire_stopping', 'name': 'Fire Stopping Form'},
-            {'id': 'general_works', 'name': 'General Works Form'},
-          ]);
-        }
-
         if (mounted) {
           setState(() {
             _projectTasks = tasksList
@@ -317,8 +395,9 @@ class _AddAttendanceDialogState extends State<AddAttendanceDialog> {
       if (_selectedTaskSheets.isNotEmpty) "task_sheets": _selectedTaskSheets,
       "clock_in": _clockIn!.toIso8601String().split('.').first,
       "clock_out": _clockOut!.toIso8601String().split('.').first,
-      "location_latitude": "51.5074", // Default Dublin/London
-      "location_longitude": "-0.1278",
+      // No location sent: the backend falls back to the project's own
+      // location (as the web does). A hardcoded London coordinate used to be
+      // sent here, recording every manual entry at the wrong place.
       "notes": _notesController.text,
       "signature_text": _signatureController.text,
     };
@@ -385,7 +464,7 @@ class _AddAttendanceDialogState extends State<AddAttendanceDialog> {
   Widget build(BuildContext context) {
     final options = widget.controller.data?.filterOptions ?? {};
     final operators = (options['operators'] as List?) ?? [];
-    final projects = (options['projects'] as List?) ?? [];
+    final projects = _projectsForSelectedOperator((options['projects'] as List?) ?? []);
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isDark ? AppTheme.darkSurface : Colors.white;
@@ -489,8 +568,10 @@ class _AddAttendanceDialogState extends State<AddAttendanceDialog> {
                             value: _selectedProjectId,
                             hintText: _selectedOperatorId == null
                                 ? "Select operative first"
-                                : "Select option",
-                            isEnabled: _selectedOperatorId != null,
+                                : projects.isEmpty
+                                    ? "No assigned projects"
+                                    : "Select option",
+                            isEnabled: _selectedOperatorId != null && projects.isNotEmpty,
                             items: projects.map((p) {
                               return DropdownMenuItem(
                                 value: p['id'].toString(),
@@ -503,10 +584,11 @@ class _AddAttendanceDialogState extends State<AddAttendanceDialog> {
                               );
                             }).toList(),
                             onChanged: (val) {
-                              setState(() {
-                                _selectedProjectId = val;
-                              });
-                              if (val != null) {
+                              if (val == null) return;
+                              if (_entryJobsLoaded) {
+                                _selectProject(val);
+                              } else {
+                                setState(() => _selectedProjectId = val);
                                 _fetchProjectTasksAndSheets(val);
                               }
                             },
@@ -531,10 +613,14 @@ class _AddAttendanceDialogState extends State<AddAttendanceDialog> {
                           !_isLoadingTasks &&
                           _projectTasks.isNotEmpty,
                       items: _projectTasks.map((t) {
+                        final displayNo = (t['task_display_no'] ?? t['job_display_no'] ?? t['task_no'])?.toString();
+                        final reference = t['reference']?.toString();
                         final taskName = (t['name'] ??
+                                t['label'] ??
+                                (displayNo != null
+                                    ? [displayNo, if (reference != null && reference.isNotEmpty) reference].join(' - ')
+                                    : null) ??
                                 t['title'] ??
-                                t['task_name'] ??
-                                t['job_name'] ??
                                 'Task')
                             .toString();
                         final taskNum = t['task_number'] != null
@@ -550,7 +636,7 @@ class _AddAttendanceDialogState extends State<AddAttendanceDialog> {
                           ),
                         );
                       }).toList(),
-                      onChanged: (val) => setState(() => _selectedJobId = val),
+                      onChanged: _selectJob,
                     ),
                     const SizedBox(height: 16),
 

@@ -76,19 +76,24 @@ class ApiClient {
         await AuthService.clearTokens();
         if (navigatorKey.currentState != null) {
           final context = navigatorKey.currentState!.context;
-          const String userFriendlyErrorMsg = 'Your session has expired. Please log in again to continue.';
-
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                userFriendlyErrorMsg,
-                style: TextStyle(fontWeight: FontWeight.w500),
+          // Only tell the user their session expired if they actually had
+          // one. A fresh install / logged-out start also gets a 401 from the
+          // first API call, and showing "session expired" on the login
+          // screen there looked like a raw backend error.
+          final hadSession = refreshToken != null && refreshToken.isNotEmpty;
+          if (hadSession) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Your session has ended. Please sign in again.',
+                  style: TextStyle(fontWeight: FontWeight.w500),
+                ),
+                backgroundColor: Color(0xFF0D6EFD),
+                behavior: SnackBarBehavior.floating,
+                duration: Duration(seconds: 4),
               ),
-              backgroundColor: Colors.redAccent,
-              behavior: SnackBarBehavior.floating,
-              duration: Duration(seconds: 4),
-            ),
-          );
+            );
+          }
 
           navigatorKey.currentState!.pushNamedAndRemoveUntil('/login', (route) => false);
         }

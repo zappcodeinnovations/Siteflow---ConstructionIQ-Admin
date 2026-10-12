@@ -753,3 +753,7 @@ the legacy per-account "Force UK time" flag that the web ignores; a few
 naive timestamps in the all-in-one payload) - fixed in Euroside_Project,
 see its context.md. Shipped in `8f7e261` (committed/pushed by Prem with
 other work). `flutter analyze` clean on the file (one pre-existing hint).
+
+## 2026-10-12 — Session-expired popup on a fresh start
+
+`lib/core/network/api_client.dart`: the 401 handler showed "Your session has expired" even when no session existed (fresh install / logged-out start: first API call 401s with no stored token). Now shown only if a refresh token was stored; reworded to "Your session has ended. Please sign in again." (blue, not red). Also this session: per-drawing View/Delete + recycle bin dialog + pin viewer aspect ratio, Approvals real blocks/Site Manager project, Tasks tab duplicate Filters removed, Add Attendance entry-options. Release APK built and installed on Pixel 11 Pro (uncommitted).
