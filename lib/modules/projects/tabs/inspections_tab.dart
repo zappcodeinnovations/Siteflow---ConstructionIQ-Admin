@@ -887,8 +887,8 @@ class _NewInspectionDialogState extends State<_NewInspectionDialog> {
                 },
               ),
               const SizedBox(height: 14),
-              LayoutBuilder(
-                builder: (context, constraints) {
+              Builder(
+                builder: (context) {
                   final pinField = DropdownButtonFormField<int>(
                     initialValue: _selectedDrawingPinId ?? 0,
                     isExpanded: true,
@@ -966,7 +966,11 @@ class _NewInspectionDialogState extends State<_NewInspectionDialog> {
                     ),
                   );
 
-                  if (constraints.maxWidth >= 480) {
+                  // AlertDialog uses intrinsic sizing. A LayoutBuilder inside
+                  // it cannot provide intrinsic dimensions and can leave the
+                  // dialog's RenderPhysicalShape without a size. Use the
+                  // viewport width for the responsive breakpoint instead.
+                  if (MediaQuery.sizeOf(context).width >= 700) {
                     return Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
