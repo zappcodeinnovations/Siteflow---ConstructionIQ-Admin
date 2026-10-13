@@ -139,6 +139,13 @@ class DownloadManager extends ChangeNotifier {
           'Download failed with status ${response.statusCode}.',
         );
       }
+      if (mimeType == 'application/pdf' &&
+          (response.bodyBytes.length < 4 ||
+              String.fromCharCodes(response.bodyBytes.take(4)) != '%PDF')) {
+        throw const HttpException(
+          'The server did not return a valid PDF file.',
+        );
+      }
       _update(pending.id, progress: .8);
       return await _saveBytes(pending, response.bodyBytes);
     } catch (error) {

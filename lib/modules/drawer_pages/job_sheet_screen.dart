@@ -42,8 +42,9 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
 
   Future<void> _downloadJobSheetPdf(JobSheet sheet) async {
     try {
+      final reportMode = widget.dailyReportsMode ? '&daily_reports=true' : '';
       final urlStr =
-          '${ApiEndpoints.baseUrl}/job-sheets/?ids=${sheet.id}&export=pdf';
+          '${ApiEndpoints.baseUrl}/job-sheets/?ids=${sheet.id}&export=pdf$reportMode';
       final fileName =
           'job_sheet_${sheet.sheetNo.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_')}.pdf';
       final saved = await DownloadManager.instance.downloadUrl(
@@ -101,8 +102,9 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
 
     try {
       final ids = _controller.jobSheets.map((e) => e.id).join(',');
+      final reportMode = widget.dailyReportsMode ? '&daily_reports=true' : '';
       final urlStr =
-          '${ApiEndpoints.baseUrl}/job-sheets/?ids=$ids&export=excel';
+          '${ApiEndpoints.baseUrl}/job-sheets/?ids=$ids&export=excel$reportMode';
       await DownloadManager.instance.downloadUrl(
         url: urlStr,
         fileName: 'job_sheets_report.xlsx',
@@ -139,6 +141,9 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
       }
       queryParams.add('ids=$ids');
       queryParams.add('export=pdf');
+      if (widget.dailyReportsMode) {
+        queryParams.add('daily_reports=true');
+      }
 
       final urlStr =
           '${ApiEndpoints.baseUrl}/job-sheets/?${queryParams.join('&')}';

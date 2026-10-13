@@ -166,6 +166,14 @@ class _JobSheetDetailsScreenState extends State<JobSheetDetailsScreen> {
     if (normalized == 'materials_used' || normalized == 'materials') {
       return _materialsDisplay();
     }
+    if (normalized == 'labour_hours') {
+      final decimalHours = num.tryParse(value?.toString() ?? '');
+      if (decimalHours != null) {
+        final totalMinutes = (decimalHours * 60).round();
+        return '${totalMinutes ~/ 60}h ${totalMinutes % 60}m '
+            '(${decimalHours.toStringAsFixed(2)} h)';
+      }
+    }
     if (value is String &&
         (normalized.contains('started_at') ||
             normalized.contains('finished_at'))) {
