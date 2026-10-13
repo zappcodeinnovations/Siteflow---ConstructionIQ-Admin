@@ -119,10 +119,16 @@ Page resource error:
           width: 100% !important;
           max-width: 100% !important;
           min-width: 0 !important;
+          height: auto !important;
+          min-height: 100% !important;
           margin: 0 !important;
-          padding: 0 !important;
+          padding: 0 0 calc(180px + env(safe-area-inset-bottom, 0px)) !important;
           background-color: #f8fafc !important;
           -webkit-text-size-adjust: 100% !important;
+          /* Some raw templates set body/page overflow:hidden or a fixed
+             height. Restore document-level vertical scrolling so the assets
+             appended after the Daywork sheet remain reachable. */
+          overflow-y: auto !important;
         }
         #euroside-preview-form,
         #euroside-form-zoom-content,
@@ -135,6 +141,9 @@ Page resource error:
           width: 100% !important;
           max-width: 100% !important;
           min-width: 0 !important;
+          height: auto !important;
+          max-height: none !important;
+          overflow: visible !important;
           margin-left: auto !important;
           margin-right: auto !important;
           transform: none !important;
