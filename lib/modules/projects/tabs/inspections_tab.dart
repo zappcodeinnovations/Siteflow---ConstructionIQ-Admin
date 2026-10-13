@@ -13,7 +13,9 @@ class InspectionsTab extends StatefulWidget {
 }
 
 class _InspectionsTabState extends State<InspectionsTab> {
-  late final ProjectIssuesController _controller = ProjectIssuesController(widget.projectId);
+  late final ProjectIssuesController _controller = ProjectIssuesController(
+    widget.projectId,
+  );
 
   @override
   void initState() {
@@ -37,14 +39,19 @@ class _InspectionsTabState extends State<InspectionsTab> {
   void _showCompleteDialog(InspectionModel inspection) {
     showDialog(
       context: context,
-      builder: (_) => _CompleteInspectionDialog(controller: _controller, inspection: inspection),
+      builder: (_) => _CompleteInspectionDialog(
+        controller: _controller,
+        inspection: inspection,
+      ),
     );
   }
 
   void _confirmDeleteInspection(InspectionModel inspection) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final displayName = inspection.referenceNo.isNotEmpty
-        ? (inspection.title.isNotEmpty ? "${inspection.referenceNo} — ${inspection.title}" : inspection.referenceNo)
+        ? (inspection.title.isNotEmpty
+              ? "${inspection.referenceNo} — ${inspection.title}"
+              : inspection.referenceNo)
         : (inspection.title.isNotEmpty ? inspection.title : "this inspection");
 
     showDialog(
@@ -52,7 +59,9 @@ class _InspectionsTabState extends State<InspectionsTab> {
       builder: (ctx) {
         return AlertDialog(
           backgroundColor: isDark ? AppTheme.darkSurface : Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           title: Text(
             "Delete Inspection",
             style: TextStyle(
@@ -74,14 +83,18 @@ class _InspectionsTabState extends State<InspectionsTab> {
               onPressed: () => Navigator.pop(ctx),
               child: Text(
                 "Cancel",
-                style: TextStyle(color: isDark ? Colors.white60 : Colors.grey.shade600),
+                style: TextStyle(
+                  color: isDark ? Colors.white60 : Colors.grey.shade600,
+                ),
               ),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFDC2626),
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
                 elevation: 0,
               ),
               onPressed: () async {
@@ -91,13 +104,18 @@ class _InspectionsTabState extends State<InspectionsTab> {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(res['message']?.toString() ?? ''),
-                      backgroundColor: res['success'] == true ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+                      backgroundColor: res['success'] == true
+                          ? const Color(0xFF16A34A)
+                          : const Color(0xFFDC2626),
                       behavior: SnackBarBehavior.floating,
                     ),
                   );
                 }
               },
-              child: const Text("Delete", style: TextStyle(fontWeight: FontWeight.bold)),
+              child: const Text(
+                "Delete",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
             ),
           ],
         );
@@ -190,7 +208,9 @@ class _InspectionsTabState extends State<InspectionsTab> {
                       title,
                       style: TextStyle(
                         fontSize: 12,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                        fontWeight: isSelected
+                            ? FontWeight.bold
+                            : FontWeight.w600,
                         color: isSelected
                             ? (isDark ? Colors.white : accentColor)
                             : textSecondary,
@@ -232,9 +252,15 @@ class _InspectionsTabState extends State<InspectionsTab> {
       animation: _controller,
       builder: (context, _) {
         final totalCount = _controller.inspections.length;
-        final pendingCount = _controller.inspections.where((i) => i.status.toLowerCase() == 'pending').length;
-        final passedCount = _controller.inspections.where((i) => i.status.toLowerCase() == 'passed').length;
-        final failedCount = _controller.inspections.where((i) => i.status.toLowerCase() == 'failed').length;
+        final pendingCount = _controller.inspections
+            .where((i) => i.status.toLowerCase() == 'pending')
+            .length;
+        final passedCount = _controller.inspections
+            .where((i) => i.status.toLowerCase() == 'passed')
+            .length;
+        final failedCount = _controller.inspections
+            .where((i) => i.status.toLowerCase() == 'failed')
+            .length;
         final displayedInspections = _getFilteredInspections();
 
         return RefreshIndicator(
@@ -253,15 +279,23 @@ class _InspectionsTabState extends State<InspectionsTab> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF0D6EFD),
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 18,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                         elevation: 0,
                       ),
                       onPressed: _showNewInspectionDialog,
                       icon: const Icon(Icons.add, size: 18),
                       label: const Text(
                         "New Inspection",
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
                       ),
                     ),
                   ],
@@ -269,7 +303,8 @@ class _InspectionsTabState extends State<InspectionsTab> {
                 const SizedBox(height: 16),
 
                 // Metrics Summary Row (Responsive, Single-Line, Uncut text)
-                if (!_controller.isLoadingInspections && _controller.inspections.isNotEmpty) ...[
+                if (!_controller.isLoadingInspections &&
+                    _controller.inspections.isNotEmpty) ...[
                   Row(
                     children: [
                       Expanded(
@@ -282,7 +317,8 @@ class _InspectionsTabState extends State<InspectionsTab> {
                           textSecondary: textSecondary,
                           accentColor: const Color(0xFF0D6EFD),
                           isSelected: _selectedStatusFilter == 'All',
-                          onTap: () => setState(() => _selectedStatusFilter = 'All'),
+                          onTap: () =>
+                              setState(() => _selectedStatusFilter = 'All'),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -296,7 +332,12 @@ class _InspectionsTabState extends State<InspectionsTab> {
                           textSecondary: textSecondary,
                           accentColor: const Color(0xFFF59E0B),
                           isSelected: _selectedStatusFilter == 'Pending',
-                          onTap: () => setState(() => _selectedStatusFilter = _selectedStatusFilter == 'Pending' ? 'All' : 'Pending'),
+                          onTap: () => setState(
+                            () => _selectedStatusFilter =
+                                _selectedStatusFilter == 'Pending'
+                                ? 'All'
+                                : 'Pending',
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -310,7 +351,12 @@ class _InspectionsTabState extends State<InspectionsTab> {
                           textSecondary: textSecondary,
                           accentColor: const Color(0xFF16A34A),
                           isSelected: _selectedStatusFilter == 'Passed',
-                          onTap: () => setState(() => _selectedStatusFilter = _selectedStatusFilter == 'Passed' ? 'All' : 'Passed'),
+                          onTap: () => setState(
+                            () => _selectedStatusFilter =
+                                _selectedStatusFilter == 'Passed'
+                                ? 'All'
+                                : 'Passed',
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -324,7 +370,12 @@ class _InspectionsTabState extends State<InspectionsTab> {
                           textSecondary: textSecondary,
                           accentColor: const Color(0xFFDC2626),
                           isSelected: _selectedStatusFilter == 'Failed',
-                          onTap: () => setState(() => _selectedStatusFilter = _selectedStatusFilter == 'Failed' ? 'All' : 'Failed'),
+                          onTap: () => setState(
+                            () => _selectedStatusFilter =
+                                _selectedStatusFilter == 'Failed'
+                                ? 'All'
+                                : 'Failed',
+                          ),
                         ),
                       ),
                     ],
@@ -343,17 +394,28 @@ class _InspectionsTabState extends State<InspectionsTab> {
                     padding: const EdgeInsets.symmetric(vertical: 24),
                     child: Column(
                       children: [
-                        Text(_controller.inspectionsError!, style: TextStyle(color: textSecondary)),
+                        Text(
+                          _controller.inspectionsError!,
+                          style: TextStyle(color: textSecondary),
+                        ),
                         const SizedBox(height: 8),
-                        TextButton(onPressed: _controller.fetchInspections, child: const Text("Retry")),
+                        TextButton(
+                          onPressed: _controller.fetchInspections,
+                          child: const Text("Retry"),
+                        ),
                       ],
                     ),
                   )
                 else if (_controller.inspections.isEmpty)
                   Container(
-                    padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 48,
+                      horizontal: 24,
+                    ),
                     decoration: BoxDecoration(
-                      color: isDark ? AppTheme.darkSurface : Colors.grey.shade50,
+                      color: isDark
+                          ? AppTheme.darkSurface
+                          : Colors.grey.shade50,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: borderColor),
                     ),
@@ -361,7 +423,11 @@ class _InspectionsTabState extends State<InspectionsTab> {
                       children: [
                         Text(
                           "No inspections logged yet.",
-                          style: TextStyle(fontWeight: FontWeight.bold, color: textColor, fontSize: 16),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: textColor,
+                            fontSize: 16,
+                          ),
                         ),
                         const SizedBox(height: 8),
                         Text(
@@ -374,9 +440,14 @@ class _InspectionsTabState extends State<InspectionsTab> {
                   )
                 else if (displayedInspections.isEmpty)
                   Container(
-                    padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 24),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 36,
+                      horizontal: 24,
+                    ),
                     decoration: BoxDecoration(
-                      color: isDark ? AppTheme.darkSurface : Colors.grey.shade50,
+                      color: isDark
+                          ? AppTheme.darkSurface
+                          : Colors.grey.shade50,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: borderColor),
                     ),
@@ -384,11 +455,16 @@ class _InspectionsTabState extends State<InspectionsTab> {
                       children: [
                         Text(
                           "No $_selectedStatusFilter inspections found.",
-                          style: TextStyle(fontWeight: FontWeight.bold, color: textColor, fontSize: 15),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: textColor,
+                            fontSize: 15,
+                          ),
                         ),
                         const SizedBox(height: 8),
                         TextButton(
-                          onPressed: () => setState(() => _selectedStatusFilter = 'All'),
+                          onPressed: () =>
+                              setState(() => _selectedStatusFilter = 'All'),
                           child: const Text("Show all inspections"),
                         ),
                       ],
@@ -396,7 +472,13 @@ class _InspectionsTabState extends State<InspectionsTab> {
                   )
                 else
                   ...displayedInspections.map(
-                    (inspection) => _buildInspectionCard(inspection, cardColor, borderColor, textColor, textSecondary),
+                    (inspection) => _buildInspectionCard(
+                      inspection,
+                      cardColor,
+                      borderColor,
+                      textColor,
+                      textSecondary,
+                    ),
                   ),
               ],
             ),
@@ -414,7 +496,11 @@ class _InspectionsTabState extends State<InspectionsTab> {
     Color textSecondary,
   ) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final statusColor = _statusColor(inspection.statusLabel.isNotEmpty ? inspection.statusLabel : inspection.status);
+    final statusColor = _statusColor(
+      inspection.statusLabel.isNotEmpty
+          ? inspection.statusLabel
+          : inspection.status,
+    );
     final isPending = inspection.status.toLowerCase() == 'pending';
 
     // Format title matching web admin format: "QA-00002 — testing project"
@@ -461,14 +547,21 @@ class _InspectionsTabState extends State<InspectionsTab> {
               ),
               const SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: statusColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: statusColor.withValues(alpha: 0.25)),
+                  border: Border.all(
+                    color: statusColor.withValues(alpha: 0.25),
+                  ),
                 ),
                 child: Text(
-                  inspection.statusLabel.isNotEmpty ? inspection.statusLabel : inspection.status,
+                  inspection.statusLabel.isNotEmpty
+                      ? inspection.statusLabel
+                      : inspection.status,
                   style: TextStyle(
                     color: statusColor,
                     fontWeight: FontWeight.bold,
@@ -494,7 +587,11 @@ class _InspectionsTabState extends State<InspectionsTab> {
                     const SizedBox(width: 4),
                     Text(
                       inspection.drawingLocationReference,
-                      style: TextStyle(fontSize: 12, color: textSecondary, fontWeight: FontWeight.w500),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: textSecondary,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ],
                 ),
@@ -506,7 +603,11 @@ class _InspectionsTabState extends State<InspectionsTab> {
                     const SizedBox(width: 4),
                     Text(
                       inspection.inspectorName,
-                      style: TextStyle(fontSize: 12, color: textSecondary, fontWeight: FontWeight.w500),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: textSecondary,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ],
                 ),
@@ -515,14 +616,20 @@ class _InspectionsTabState extends State<InspectionsTab> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      inspection.status.toLowerCase() == 'passed' ? IconlyLight.tick_square : IconlyLight.time_circle,
+                      inspection.status.toLowerCase() == 'passed'
+                          ? IconlyLight.tick_square
+                          : IconlyLight.time_circle,
                       size: 14,
                       color: textSecondary,
                     ),
                     const SizedBox(width: 4),
                     Text(
                       timeString,
-                      style: TextStyle(fontSize: 12, color: textSecondary, fontWeight: FontWeight.w500),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: textSecondary,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ],
                 ),
@@ -541,20 +648,23 @@ class _InspectionsTabState extends State<InspectionsTab> {
                       item.passed == true
                           ? Icons.check_circle
                           : item.passed == false
-                              ? Icons.cancel
-                              : Icons.radio_button_unchecked,
+                          ? Icons.cancel
+                          : Icons.radio_button_unchecked,
                       size: 15,
                       color: item.passed == true
                           ? const Color(0xFF16A34A)
                           : item.passed == false
-                              ? const Color(0xFFDC2626)
-                              : textSecondary,
+                          ? const Color(0xFFDC2626)
+                          : textSecondary,
                     ),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
                         item.label,
-                        style: TextStyle(fontSize: 13, color: isDark ? Colors.white70 : Colors.black87),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: isDark ? Colors.white70 : Colors.black87,
+                        ),
                       ),
                     ),
                   ],
@@ -567,12 +677,19 @@ class _InspectionsTabState extends State<InspectionsTab> {
             const SizedBox(height: 8),
             Text(
               "Notes: ${inspection.notes}",
-              style: TextStyle(fontSize: 12, color: textSecondary, fontStyle: FontStyle.italic),
+              style: TextStyle(
+                fontSize: 12,
+                color: textSecondary,
+                fontStyle: FontStyle.italic,
+              ),
             ),
           ],
 
           const SizedBox(height: 12),
-          Divider(height: 1, color: isDark ? Colors.white12 : Colors.grey.shade200),
+          Divider(
+            height: 1,
+            color: isDark ? Colors.white12 : Colors.grey.shade200,
+          ),
           const SizedBox(height: 10),
 
           // Card Action Buttons (Delete & Complete)
@@ -584,11 +701,18 @@ class _InspectionsTabState extends State<InspectionsTab> {
                 borderRadius: BorderRadius.circular(6),
                 onTap: () => _confirmDeleteInspection(inspection),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 6,
+                  ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.delete_outline, size: 16, color: Color(0xFFDC2626)),
+                      const Icon(
+                        Icons.delete_outline,
+                        size: 16,
+                        color: Color(0xFFDC2626),
+                      ),
                       const SizedBox(width: 4),
                       const Text(
                         "Delete",
@@ -608,12 +732,20 @@ class _InspectionsTabState extends State<InspectionsTab> {
                   style: OutlinedButton.styleFrom(
                     foregroundColor: const Color(0xFF0D6EFD),
                     side: const BorderSide(color: Color(0xFF0D6EFD)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
                   ),
                   onPressed: () => _showCompleteDialog(inspection),
                   icon: const Icon(Icons.check, size: 16),
-                  label: const Text("Complete Inspection", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                  label: const Text(
+                    "Complete Inspection",
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                  ),
                 ),
             ],
           ),
@@ -636,7 +768,23 @@ class _NewInspectionDialogState extends State<_NewInspectionDialog> {
   final _titleController = TextEditingController();
   final _notesController = TextEditingController();
   final _checklistController = TextEditingController();
+  int? _selectedDrawingPinId;
+  int? _selectedInspectorId;
+  DateTime? _scheduledDate;
   bool _isSubmitting = false;
+
+  String _formatDate(DateTime value) =>
+      '${value.year.toString().padLeft(4, '0')}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}';
+
+  Future<void> _pickScheduledDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _scheduledDate ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now().add(const Duration(days: 3650)),
+    );
+    if (picked != null && mounted) setState(() => _scheduledDate = picked);
+  }
 
   @override
   void dispose() {
@@ -658,6 +806,11 @@ class _NewInspectionDialogState extends State<_NewInspectionDialog> {
     setState(() => _isSubmitting = true);
     final result = await widget.controller.logInspection({
       'title': _titleController.text.trim(),
+      'drawing_location_id': _selectedDrawingPinId,
+      'inspector_id': _selectedInspectorId,
+      'scheduled_date': _scheduledDate == null
+          ? null
+          : _formatDate(_scheduledDate!),
       'notes': _notesController.text.trim(),
       'checklist_items': checklistItems,
     });
@@ -671,7 +824,9 @@ class _NewInspectionDialogState extends State<_NewInspectionDialog> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(result['message']?.toString() ?? ''),
-        backgroundColor: result['success'] == true ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+        backgroundColor: result['success'] == true
+            ? const Color(0xFF16A34A)
+            : const Color(0xFFDC2626),
       ),
     );
   }
@@ -683,15 +838,30 @@ class _NewInspectionDialogState extends State<_NewInspectionDialog> {
     return AlertDialog(
       backgroundColor: isDark ? AppTheme.darkSurface : Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: Text(
-        "New Inspection",
-        style: TextStyle(
-          color: isDark ? Colors.white : const Color(0xFF0F2C4A),
-          fontWeight: FontWeight.bold,
-          fontSize: 18,
-        ),
+      scrollable: true,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      constraints: const BoxConstraints(maxWidth: 620),
+      title: Row(
+        children: [
+          Expanded(
+            child: Text(
+              "New Inspection",
+              style: TextStyle(
+                color: isDark ? Colors.white : const Color(0xFF0F2C4A),
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+              ),
+            ),
+          ),
+          IconButton(
+            tooltip: "Close",
+            onPressed: _isSubmitting ? null : () => Navigator.pop(context),
+            icon: const Icon(Icons.close),
+          ),
+        ],
       ),
-      content: SingleChildScrollView(
+      content: SizedBox(
+        width: double.maxFinite,
         child: Form(
           key: _formKey,
           child: Column(
@@ -703,7 +873,9 @@ class _NewInspectionDialogState extends State<_NewInspectionDialog> {
                 decoration: InputDecoration(
                   labelText: "Title *",
                   hintText: "Inspection title",
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   filled: true,
                   fillColor: isDark ? Colors.white10 : Colors.grey.shade50,
                 ),
@@ -715,6 +887,138 @@ class _NewInspectionDialogState extends State<_NewInspectionDialog> {
                 },
               ),
               const SizedBox(height: 14),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final pinField = DropdownButtonFormField<int>(
+                    initialValue: _selectedDrawingPinId ?? 0,
+                    isExpanded: true,
+                    decoration: InputDecoration(
+                      labelText: "Linked Drawing Pin (optional)",
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      filled: true,
+                      fillColor: isDark ? Colors.white10 : Colors.grey.shade50,
+                    ),
+                    items: [
+                      const DropdownMenuItem(
+                        value: 0,
+                        child: Text("Not linked to a pin"),
+                      ),
+                      ...widget.controller.inspectionDrawingPins.map((pin) {
+                        final id = pin['id'] is int
+                            ? pin['id'] as int
+                            : int.tryParse('${pin['id']}') ?? -1;
+                        final reference = pin['reference_no']?.toString() ?? '';
+                        final title = pin['title']?.toString() ?? '';
+                        final label = [
+                          reference,
+                          title,
+                        ].where((part) => part.isNotEmpty).join(' — ');
+                        return DropdownMenuItem(
+                          value: id,
+                          child: Text(
+                            label.isEmpty ? 'Pin #$id' : label,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        );
+                      }),
+                    ],
+                    onChanged: (value) => setState(
+                      () => _selectedDrawingPinId = value == 0 ? null : value,
+                    ),
+                  );
+                  final inspectorField = DropdownButtonFormField<int>(
+                    initialValue: _selectedInspectorId ?? 0,
+                    isExpanded: true,
+                    decoration: InputDecoration(
+                      labelText: "Inspector (optional)",
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      filled: true,
+                      fillColor: isDark ? Colors.white10 : Colors.grey.shade50,
+                    ),
+                    items: [
+                      const DropdownMenuItem(
+                        value: 0,
+                        child: Text("Unassigned"),
+                      ),
+                      ...widget.controller.inspectionInspectors.map((
+                        inspector,
+                      ) {
+                        final id = inspector['id'] is int
+                            ? inspector['id'] as int
+                            : int.tryParse('${inspector['id']}') ?? -1;
+                        final name = inspector['name']?.toString() ?? '';
+                        final email = inspector['email']?.toString() ?? '';
+                        return DropdownMenuItem(
+                          value: id,
+                          child: Text(
+                            name.isNotEmpty ? name : email,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        );
+                      }),
+                    ],
+                    onChanged: (value) => setState(
+                      () => _selectedInspectorId = value == 0 ? null : value,
+                    ),
+                  );
+
+                  if (constraints.maxWidth >= 480) {
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(child: pinField),
+                        const SizedBox(width: 12),
+                        Expanded(child: inspectorField),
+                      ],
+                    );
+                  }
+                  return Column(
+                    children: [
+                      pinField,
+                      const SizedBox(height: 14),
+                      inspectorField,
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(height: 14),
+              InkWell(
+                borderRadius: BorderRadius.circular(8),
+                onTap: _pickScheduledDate,
+                child: InputDecorator(
+                  decoration: InputDecoration(
+                    labelText: "Scheduled Date",
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    filled: true,
+                    fillColor: isDark ? Colors.white10 : Colors.grey.shade50,
+                    suffixIcon: _scheduledDate == null
+                        ? const Icon(Icons.calendar_today_outlined)
+                        : IconButton(
+                            tooltip: "Clear date",
+                            onPressed: () =>
+                                setState(() => _scheduledDate = null),
+                            icon: const Icon(Icons.close),
+                          ),
+                  ),
+                  child: Text(
+                    _scheduledDate == null
+                        ? "dd-mm-yyyy"
+                        : _formatDate(_scheduledDate!),
+                    style: TextStyle(
+                      color: _scheduledDate == null
+                          ? (isDark ? Colors.white54 : Colors.grey.shade600)
+                          : (isDark ? Colors.white : Colors.black87),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
               TextFormField(
                 controller: _checklistController,
                 maxLines: 4,
@@ -722,7 +1026,9 @@ class _NewInspectionDialogState extends State<_NewInspectionDialog> {
                   labelText: "Checklist items (one per line)",
                   hintText: "Enter checklist items\nEach on a new line",
                   alignLabelWithHint: true,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   filled: true,
                   fillColor: isDark ? Colors.white10 : Colors.grey.shade50,
                 ),
@@ -735,7 +1041,9 @@ class _NewInspectionDialogState extends State<_NewInspectionDialog> {
                   labelText: "Notes",
                   hintText: "Optional notes",
                   alignLabelWithHint: true,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   filled: true,
                   fillColor: isDark ? Colors.white10 : Colors.grey.shade50,
                 ),
@@ -749,7 +1057,9 @@ class _NewInspectionDialogState extends State<_NewInspectionDialog> {
           onPressed: _isSubmitting ? null : () => Navigator.pop(context),
           child: Text(
             "Cancel",
-            style: TextStyle(color: isDark ? Colors.white60 : Colors.grey.shade600),
+            style: TextStyle(
+              color: isDark ? Colors.white60 : Colors.grey.shade600,
+            ),
           ),
         ),
         ElevatedButton(
@@ -757,13 +1067,25 @@ class _NewInspectionDialogState extends State<_NewInspectionDialog> {
             backgroundColor: const Color(0xFF0D6EFD),
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
             elevation: 0,
           ),
           onPressed: _isSubmitting ? null : _submit,
           child: _isSubmitting
-              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-              : const Text("Create Inspection", style: TextStyle(fontWeight: FontWeight.bold)),
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : const Text(
+                  "Create Inspection",
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
         ),
       ],
     );
@@ -773,15 +1095,20 @@ class _NewInspectionDialogState extends State<_NewInspectionDialog> {
 class _CompleteInspectionDialog extends StatefulWidget {
   final ProjectIssuesController controller;
   final InspectionModel inspection;
-  const _CompleteInspectionDialog({required this.controller, required this.inspection});
+  const _CompleteInspectionDialog({
+    required this.controller,
+    required this.inspection,
+  });
 
   @override
-  State<_CompleteInspectionDialog> createState() => _CompleteInspectionDialogState();
+  State<_CompleteInspectionDialog> createState() =>
+      _CompleteInspectionDialogState();
 }
 
 class _CompleteInspectionDialogState extends State<_CompleteInspectionDialog> {
   late final Map<String, bool> _passedByLabel = {
-    for (final item in widget.inspection.checklistItems) item.label: item.passed ?? false,
+    for (final item in widget.inspection.checklistItems)
+      item.label: item.passed ?? false,
   };
   String _overallResult = 'passed';
   final _notesController = TextEditingController();
@@ -795,12 +1122,17 @@ class _CompleteInspectionDialogState extends State<_CompleteInspectionDialog> {
 
   Future<void> _submit() async {
     setState(() => _isSubmitting = true);
-    final passedLabels = _passedByLabel.entries.where((e) => e.value).map((e) => e.key).toList();
-    final result = await widget.controller.completeInspection(widget.inspection.id, {
-      'overall_result': _overallResult,
-      'passed_labels': passedLabels,
-      if (_notesController.text.trim().isNotEmpty) 'notes': _notesController.text.trim(),
-    });
+    final passedLabels = _passedByLabel.entries
+        .where((e) => e.value)
+        .map((e) => e.key)
+        .toList();
+    final result = await widget.controller
+        .completeInspection(widget.inspection.id, {
+          'overall_result': _overallResult,
+          'passed_labels': passedLabels,
+          if (_notesController.text.trim().isNotEmpty)
+            'notes': _notesController.text.trim(),
+        });
     if (!mounted) return;
     setState(() => _isSubmitting = false);
     if (result['success'] == true) {
@@ -809,7 +1141,9 @@ class _CompleteInspectionDialogState extends State<_CompleteInspectionDialog> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(result['message']?.toString() ?? ''),
-        backgroundColor: result['success'] == true ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+        backgroundColor: result['success'] == true
+            ? const Color(0xFF16A34A)
+            : const Color(0xFFDC2626),
       ),
     );
   }
@@ -835,12 +1169,16 @@ class _CompleteInspectionDialogState extends State<_CompleteInspectionDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (widget.inspection.checklistItems.isNotEmpty) ...[
-              const Text("Checklist", style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text(
+                "Checklist",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
               ...widget.inspection.checklistItems.map(
                 (item) => CheckboxListTile(
                   contentPadding: EdgeInsets.zero,
                   value: _passedByLabel[item.label] ?? false,
-                  onChanged: (val) => setState(() => _passedByLabel[item.label] = val ?? false),
+                  onChanged: (val) =>
+                      setState(() => _passedByLabel[item.label] = val ?? false),
                   title: Text(item.label),
                   controlAffinity: ListTileControlAffinity.leading,
                   dense: true,
@@ -848,7 +1186,10 @@ class _CompleteInspectionDialogState extends State<_CompleteInspectionDialog> {
               ),
               const SizedBox(height: 8),
             ],
-            const Text("Overall Result", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+            const Text(
+              "Overall Result",
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            ),
             const SizedBox(height: 8),
             Row(
               children: [
@@ -866,7 +1207,9 @@ class _CompleteInspectionDialogState extends State<_CompleteInspectionDialog> {
                         border: Border.all(
                           color: _overallResult == 'passed'
                               ? const Color(0xFF16A34A)
-                              : (isDark ? Colors.white24 : Colors.grey.shade300),
+                              : (isDark
+                                    ? Colors.white24
+                                    : Colors.grey.shade300),
                           width: _overallResult == 'passed' ? 2 : 1,
                         ),
                       ),
@@ -876,14 +1219,18 @@ class _CompleteInspectionDialogState extends State<_CompleteInspectionDialog> {
                           Icon(
                             Icons.check_circle,
                             size: 18,
-                            color: _overallResult == 'passed' ? const Color(0xFF16A34A) : Colors.grey,
+                            color: _overallResult == 'passed'
+                                ? const Color(0xFF16A34A)
+                                : Colors.grey,
                           ),
                           const SizedBox(width: 6),
                           Text(
                             "Passed",
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              color: _overallResult == 'passed' ? const Color(0xFF16A34A) : (isDark ? Colors.white70 : Colors.black87),
+                              color: _overallResult == 'passed'
+                                  ? const Color(0xFF16A34A)
+                                  : (isDark ? Colors.white70 : Colors.black87),
                             ),
                           ),
                         ],
@@ -906,7 +1253,9 @@ class _CompleteInspectionDialogState extends State<_CompleteInspectionDialog> {
                         border: Border.all(
                           color: _overallResult == 'failed'
                               ? const Color(0xFFDC2626)
-                              : (isDark ? Colors.white24 : Colors.grey.shade300),
+                              : (isDark
+                                    ? Colors.white24
+                                    : Colors.grey.shade300),
                           width: _overallResult == 'failed' ? 2 : 1,
                         ),
                       ),
@@ -916,14 +1265,18 @@ class _CompleteInspectionDialogState extends State<_CompleteInspectionDialog> {
                           Icon(
                             Icons.cancel,
                             size: 18,
-                            color: _overallResult == 'failed' ? const Color(0xFFDC2626) : Colors.grey,
+                            color: _overallResult == 'failed'
+                                ? const Color(0xFFDC2626)
+                                : Colors.grey,
                           ),
                           const SizedBox(width: 6),
                           Text(
                             "Failed",
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              color: _overallResult == 'failed' ? const Color(0xFFDC2626) : (isDark ? Colors.white70 : Colors.black87),
+                              color: _overallResult == 'failed'
+                                  ? const Color(0xFFDC2626)
+                                  : (isDark ? Colors.white70 : Colors.black87),
                             ),
                           ),
                         ],
@@ -939,7 +1292,9 @@ class _CompleteInspectionDialogState extends State<_CompleteInspectionDialog> {
               maxLines: 2,
               decoration: InputDecoration(
                 labelText: "Notes",
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
                 filled: true,
                 fillColor: isDark ? Colors.white10 : Colors.grey.shade50,
               ),
@@ -950,20 +1305,37 @@ class _CompleteInspectionDialogState extends State<_CompleteInspectionDialog> {
       actions: [
         TextButton(
           onPressed: _isSubmitting ? null : () => Navigator.pop(context),
-          child: Text("Cancel", style: TextStyle(color: isDark ? Colors.white60 : Colors.grey.shade600)),
+          child: Text(
+            "Cancel",
+            style: TextStyle(
+              color: isDark ? Colors.white60 : Colors.grey.shade600,
+            ),
+          ),
         ),
         ElevatedButton(
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF0D6EFD),
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
             elevation: 0,
           ),
           onPressed: _isSubmitting ? null : _submit,
           child: _isSubmitting
-              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-              : const Text("Submit", style: TextStyle(fontWeight: FontWeight.bold)),
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : const Text(
+                  "Submit",
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
         ),
       ],
     );

@@ -37,12 +37,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _fetchTeamLeadChoices() async {
     try {
-      final response = await ApiClient.get('${ApiEndpoints.baseUrl}/admin/members/?page_size=1000');
+      final response = await ApiClient.get(
+        '${ApiEndpoints.baseUrl}/admin/members/?page_size=1000',
+      );
       final decoded = jsonDecode(response.body);
-      final list = (decoded is Map ? (decoded['data'] ?? decoded['results']) : decoded) as List?;
+      final list =
+          (decoded is Map ? (decoded['data'] ?? decoded['results']) : decoded)
+              as List?;
       if (list != null && mounted) {
         setState(() {
-          _teamLeadChoices = list.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
+          _teamLeadChoices = list
+              .whereType<Map>()
+              .map((e) => e.cast<String, dynamic>())
+              .toList();
         });
       }
     } catch (_) {}
@@ -50,12 +57,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _fetchProjectChoices() async {
     try {
-      final response = await ApiClient.get('${ApiEndpoints.baseUrl}${ApiEndpoints.projects}');
+      final response = await ApiClient.get(
+        '${ApiEndpoints.baseUrl}${ApiEndpoints.projects}',
+      );
       final decoded = jsonDecode(response.body);
       final list = (decoded is Map ? decoded['data'] : null) as List?;
       if (list != null && mounted) {
         setState(() {
-          _projectChoices = list.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
+          _projectChoices = list
+              .whereType<Map>()
+              .map((e) => e.cast<String, dynamic>())
+              .toList();
         });
       }
     } catch (_) {}
@@ -86,10 +98,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
       return '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
     }
 
-    await showDialog(
+    final payload = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
+        builder: (dialogStateContext, setDialogState) => AlertDialog(
+          scrollable: true,
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 24,
+          ),
+          constraints: const BoxConstraints(maxWidth: 560),
           title: Row(
             children: [
               const Expanded(child: Text('New Team')),
@@ -100,7 +118,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ],
           ),
-          content: SingleChildScrollView(
+          content: SizedBox(
+            width: double.maxFinite,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -112,29 +131,58 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const SizedBox(height: 16),
                 TextField(
                   controller: nicknameController,
-                  decoration: const InputDecoration(labelText: 'Team nickname (optional)'),
+                  decoration: const InputDecoration(
+                    labelText: 'Team nickname (optional)',
+                  ),
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  initialValue: selectedLeadId,
-                  decoration: const InputDecoration(labelText: 'Team lead (optional)'),
+                  initialValue: selectedLeadId ?? '',
+                  decoration: const InputDecoration(
+                    labelText: 'Team lead (optional)',
+                  ),
                   isExpanded: true,
                   items: [
-                    const DropdownMenuItem(value: null, child: Text('Select member')),
+                    const DropdownMenuItem(
+                      value: '',
+                      child: Text('Select member'),
+                    ),
                     ..._teamLeadChoices.map((m) {
-                      final name = (m['display_name'] ?? m['name'] ?? m['email'] ?? 'Unknown').toString();
-                      final role = (m['role_display'] ?? m['role'] ?? '').toString();
+                      final name =
+                          (m['display_name'] ??
+                                  m['name'] ??
+                                  m['email'] ??
+                                  'Unknown')
+                              .toString();
+                      final role = (m['role_display'] ?? m['role'] ?? '')
+                          .toString();
                       return DropdownMenuItem(
                         value: m['id'].toString(),
-                        child: Text(role.isNotEmpty ? '$name ($role)' : name, overflow: TextOverflow.ellipsis),
+                        child: Text(
+                          role.isNotEmpty ? '$name ($role)' : name,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       );
                     }),
                   ],
-                  onChanged: (val) => setDialogState(() => selectedLeadId = val),
+                  onChanged: (val) => setDialogState(
+                    () => selectedLeadId = (val == null || val.isEmpty)
+                        ? null
+                        : val,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 if (_projectChoices.isNotEmpty) ...[
-                  const Align(alignment: Alignment.centerLeft, child: Text('Associated project(s)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Associated project(s)',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 4),
                   SizedBox(
                     height: 160,
@@ -142,7 +190,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       child: ListView(
                         shrinkWrap: true,
                         children: _projectChoices.map((p) {
-                          final id = p['id'] is int ? p['id'] as int : int.tryParse(p['id'].toString()) ?? -1;
+                          final id = p['id'] is int
+                              ? p['id'] as int
+                              : int.tryParse(p['id'].toString()) ?? -1;
                           final name = (p['name'] ?? '').toString();
                           final code = (p['code'] ?? '').toString();
                           return CheckboxListTile(
@@ -150,7 +200,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             contentPadding: EdgeInsets.zero,
                             controlAffinity: ListTileControlAffinity.leading,
                             value: selectedProjectIds.contains(id),
-                            title: Text(code.isNotEmpty ? '$name ($code)' : name, overflow: TextOverflow.ellipsis),
+                            title: Text(
+                              code.isNotEmpty ? '$name ($code)' : name,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                             onChanged: (checked) => setDialogState(() {
                               if (checked == true) {
                                 selectedProjectIds.add(id);
@@ -167,24 +220,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ],
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: Text(shiftStart == null ? 'Shift start (optional)' : 'Start: ${formatTime(shiftStart)}'),
+                  title: Text(
+                    shiftStart == null
+                        ? 'Shift start (optional)'
+                        : 'Start: ${formatTime(shiftStart)}',
+                  ),
                   trailing: const Icon(IconlyLight.time_circle),
                   onTap: () async {
                     final picked = await showTimePicker(
-                      context: context,
-                      initialTime: shiftStart ?? const TimeOfDay(hour: 8, minute: 0),
+                      context: dialogStateContext,
+                      initialTime:
+                          shiftStart ?? const TimeOfDay(hour: 8, minute: 0),
                     );
-                    if (picked != null) setDialogState(() => shiftStart = picked);
+                    if (picked != null) {
+                      setDialogState(() => shiftStart = picked);
+                    }
                   },
                 ),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: Text(shiftEnd == null ? 'Shift end (optional)' : 'End: ${formatTime(shiftEnd)}'),
+                  title: Text(
+                    shiftEnd == null
+                        ? 'Shift end (optional)'
+                        : 'End: ${formatTime(shiftEnd)}',
+                  ),
                   trailing: const Icon(IconlyLight.time_circle),
                   onTap: () async {
                     final picked = await showTimePicker(
-                      context: context,
-                      initialTime: shiftEnd ?? const TimeOfDay(hour: 15, minute: 0),
+                      context: dialogStateContext,
+                      initialTime:
+                          shiftEnd ?? const TimeOfDay(hour: 15, minute: 0),
                     );
                     if (picked != null) setDialogState(() => shiftEnd = picked);
                   },
@@ -197,7 +262,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   decoration: const InputDecoration(
                     labelText: 'Shift Timezone',
                     hintText: 'e.g. Europe/Berlin',
-                    helperText: "IANA timezone the site's shift times above are in. Leave blank to use each operator's own clock-in timezone.",
+                    helperText:
+                        "IANA timezone the site's shift times above are in. Leave blank to use each operator's own clock-in timezone.",
                     helperMaxLines: 3,
                   ),
                 ),
@@ -214,31 +280,47 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 backgroundColor: const Color(0xFF0D6EFD),
                 foregroundColor: Colors.white,
               ),
-              onPressed: () async {
+              onPressed: () {
                 final name = nameController.text.trim();
                 if (name.isEmpty) return;
-                Navigator.pop(dialogContext);
-                final result = await _teamController.createTeam(
-                  name: name,
-                  nickname: nicknameController.text.trim(),
-                  leadId: selectedLeadId,
-                  projectIds: selectedProjectIds.toList(),
-                  shiftStartTime: formatTime(shiftStart),
-                  shiftEndTime: formatTime(shiftEnd),
-                  shiftTimezone: shiftTimezoneController.text.trim(),
-                );
-                if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(result['message'] as String),
-                    backgroundColor: result['success'] == true ? Colors.green : Colors.red,
-                  ),
-                );
+                Navigator.pop(dialogContext, <String, dynamic>{
+                  'name': name,
+                  'nickname': nicknameController.text.trim(),
+                  'leadId': selectedLeadId,
+                  'projectIds': selectedProjectIds.toList(),
+                  'shiftStartTime': formatTime(shiftStart),
+                  'shiftEndTime': formatTime(shiftEnd),
+                  'shiftTimezone': shiftTimezoneController.text.trim(),
+                });
               },
               child: const Text('Add Team'),
             ),
           ],
         ),
+      ),
+    );
+
+    nameController.dispose();
+    nicknameController.dispose();
+    shiftTimezoneController.dispose();
+    if (payload == null || !mounted) return;
+
+    final result = await _teamController.createTeam(
+      name: payload['name'] as String,
+      nickname: payload['nickname'] as String,
+      leadId: payload['leadId'] as String?,
+      projectIds: (payload['projectIds'] as List).cast<int>(),
+      shiftStartTime: payload['shiftStartTime'] as String?,
+      shiftEndTime: payload['shiftEndTime'] as String?,
+      shiftTimezone: payload['shiftTimezone'] as String,
+    );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          result['message']?.toString() ?? 'Unable to create team.',
+        ),
+        backgroundColor: result['success'] == true ? Colors.green : Colors.red,
       ),
     );
   }
@@ -248,7 +330,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Force Clock Out'),
-        content: Text('Clock out every active session for ${team.displayName}?'),
+        content: Text(
+          'Clock out every active session for ${team.displayName}?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
@@ -257,7 +341,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Clock Out', style: TextStyle(color: Colors.white)),
+            child: const Text(
+              'Clock Out',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -315,7 +402,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final borderColor = isDark ? Colors.white12 : Colors.grey.shade200;
 
     return Scaffold(
-      backgroundColor: isDark ? AppTheme.darkBackground : const Color(0xFFF8FAFC),
+      backgroundColor: isDark
+          ? AppTheme.darkBackground
+          : const Color(0xFFF8FAFC),
       body: Stack(
         children: [
           Positioned.fill(
@@ -325,82 +414,124 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           Row(
             children: [
-          // Left Sidebar (hide on very small screens or make it narrow, but keep as requested)
-          if (isDesktop)
-            Container(
-              width: 250,
-              color: const Color(0xFF0F2C4A),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 48),
-                  InkWell(
-                    onTap: () {
-                      Navigator.pop(context);
-                    },
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                      child: Row(
-                        children: [
-                          Icon(IconlyLight.arrow_left, color: Colors.white, size: 20),
-                          SizedBox(width: 12),
-                          Text("Back", style: TextStyle(color: Colors.white, fontSize: 16)),
-                        ],
+              // Left Sidebar (hide on very small screens or make it narrow, but keep as requested)
+              if (isDesktop)
+                Container(
+                  width: 250,
+                  color: const Color(0xFF0F2C4A),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 48),
+                      InkWell(
+                        onTap: () {
+                          Navigator.pop(context);
+                        },
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                IconlyLight.arrow_left,
+                                color: Colors.white,
+                                size: 20,
+                              ),
+                              SizedBox(width: 12),
+                              Text(
+                                "Back",
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
+                      const SizedBox(height: 24),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 20),
+                        child: Text(
+                          "SETTINGS",
+                          style: TextStyle(
+                            color: Colors.white54,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      _buildNavItem(0, IconlyLight.category, "Teams"),
+                      _buildNavItem(1, IconlyLight.category, "Materials"),
+                    ],
                   ),
-                  const SizedBox(height: 24),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 20),
-                    child: Text("SETTINGS", style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
-                  ),
-                  const SizedBox(height: 12),
-                  _buildNavItem(0, IconlyLight.category, "Teams"),
-                  _buildNavItem(1, IconlyLight.category, "Materials"),
-                ],
-              ),
-            ),
-          
-          // Main Content
-          Expanded(
-            child: Column(
-              children: [
-                // If not desktop, show a simple app bar to allow navigating back
-                if (!isDesktop)
-                  AppBar(
-                    backgroundColor: isDark ? AppTheme.darkSurface : Colors.white,
-                    elevation: 0,
-                    iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black87),
-                    leading: IconButton(
-                      icon: const Icon(IconlyLight.arrow_left),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                    title: Text(
-                      _selectedIndex == 0 ? "Teams" : "Materials",
-                      style: TextStyle(color: isDark ? Colors.white : Colors.black87),
-                    ),
-                  ),
-                Expanded(
-                  child: _selectedIndex == 0
-                      ? _buildTeamsContent(isDesktop, cardColor: cardColor, textColor: textColor, subtitleColor: subtitleColor, borderColor: borderColor, isDark: isDark)
-                      : MaterialSettingsContent(isDesktop: isDesktop),
                 ),
-              ],
-            ),
-          ),
+
+              // Main Content
+              Expanded(
+                child: Column(
+                  children: [
+                    // If not desktop, show a simple app bar to allow navigating back
+                    if (!isDesktop)
+                      AppBar(
+                        backgroundColor: isDark
+                            ? AppTheme.darkSurface
+                            : Colors.white,
+                        elevation: 0,
+                        iconTheme: IconThemeData(
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
+                        leading: IconButton(
+                          icon: const Icon(IconlyLight.arrow_left),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                        title: Text(
+                          _selectedIndex == 0 ? "Teams" : "Materials",
+                          style: TextStyle(
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
+                        ),
+                      ),
+                    Expanded(
+                      child: _selectedIndex == 0
+                          ? _buildTeamsContent(
+                              isDesktop,
+                              cardColor: cardColor,
+                              textColor: textColor,
+                              subtitleColor: subtitleColor,
+                              borderColor: borderColor,
+                              isDark: isDark,
+                            )
+                          : MaterialSettingsContent(isDesktop: isDesktop),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ],
       ),
       // Bottom navigation for mobile to switch tabs
-      bottomNavigationBar: !isDesktop ? BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: (idx) => setState(() => _selectedIndex = idx),
-        items: const [
-          BottomNavigationBarItem(icon: Icon(IconlyLight.category), label: "Teams"),
-          BottomNavigationBarItem(icon: Icon(IconlyLight.category), label: "Materials"),
-        ],
-      ) : null,
+      bottomNavigationBar: !isDesktop
+          ? BottomNavigationBar(
+              currentIndex: _selectedIndex,
+              onTap: (idx) => setState(() => _selectedIndex = idx),
+              items: const [
+                BottomNavigationBarItem(
+                  icon: Icon(IconlyLight.category),
+                  label: "Teams",
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(IconlyLight.category),
+                  label: "Materials",
+                ),
+              ],
+            )
+          : null,
     );
   }
 
@@ -423,7 +554,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             Icon(icon, color: Colors.white, size: 20),
             const SizedBox(width: 12),
-            Text(title, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w500)),
+            Text(
+              title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
           ],
         ),
       ),
@@ -473,10 +611,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 border: Border.all(color: borderColor),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.grey.withOpacity(0.05),
+                    color: Colors.grey.withValues(alpha: 0.05),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
-                  )
+                  ),
                 ],
               ),
               child: Column(
@@ -486,7 +624,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     padding: EdgeInsets.all(isDesktop ? 24.0 : 16.0),
                     child: Row(
                       children: [
-                        Icon(IconlyLight.category, color: subtitleColor, size: 20),
+                        Icon(
+                          IconlyLight.category,
+                          color: subtitleColor,
+                          size: 20,
+                        ),
                         const SizedBox(width: 12),
                         Text(
                           "Teams",
@@ -509,8 +651,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           _teamController.isLoading
                               ? "Loading teams..."
                               : _teamController.errorMessage != null
-                                  ? _teamController.errorMessage!
-                                  : "You have ${_teamController.teams.length} team${_teamController.teams.length == 1 ? '' : 's'} in your organisation.",
+                              ? _teamController.errorMessage!
+                              : "You have ${_teamController.teams.length} team${_teamController.teams.length == 1 ? '' : 's'} in your organisation.",
                           style: TextStyle(fontSize: 15, color: textColor),
                         ),
                         const SizedBox(height: 24),
@@ -526,7 +668,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               borderRadius: BorderRadius.circular(8),
                             ),
                           ),
-                          icon: const Icon(IconlyLight.plus, color: Colors.white, size: 18),
+                          icon: const Icon(
+                            IconlyLight.plus,
+                            color: Colors.white,
+                            size: 18,
+                          ),
                           label: const Text(
                             "Add Team",
                             style: TextStyle(
@@ -579,126 +725,159 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final shift = (team.shiftStartTime != null && team.shiftEndTime != null)
         ? '${team.shiftStartTime} - ${team.shiftEndTime}'
         : 'Not set';
-    final members = '${team.memberCount} Member${team.memberCount == 1 ? '' : 's'}';
+    final members =
+        '${team.memberCount} Member${team.memberCount == 1 ? '' : 's'}';
 
     return InkWell(
       onTap: () async {
         await Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => TeamDetailScreen(teamId: team.id, controller: _teamController),
+            builder: (_) =>
+                TeamDetailScreen(teamId: team.id, controller: _teamController),
           ),
         );
       },
       child: Container(
-      decoration: BoxDecoration(
-        border: Border(top: BorderSide(color: borderColor)),
-      ),
-      padding: EdgeInsets.all(isDesktop ? 24.0 : 16.0),
-      child: Wrap(
-        spacing: 16,
-        runSpacing: 16,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        alignment: WrapAlignment.spaceBetween,
-        children: [
-          SizedBox(
-            width: isDesktop ? 300 : double.infinity,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Wrap(
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: 12,
-                  children: [
-                    Text(
-                      name,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: textColor,
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: borderColor)),
+        ),
+        padding: EdgeInsets.all(isDesktop ? 24.0 : 16.0),
+        child: Wrap(
+          spacing: 16,
+          runSpacing: 16,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          alignment: WrapAlignment.spaceBetween,
+          children: [
+            SizedBox(
+              width: isDesktop ? 300 : double.infinity,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 12,
+                    children: [
+                      Text(
+                        name,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: textColor,
+                        ),
                       ),
+                      Text(
+                        "Created $createdAt",
+                        style: TextStyle(color: subtitleColor, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    lead == "No team lead assigned" ? lead : "Lead: $lead",
+                    style: TextStyle(color: subtitleColor, fontSize: 14),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    "Shift: $shift",
+                    style: TextStyle(color: subtitleColor, fontSize: 14),
+                  ),
+                ],
+              ),
+            ),
+            Wrap(
+              spacing: 16,
+              runSpacing: 16,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: borderColor),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    members,
+                    style: TextStyle(
+                      color: subtitleColor,
+                      fontWeight: FontWeight.w500,
+                      fontSize: 13,
                     ),
-                    Text(
-                      "Created $createdAt",
-                      style: TextStyle(color: subtitleColor, fontSize: 13),
+                  ),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => _confirmForceClockOut(team),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: Colors.red.shade200),
+                    backgroundColor: Colors.red.shade50,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  icon: Icon(
+                    IconlyLight.logout,
+                    color: Colors.red.shade700,
+                    size: 18,
+                  ),
+                  label: Text(
+                    "Force Clock Out",
+                    style: TextStyle(
+                      color: Colors.red.shade700,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                // Team Details/Shift Timezone/Members/Delete all already live
+                // inside TeamDetailScreen (reachable by tapping the card) -
+                // this three-dots menu is purely a quicker, no-navigation
+                // shortcut to the two most common actions, matching the web
+                // admin's per-card action menu.
+                PopupMenuButton<String>(
+                  icon: Icon(
+                    IconlyLight.more_square,
+                    color: subtitleColor,
+                    size: 20,
+                  ),
+                  onSelected: (value) async {
+                    if (value == 'details') {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => TeamDetailScreen(
+                            teamId: team.id,
+                            controller: _teamController,
+                          ),
+                        ),
+                      );
+                    } else if (value == 'delete') {
+                      await _confirmDeleteTeam(team);
+                    }
+                  },
+                  itemBuilder: (context) => const [
+                    PopupMenuItem(
+                      value: 'details',
+                      child: Text('Team Details / Members / Shift Timezone'),
+                    ),
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: Text(
+                        'Delete Team',
+                        style: TextStyle(color: Colors.red),
+                      ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  lead == "No team lead assigned" ? lead : "Lead: $lead",
-                  style: TextStyle(color: subtitleColor, fontSize: 14),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  "Shift: $shift",
-                  style: TextStyle(color: subtitleColor, fontSize: 14),
-                ),
               ],
             ),
-          ),
-          Wrap(
-            spacing: 16,
-            runSpacing: 16,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  border: Border.all(color: borderColor),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  members,
-                  style: TextStyle(
-                    color: subtitleColor,
-                    fontWeight: FontWeight.w500,
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-              OutlinedButton.icon(
-                onPressed: () => _confirmForceClockOut(team),
-                style: OutlinedButton.styleFrom(
-                  side: BorderSide(color: Colors.red.shade200),
-                  backgroundColor: Colors.red.shade50,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-                icon: Icon(IconlyLight.logout, color: Colors.red.shade700, size: 18),
-                label: Text(
-                  "Force Clock Out",
-                  style: TextStyle(color: Colors.red.shade700, fontWeight: FontWeight.bold),
-                ),
-              ),
-              // Team Details/Shift Timezone/Members/Delete all already live
-              // inside TeamDetailScreen (reachable by tapping the card) -
-              // this three-dots menu is purely a quicker, no-navigation
-              // shortcut to the two most common actions, matching the web
-              // admin's per-card action menu.
-              PopupMenuButton<String>(
-                icon: Icon(IconlyLight.more_square, color: subtitleColor, size: 20),
-                onSelected: (value) async {
-                  if (value == 'details') {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => TeamDetailScreen(teamId: team.id, controller: _teamController),
-                      ),
-                    );
-                  } else if (value == 'delete') {
-                    await _confirmDeleteTeam(team);
-                  }
-                },
-                itemBuilder: (context) => const [
-                  PopupMenuItem(value: 'details', child: Text('Team Details / Members / Shift Timezone')),
-                  PopupMenuItem(value: 'delete', child: Text('Delete Team', style: TextStyle(color: Colors.red))),
-                ],
-              ),
-            ],
-          ),
-        ],
-      ),
+          ],
+        ),
       ),
     );
   }

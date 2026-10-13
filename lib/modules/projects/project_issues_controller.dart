@@ -23,6 +23,8 @@ class ProjectIssuesController extends ChangeNotifier {
   List<IncidentModel> incidents = [];
   List<SnagModel> snags = [];
   List<InspectionModel> inspections = [];
+  List<Map<String, dynamic>> inspectionDrawingPins = [];
+  List<Map<String, dynamic>> inspectionInspectors = [];
 
   Map<String, dynamic> _safeJsonBody(String body) {
     if (body.trim().isEmpty) return const {};
@@ -43,7 +45,9 @@ class ProjectIssuesController extends ChangeNotifier {
     notifyListeners();
     try {
       var url = ApiEndpoints.baseUrl + ApiEndpoints.projectIncidents(projectId);
-      if (incidentStatusFilter != null && incidentStatusFilter!.isNotEmpty && incidentStatusFilter != 'all') {
+      if (incidentStatusFilter != null &&
+          incidentStatusFilter!.isNotEmpty &&
+          incidentStatusFilter != 'all') {
         url += '?status=$incidentStatusFilter';
       }
       final response = await ApiClient.get(url);
@@ -58,7 +62,8 @@ class ProjectIssuesController extends ChangeNotifier {
             .map((e) => e.cast<String, dynamic>())
             .toList();
       } else {
-        incidentsError = decoded['message']?.toString() ?? 'Failed to fetch incidents.';
+        incidentsError =
+            decoded['message']?.toString() ?? 'Failed to fetch incidents.';
       }
     } catch (e) {
       incidentsError = 'An error occurred: $e';
@@ -73,16 +78,26 @@ class ProjectIssuesController extends ChangeNotifier {
     fetchIncidents();
   }
 
-  Future<Map<String, dynamic>> reportIncident(Map<String, dynamic> payload) async {
+  Future<Map<String, dynamic>> reportIncident(
+    Map<String, dynamic> payload,
+  ) async {
     try {
-      final url = ApiEndpoints.baseUrl + ApiEndpoints.projectIncidents(projectId);
+      final url =
+          ApiEndpoints.baseUrl + ApiEndpoints.projectIncidents(projectId);
       final response = await ApiClient.post(url, body: payload);
       final decoded = jsonDecode(response.body);
-      if ((response.statusCode == 200 || response.statusCode == 201) && decoded['status'] == true) {
+      if ((response.statusCode == 200 || response.statusCode == 201) &&
+          decoded['status'] == true) {
         await fetchIncidents();
-        return {'success': true, 'message': decoded['message'] ?? 'Incident reported.'};
+        return {
+          'success': true,
+          'message': decoded['message'] ?? 'Incident reported.',
+        };
       }
-      return {'success': false, 'message': decoded['message'] ?? 'Failed to report incident.'};
+      return {
+        'success': false,
+        'message': decoded['message'] ?? 'Failed to report incident.',
+      };
     } catch (e) {
       return {'success': false, 'message': 'An error occurred: $e'};
     }
@@ -90,29 +105,48 @@ class ProjectIssuesController extends ChangeNotifier {
 
   Future<Map<String, dynamic>> deleteIncident(int incidentId) async {
     try {
-      final url = ApiEndpoints.baseUrl + ApiEndpoints.projectIncidentDetail(projectId, incidentId);
+      final url =
+          ApiEndpoints.baseUrl +
+          ApiEndpoints.projectIncidentDetail(projectId, incidentId);
       final response = await ApiClient.delete(url);
       final decoded = response.body.isNotEmpty ? jsonDecode(response.body) : {};
       if (response.statusCode == 200 && decoded['status'] == true) {
         await fetchIncidents();
-        return {'success': true, 'message': decoded['message'] ?? 'Incident deleted.'};
+        return {
+          'success': true,
+          'message': decoded['message'] ?? 'Incident deleted.',
+        };
       }
-      return {'success': false, 'message': decoded['message'] ?? 'Failed to delete incident.'};
+      return {
+        'success': false,
+        'message': decoded['message'] ?? 'Failed to delete incident.',
+      };
     } catch (e) {
       return {'success': false, 'message': 'An error occurred: $e'};
     }
   }
 
-  Future<Map<String, dynamic>> updateIncidentStatus(int incidentId, String status) async {
+  Future<Map<String, dynamic>> updateIncidentStatus(
+    int incidentId,
+    String status,
+  ) async {
     try {
-      final url = ApiEndpoints.baseUrl + ApiEndpoints.projectIncidentDetail(projectId, incidentId);
+      final url =
+          ApiEndpoints.baseUrl +
+          ApiEndpoints.projectIncidentDetail(projectId, incidentId);
       final response = await ApiClient.patch(url, body: {'status': status});
       final decoded = response.body.isNotEmpty ? jsonDecode(response.body) : {};
       if (response.statusCode == 200 && decoded['status'] == true) {
         await fetchIncidents();
-        return {'success': true, 'message': decoded['message'] ?? 'Status updated.'};
+        return {
+          'success': true,
+          'message': decoded['message'] ?? 'Status updated.',
+        };
       }
-      return {'success': false, 'message': decoded['message'] ?? 'Failed to update status.'};
+      return {
+        'success': false,
+        'message': decoded['message'] ?? 'Failed to update status.',
+      };
     } catch (e) {
       return {'success': false, 'message': 'An error occurred: $e'};
     }
@@ -147,11 +181,18 @@ class ProjectIssuesController extends ChangeNotifier {
       final url = ApiEndpoints.baseUrl + ApiEndpoints.projectSnags(projectId);
       final response = await ApiClient.post(url, body: payload);
       final decoded = jsonDecode(response.body);
-      if ((response.statusCode == 200 || response.statusCode == 201) && decoded['status'] == true) {
+      if ((response.statusCode == 200 || response.statusCode == 201) &&
+          decoded['status'] == true) {
         await fetchSnags();
-        return {'success': true, 'message': decoded['message'] ?? 'Snag raised.'};
+        return {
+          'success': true,
+          'message': decoded['message'] ?? 'Snag raised.',
+        };
       }
-      return {'success': false, 'message': decoded['message'] ?? 'Failed to raise snag.'};
+      return {
+        'success': false,
+        'message': decoded['message'] ?? 'Failed to raise snag.',
+      };
     } catch (e) {
       return {'success': false, 'message': 'An error occurred: $e'};
     }
@@ -159,39 +200,75 @@ class ProjectIssuesController extends ChangeNotifier {
 
   Future<Map<String, dynamic>> deleteSnag(int snagId) async {
     try {
-      final url = ApiEndpoints.baseUrl + ApiEndpoints.projectSnagDetail(projectId, snagId);
+      final url =
+          ApiEndpoints.baseUrl +
+          ApiEndpoints.projectSnagDetail(projectId, snagId);
       var response = await ApiClient.delete(url);
       if (response.statusCode != 200 && response.statusCode != 204) {
-        final fallbackUrl = ApiEndpoints.baseUrl + ApiEndpoints.snagDetail(snagId);
+        final fallbackUrl =
+            ApiEndpoints.baseUrl + ApiEndpoints.snagDetail(snagId);
         response = await ApiClient.delete(fallbackUrl);
       }
       final decoded = _safeJsonBody(response.body);
-      if (response.statusCode == 200 || response.statusCode == 204 || decoded['status'] == true) {
+      if (response.statusCode == 200 ||
+          response.statusCode == 204 ||
+          decoded['status'] == true) {
         await fetchSnags();
-        return {'success': true, 'message': decoded['message'] ?? 'Snag deleted successfully.'};
+        return {
+          'success': true,
+          'message': decoded['message'] ?? 'Snag deleted successfully.',
+        };
       }
-      return {'success': false, 'message': decoded['message'] ?? 'Could not delete the snag. Please try again.'};
+      return {
+        'success': false,
+        'message':
+            decoded['message'] ??
+            'Could not delete the snag. Please try again.',
+      };
     } catch (_) {
-      return {'success': false, 'message': 'Could not delete the snag. Please try again.'};
+      return {
+        'success': false,
+        'message': 'Could not delete the snag. Please try again.',
+      };
     }
   }
 
-  Future<Map<String, dynamic>> updateSnagStatus(int snagId, String newStatus) async {
+  Future<Map<String, dynamic>> updateSnagStatus(
+    int snagId,
+    String newStatus,
+  ) async {
     try {
-      final url = ApiEndpoints.baseUrl + ApiEndpoints.projectSnagDetail(projectId, snagId);
+      final url =
+          ApiEndpoints.baseUrl +
+          ApiEndpoints.projectSnagDetail(projectId, snagId);
       var response = await ApiClient.patch(url, body: {'status': newStatus});
       if (response.statusCode != 200) {
-        final fallbackUrl = ApiEndpoints.baseUrl + ApiEndpoints.snagDetail(snagId);
-        response = await ApiClient.patch(fallbackUrl, body: {'status': newStatus});
+        final fallbackUrl =
+            ApiEndpoints.baseUrl + ApiEndpoints.snagDetail(snagId);
+        response = await ApiClient.patch(
+          fallbackUrl,
+          body: {'status': newStatus},
+        );
       }
       final decoded = _safeJsonBody(response.body);
       if (response.statusCode == 200 || decoded['status'] == true) {
         await fetchSnags();
-        return {'success': true, 'message': decoded['message'] ?? 'Snag status updated.'};
+        return {
+          'success': true,
+          'message': decoded['message'] ?? 'Snag status updated.',
+        };
       }
-      return {'success': false, 'message': decoded['message'] ?? 'Could not update snag status. Please try again.'};
+      return {
+        'success': false,
+        'message':
+            decoded['message'] ??
+            'Could not update snag status. Please try again.',
+      };
     } catch (_) {
-      return {'success': false, 'message': 'Could not update snag status. Please try again.'};
+      return {
+        'success': false,
+        'message': 'Could not update snag status. Please try again.',
+      };
     }
   }
 
@@ -200,7 +277,8 @@ class ProjectIssuesController extends ChangeNotifier {
     inspectionsError = null;
     notifyListeners();
     try {
-      final url = ApiEndpoints.baseUrl + ApiEndpoints.projectInspections(projectId);
+      final url =
+          ApiEndpoints.baseUrl + ApiEndpoints.projectInspections(projectId);
       final response = await ApiClient.get(url);
       final decoded = jsonDecode(response.body);
       if (response.statusCode == 200 && decoded['status'] == true) {
@@ -208,8 +286,20 @@ class ProjectIssuesController extends ChangeNotifier {
             .whereType<Map>()
             .map((e) => InspectionModel.fromJson(e.cast<String, dynamic>()))
             .toList();
+        final options = decoded['options'] is Map
+            ? (decoded['options'] as Map).cast<String, dynamic>()
+            : const <String, dynamic>{};
+        inspectionDrawingPins = (options['drawing_pins'] as List? ?? [])
+            .whereType<Map>()
+            .map((e) => e.cast<String, dynamic>())
+            .toList();
+        inspectionInspectors = (options['inspectors'] as List? ?? [])
+            .whereType<Map>()
+            .map((e) => e.cast<String, dynamic>())
+            .toList();
       } else {
-        inspectionsError = decoded['message']?.toString() ?? 'Failed to fetch inspections.';
+        inspectionsError =
+            decoded['message']?.toString() ?? 'Failed to fetch inspections.';
       }
     } catch (e) {
       inspectionsError = 'An error occurred: $e';
@@ -219,31 +309,52 @@ class ProjectIssuesController extends ChangeNotifier {
     }
   }
 
-  Future<Map<String, dynamic>> logInspection(Map<String, dynamic> payload) async {
+  Future<Map<String, dynamic>> logInspection(
+    Map<String, dynamic> payload,
+  ) async {
     try {
-      final url = ApiEndpoints.baseUrl + ApiEndpoints.projectInspections(projectId);
+      final url =
+          ApiEndpoints.baseUrl + ApiEndpoints.projectInspections(projectId);
       final response = await ApiClient.post(url, body: payload);
       final decoded = jsonDecode(response.body);
-      if ((response.statusCode == 200 || response.statusCode == 201) && decoded['status'] == true) {
+      if ((response.statusCode == 200 || response.statusCode == 201) &&
+          decoded['status'] == true) {
         await fetchInspections();
-        return {'success': true, 'message': decoded['message'] ?? 'Inspection logged.'};
+        return {
+          'success': true,
+          'message': decoded['message'] ?? 'Inspection logged.',
+        };
       }
-      return {'success': false, 'message': decoded['message'] ?? 'Failed to log inspection.'};
+      return {
+        'success': false,
+        'message': decoded['message'] ?? 'Failed to log inspection.',
+      };
     } catch (e) {
       return {'success': false, 'message': 'An error occurred: $e'};
     }
   }
 
-  Future<Map<String, dynamic>> completeInspection(int inspectionId, Map<String, dynamic> payload) async {
+  Future<Map<String, dynamic>> completeInspection(
+    int inspectionId,
+    Map<String, dynamic> payload,
+  ) async {
     try {
-      final url = ApiEndpoints.baseUrl + ApiEndpoints.inspectionComplete(inspectionId);
+      final url =
+          ApiEndpoints.baseUrl + ApiEndpoints.inspectionComplete(inspectionId);
       final response = await ApiClient.post(url, body: payload);
       final decoded = jsonDecode(response.body);
-      if ((response.statusCode == 200 || response.statusCode == 201) && decoded['status'] == true) {
+      if ((response.statusCode == 200 || response.statusCode == 201) &&
+          decoded['status'] == true) {
         await fetchInspections();
-        return {'success': true, 'message': decoded['message'] ?? 'Inspection completed.'};
+        return {
+          'success': true,
+          'message': decoded['message'] ?? 'Inspection completed.',
+        };
       }
-      return {'success': false, 'message': decoded['message'] ?? 'Failed to complete inspection.'};
+      return {
+        'success': false,
+        'message': decoded['message'] ?? 'Failed to complete inspection.',
+      };
     } catch (e) {
       return {'success': false, 'message': 'An error occurred: $e'};
     }
@@ -251,18 +362,29 @@ class ProjectIssuesController extends ChangeNotifier {
 
   Future<Map<String, dynamic>> deleteInspection(int inspectionId) async {
     try {
-      final url = ApiEndpoints.baseUrl + ApiEndpoints.projectInspectionDetail(projectId, inspectionId);
+      final url =
+          ApiEndpoints.baseUrl +
+          ApiEndpoints.projectInspectionDetail(projectId, inspectionId);
       var response = await ApiClient.delete(url);
       if (response.statusCode != 200 && response.statusCode != 204) {
-        final fallbackUrl = ApiEndpoints.baseUrl + ApiEndpoints.inspectionDetail(inspectionId);
+        final fallbackUrl =
+            ApiEndpoints.baseUrl + ApiEndpoints.inspectionDetail(inspectionId);
         response = await ApiClient.delete(fallbackUrl);
       }
       final decoded = response.body.isNotEmpty ? jsonDecode(response.body) : {};
-      if (response.statusCode == 200 || response.statusCode == 204 || decoded['status'] == true) {
+      if (response.statusCode == 200 ||
+          response.statusCode == 204 ||
+          decoded['status'] == true) {
         await fetchInspections();
-        return {'success': true, 'message': decoded['message'] ?? 'Inspection deleted successfully.'};
+        return {
+          'success': true,
+          'message': decoded['message'] ?? 'Inspection deleted successfully.',
+        };
       }
-      return {'success': false, 'message': decoded['message'] ?? 'Failed to delete inspection.'};
+      return {
+        'success': false,
+        'message': decoded['message'] ?? 'Failed to delete inspection.',
+      };
     } catch (e) {
       return {'success': false, 'message': 'An error occurred: $e'};
     }
