@@ -384,38 +384,55 @@ class _DrawingPinViewerScreenState extends State<DrawingPinViewerScreen> {
                         Expanded(
                           child: _buildCanvas(_matchingDrawings[_selectedDrawingIndex]),
                         ),
-                        // Status Legend Bar
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                          decoration: BoxDecoration(
-                            color: cardBg,
-                            border: Border(top: BorderSide(color: isDark ? Colors.white12 : Colors.grey.shade200)),
-                          ),
-                          child: SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: Row(
+                        // Keep every status visible on narrow phones instead
+                        // of clipping the final legend items off-screen.
+                        SafeArea(
+                          top: false,
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            decoration: BoxDecoration(
+                              color: cardBg,
+                              border: Border(
+                                top: BorderSide(
+                                  color: isDark
+                                      ? Colors.white12
+                                      : Colors.grey.shade200,
+                                ),
+                              ),
+                            ),
+                            child: Wrap(
+                              alignment: WrapAlignment.center,
+                              spacing: 12,
+                              runSpacing: 8,
                               children: _statusColors.entries.map((e) {
-                                return Padding(
-                                  padding: const EdgeInsets.only(right: 16.0),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Container(
-                                        width: 10,
-                                        height: 10,
-                                        decoration: BoxDecoration(color: e.value, shape: BoxShape.circle),
+                                return Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      width: 8,
+                                      height: 8,
+                                      decoration: BoxDecoration(
+                                        color: e.value,
+                                        shape: BoxShape.circle,
                                       ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        e.key.replaceAll('_', ' '),
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                          color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
-                                        ),
+                                    ),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      e.key.replaceAll('_', ' '),
+                                      maxLines: 1,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: isDark
+                                            ? Colors.grey.shade300
+                                            : Colors.grey.shade700,
                                       ),
-                                    ],
-                                  ),
+                                    ),
+                                  ],
                                 );
                               }).toList(),
                             ),
