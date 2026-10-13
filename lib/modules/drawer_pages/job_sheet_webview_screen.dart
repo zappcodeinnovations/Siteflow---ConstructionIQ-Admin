@@ -87,7 +87,8 @@ Page resource error:
     const script = r"""
 (function() {
   function fitFormToScreen() {
-    // 1. Set standard responsive viewport meta
+    // Keep the WebView on the physical device width. The document itself is
+    // reflowed below; it is never scaled or cropped to make it fit.
     var meta = document.querySelector('meta[name="viewport"]');
     if (!meta) {
       meta = document.createElement('meta');
@@ -96,7 +97,6 @@ Page resource error:
     }
     meta.setAttribute('content', 'width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=3.0, user-scalable=yes');
 
-    // 2. Remove old conflicting styles
     var oldStyle = document.getElementById('siteflow-form-fit-style');
     if (oldStyle) oldStyle.remove();
     var oldLock = document.getElementById('siteflow-form-lock-style');
@@ -104,71 +104,146 @@ Page resource error:
     var oldAutofit = document.getElementById('siteflow-autofit-style');
     if (oldAutofit) oldAutofit.remove();
 
-    // 3. Inject responsive styles so the form card fits the mobile screen edge-to-edge
+    var viewportWidth = window.innerWidth || document.documentElement.clientWidth || 360;
+    if (viewportWidth > 600) return;
+
+    // This is the common renderer for raw HTML forms (Daywork, materials,
+    // plant and other library templates). It only runs on phone widths so
+    // desktop and tablet templates retain their authored layout.
     var style = document.createElement('style');
     style.id = 'siteflow-form-fit-style';
     style.innerHTML = `
-      * {
-        box-sizing: border-box !important;
-      }
-      html {
-        width: 100% !important;
-        max-width: 100% !important;
-        min-width: 0 !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        background-color: #f8fafc !important;
-        overflow-x: hidden !important;
-      }
-      body {
-        width: 100% !important;
-        max-width: 100% !important;
-        min-width: 0 !important;
-        margin: 0 auto !important;
-        padding: 12px !important;
-        background-color: #f8fafc !important;
-        overflow-x: hidden !important;
-        -webkit-text-size-adjust: 100% !important;
-      }
-      .form-container, .container, .page, .card, form, table, .sheet-container, .sheet-card, .wrapper, main, [class*="container"], [class*="card"] {
-        max-width: 100% !important;
-        width: 100% !important;
-        min-width: 0 !important;
-        box-sizing: border-box !important;
-        margin-left: auto !important;
-        margin-right: auto !important;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.08) !important;
-        border-radius: 12px !important;
-      }
-      table {
-        width: 100% !important;
-        max-width: 100% !important;
-        min-width: 0 !important;
-        table-layout: auto !important;
-        word-break: break-word !important;
-      }
-      td, th {
-        word-break: break-word !important;
-      }
-      img {
-        max-width: 100% !important;
-        height: auto !important;
+      @media (max-width: 600px) {
+        *, *::before, *::after { box-sizing: border-box !important; }
+        html, body {
+          width: 100% !important;
+          max-width: 100% !important;
+          min-width: 0 !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          background-color: #f8fafc !important;
+          -webkit-text-size-adjust: 100% !important;
+        }
+        #euroside-preview-form,
+        #euroside-form-zoom-content,
+        #euroside-form-zoom-inner,
+        .form-container, .form-page, .form-wrap, .form-rendered,
+        .sheet, .sheet-wrapper, .sheet-container, .sheet-card,
+        .worksheet, .page, .wrapper, main,
+        [class*="form-container"], [class*="sheet-container"] {
+          display: block !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          min-width: 0 !important;
+          margin-left: auto !important;
+          margin-right: auto !important;
+          transform: none !important;
+        }
+        .header, .info-row, .footer-area, .total-row, .company,
+        [class*="header"], [class*="info-row"], [class*="footer"] {
+          min-width: 0 !important;
+          max-width: 100% !important;
+          flex-wrap: wrap !important;
+        }
+        table {
+          width: 100% !important;
+          max-width: 100% !important;
+          min-width: 0 !important;
+          table-layout: fixed !important;
+          border-collapse: collapse !important;
+        }
+        table col { width: auto !important; min-width: 0 !important; }
+        table td, table th {
+          width: auto !important;
+          min-width: 0 !important;
+          max-width: 100% !important;
+          white-space: normal !important;
+          overflow-wrap: anywhere !important;
+          word-break: break-word !important;
+          vertical-align: top !important;
+        }
+        table input:not([type="checkbox"]):not([type="radio"]),
+        table textarea, table select {
+          width: 100% !important;
+          min-width: 0 !important;
+          max-width: 100% !important;
+          padding-left: 4px !important;
+          padding-right: 4px !important;
+        }
+        table.euroside-mobile-dense-table {
+          font-size: clamp(7px, 2.25vw, 10px) !important;
+        }
+        table.euroside-mobile-dense-table td,
+        table.euroside-mobile-dense-table th {
+          padding: 2px 1px !important;
+          line-height: 1.15 !important;
+        }
+        table.euroside-mobile-dense-table input,
+        table.euroside-mobile-dense-table select,
+        table.euroside-mobile-dense-table textarea {
+          min-height: 22px !important;
+          padding: 1px !important;
+          font-size: inherit !important;
+        }
+        input, textarea, select {
+          max-width: 100% !important;
+          min-width: 0 !important;
+        }
+        textarea { overflow-wrap: anywhere !important; }
+        img, svg, video, picture, canvas {
+          display: block;
+          max-width: 100% !important;
+          height: auto !important;
+        }
+        canvas.euroside-signature-pad { width: 100% !important; height: 180px !important; }
+        .euroside-live-assets, .euroside-client-signatures {
+          width: calc(100% - 24px) !important;
+          max-width: 100% !important;
+          min-width: 0 !important;
+          margin-left: 12px !important;
+          margin-right: 12px !important;
+        }
       }
     `;
     document.head.appendChild(style);
 
-    // 4. Clean up any inline min-widths or fixed widths on DOM elements
-    var screenW = window.innerWidth || document.documentElement.clientWidth || 360;
-    var allElements = document.querySelectorAll('*');
-    for (var i = 0; i < allElements.length; i++) {
-      var el = allElements[i];
-      if (el.style) {
-        if (el.style.minWidth && parseInt(el.style.minWidth) > screenW) {
-          el.style.minWidth = '100%';
+    // Templates often carry inline desktop widths (and width attributes),
+    // which can beat their own CSS. Clear only layout widths in the reusable
+    // form wrappers and tables; values, fields and table columns remain.
+    var wrappers = document.querySelectorAll(
+      '.form-container, .form-page, .form-wrap, .form-rendered, .sheet, ' +
+      '.sheet-wrapper, .sheet-container, .sheet-card, .worksheet, .page, .wrapper, main'
+    );
+    for (var i = 0; i < wrappers.length; i++) {
+      wrappers[i].style.setProperty('width', '100%', 'important');
+      wrappers[i].style.setProperty('max-width', '100%', 'important');
+      wrappers[i].style.setProperty('min-width', '0', 'important');
+    }
+
+    var tables = document.querySelectorAll('table');
+    for (var j = 0; j < tables.length; j++) {
+      var table = tables[j];
+      table.style.setProperty('width', '100%', 'important');
+      table.style.setProperty('max-width', '100%', 'important');
+      table.style.setProperty('min-width', '0', 'important');
+      table.style.setProperty('table-layout', 'fixed', 'important');
+
+      var maxColumns = 0;
+      for (var r = 0; r < table.rows.length; r++) {
+        var columns = 0;
+        for (var c = 0; c < table.rows[r].cells.length; c++) {
+          columns += table.rows[r].cells[c].colSpan || 1;
         }
-        if (el.style.width && parseInt(el.style.width) > screenW) {
-          el.style.width = '100%';
-        }
+        maxColumns = Math.max(maxColumns, columns);
+      }
+      table.classList.toggle('euroside-mobile-dense-table', maxColumns >= 7);
+
+      var cells = table.querySelectorAll('th, td');
+      for (var k = 0; k < cells.length; k++) {
+        cells[k].style.setProperty('min-width', '0', 'important');
+        cells[k].style.setProperty('max-width', '100%', 'important');
+        cells[k].style.setProperty('width', 'auto', 'important');
+        cells[k].style.setProperty('white-space', 'normal', 'important');
       }
     }
   }
@@ -230,44 +305,15 @@ Page resource error:
     }
   }
 
-  // Desktop templates contain wide tables. Scale only the table that
-  // overflows, rather than shrinking its cells or the entire page. This
-  // retains the normal readable mobile form size and prevents left/right
-  // scrolling without causing fields to overlap.
-  function fitWideTablesToViewport() {
-    var availableWidth = (window.innerWidth || document.documentElement.clientWidth || 360) - 24;
-    if (availableWidth <= 0) return;
-
-    var candidates = document.querySelectorAll('table, .worksheet, .form-page, .page, .sheet-container');
-    var target = null;
-    var targetWidth = availableWidth;
-    for (var i = 0; i < candidates.length; i++) {
-      var element = candidates[i];
-      element.style.setProperty('zoom', '1', 'important');
-      var naturalWidth = Math.max(
-        element.scrollWidth || 0,
-        element.offsetWidth || 0,
-        Math.ceil(element.getBoundingClientRect().width || 0)
-      );
-      if (naturalWidth > targetWidth + 2) {
-        target = element;
-        targetWidth = naturalWidth;
-      }
-    }
-    if (target) {
-      var scale = availableWidth / targetWidth;
-      // Give the element its natural layout width first; Chromium's CSS zoom
-      // then reserves exactly the scaled width in the parent flow.
-      target.style.setProperty('width', targetWidth + 'px', 'important');
-      target.style.setProperty('max-width', 'none', 'important');
-      target.style.setProperty('zoom', String(scale), 'important');
-    }
-  }
+  // NOTE: The previous implementation here ("fitWideTablesToViewport") shrank
+  // overflowing desktop tables using CSS `zoom` to force them into the
+  // viewport. That distorted text/tables and fought the backend's responsive
+  // reflow. The backend form shell now reflows wide tables to the real device
+  // width via its @media CSS, so no client-side scaling is needed here.
 
   function applyEnhancements() {
     fitFormToScreen();
     formatDateTimestamps();
-    fitWideTablesToViewport();
   }
 
   applyEnhancements();
