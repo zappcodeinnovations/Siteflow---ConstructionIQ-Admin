@@ -55,7 +55,10 @@ class AdminTeamController extends ChangeNotifier {
     String? shiftTimezone,
   }) async {
     _isSaving = true;
-    notifyListeners();
+    // Note: do NOT notifyListeners() here — fetchTeams() handles its own
+    // notifications internally (start + end). An extra notify here causes
+    // the SettingsScreen to rebuild twice after the dialog dismisses,
+    // which produces the visual "screen stack" regression.
 
     try {
       final url = '${ApiEndpoints.baseUrl}/admin/teams/';
@@ -73,33 +76,148 @@ class AdminTeamController extends ChangeNotifier {
 
       final decoded = jsonDecode(response.body);
       if (response.statusCode == 201) {
-        await fetchTeams();
+        await fetchTeams(); // fetchTeams() calls notifyListeners() internally
         return {
           "success": true,
           "message": decoded['message'] ?? 'Team created successfully.',
         };
       }
+      // fetchTeams not called on failure — notify once to clear saving state
+      _isSaving = false;
+      notifyListeners();
       return {
         "success": false,
         "message": decoded['message'] ?? 'Failed to create team.',
       };
     } catch (e) {
-      return {"success": false, "message": "An error occurred: $e"};
-    } finally {
       _isSaving = false;
       notifyListeners();
+      return {"success": false, "message": "An error occurred: $e"};
     }
   }
 
   Future<Map<String, dynamic>?> fetchTeamDetail(int teamId) async {
     try {
-      final url = '${ApiEndpoints.baseUrl}/admin/teams/$teamId/';
-      final response = await ApiClient.get(url);
-      if (response.statusCode == 200) {
-        final decoded = jsonDecode(response.body);
-        return (decoded['data'] as Map?)?.cast<String, dynamic>();
+      // Fire all 3 requests in parallel for fast loading
+      final results = await Future.wait([
+        ApiClient.get('${ApiEndpoints.baseUrl}/admin/teams/$teamId/'),
+        ApiClient.get(
+          '${ApiEndpoints.baseUrl}/admin/members/?role=operative&status=active&page_size=1000',
+        ),
+        ApiClient.get('${ApiEndpoints.baseUrl}/projects/?page_size=1000'),
+        ApiClient.get(
+          '${ApiEndpoints.baseUrl}/admin/members/?role=manager&status=active&page_size=1000',
+        ),
+      ]);
+
+      final teamResp = results[0];
+      final operativesResp = results[1];
+      final projectsResp = results[2];
+      final managersResp = results[3];
+
+      if (teamResp.statusCode != 200) return null;
+
+      final teamDecoded = jsonDecode(teamResp.body);
+      final teamData =
+          (teamDecoded['data'] as Map?)?.cast<String, dynamic>() ?? {};
+
+      // Parse all operatives → used for member picker AND team lead choices
+      final allOperatives = <Map<String, dynamic>>[];
+      if (operativesResp.statusCode == 200) {
+        final dec = jsonDecode(operativesResp.body);
+        final raw = dec is List
+            ? dec
+            : (dec['data'] is List ? dec['data'] : dec['results']);
+        if (raw is List) {
+          for (final m in raw) {
+            if (m is Map) {
+              allOperatives.add({
+                'id': m['id'],
+                'name':
+                    m['display_name'] ?? m['name'] ?? m['full_name'] ?? m['email'] ?? '',
+                'employee_id': m['email'] ?? m['employee_id'] ?? '',
+              });
+            }
+          }
+        }
       }
-      return null;
+
+      // Parse managers for team lead choices (managers + supervisors)
+      final allManagers = <Map<String, dynamic>>[];
+      if (managersResp.statusCode == 200) {
+        final dec = jsonDecode(managersResp.body);
+        final raw = dec is List
+            ? dec
+            : (dec['data'] is List ? dec['data'] : dec['results']);
+        if (raw is List) {
+          for (final m in raw) {
+            if (m is Map) {
+              allManagers.add({
+                'id': m['id'],
+                'name':
+                    m['display_name'] ?? m['name'] ?? m['full_name'] ?? m['email'] ?? '',
+              });
+            }
+          }
+        }
+      }
+
+      // Parse all projects
+      final allProjects = <Map<String, dynamic>>[];
+      if (projectsResp.statusCode == 200) {
+        final dec = jsonDecode(projectsResp.body);
+        final raw = dec is List
+            ? dec
+            : (dec['data'] is List
+                ? dec['data']
+                : dec['results'] is List
+                    ? dec['results']
+                    : null);
+        if (raw is List) {
+          for (final p in raw) {
+            if (p is Map) {
+              allProjects.add({
+                'id': p['id'],
+                'name': p['name'] ?? p['display_name'] ?? '',
+              });
+            }
+          }
+        }
+      }
+
+      // Determine already-assigned member IDs so we can separate them
+      final assignedIds = <int>{};
+      final assignedRaw =
+          (teamData['assigned_members'] as List?) ?? [];
+      for (final m in assignedRaw) {
+        if (m is Map && m['id'] != null) {
+          assignedIds.add(m['id'] as int);
+        }
+      }
+
+      // available_members = all operatives NOT already in this team
+      final availableMembers = allOperatives
+          .where((m) => !assignedIds.contains(m['id']))
+          .toList();
+
+      // team_lead_choices = managers + supervisors (broader set for lead)
+      // Merge managers with operatives, dedupe by id
+      final leadMap = <int, Map<String, dynamic>>{};
+      for (final m in [...allManagers, ...allOperatives]) {
+        final id = m['id'];
+        if (id is int) leadMap[id] = m;
+      }
+      final teamLeadChoices = leadMap.values.toList()
+        ..sort((a, b) =>
+            (a['name'] as String).compareTo(b['name'] as String));
+
+      // Merge everything into one map the screen can read
+      return {
+        ...teamData,
+        'all_projects': allProjects,
+        'available_members': availableMembers,
+        'team_lead_choices': teamLeadChoices,
+      };
     } catch (e) {
       debugPrint('Error fetching team detail: $e');
       return null;

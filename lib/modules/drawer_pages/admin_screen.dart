@@ -8,7 +8,7 @@ import 'admin/admin_permissions_view.dart';
 import 'admin/admin_activity_logs_view.dart';
 import 'admin/admin_organisation_view.dart';
 import 'admin/admin_support_view.dart';
-import 'admin/admin_guests_view.dart';
+// admin_guests_view import removed — Guests feature disabled
 import 'package:iconly/iconly.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/background_stripes_painter.dart';
@@ -31,7 +31,7 @@ class _AdminScreenState extends State<AdminScreen> {
 
   final List<Map<String, dynamic>> _allSideMenus = [
     {"title": "Members", "icon": IconlyLight.user_1, "key": "admin_members"},
-    {"title": "Guests", "icon": IconlyLight.message, "key": "admin_guests"},
+    // Guests tab removed — feature disabled
     {
       "title": "Announcements",
       "icon": IconlyLight.category,
@@ -140,8 +140,7 @@ class _AdminScreenState extends State<AdminScreen> {
         return const ProfileScreen();
       case "Members":
         return const AdminMembersView();
-      case "Guests":
-        return const AdminGuestsView();
+      // case "Guests" removed — feature disabled
       case "Announcements":
         return const AdminAnnouncementsView();
       case "Notifications":
