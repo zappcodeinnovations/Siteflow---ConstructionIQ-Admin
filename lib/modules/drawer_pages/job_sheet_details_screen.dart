@@ -23,6 +23,7 @@ class JobSheetDetailsScreen extends StatefulWidget {
 class _JobSheetDetailsScreenState extends State<JobSheetDetailsScreen> {
   late JobSheet jobSheet;
   bool _submittingDecision = false;
+  Map<int, String> _materialNamesById = const {};
 
   @override
   void initState() {
@@ -34,31 +35,158 @@ class _JobSheetDetailsScreenState extends State<JobSheetDetailsScreen> {
   Future<void> _loadDetailedJobSheet() async {
     if (jobSheet.globalDetailApiUrl.isEmpty) return;
     var base = ApiEndpoints.baseUrl;
-    if (jobSheet.globalDetailApiUrl.startsWith('/api/') && base.endsWith('/api')) {
+    if (jobSheet.globalDetailApiUrl.startsWith('/api/') &&
+        base.endsWith('/api')) {
       base = base.substring(0, base.length - 4);
     }
     try {
-      final response = await ApiClient.get('$base${jobSheet.globalDetailApiUrl}');
+      final response = await ApiClient.get(
+        '$base${jobSheet.globalDetailApiUrl}',
+      );
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      if (!mounted || response.statusCode != 200 || body['status'] != true || body['data'] is! Map) return;
-      setState(() => jobSheet = JobSheet.fromJson((body['data'] as Map).cast<String, dynamic>()));
+      if (!mounted ||
+          response.statusCode != 200 ||
+          body['status'] != true ||
+          body['data'] is! Map) {
+        return;
+      }
+      final detailed = JobSheet.fromJson(
+        (body['data'] as Map).cast<String, dynamic>(),
+      );
+      final entries = _materialEntries(detailed);
+      final unresolvedIds = entries
+          .where(
+            (entry) =>
+                (entry['material_name']?.toString().trim().isEmpty ?? true) &&
+                (entry['name']?.toString().trim().isEmpty ?? true),
+          )
+          .map((entry) => int.tryParse(entry['material_id']?.toString() ?? ''))
+          .whereType<int>()
+          .toSet();
+      var resolvedNames = <int, String>{};
+      if (unresolvedIds.isNotEmpty) {
+        resolvedNames = await _loadMaterialNames(unresolvedIds);
+      }
+      if (!mounted) return;
+      setState(() {
+        jobSheet = detailed;
+        _materialNamesById = resolvedNames;
+      });
     } catch (_) {
       // The list data remains usable if a detailed payload is temporarily unavailable.
     }
   }
 
+  List<Map<String, dynamic>> _parseMaterialEntries(dynamic value) {
+    dynamic parsed = value;
+    if (value is String) {
+      final text = value.trim();
+      if (text.isEmpty) return const [];
+      try {
+        parsed = jsonDecode(text);
+      } catch (_) {
+        return const [];
+      }
+    }
+    if (parsed is! List) return const [];
+    return parsed
+        .whereType<Map>()
+        .map((entry) => entry.cast<String, dynamic>())
+        .toList();
+  }
+
+  List<Map<String, dynamic>> _materialEntries([JobSheet? sheet]) {
+    final target = sheet ?? jobSheet;
+    if (target.materialsUsed.isNotEmpty) return target.materialsUsed;
+    return _parseMaterialEntries(
+      target.rawFields['materials_used'] ?? target.rawFields['materials'],
+    );
+  }
+
+  Future<Map<int, String>> _loadMaterialNames(Set<int> ids) async {
+    try {
+      final response = await ApiClient.get(
+        '${ApiEndpoints.baseUrl}${ApiEndpoints.libraryMaterials}',
+      );
+      if (response.statusCode != 200) return const {};
+      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+      final rows = decoded['data'] as List? ?? const [];
+      return {
+        for (final row in rows.whereType<Map>())
+          if (ids.contains(int.tryParse(row['id']?.toString() ?? '')))
+            int.parse(row['id'].toString()): row['name']?.toString() ?? '',
+      };
+    } catch (_) {
+      return const {};
+    }
+  }
+
+  String _cleanQuantity(dynamic value) {
+    final number = num.tryParse(value?.toString() ?? '');
+    if (number == null) return value?.toString() ?? '';
+    return number == number.roundToDouble()
+        ? number.toInt().toString()
+        : number.toString();
+  }
+
+  String _materialsDisplay() {
+    final entries = _materialEntries();
+    if (entries.isEmpty) {
+      return jobSheet.material.isNotEmpty ? jobSheet.material : '-';
+    }
+    return entries
+        .map((entry) {
+          final materialId = int.tryParse(
+            entry['material_id']?.toString() ?? '',
+          );
+          final name =
+              entry['material_name']?.toString().trim().isNotEmpty == true
+              ? entry['material_name'].toString().trim()
+              : entry['name']?.toString().trim().isNotEmpty == true
+              ? entry['name'].toString().trim()
+              : _materialNamesById[materialId] ??
+                    (materialId == null ? 'Material' : 'Material #$materialId');
+          final quantity = _cleanQuantity(entry['quantity']);
+          final unit = entry['unit_label']?.toString().trim() ?? '';
+          final batch = entry['batch_reference']?.toString().trim() ?? '';
+          final expiry = entry['expiry_date']?.toString().trim() ?? '';
+          final parts = <String>[name];
+          if (quantity.isNotEmpty) {
+            parts.add('$quantity ${unit.isEmpty ? 'qty' : unit}');
+          }
+          if (batch.isNotEmpty) parts.add('Batch: $batch');
+          if (expiry.isNotEmpty) parts.add('Expiry: $expiry');
+          return parts.join(' • ');
+        })
+        .join('\n');
+  }
+
   String _traceabilityValue(String key, dynamic value) {
     final normalized = key.toLowerCase().replaceAll(' ', '_');
     if (normalized == 'materials_used' || normalized == 'materials') {
-      if (jobSheet.material.isNotEmpty) return jobSheet.material;
+      return _materialsDisplay();
     }
-    if (value is String && (normalized.contains('started_at') || normalized.contains('finished_at'))) {
+    if (value is String &&
+        (normalized.contains('started_at') ||
+            normalized.contains('finished_at'))) {
       return DateHelper.formatToLocal(value);
     }
     if (value is List) {
-      return value.map((item) => item is Map ? item.values.where((v) => v != null && '$v'.isNotEmpty).join(' • ') : item.toString()).join(', ');
+      return value
+          .map(
+            (item) => item is Map
+                ? item.values
+                      .where((v) => v != null && '$v'.isNotEmpty)
+                      .join(' • ')
+                : item.toString(),
+          )
+          .join(', ');
     }
-    if (value is Map) return value.values.where((v) => v != null && '$v'.isNotEmpty).join(' • ');
+    if (value is Map) {
+      return value.values
+          .where((v) => v != null && '$v'.isNotEmpty)
+          .join(' • ');
+    }
     return value?.toString().trim().isNotEmpty == true ? value.toString() : '-';
   }
 
@@ -80,17 +208,80 @@ class _JobSheetDetailsScreenState extends State<JobSheetDetailsScreen> {
       'materials_used',
     ];
     final values = <String, dynamic>{...jobSheet.rawFields};
-    if (jobSheet.material.isNotEmpty) values.putIfAbsent('materials_used', () => jobSheet.material);
-    final rows = keys.where((key) => values[key] != null && values[key].toString().isNotEmpty).toList();
+    final materialEntries = _materialEntries();
+    if (materialEntries.isNotEmpty) {
+      values['materials_used'] = materialEntries;
+    } else if (jobSheet.material.isNotEmpty) {
+      values['materials_used'] = jobSheet.material;
+    }
+    final rows = keys
+        .where(
+          (key) => values[key] != null && values[key].toString().isNotEmpty,
+        )
+        .toList();
     if (rows.isEmpty) return const SizedBox.shrink();
-    return Column(children: [
-      const SizedBox(height: 24),
-      _buildSectionCard(
-        title: 'Traceability',
-        isDark: isDark,
-        children: rows.map((key) => _buildDetailRow(_traceabilityLabel(key), _traceabilityValue(key, values[key]), isDark)).toList(),
+    return Column(
+      children: [
+        const SizedBox(height: 24),
+        _buildSectionCard(
+          title: 'Traceability',
+          isDark: isDark,
+          children: rows
+              .map(
+                (key) => key == 'materials_used'
+                    ? _buildMaterialsDetail(isDark)
+                    : _buildDetailRow(
+                        _traceabilityLabel(key),
+                        _traceabilityValue(key, values[key]),
+                        isDark,
+                      ),
+              )
+              .toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMaterialsDetail(bool isDark) {
+    final lines = _materialsDisplay().split('\n');
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Materials Used',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(height: 8),
+          ...lines.map(
+            (line) => Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? Colors.white.withValues(alpha: .06)
+                    : const Color(0xFFF3F7FC),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                line,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: isDark ? Colors.white : Colors.black87,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
-    ]);
+    );
   }
 
   void _openFormBrowser(BuildContext context) {
@@ -161,7 +352,9 @@ class _JobSheetDetailsScreenState extends State<JobSheetDetailsScreen> {
             lastUpdated: jobSheet.lastUpdated,
             formHtmlUrl: jobSheet.formHtmlUrl,
             viewFormInBrowserUrl: jobSheet.viewFormInBrowserUrl,
-            rejectionReason: rejectionReason.isNotEmpty ? rejectionReason : jobSheet.rejectionReason,
+            rejectionReason: rejectionReason.isNotEmpty
+                ? rejectionReason
+                : jobSheet.rejectionReason,
             reviewedBy: jobSheet.reviewedBy,
             reviewed: jobSheet.reviewed,
             resubmissionCount: jobSheet.resubmissionCount,
@@ -172,21 +365,29 @@ class _JobSheetDetailsScreenState extends State<JobSheetDetailsScreen> {
             qaChecked: jobSheet.qaChecked,
             rawFields: jobSheet.rawFields,
             payload: jobSheet.payload,
+            material: jobSheet.material,
+            materialsUsed: jobSheet.materialsUsed,
           );
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(body['message']?.toString() ?? 'Submission updated.')),
+          SnackBar(
+            content: Text(body['message']?.toString() ?? 'Submission updated.'),
+          ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(body['message']?.toString() ?? 'Failed to update submission.')),
+          SnackBar(
+            content: Text(
+              body['message']?.toString() ?? 'Failed to update submission.',
+            ),
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     } finally {
       if (mounted) setState(() => _submittingDecision = false);
@@ -206,7 +407,8 @@ class _JobSheetDetailsScreenState extends State<JobSheetDetailsScreen> {
       final body = jsonDecode(response.body) as Map<String, dynamic>;
       if (!mounted) return;
       if (response.statusCode == 200 && body['status'] == true) {
-        final data = (body['data'] as Map?)?.cast<String, dynamic>() ?? const {};
+        final data =
+            (body['data'] as Map?)?.cast<String, dynamic>() ?? const {};
         setState(() {
           jobSheet = JobSheet(
             id: jobSheet.id,
@@ -236,32 +438,48 @@ class _JobSheetDetailsScreenState extends State<JobSheetDetailsScreen> {
             reviewed: jobSheet.reviewed,
             resubmissionCount: jobSheet.resubmissionCount,
             qaStatus: data['qa_status']?.toString() ?? jobSheet.qaStatus,
-            qaStatusLabel: data['qa_status_label']?.toString() ?? jobSheet.qaStatusLabel,
+            qaStatusLabel:
+                data['qa_status_label']?.toString() ?? jobSheet.qaStatusLabel,
             qaNotes: data['qa_notes']?.toString() ?? jobSheet.qaNotes,
-            qaCheckedBy: data['qa_checked_by']?.toString() ?? jobSheet.qaCheckedBy,
+            qaCheckedBy:
+                data['qa_checked_by']?.toString() ?? jobSheet.qaCheckedBy,
             qaChecked: data['qa_checked']?.toString() ?? jobSheet.qaChecked,
             rawFields: jobSheet.rawFields,
             payload: jobSheet.payload,
+            material: jobSheet.material,
+            materialsUsed: jobSheet.materialsUsed,
           );
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(body['message']?.toString() ?? 'QA status updated.')),
+          SnackBar(
+            content: Text(body['message']?.toString() ?? 'QA status updated.'),
+          ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(body['message']?.toString() ?? 'Failed to update QA status.')),
+          SnackBar(
+            content: Text(
+              body['message']?.toString() ?? 'Failed to update QA status.',
+            ),
+          ),
         );
       }
     } on FormatException {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('The server returned an invalid response. Please try again.')),
+          const SnackBar(
+            content: Text(
+              'The server returned an invalid response. Please try again.',
+            ),
+          ),
         );
       }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not update QA status. Please try again.')),
+          const SnackBar(
+            content: Text('Could not update QA status. Please try again.'),
+          ),
         );
       }
     } finally {
@@ -286,7 +504,10 @@ class _JobSheetDetailsScreenState extends State<JobSheetDetailsScreen> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, controller.text.trim()),
             child: Text(qaStatus == 'passed' ? 'Mark Pass' : 'Mark Fail'),
@@ -424,9 +645,17 @@ class _JobSheetDetailsScreenState extends State<JobSheetDetailsScreen> {
             if (jobSheet.reviewed.isNotEmpty)
               _buildDetailRow("Reviewed At", jobSheet.reviewed, isDark),
             if (jobSheet.rejectionReason.isNotEmpty)
-              _buildDetailRow("Rejection Reason", jobSheet.rejectionReason, isDark),
+              _buildDetailRow(
+                "Rejection Reason",
+                jobSheet.rejectionReason,
+                isDark,
+              ),
             if (jobSheet.resubmissionCount > 0)
-              _buildDetailRow("Resubmissions", jobSheet.resubmissionCount.toString(), isDark),
+              _buildDetailRow(
+                "Resubmissions",
+                jobSheet.resubmissionCount.toString(),
+                isDark,
+              ),
             _buildDetailRow("QA Status", jobSheet.qaStatusLabel, isDark),
             if (jobSheet.qaCheckedBy.isNotEmpty)
               _buildDetailRow("QA Checked By", jobSheet.qaCheckedBy, isDark),
@@ -450,21 +679,44 @@ class _JobSheetDetailsScreenState extends State<JobSheetDetailsScreen> {
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF16A34A),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                   ),
-                  onPressed: _submittingDecision ? null : () => _submitQaStatus('passed'),
-                  icon: const Icon(IconlyLight.tick_square, color: Colors.white, size: 18),
-                  label: const Text("QA Pass", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                  onPressed: _submittingDecision
+                      ? null
+                      : () => _submitQaStatus('passed'),
+                  icon: const Icon(
+                    IconlyLight.tick_square,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                  label: const Text(
+                    "QA Pass",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
                 OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.red,
                     side: const BorderSide(color: Colors.red),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                   ),
-                  onPressed: _submittingDecision ? null : () => _submitQaStatus('failed'),
+                  onPressed: _submittingDecision
+                      ? null
+                      : () => _submitQaStatus('failed'),
                   icon: const Icon(IconlyLight.close_square, size: 18),
-                  label: const Text("QA Fail", style: TextStyle(fontWeight: FontWeight.w600)),
+                  label: const Text(
+                    "QA Fail",
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
                 ),
               ],
             ),
@@ -485,34 +737,71 @@ class _JobSheetDetailsScreenState extends State<JobSheetDetailsScreen> {
                   ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF16A34A),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
-                    onPressed: _submittingDecision ? null : () => _submitDecision('approve'),
-                    icon: const Icon(IconlyLight.tick_square, color: Colors.white, size: 18),
-                    label: const Text("Approve", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                    onPressed: _submittingDecision
+                        ? null
+                        : () => _submitDecision('approve'),
+                    icon: const Icon(
+                      IconlyLight.tick_square,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                    label: const Text(
+                      "Approve",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
                   OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFFD97706),
                       side: const BorderSide(color: Color(0xFFD97706)),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
-                    onPressed: _submittingDecision ? null : () => _submitDecision('request_rectification'),
+                    onPressed: _submittingDecision
+                        ? null
+                        : () => _submitDecision('request_rectification'),
                     icon: const Icon(IconlyLight.edit, size: 18),
-                    label: const Text("Request Rectification", style: TextStyle(fontWeight: FontWeight.w600)),
+                    label: const Text(
+                      "Request Rectification",
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
                   ),
                   OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.red,
                       side: const BorderSide(color: Colors.red),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
-                    onPressed: _submittingDecision ? null : () => _submitDecision('reject'),
+                    onPressed: _submittingDecision
+                        ? null
+                        : () => _submitDecision('reject'),
                     icon: const Icon(IconlyLight.close_square, size: 18),
-                    label: const Text("Reject", style: TextStyle(fontWeight: FontWeight.w600)),
+                    label: const Text(
+                      "Reject",
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
                   ),
                 ],
               ),
@@ -568,7 +857,9 @@ class _JobSheetDetailsScreenState extends State<JobSheetDetailsScreen> {
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
+                        color: Colors.black.withValues(
+                          alpha: isDark ? 0.2 : 0.05,
+                        ),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),
@@ -668,7 +959,11 @@ class _JobSheetDetailsScreenState extends State<JobSheetDetailsScreen> {
                                   jobSheet.clientName,
                                   isDark,
                                 ),
-                                _buildDetailRow("Job No.", jobSheet.jobNo, isDark),
+                                _buildDetailRow(
+                                  "Job No.",
+                                  jobSheet.jobNo,
+                                  isDark,
+                                ),
                                 _buildDetailRow(
                                   "Job Reference",
                                   jobSheet.jobReference,
@@ -679,7 +974,11 @@ class _JobSheetDetailsScreenState extends State<JobSheetDetailsScreen> {
                                   "${jobSheet.operative} (${jobSheet.operativeCode})",
                                   isDark,
                                 ),
-                                _buildDetailRow("Form Type", jobSheet.form, isDark),
+                                _buildDetailRow(
+                                  "Form Type",
+                                  jobSheet.form,
+                                  isDark,
+                                ),
                                 _buildDetailRow(
                                   "Location",
                                   jobSheet.location,
@@ -697,12 +996,15 @@ class _JobSheetDetailsScreenState extends State<JobSheetDetailsScreen> {
                         child: Column(
                           children: [
                             _buildSectionCard(
-                              title: jobSheet.form.toLowerCase().contains("daily")
+                              title:
+                                  jobSheet.form.toLowerCase().contains("daily")
                                   ? "Notes"
                                   : "Financials & Notes",
                               isDark: isDark,
                               children: [
-                                if (!jobSheet.form.toLowerCase().contains("daily")) ...[
+                                if (!jobSheet.form.toLowerCase().contains(
+                                  "daily",
+                                )) ...[
                                   _buildDetailRow(
                                     "Material Cost",
                                     jobSheet.materialCost.isNotEmpty
@@ -801,7 +1103,9 @@ class _JobSheetDetailsScreenState extends State<JobSheetDetailsScreen> {
                             : "Financials & Notes",
                         isDark: isDark,
                         children: [
-                          if (!jobSheet.form.toLowerCase().contains("daily")) ...[
+                          if (!jobSheet.form.toLowerCase().contains(
+                            "daily",
+                          )) ...[
                             _buildDetailRow(
                               "Material Cost",
                               jobSheet.materialCost.isNotEmpty
@@ -829,11 +1133,7 @@ class _JobSheetDetailsScreenState extends State<JobSheetDetailsScreen> {
                         title: "Timestamps",
                         isDark: isDark,
                         children: [
-                          _buildDetailRow(
-                            "Created",
-                            jobSheet.created,
-                            isDark,
-                          ),
+                          _buildDetailRow("Created", jobSheet.created, isDark),
                           _buildDetailRow(
                             "Submitted",
                             jobSheet.submitted,

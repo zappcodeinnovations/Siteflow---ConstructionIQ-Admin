@@ -1,12 +1,8 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 
-import '../../core/network/api_client.dart';
 import '../../core/network/api_endpoints.dart';
+import '../../core/services/download_manager.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/background_stripes_painter.dart';
 import '../../core/widgets/custom_date_picker_dialog.dart';
@@ -41,10 +37,10 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
   Future<void> _selectDateRange(BuildContext context) async {
     final DateTimeRange? picked =
         await CustomDatePickerDialog.showCustomDateRangePicker(
-      context: context,
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2101),
-    );
+          context: context,
+          firstDate: DateTime(2000),
+          lastDate: DateTime(2101),
+        );
     if (picked != null) {
       final startStr =
           "${picked.start.day.toString().padLeft(2, '0')}/${picked.start.month.toString().padLeft(2, '0')}/${picked.start.year}";
@@ -64,7 +60,13 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) {
-        final presets = ['This Month', 'Last Month', 'This Year', 'All time', 'Custom Date Range...'];
+        final presets = [
+          'This Month',
+          'Last Month',
+          'This Year',
+          'All time',
+          'Custom Date Range...',
+        ];
         return SafeArea(
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 16.0),
@@ -73,7 +75,10 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 8,
+                  ),
                   child: Text(
                     "Select Date Range",
                     style: TextStyle(
@@ -90,7 +95,9 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
                     title: Text(
                       preset,
                       style: TextStyle(
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                        fontWeight: isSelected
+                            ? FontWeight.bold
+                            : FontWeight.w500,
                         color: isSelected
                             ? const Color(0xFF0D6EFD)
                             : (isDark ? Colors.white : Colors.black87),
@@ -119,10 +126,14 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
 
   void _showAddFilterDialog() {
     final options = _controller.data?.filterOptions ?? {};
-    final clients = (options['clients'] as List?)?.map((e) => e.toString()).toList() ?? [];
-    final projects = (options['projects'] as List?)?.map((e) => e.toString()).toList() ?? [];
-    final teams = (options['teams'] as List?)?.map((e) => e.toString()).toList() ?? [];
-    final members = (options['members'] as List?)?.map((e) => e.toString()).toList() ?? [];
+    final clients =
+        (options['clients'] as List?)?.map((e) => e.toString()).toList() ?? [];
+    final projects =
+        (options['projects'] as List?)?.map((e) => e.toString()).toList() ?? [];
+    final teams =
+        (options['teams'] as List?)?.map((e) => e.toString()).toList() ?? [];
+    final members =
+        (options['members'] as List?)?.map((e) => e.toString()).toList() ?? [];
 
     showModalBottomSheet(
       context: context,
@@ -141,8 +152,12 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
 
         final isDark = Theme.of(ctx).brightness == Brightness.dark;
         final titleColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
-        final fieldFill = isDark ? Colors.white.withValues(alpha: 0.08) : const Color(0xFFF8FAFC);
-        final fieldBorder = isDark ? AppTheme.darkBorder : const Color(0xFFE2E8F0);
+        final fieldFill = isDark
+            ? Colors.white.withValues(alpha: 0.08)
+            : const Color(0xFFF8FAFC);
+        final fieldBorder = isDark
+            ? AppTheme.darkBorder
+            : const Color(0xFFE2E8F0);
         final labelColor = isDark ? Colors.grey.shade400 : Colors.black87;
         final itemTextColor = isDark ? Colors.white : Colors.black87;
 
@@ -168,7 +183,9 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
                             Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF0D6EFD).withValues(alpha: 0.1),
+                                color: const Color(
+                                  0xFF0D6EFD,
+                                ).withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: const Icon(
@@ -204,7 +221,9 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
                       "Client",
                       tempClient,
                       ["All Clients", ...clients],
-                      (val) => setModalState(() => tempClient = val == "All Clients" ? null : val),
+                      (val) => setModalState(
+                        () => tempClient = val == "All Clients" ? null : val,
+                      ),
                       isDark,
                       fieldFill,
                       fieldBorder,
@@ -218,7 +237,9 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
                       "Project",
                       tempProject,
                       ["All Projects", ...projects],
-                      (val) => setModalState(() => tempProject = val == "All Projects" ? null : val),
+                      (val) => setModalState(
+                        () => tempProject = val == "All Projects" ? null : val,
+                      ),
                       isDark,
                       fieldFill,
                       fieldBorder,
@@ -232,7 +253,9 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
                       "Team",
                       tempTeam,
                       ["All Teams", ...teams],
-                      (val) => setModalState(() => tempTeam = val == "All Teams" ? null : val),
+                      (val) => setModalState(
+                        () => tempTeam = val == "All Teams" ? null : val,
+                      ),
                       isDark,
                       fieldFill,
                       fieldBorder,
@@ -246,7 +269,9 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
                       "Member",
                       tempMember,
                       ["All Members", ...members],
-                      (val) => setModalState(() => tempMember = val == "All Members" ? null : val),
+                      (val) => setModalState(
+                        () => tempMember = val == "All Members" ? null : val,
+                      ),
                       isDark,
                       fieldFill,
                       fieldBorder,
@@ -265,7 +290,9 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               side: BorderSide(
-                                color: isDark ? AppTheme.darkBorder : Colors.grey.shade300,
+                                color: isDark
+                                    ? AppTheme.darkBorder
+                                    : Colors.grey.shade300,
                               ),
                             ),
                             onPressed: () {
@@ -364,7 +391,11 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
               isExpanded: true,
               value: currentValue ?? items.first,
               dropdownColor: isDark ? AppTheme.darkSurface : Colors.white,
-              icon: const Icon(IconlyLight.arrow_down_2, color: Colors.grey, size: 18),
+              icon: const Icon(
+                IconlyLight.arrow_down_2,
+                color: Colors.grey,
+                size: 18,
+              ),
               items: items.map((String value) {
                 return DropdownMenuItem<String>(
                   value: value,
@@ -396,20 +427,26 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
     if (_controller.toDate.isNotEmpty) {
       queryParams.add('to=${_controller.toDate}');
     }
-    if (_controller.selectedClient != null && _controller.selectedClient!.isNotEmpty) {
+    if (_controller.selectedClient != null &&
+        _controller.selectedClient!.isNotEmpty) {
       queryParams.add('client=${_controller.selectedClient}');
     }
-    if (_controller.selectedProject != null && _controller.selectedProject!.isNotEmpty) {
+    if (_controller.selectedProject != null &&
+        _controller.selectedProject!.isNotEmpty) {
       queryParams.add('project=${_controller.selectedProject}');
     }
-    if (_controller.selectedTeam != null && _controller.selectedTeam!.isNotEmpty) {
+    if (_controller.selectedTeam != null &&
+        _controller.selectedTeam!.isNotEmpty) {
       queryParams.add('team=${_controller.selectedTeam}');
     }
-    if (_controller.selectedMember != null && _controller.selectedMember!.isNotEmpty) {
+    if (_controller.selectedMember != null &&
+        _controller.selectedMember!.isNotEmpty) {
       queryParams.add('member=${_controller.selectedMember}');
     }
 
-    final finalUrl = queryParams.isEmpty ? baseUrl : '$baseUrl&${queryParams.join('&')}';
+    final finalUrl = queryParams.isEmpty
+        ? baseUrl
+        : '$baseUrl&${queryParams.join('&')}';
 
     try {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -419,28 +456,13 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
         ),
       );
 
-      final response = await ApiClient.get(finalUrl);
-
-      if (response.statusCode == 200) {
-        final directory = await getTemporaryDirectory();
-        final timestamp = DateTime.now().millisecondsSinceEpoch;
-        final file = File('${directory.path}/Productivity_Report_$timestamp.xlsx');
-        await file.writeAsBytes(response.bodyBytes);
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).hideCurrentSnackBar();
-          await Share.shareXFiles(
-            [XFile(file.path)],
-            text: "Productivity Report",
-          );
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Failed to download: ${response.statusCode}")),
-          );
-        }
-      }
+      await DownloadManager.instance.downloadUrl(
+        url: finalUrl,
+        fileName:
+            'Productivity_Report_${DateTime.now().millisecondsSinceEpoch}.xlsx',
+        mimeType:
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -458,9 +480,13 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
     IconData iconData,
   ) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardBgColor = isDark ? AppTheme.corporateBlue : const Color(0xFF0F2C4A);
+    final cardBgColor = isDark
+        ? AppTheme.corporateBlue
+        : const Color(0xFF0F2C4A);
     final cardBorder = Border.all(
-      color: isDark ? Colors.white24 : const Color(0xFF1E3A8A).withValues(alpha: 0.3),
+      color: isDark
+          ? Colors.white24
+          : const Color(0xFF1E3A8A).withValues(alpha: 0.3),
       width: 1.5,
     );
 
@@ -549,9 +575,7 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected
-              ? const Color(0xFF0D6EFD)
-              : Colors.transparent,
+          color: isSelected ? const Color(0xFF0D6EFD) : Colors.transparent,
           borderRadius: BorderRadius.circular(26),
         ),
         child: Text(
@@ -627,11 +651,19 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
             contentPadding: EdgeInsets.zero,
             leading: const CircleAvatar(
               backgroundColor: Color(0xFFEEF2FF),
-              child: Icon(IconlyLight.document, color: Color(0xFF0D6EFD), size: 18),
+              child: Icon(
+                IconlyLight.document,
+                color: Color(0xFF0D6EFD),
+                size: 18,
+              ),
             ),
             title: Text(
               "Full Productivity Export (Excel)",
-              style: TextStyle(fontWeight: FontWeight.bold, color: textColor, fontSize: 14),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: textColor,
+                fontSize: 14,
+              ),
             ),
             subtitle: Text(
               "Includes active projects, team metrics, operative hours & costs",
@@ -641,12 +673,20 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF0D6EFD),
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
               ),
               onPressed: _downloadReport,
               icon: const Icon(IconlyLight.download, size: 14),
-              label: const Text("Export", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+              label: const Text(
+                "Export",
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+              ),
             ),
           ),
           const Divider(),
@@ -654,11 +694,19 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
             contentPadding: EdgeInsets.zero,
             leading: const CircleAvatar(
               backgroundColor: Color(0xFFF0FDF4),
-              child: Icon(IconlyLight.chart, color: Color(0xFF15803D), size: 18),
+              child: Icon(
+                IconlyLight.chart,
+                color: Color(0xFF15803D),
+                size: 18,
+              ),
             ),
             title: Text(
               "Member Work & Timesheet Summary",
-              style: TextStyle(fontWeight: FontWeight.bold, color: textColor, fontSize: 14),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: textColor,
+                fontSize: 14,
+              ),
             ),
             subtitle: Text(
               "Scoped to ${_controller.datePreset}",
@@ -667,12 +715,28 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
             trailing: OutlinedButton.icon(
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: Color(0xFF0D6EFD)),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
               ),
               onPressed: _downloadReport,
-              icon: const Icon(IconlyLight.download, size: 14, color: Color(0xFF0D6EFD)),
-              label: const Text("Download", style: TextStyle(fontSize: 12, color: Color(0xFF0D6EFD), fontWeight: FontWeight.bold)),
+              icon: const Icon(
+                IconlyLight.download,
+                size: 14,
+                color: Color(0xFF0D6EFD),
+              ),
+              label: const Text(
+                "Download",
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF0D6EFD),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           ),
         ],
@@ -720,8 +784,8 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
                 _controller.currentView == 'member'
                     ? "Team Members"
                     : _controller.currentView == 'team'
-                        ? "Teams"
-                        : "Projects",
+                    ? "Teams"
+                    : "Projects",
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -796,29 +860,35 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
       subtitle = "Team Member";
       initials = member.initials.isNotEmpty
           ? member.initials
-          : (member.name.isNotEmpty ? member.name.substring(0, 1).toUpperCase() : "M");
+          : (member.name.isNotEmpty
+                ? member.name.substring(0, 1).toUpperCase()
+                : "M");
       badgeText = member.team;
       sheets = member.jobSheets.toString();
       opCost = '£${member.operative.toStringAsFixed(0)}';
       matCost = '£${member.materialCost.toStringAsFixed(0)}';
       totalCharge = '£${member.charge.toStringAsFixed(2)}';
-      avatarColor = index % 2 == 0 ? const Color(0xFF0F172A) : const Color(0xFF0D6EFD);
+      avatarColor = index % 2 == 0
+          ? const Color(0xFF0F172A)
+          : const Color(0xFF0D6EFD);
 
       onTap = () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => ProductivityDetailScreen(
-                id: member.id,
-                title: member.name,
-                isMember: true,
-              ),
-            ),
-          );
+        context,
+        MaterialPageRoute(
+          builder: (_) => ProductivityDetailScreen(
+            id: member.id,
+            title: member.name,
+            isMember: true,
+          ),
+        ),
+      );
     } else if (_controller.currentView == 'team') {
       final team = _controller.filteredTeams[index];
       title = team.team;
       subtitle = "${team.members} Members";
-      initials = team.team.isNotEmpty ? team.team.substring(0, 1).toUpperCase() : "T";
+      initials = team.team.isNotEmpty
+          ? team.team.substring(0, 1).toUpperCase()
+          : "T";
       sheets = team.jobSheets.toString();
       opCost = '£${team.operative.toStringAsFixed(0)}';
       matCost = '£${team.materialCost.toStringAsFixed(0)}';
@@ -828,7 +898,9 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
       final project = _controller.filteredProjects[index];
       title = project.name;
       subtitle = project.client;
-      initials = project.name.isNotEmpty ? project.name.substring(0, 1).toUpperCase() : "P";
+      initials = project.name.isNotEmpty
+          ? project.name.substring(0, 1).toUpperCase()
+          : "P";
       badgeText = "${project.members} Members";
       sheets = project.jobSheets.toString();
       opCost = '£${project.operative.toStringAsFixed(0)}';
@@ -837,15 +909,15 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
       avatarColor = const Color(0xFF7C3AED);
 
       onTap = () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => ProductivityDetailScreen(
-                id: project.id,
-                title: project.name,
-                isMember: false,
-              ),
-            ),
-          );
+        context,
+        MaterialPageRoute(
+          builder: (_) => ProductivityDetailScreen(
+            id: project.id,
+            title: project.name,
+            isMember: false,
+          ),
+        ),
+      );
     }
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -867,7 +939,7 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
               color: Colors.black.withValues(alpha: 0.02),
               blurRadius: 15,
               offset: const Offset(0, 5),
-            )
+            ),
           ],
         ),
         child: Padding(
@@ -917,7 +989,9 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: isDark ? Colors.white10 : const Color(0xFFEEF2FF),
+                        color: isDark
+                            ? Colors.white10
+                            : const Color(0xFFEEF2FF),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
@@ -1122,7 +1196,9 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
                           decoration: InputDecoration(
                             hintText: "Search projects, teams, job sheets...",
                             hintStyle: TextStyle(
-                              color: isDark ? Colors.white38 : Colors.grey.shade500,
+                              color: isDark
+                                  ? Colors.white38
+                                  : Colors.grey.shade500,
                               fontSize: 14,
                             ),
                             prefixIcon: const Icon(
@@ -1164,17 +1240,23 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
                                   vertical: 10,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: isDark ? AppTheme.corporateBlue : Colors.white,
+                                  color: isDark
+                                      ? AppTheme.corporateBlue
+                                      : Colors.white,
                                   border: Border.all(
                                     color: isDark
                                         ? Colors.white30
-                                        : const Color(0xFF0F2C4A).withValues(alpha: 0.2),
+                                        : const Color(
+                                            0xFF0F2C4A,
+                                          ).withValues(alpha: 0.2),
                                     width: 1.5,
                                   ),
                                   borderRadius: BorderRadius.circular(24),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.04),
+                                      color: Colors.black.withValues(
+                                        alpha: 0.04,
+                                      ),
                                       blurRadius: 6,
                                       offset: const Offset(0, 2),
                                     ),
@@ -1203,7 +1285,9 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
                                     Icon(
                                       IconlyLight.arrow_down_2,
                                       size: 14,
-                                      color: isDark ? Colors.white70 : Colors.black87,
+                                      color: isDark
+                                          ? Colors.white70
+                                          : Colors.black87,
                                     ),
                                   ],
                                 ),
@@ -1214,9 +1298,13 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
                             // + Add Filter Button
                             OutlinedButton.icon(
                               style: OutlinedButton.styleFrom(
-                                backgroundColor: isDark ? AppTheme.darkSurface : Colors.white,
+                                backgroundColor: isDark
+                                    ? AppTheme.darkSurface
+                                    : Colors.white,
                                 side: BorderSide(
-                                  color: isDark ? AppTheme.darkBorder : const Color(0xFFCBD5E1),
+                                  color: isDark
+                                      ? AppTheme.darkBorder
+                                      : const Color(0xFFCBD5E1),
                                   width: 1.2,
                                 ),
                                 shape: RoundedRectangleBorder(
@@ -1315,21 +1403,26 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
                           children: [
                             _buildKpiCard(
                               "Active Projects",
-                              _controller.data!.summary?.activeProjects.toString() ?? "0",
+                              _controller.data!.summary?.activeProjects
+                                      .toString() ??
+                                  "0",
                               const Color(0xFFEEF2FF),
                               const Color(0xFF4338CA),
                               IconlyLight.chart,
                             ),
                             _buildKpiCard(
                               "Active Members",
-                              _controller.data!.summary?.activeMembers.toString() ?? "0",
+                              _controller.data!.summary?.activeMembers
+                                      .toString() ??
+                                  "0",
                               const Color(0xFFFFFBEB),
                               const Color(0xFFB45309),
                               IconlyLight.category,
                             ),
                             _buildKpiCard(
                               "Job Sheets",
-                              _controller.data!.summary?.jobSheets.toString() ?? "0",
+                              _controller.data!.summary?.jobSheets.toString() ??
+                                  "0",
                               const Color(0xFFF0FDF4),
                               const Color(0xFF15803D),
                               IconlyLight.paper,

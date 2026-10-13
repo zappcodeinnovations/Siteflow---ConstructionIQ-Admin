@@ -1,17 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
-import 'dart:io';
-import 'package:flutter/services.dart';
-import '../../core/network/api_client.dart';
 import '../../core/network/api_endpoints.dart';
+import '../../core/services/download_manager.dart';
 import 'job_sheet_controller.dart';
 import 'job_sheet_details_screen.dart';
 import 'job_sheet_webview_screen.dart';
 import '../../models/job_sheet_model.dart';
 import 'package:iconly/iconly.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/utils/date_helper.dart';
 import '../../core/widgets/background_stripes_painter.dart';
 import '../projects/create_task_controller.dart';
 
@@ -31,21 +26,6 @@ class JobSheetScreen extends StatefulWidget {
 
 class _JobSheetScreenState extends State<JobSheetScreen> {
   final JobSheetController _controller = JobSheetController();
-  static const MethodChannel _downloadsChannel = MethodChannel(
-    'com.euroside.siteflow_admin/downloads',
-  );
-
-  Future<String?> _savePdfToDownloads(List<int> bytes, String fileName) async {
-    if (!Platform.isAndroid) return null;
-    try {
-      return await _downloadsChannel.invokeMethod<String>('savePdf', {
-        'bytes': bytes,
-        'fileName': fileName,
-      });
-    } on PlatformException {
-      return null;
-    }
-  }
 
   @override
   void initState() {
@@ -62,42 +42,16 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
 
   Future<void> _downloadJobSheetPdf(JobSheet sheet) async {
     try {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Downloading PDF for ${sheet.sheetNo.isNotEmpty ? sheet.sheetNo : 'Job Sheet'}..."),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      }
-
-      final urlStr = '${ApiEndpoints.baseUrl}/job-sheets/?ids=${sheet.id}&export=pdf';
-      final response = await ApiClient.get(urlStr);
-
-      if (response.statusCode == 200 && response.bodyBytes.isNotEmpty) {
-        final contentType = response.headers['content-type'] ?? '';
-        final isPdfBinary = contentType.contains('application/pdf') ||
-            (response.bodyBytes.length >= 4 &&
-                response.bodyBytes[0] == 0x25 && // %
-                response.bodyBytes[1] == 0x50 && // P
-                response.bodyBytes[2] == 0x44 && // D
-                response.bodyBytes[3] == 0x46);   // F
-
-        if (isPdfBinary) {
-          final directory = await getTemporaryDirectory();
-          final fileName = 'job_sheet_${sheet.sheetNo.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_')}.pdf';
-          final file = File('${directory.path}/$fileName');
-          await file.writeAsBytes(response.bodyBytes);
-
-          if (mounted) {
-            ScaffoldMessenger.of(context).hideCurrentSnackBar();
-          }
-
-          // ignore: deprecated_member_use
-          await Share.shareXFiles([XFile(file.path)], text: 'Job Sheet ${sheet.sheetNo} PDF');
-          return;
-        }
-      }
+      final urlStr =
+          '${ApiEndpoints.baseUrl}/job-sheets/?ids=${sheet.id}&export=pdf';
+      final fileName =
+          'job_sheet_${sheet.sheetNo.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_')}.pdf';
+      final saved = await DownloadManager.instance.downloadUrl(
+        url: urlStr,
+        fileName: fileName,
+        mimeType: 'application/pdf',
+      );
+      if (saved != null) return;
 
       // Fallback: If viewFormInBrowserUrl or globalDetailApiUrl is available, open form in in-app webview
       String path = sheet.viewFormInBrowserUrl.isNotEmpty
@@ -111,7 +65,6 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
         }
         final fullUrl = base + path;
         if (mounted) {
-          ScaffoldMessenger.of(context).hideCurrentSnackBar();
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -131,56 +84,36 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error opening PDF: $e")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Error opening PDF: $e")));
       }
     }
   }
 
   Future<void> _downloadReport() async {
     if (_controller.jobSheets.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("No job sheets to export")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("No job sheets to export")));
       return;
     }
 
     try {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Downloading report...")),
-        );
-      }
-
       final ids = _controller.jobSheets.map((e) => e.id).join(',');
-      final urlStr = '${ApiEndpoints.baseUrl}/job-sheets/?ids=$ids&export=excel';
-      
-      final response = await ApiClient.get(urlStr);
-
-      if (response.statusCode == 200) {
-        final directory = await getTemporaryDirectory();
-        final file = File('${directory.path}/job_sheets_report.xlsx');
-        await file.writeAsBytes(response.bodyBytes);
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        }
-
-        // ignore: deprecated_member_use
-        await Share.shareXFiles([XFile(file.path)], text: 'Job Sheets Report');
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Download failed. Status: ${response.statusCode}")),
-          );
-        }
-      }
+      final urlStr =
+          '${ApiEndpoints.baseUrl}/job-sheets/?ids=$ids&export=excel';
+      await DownloadManager.instance.downloadUrl(
+        url: urlStr,
+        fileName: 'job_sheets_report.xlsx',
+        mimeType:
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error: $e")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Error: $e")));
       }
     }
   }
@@ -188,76 +121,40 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
   Future<void> _downloadProjectPdf() async {
     if (_controller.jobSheets.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("No job sheets available to export Project PDF")),
+        const SnackBar(
+          content: Text("No job sheets available to export Project PDF"),
+        ),
       );
       return;
     }
 
     try {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Downloading Project PDF..."),
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-
       final ids = _controller.jobSheets.map((e) => e.id).join(',');
       List<String> queryParams = [];
-      if (_controller.selectedProject != null && _controller.selectedProject!.isNotEmpty) {
-        queryParams.add('project=${Uri.encodeComponent(_controller.selectedProject!)}');
+      if (_controller.selectedProject != null &&
+          _controller.selectedProject!.isNotEmpty) {
+        queryParams.add(
+          'project=${Uri.encodeComponent(_controller.selectedProject!)}',
+        );
       }
       queryParams.add('ids=$ids');
       queryParams.add('export=pdf');
 
-      final urlStr = '${ApiEndpoints.baseUrl}/job-sheets/?${queryParams.join('&')}';
-      final response = await ApiClient.get(urlStr);
-
-      if (response.statusCode == 200 && response.bodyBytes.isNotEmpty) {
-        final contentType = response.headers['content-type'] ?? '';
-        final isPdfBinary = contentType.contains('application/pdf') ||
-            (response.bodyBytes.length >= 4 &&
-                response.bodyBytes[0] == 0x25 && // %
-                response.bodyBytes[1] == 0x50 && // P
-                response.bodyBytes[2] == 0x44 && // D
-                response.bodyBytes[3] == 0x46);   // F
-
-        if (isPdfBinary) {
-          final directory = await getTemporaryDirectory();
-          final projName = _controller.selectedProject != null && _controller.selectedProject!.isNotEmpty
-              ? _controller.selectedProject!.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_')
-              : 'all_projects';
-          final file = File('${directory.path}/project_pdf_$projName.pdf');
-          await file.writeAsBytes(response.bodyBytes);
-
-          if (mounted) {
-            ScaffoldMessenger.of(context).hideCurrentSnackBar();
-            final savedLocation = await _savePdfToDownloads(
-              response.bodyBytes,
-              'project_pdf_$projName.pdf',
-            );
-            if (!mounted) return;
-            if (savedLocation != null) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Project PDF saved in Downloads/Euroside')),
-              );
-            } else {
-              // iOS/desktop and older Android versions use the system save
-              // sheet when public Downloads storage is unavailable.
-              // ignore: deprecated_member_use
-              await Share.shareXFiles([XFile(file.path)], text: 'Project PDF: ${widget.title}');
-            }
-          }
-          return;
-        }
-      }
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Project PDF could not be downloaded (Status: ${response.statusCode})")),
-        );
-      }
+      final urlStr =
+          '${ApiEndpoints.baseUrl}/job-sheets/?${queryParams.join('&')}';
+      final projName =
+          _controller.selectedProject != null &&
+              _controller.selectedProject!.isNotEmpty
+          ? _controller.selectedProject!.replaceAll(
+              RegExp(r'[^a-zA-Z0-9_-]'),
+              '_',
+            )
+          : 'all_projects';
+      await DownloadManager.instance.downloadUrl(
+        url: urlStr,
+        fileName: 'project_pdf_$projName.pdf',
+        mimeType: 'application/pdf',
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -273,7 +170,12 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
     if (options[key] is List) {
       items = (options[key] as List)
           .map((e) => e.toString().trim())
-          .where((s) => s.isNotEmpty && (key != 'operatives' || CreateTaskController.isEligibleOperativeName(s)))
+          .where(
+            (s) =>
+                s.isNotEmpty &&
+                (key != 'operatives' ||
+                    CreateTaskController.isEligibleOperativeName(s)),
+          )
           .toList();
     }
 
@@ -294,7 +196,11 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
       } else if (key == 'operatives') {
         items = _controller.jobSheets
             .map((s) => s.operative.trim())
-            .where((s) => s.isNotEmpty && CreateTaskController.isEligibleOperativeName(s))
+            .where(
+              (s) =>
+                  s.isNotEmpty &&
+                  CreateTaskController.isEligibleOperativeName(s),
+            )
             .toSet()
             .toList();
       } else if (key == 'forms') {
@@ -345,7 +251,9 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
               height: MediaQuery.of(context).size.height * 0.75,
               decoration: BoxDecoration(
                 color: isDark ? AppTheme.darkSurface : Colors.white,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(20),
+                ),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.2),
@@ -369,7 +277,10 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
 
                   // Header
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 8,
+                    ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -389,20 +300,28 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
                               "${allOptions.length} available",
                               style: TextStyle(
                                 fontSize: 12,
-                                color: isDark ? Colors.white60 : Colors.grey.shade600,
+                                color: isDark
+                                    ? Colors.white60
+                                    : Colors.grey.shade600,
                               ),
                             ),
                           ],
                         ),
                         IconButton(
-                          icon: Icon(Icons.close, color: isDark ? Colors.white70 : Colors.black54),
+                          icon: Icon(
+                            Icons.close,
+                            color: isDark ? Colors.white70 : Colors.black54,
+                          ),
                           onPressed: () => Navigator.pop(bottomSheetContext),
                         ),
                       ],
                     ),
                   ),
 
-                  Divider(height: 1, color: isDark ? Colors.white12 : Colors.grey.shade200),
+                  Divider(
+                    height: 1,
+                    color: isDark ? Colors.white12 : Colors.grey.shade200,
+                  ),
 
                   // Search Field
                   Padding(
@@ -423,18 +342,24 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
                         decoration: InputDecoration(
                           hintText: searchHint,
                           hintStyle: TextStyle(
-                            color: isDark ? Colors.white38 : Colors.grey.shade400,
+                            color: isDark
+                                ? Colors.white38
+                                : Colors.grey.shade400,
                             fontSize: 14,
                           ),
                           prefixIcon: Icon(
                             IconlyLight.search,
-                            color: isDark ? Colors.white60 : Colors.grey.shade600,
+                            color: isDark
+                                ? Colors.white60
+                                : Colors.grey.shade600,
                             size: 20,
                           ),
                           suffixIcon: searchQuery.isNotEmpty
                               ? IconButton(
                                   icon: const Icon(Icons.clear, size: 18),
-                                  color: isDark ? Colors.white60 : Colors.grey.shade600,
+                                  color: isDark
+                                      ? Colors.white60
+                                      : Colors.grey.shade600,
                                   onPressed: () {
                                     setModalState(() {
                                       searchQuery = '';
@@ -472,17 +397,26 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
                               });
                             },
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 12,
+                              ),
                               margin: const EdgeInsets.only(bottom: 6),
                               decoration: BoxDecoration(
                                 color: selectedVal == null
-                                    ? (isDark ? Colors.white12 : const Color(0xFF0D6EFD).withValues(alpha: 0.1))
+                                    ? (isDark
+                                          ? Colors.white12
+                                          : const Color(
+                                              0xFF0D6EFD,
+                                            ).withValues(alpha: 0.1))
                                     : Colors.transparent,
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(
                                   color: selectedVal == null
                                       ? const Color(0xFF0D6EFD)
-                                      : (isDark ? Colors.white10 : Colors.grey.shade200),
+                                      : (isDark
+                                            ? Colors.white10
+                                            : Colors.grey.shade200),
                                 ),
                               ),
                               child: Row(
@@ -492,7 +426,9 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
                                     size: 18,
                                     color: selectedVal == null
                                         ? const Color(0xFF0D6EFD)
-                                        : (isDark ? Colors.white60 : Colors.grey),
+                                        : (isDark
+                                              ? Colors.white60
+                                              : Colors.grey),
                                   ),
                                   const SizedBox(width: 12),
                                   Expanded(
@@ -500,10 +436,16 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
                                       "All $title (Clear Filter)",
                                       style: TextStyle(
                                         fontSize: 14,
-                                        fontWeight: selectedVal == null ? FontWeight.bold : FontWeight.normal,
+                                        fontWeight: selectedVal == null
+                                            ? FontWeight.bold
+                                            : FontWeight.normal,
                                         color: selectedVal == null
-                                            ? (isDark ? Colors.white : const Color(0xFF0D6EFD))
-                                            : (isDark ? Colors.white70 : Colors.black87),
+                                            ? (isDark
+                                                  ? Colors.white
+                                                  : const Color(0xFF0D6EFD))
+                                            : (isDark
+                                                  ? Colors.white70
+                                                  : Colors.black87),
                                       ),
                                     ),
                                   ),
@@ -542,17 +484,26 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
                                 });
                               },
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 12,
+                                ),
                                 margin: const EdgeInsets.only(bottom: 4),
                                 decoration: BoxDecoration(
                                   color: isSelected
-                                      ? (isDark ? Colors.white12 : const Color(0xFF0D6EFD).withValues(alpha: 0.1))
+                                      ? (isDark
+                                            ? Colors.white12
+                                            : const Color(
+                                                0xFF0D6EFD,
+                                              ).withValues(alpha: 0.1))
                                       : Colors.transparent,
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(
                                     color: isSelected
                                         ? const Color(0xFF0D6EFD)
-                                        : (isDark ? Colors.white10 : Colors.grey.shade200),
+                                        : (isDark
+                                              ? Colors.white10
+                                              : Colors.grey.shade200),
                                   ),
                                 ),
                                 child: Row(
@@ -562,10 +513,16 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
                                         opt,
                                         style: TextStyle(
                                           fontSize: 14,
-                                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                          fontWeight: isSelected
+                                              ? FontWeight.bold
+                                              : FontWeight.normal,
                                           color: isSelected
-                                              ? (isDark ? Colors.white : const Color(0xFF0D6EFD))
-                                              : (isDark ? Colors.white : Colors.black87),
+                                              ? (isDark
+                                                    ? Colors.white
+                                                    : const Color(0xFF0D6EFD))
+                                              : (isDark
+                                                    ? Colors.white
+                                                    : Colors.black87),
                                         ),
                                       ),
                                     ),
@@ -590,7 +547,9 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
                     decoration: BoxDecoration(
                       color: isDark ? AppTheme.darkSurface : Colors.white,
                       border: Border(
-                        top: BorderSide(color: isDark ? Colors.white12 : Colors.grey.shade200),
+                        top: BorderSide(
+                          color: isDark ? Colors.white12 : Colors.grey.shade200,
+                        ),
                       ),
                     ),
                     child: Row(
@@ -599,13 +558,21 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
                           child: OutlinedButton(
                             style: OutlinedButton.styleFrom(
                               padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                              side: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              side: BorderSide(
+                                color: isDark
+                                    ? Colors.white24
+                                    : Colors.grey.shade300,
+                              ),
                             ),
                             onPressed: () => Navigator.pop(bottomSheetContext),
                             child: Text(
                               "Cancel",
-                              style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                              style: TextStyle(
+                                color: isDark ? Colors.white : Colors.black87,
+                              ),
                             ),
                           ),
                         ),
@@ -615,7 +582,9 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF0D6EFD),
                               padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
                             ),
                             onPressed: () {
                               Navigator.pop(bottomSheetContext);
@@ -623,7 +592,10 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
                             },
                             child: const Text(
                               "Apply",
-                              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ),
@@ -656,7 +628,9 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
         _controller.setFilter(
           project: key == 'projects' ? newVal : _controller.selectedProject,
           client: key == 'clients' ? newVal : _controller.selectedClient,
-          operative: key == 'operatives' ? newVal : _controller.selectedOperative,
+          operative: key == 'operatives'
+              ? newVal
+              : _controller.selectedOperative,
           form: key == 'forms' ? newVal : _controller.selectedForm,
           sheetNo: key == 'sheet_nos' ? newVal : _controller.selectedSheetNo,
         );
@@ -668,12 +642,37 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final filterTypes = [
-      {'key': 'projects', 'title': 'Project', 'icon': IconlyLight.work, 'hint': 'Find project'},
-      {'key': 'clients', 'title': 'Client', 'icon': IconlyLight.profile, 'hint': 'Find client'},
-      {'key': 'operatives', 'title': 'Operative', 'icon': IconlyLight.user, 'hint': 'Find operative'},
+      {
+        'key': 'projects',
+        'title': 'Project',
+        'icon': IconlyLight.work,
+        'hint': 'Find project',
+      },
+      {
+        'key': 'clients',
+        'title': 'Client',
+        'icon': IconlyLight.profile,
+        'hint': 'Find client',
+      },
+      {
+        'key': 'operatives',
+        'title': 'Operative',
+        'icon': IconlyLight.user,
+        'hint': 'Find operative',
+      },
       if (!widget.dailyReportsMode)
-        {'key': 'forms', 'title': 'Form', 'icon': IconlyLight.document, 'hint': 'Find form'},
-      {'key': 'sheet_nos', 'title': 'Sheet No.', 'icon': Icons.tag, 'hint': 'Find sheet'},
+        {
+          'key': 'forms',
+          'title': 'Form',
+          'icon': IconlyLight.document,
+          'hint': 'Find form',
+        },
+      {
+        'key': 'sheet_nos',
+        'title': 'Sheet No.',
+        'icon': Icons.tag,
+        'hint': 'Find sheet',
+      },
     ];
 
     showModalBottomSheet(
@@ -729,29 +728,40 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
                 String? currentVal;
                 if (key == 'projects') currentVal = _controller.selectedProject;
                 if (key == 'clients') currentVal = _controller.selectedClient;
-                if (key == 'operatives') currentVal = _controller.selectedOperative;
+                if (key == 'operatives')
+                  currentVal = _controller.selectedOperative;
                 if (key == 'forms') currentVal = _controller.selectedForm;
-                if (key == 'sheet_nos') currentVal = _controller.selectedSheetNo;
+                if (key == 'sheet_nos')
+                  currentVal = _controller.selectedSheetNo;
 
                 final hasValue = currentVal != null && currentVal.isNotEmpty;
 
                 return ListTile(
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                   leading: Icon(
                     icon,
-                    color: hasValue ? const Color(0xFF0D6EFD) : (isDark ? Colors.white70 : Colors.black54),
+                    color: hasValue
+                        ? const Color(0xFF0D6EFD)
+                        : (isDark ? Colors.white70 : Colors.black54),
                   ),
                   title: Text(
                     title,
                     style: TextStyle(
-                      fontWeight: hasValue ? FontWeight.bold : FontWeight.normal,
+                      fontWeight: hasValue
+                          ? FontWeight.bold
+                          : FontWeight.normal,
                       color: isDark ? Colors.white : Colors.black87,
                     ),
                   ),
                   subtitle: hasValue
                       ? Text(
                           currentVal,
-                          style: const TextStyle(color: Color(0xFF0D6EFD), fontSize: 12),
+                          style: const TextStyle(
+                            color: Color(0xFF0D6EFD),
+                            fontSize: 12,
+                          ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         )
@@ -786,7 +796,12 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
             chips.add(
               Container(
                 margin: const EdgeInsets.only(right: 8, top: 8),
-                padding: const EdgeInsets.only(left: 10, right: 4, top: 4, bottom: 4),
+                padding: const EdgeInsets.only(
+                  left: 10,
+                  right: 4,
+                  top: 4,
+                  bottom: 4,
+                ),
                 decoration: BoxDecoration(
                   color: isDark
                       ? const Color(0xFF0D6EFD).withValues(alpha: 0.25)
@@ -809,7 +824,9 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
-                              color: isDark ? Colors.white70 : const Color(0xFF0D6EFD),
+                              color: isDark
+                                  ? Colors.white70
+                                  : const Color(0xFF0D6EFD),
                             ),
                           ),
                           ConstrainedBox(
@@ -828,7 +845,9 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
                           Icon(
                             IconlyLight.arrow_down_2,
                             size: 12,
-                            color: isDark ? Colors.white70 : const Color(0xFF0D6EFD),
+                            color: isDark
+                                ? Colors.white70
+                                : const Color(0xFF0D6EFD),
                           ),
                         ],
                       ),
@@ -837,11 +856,21 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
                     InkWell(
                       onTap: () {
                         _controller.setFilter(
-                          project: key == 'projects' ? null : _controller.selectedProject,
-                          client: key == 'clients' ? null : _controller.selectedClient,
-                          operative: key == 'operatives' ? null : _controller.selectedOperative,
-                          form: key == 'forms' ? null : _controller.selectedForm,
-                          sheetNo: key == 'sheet_nos' ? null : _controller.selectedSheetNo,
+                          project: key == 'projects'
+                              ? null
+                              : _controller.selectedProject,
+                          client: key == 'clients'
+                              ? null
+                              : _controller.selectedClient,
+                          operative: key == 'operatives'
+                              ? null
+                              : _controller.selectedOperative,
+                          form: key == 'forms'
+                              ? null
+                              : _controller.selectedForm,
+                          sheetNo: key == 'sheet_nos'
+                              ? null
+                              : _controller.selectedSheetNo,
                         );
                       },
                       child: Padding(
@@ -860,13 +889,28 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
           }
         }
 
-        addTag("Project", _controller.selectedProject, "projects", "Find project");
+        addTag(
+          "Project",
+          _controller.selectedProject,
+          "projects",
+          "Find project",
+        );
         addTag("Client", _controller.selectedClient, "clients", "Find client");
-        addTag("Operative", _controller.selectedOperative, "operatives", "Find operative");
+        addTag(
+          "Operative",
+          _controller.selectedOperative,
+          "operatives",
+          "Find operative",
+        );
         if (!widget.dailyReportsMode) {
           addTag("Form", _controller.selectedForm, "forms", "Find form");
         }
-        addTag("Sheet No.", _controller.selectedSheetNo, "sheet_nos", "Find sheet");
+        addTag(
+          "Sheet No.",
+          _controller.selectedSheetNo,
+          "sheet_nos",
+          "Find sheet",
+        );
 
         if (chips.isEmpty) {
           return const SizedBox.shrink();
@@ -915,573 +959,881 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
             padding: const EdgeInsets.all(24.0),
             child: Column(
               children: [
-            // Filter Bar
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: isDark ? AppTheme.darkSurface : Colors.white,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade200),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.02),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  )
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    alignment: WrapAlignment.spaceBetween,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          // + Add Filter Button
-                          InkWell(
-                            borderRadius: BorderRadius.circular(6),
-                            onTap: () => _showAddFilterMenu(context),
-                            child: Container(
-                              height: 36,
-                              padding: const EdgeInsets.symmetric(horizontal: 12),
-                              decoration: BoxDecoration(
-                                color: isDark ? Colors.white10 : Colors.white,
-                                border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade300),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.add, size: 16, color: isDark ? Colors.white : Colors.black87),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    "Add Filter",
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: isDark ? Colors.white : Colors.black87,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Icon(IconlyLight.arrow_down_2, size: 14, color: isDark ? Colors.white70 : Colors.grey),
-                                ],
-                              ),
-                            ),
-                          ),
-
-                          // Status Dropdown
-                          Container(
-                            height: 36,
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            decoration: BoxDecoration(
-                              color: isDark ? Colors.white10 : Colors.white,
-                              border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade300),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: DropdownButtonHideUnderline(
-                              child: AnimatedBuilder(
-                                animation: _controller,
-                                builder: (context, _) {
-                                  final statusList = const [
-                                    'Status: All',
-                                    'Status: In Progress',
-                                    'Status: Submitted',
-                                    'Status: In Review',
-                                    'Status: Approved',
-                                    'Status: Rejected',
-                                    'Status: Archived',
-                                  ];
-                                  final currentVal = statusList.contains(_controller.selectedStatus)
-                                      ? _controller.selectedStatus
-                                      : 'Status: All';
-
-                                  return DropdownButton<String>(
-                                    dropdownColor: isDark ? AppTheme.darkSurface : Colors.white,
-                                    value: currentVal,
-                                    style: TextStyle(color: isDark ? Colors.white : Colors.black87),
-                                    items: statusList
-                                        .map((e) => DropdownMenuItem(
-                                              value: e,
-                                              child: Text(
-                                                e,
-                                                style: TextStyle(
-                                                  fontSize: 13,
-                                                  color: isDark ? Colors.white : Colors.black87,
-                                                ),
-                                              ),
-                                            ))
-                                        .toList(),
-                                    onChanged: (val) {
-                                      if (val != null) _controller.setStatusFilter(val);
-                                    },
-                                    icon: Icon(IconlyLight.arrow_down_2, size: 16, color: isDark ? Colors.white70 : Colors.grey),
-                                  );
-                                },
-                              ),
-                            ),
-                          ),
-
-                          // Reset Button
-                          InkWell(
-                            borderRadius: BorderRadius.circular(6),
-                            onTap: () => _controller.clearFilters(),
-                            child: Container(
-                              height: 36,
-                              padding: const EdgeInsets.symmetric(horizontal: 10),
-                              decoration: BoxDecoration(
-                                color: isDark ? Colors.white10 : Colors.grey.shade100,
-                                border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade300),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.refresh, size: 16, color: isDark ? Colors.white70 : Colors.black87),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    "Reset",
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w500,
-                                      color: isDark ? Colors.white : Colors.black87,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          // Select Projects Button
-                          InkWell(
-                            borderRadius: BorderRadius.circular(6),
-                            onTap: () => _openFilterForKey('projects', 'Project', 'Find project'),
-                            child: Container(
-                              height: 36,
-                              padding: const EdgeInsets.symmetric(horizontal: 10),
-                              decoration: BoxDecoration(
-                                color: isDark ? Colors.white10 : Colors.grey.shade100,
-                                border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade300),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(IconlyLight.folder, size: 16, color: isDark ? Colors.white70 : Colors.black87),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    "Select Projects",
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w500,
-                                      color: isDark ? Colors.white : Colors.black87,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-
-                          // Project PDF Button
-                          SizedBox(
-                            height: 36,
-                            child: ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF0D6EFD),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                                padding: const EdgeInsets.symmetric(horizontal: 12),
-                              ),
-                              onPressed: _downloadProjectPdf,
-                              icon: const Icon(IconlyLight.document, color: Colors.white, size: 16),
-                              label: const Text("Project PDF", style: TextStyle(color: Colors.white, fontSize: 13)),
-                            ),
-                          ),
-
-                          // Get Report Button
-                          SizedBox(
-                            height: 36,
-                            child: ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF0D6EFD),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                                padding: const EdgeInsets.symmetric(horizontal: 12),
-                              ),
-                              onPressed: _downloadReport,
-                              icon: const Icon(IconlyLight.paper, color: Colors.white, size: 16),
-                              label: const Text("Get Report", style: TextStyle(color: Colors.white, fontSize: 13)),
-                            ),
-                          ),
-                        ],
+                // Filter Bar
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: isDark ? AppTheme.darkSurface : Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: isDark ? Colors.white24 : Colors.grey.shade200,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.02),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
                       ),
                     ],
                   ),
-
-                  // Active Filter Tags Row
-                  _buildActiveFilterTags(isDark),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Cards List Container
-            Expanded(
-              child: AnimatedBuilder(
-                animation: _controller,
-                builder: (context, child) {
-                  if (_controller.isLoading && _controller.jobSheets.isEmpty) {
-                    return const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(48.0),
-                        child: CircularProgressIndicator(),
-                      ),
-                    );
-                  }
-
-                  if (_controller.errorMessage != null && _controller.jobSheets.isEmpty) {
-                    return Center(
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(20),
-                              decoration: BoxDecoration(
-                                color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                Icons.cloud_off_rounded,
-                                size: 48,
-                                color: isDark ? Colors.white70 : const Color(0xFF64748B),
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            Text(
-                              "Unable to Load Job Sheets",
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: isDark ? Colors.white : const Color(0xFF0F2C4A),
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 8),
-                            ConstrainedBox(
-                              constraints: const BoxConstraints(maxWidth: 320),
-                              child: Text(
-                                _controller.errorMessage!,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: isDark ? Colors.white60 : Colors.black54,
-                                  height: 1.4,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF0D6EFD),
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                elevation: 0,
-                              ),
-                              onPressed: () => _controller.fetchJobSheets(),
-                              icon: const Icon(Icons.refresh, size: 18),
-                              label: const Text(
-                                "Retry",
-                                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }
-
-                  if (_controller.jobSheets.isEmpty) {
-                    return const Center(child: Text("No job sheets found.", style: TextStyle(color: Colors.grey)));
-                  }
-
-                  return Column(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (_controller.isLoading && _controller.jobSheets.isNotEmpty)
-                        const LinearProgressIndicator(
-                          minHeight: 2,
-                          backgroundColor: Colors.transparent,
-                          color: Color(0xFF0D6EFD),
-                        ),
-                      Expanded(
-                        child: ListView.builder(
-                          itemCount: _controller.jobSheets.length,
-                          itemBuilder: (context, index) {
-                      final sheet = _controller.jobSheets[index];
-                      final isCompleted = sheet.statusLabel.toLowerCase().contains("completed") || sheet.status.toLowerCase().contains("completed");
-                      
-                      final isDark = Theme.of(context).brightness == Brightness.dark;
-                      final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
-                      final borderColor = isDark ? Colors.white24 : Colors.grey.shade200;
-                      final textColor = isDark ? Colors.white : Colors.black87;
-                      final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
-
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 16),
-                        decoration: BoxDecoration(
-                          color: cardColor,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: borderColor),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.02),
-                              blurRadius: 15,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(20.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        alignment: WrapAlignment.spaceBetween,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
-                              // Top Row: Sheet No and Status
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    sheet.sheetNo,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                      color: textSecondary,
-                                      letterSpacing: 1.0,
-                                    ),
+                              // + Add Filter Button
+                              InkWell(
+                                borderRadius: BorderRadius.circular(6),
+                                onTap: () => _showAddFilterMenu(context),
+                                child: Container(
+                                  height: 36,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
                                   ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: isCompleted ? Colors.green.shade50 : Colors.orange.shade50,
-                                      borderRadius: BorderRadius.circular(12),
+                                  decoration: BoxDecoration(
+                                    color: isDark
+                                        ? Colors.white10
+                                        : Colors.white,
+                                    border: Border.all(
+                                      color: isDark
+                                          ? Colors.white24
+                                          : Colors.grey.shade300,
                                     ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          IconlyLight.category,
-                                          size: 8,
-                                          color: isCompleted ? Colors.green : Colors.orange,
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          sheet.statusLabel.isNotEmpty ? sheet.statusLabel : sheet.status,
-                                          style: TextStyle(
-                                            color: isCompleted ? Colors.green : Colors.orange,
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
+                                    borderRadius: BorderRadius.circular(6),
                                   ),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
-                              
-                              // Project Name
-                              Text(
-                                sheet.projectName,
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: textColor,
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              Divider(height: 1, color: isDark ? Colors.white12 : Colors.grey.shade200),
-                              const SizedBox(height: 16),
-                              
-                              // Details Grid
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  // Column 1
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        _buildDetailItem("CLIENT", sheet.clientName),
-                                        const SizedBox(height: 16),
-                                        _buildOperativeItem(sheet.operative),
-                                        if (!widget.dailyReportsMode) ...[
-                                          const SizedBox(height: 16),
-                                          _buildDetailItem("MATERIAL COST", sheet.materialCost.isNotEmpty ? "£${sheet.materialCost}" : "£0.00", isBold: true),
-                                        ],
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  // Column 2
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        _buildDetailItem("JOB NO/REF", "${sheet.jobNo} / ${sheet.jobReference}"),
-                                        const SizedBox(height: 16),
-                                        _buildDetailItem("LOCATION", sheet.location),
-                                        if (!widget.dailyReportsMode) ...[
-                                          const SizedBox(height: 16),
-                                          _buildDetailItem("CHARGE", sheet.charge.isNotEmpty ? "£${sheet.charge}" : "£0.00", isBold: true, color: isDark ? Colors.white : const Color(0xFF0D6EFD)),
-                                        ],
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              
-                              const SizedBox(height: 20),
-                              Divider(height: 1, color: isDark ? Colors.white12 : Colors.grey.shade200),
-                              const SizedBox(height: 16),
-                              
-                              // Bottom Section: Dates & Action
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    // sheet.created is already localized to the
-                                    // device timezone server-side (the request
-                                    // sends tz=<device tz>) - re-running it
-                                    // through DateHelper here would treat this
-                                    // already-local string as UTC and shift it
-                                    // a second time.
-                                    "Created: ${sheet.created}",
-                                    style: TextStyle(fontSize: 12, color: textSecondary),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Row(
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(IconlyLight.time_circle, size: 12, color: textSecondary),
-                                      const SizedBox(width: 4),
+                                      Icon(
+                                        Icons.add,
+                                        size: 16,
+                                        color: isDark
+                                            ? Colors.white
+                                            : Colors.black87,
+                                      ),
+                                      const SizedBox(width: 6),
                                       Text(
-                                        "Updated: ${sheet.lastUpdated}",
-                                        style: TextStyle(fontSize: 12, color: textSecondary),
+                                        "Add Filter",
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          color: isDark
+                                              ? Colors.white
+                                              : Colors.black87,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Icon(
+                                        IconlyLight.arrow_down_2,
+                                        size: 14,
+                                        color: isDark
+                                            ? Colors.white70
+                                            : Colors.grey,
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 16),
-                                  Align(
-                                    alignment: Alignment.centerRight,
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        // PDF Action Button
-                                        InkWell(
-                                          borderRadius: BorderRadius.circular(20),
-                                          onTap: () => _downloadJobSheetPdf(sheet),
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                            decoration: BoxDecoration(
-                                              color: isDark
-                                                  ? Colors.red.withValues(alpha: 0.15)
-                                                  : Colors.red.shade50,
-                                              borderRadius: BorderRadius.circular(20),
-                                              border: Border.all(
-                                                color: isDark
-                                                    ? Colors.red.withValues(alpha: 0.3)
-                                                    : Colors.red.shade200,
-                                              ),
-                                            ),
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Icon(
-                                                  IconlyLight.document,
-                                                  size: 14,
-                                                  color: isDark ? Colors.red.shade300 : Colors.red.shade700,
-                                                ),
-                                                const SizedBox(width: 6),
-                                                Text(
-                                                  "PDF",
+                                ),
+                              ),
+
+                              // Status Dropdown
+                              Container(
+                                height: 36,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: isDark ? Colors.white10 : Colors.white,
+                                  border: Border.all(
+                                    color: isDark
+                                        ? Colors.white24
+                                        : Colors.grey.shade300,
+                                  ),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: DropdownButtonHideUnderline(
+                                  child: AnimatedBuilder(
+                                    animation: _controller,
+                                    builder: (context, _) {
+                                      final statusList = const [
+                                        'Status: All',
+                                        'Status: In Progress',
+                                        'Status: Submitted',
+                                        'Status: In Review',
+                                        'Status: Approved',
+                                        'Status: Rejected',
+                                        'Status: Archived',
+                                      ];
+                                      final currentVal =
+                                          statusList.contains(
+                                            _controller.selectedStatus,
+                                          )
+                                          ? _controller.selectedStatus
+                                          : 'Status: All';
+
+                                      return DropdownButton<String>(
+                                        dropdownColor: isDark
+                                            ? AppTheme.darkSurface
+                                            : Colors.white,
+                                        value: currentVal,
+                                        style: TextStyle(
+                                          color: isDark
+                                              ? Colors.white
+                                              : Colors.black87,
+                                        ),
+                                        items: statusList
+                                            .map(
+                                              (e) => DropdownMenuItem(
+                                                value: e,
+                                                child: Text(
+                                                  e,
                                                   style: TextStyle(
-                                                    fontSize: 12,
-                                                    color: isDark ? Colors.red.shade300 : Colors.red.shade700,
-                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 13,
+                                                    color: isDark
+                                                        ? Colors.white
+                                                        : Colors.black87,
                                                   ),
                                                 ),
-                                              ],
+                                              ),
+                                            )
+                                            .toList(),
+                                        onChanged: (val) {
+                                          if (val != null)
+                                            _controller.setStatusFilter(val);
+                                        },
+                                        icon: Icon(
+                                          IconlyLight.arrow_down_2,
+                                          size: 16,
+                                          color: isDark
+                                              ? Colors.white70
+                                              : Colors.grey,
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
+
+                              // Reset Button
+                              InkWell(
+                                borderRadius: BorderRadius.circular(6),
+                                onTap: () => _controller.clearFilters(),
+                                child: Container(
+                                  height: 36,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isDark
+                                        ? Colors.white10
+                                        : Colors.grey.shade100,
+                                    border: Border.all(
+                                      color: isDark
+                                          ? Colors.white24
+                                          : Colors.grey.shade300,
+                                    ),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.refresh,
+                                        size: 16,
+                                        color: isDark
+                                            ? Colors.white70
+                                            : Colors.black87,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        "Reset",
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w500,
+                                          color: isDark
+                                              ? Colors.white
+                                              : Colors.black87,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              // Select Projects Button
+                              InkWell(
+                                borderRadius: BorderRadius.circular(6),
+                                onTap: () => _openFilterForKey(
+                                  'projects',
+                                  'Project',
+                                  'Find project',
+                                ),
+                                child: Container(
+                                  height: 36,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isDark
+                                        ? Colors.white10
+                                        : Colors.grey.shade100,
+                                    border: Border.all(
+                                      color: isDark
+                                          ? Colors.white24
+                                          : Colors.grey.shade300,
+                                    ),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        IconlyLight.folder,
+                                        size: 16,
+                                        color: isDark
+                                            ? Colors.white70
+                                            : Colors.black87,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        "Select Projects",
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w500,
+                                          color: isDark
+                                              ? Colors.white
+                                              : Colors.black87,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+
+                              // Project PDF Button
+                              SizedBox(
+                                height: 36,
+                                child: ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF0D6EFD),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                    ),
+                                  ),
+                                  onPressed: _downloadProjectPdf,
+                                  icon: const Icon(
+                                    IconlyLight.document,
+                                    color: Colors.white,
+                                    size: 16,
+                                  ),
+                                  label: const Text(
+                                    "Project PDF",
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                              ),
+
+                              // Get Report Button
+                              SizedBox(
+                                height: 36,
+                                child: ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF0D6EFD),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                    ),
+                                  ),
+                                  onPressed: _downloadReport,
+                                  icon: const Icon(
+                                    IconlyLight.paper,
+                                    color: Colors.white,
+                                    size: 16,
+                                  ),
+                                  label: const Text(
+                                    "Get Report",
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+
+                      // Active Filter Tags Row
+                      _buildActiveFilterTags(isDark),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Cards List Container
+                Expanded(
+                  child: AnimatedBuilder(
+                    animation: _controller,
+                    builder: (context, child) {
+                      if (_controller.isLoading &&
+                          _controller.jobSheets.isEmpty) {
+                        return const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(48.0),
+                            child: CircularProgressIndicator(),
+                          ),
+                        );
+                      }
+
+                      if (_controller.errorMessage != null &&
+                          _controller.jobSheets.isEmpty) {
+                        return Center(
+                          child: SingleChildScrollView(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24.0,
+                              vertical: 32.0,
+                            ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(20),
+                                  decoration: BoxDecoration(
+                                    color: isDark
+                                        ? const Color(0xFF1E293B)
+                                        : const Color(0xFFF1F5F9),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    Icons.cloud_off_rounded,
+                                    size: 48,
+                                    color: isDark
+                                        ? Colors.white70
+                                        : const Color(0xFF64748B),
+                                  ),
+                                ),
+                                const SizedBox(height: 20),
+                                Text(
+                                  "Unable to Load Job Sheets",
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: isDark
+                                        ? Colors.white
+                                        : const Color(0xFF0F2C4A),
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 8),
+                                ConstrainedBox(
+                                  constraints: const BoxConstraints(
+                                    maxWidth: 320,
+                                  ),
+                                  child: Text(
+                                    _controller.errorMessage!,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: isDark
+                                          ? Colors.white60
+                                          : Colors.black54,
+                                      height: 1.4,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                                const SizedBox(height: 24),
+                                ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF0D6EFD),
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 28,
+                                      vertical: 12,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    elevation: 0,
+                                  ),
+                                  onPressed: () => _controller.fetchJobSheets(),
+                                  icon: const Icon(Icons.refresh, size: 18),
+                                  label: const Text(
+                                    "Retry",
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }
+
+                      if (_controller.jobSheets.isEmpty) {
+                        return const Center(
+                          child: Text(
+                            "No job sheets found.",
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                        );
+                      }
+
+                      return Column(
+                        children: [
+                          if (_controller.isLoading &&
+                              _controller.jobSheets.isNotEmpty)
+                            const LinearProgressIndicator(
+                              minHeight: 2,
+                              backgroundColor: Colors.transparent,
+                              color: Color(0xFF0D6EFD),
+                            ),
+                          Expanded(
+                            child: ListView.builder(
+                              itemCount: _controller.jobSheets.length,
+                              itemBuilder: (context, index) {
+                                final sheet = _controller.jobSheets[index];
+                                final isCompleted =
+                                    sheet.statusLabel.toLowerCase().contains(
+                                      "completed",
+                                    ) ||
+                                    sheet.status.toLowerCase().contains(
+                                      "completed",
+                                    );
+
+                                final isDark =
+                                    Theme.of(context).brightness ==
+                                    Brightness.dark;
+                                final cardColor = isDark
+                                    ? AppTheme.darkSurface
+                                    : Colors.white;
+                                final borderColor = isDark
+                                    ? Colors.white24
+                                    : Colors.grey.shade200;
+                                final textColor = isDark
+                                    ? Colors.white
+                                    : Colors.black87;
+                                final textSecondary = isDark
+                                    ? Colors.grey.shade400
+                                    : Colors.grey.shade600;
+
+                                return Container(
+                                  margin: const EdgeInsets.only(bottom: 16),
+                                  decoration: BoxDecoration(
+                                    color: cardColor,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(color: borderColor),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(
+                                          alpha: 0.02,
+                                        ),
+                                        blurRadius: 15,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(20.0),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        // Top Row: Sheet No and Status
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Text(
+                                              sheet.sheetNo,
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                                color: textSecondary,
+                                                letterSpacing: 1.0,
+                                              ),
                                             ),
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 10,
+                                                    vertical: 4,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: isCompleted
+                                                    ? Colors.green.shade50
+                                                    : Colors.orange.shade50,
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(
+                                                    IconlyLight.category,
+                                                    size: 8,
+                                                    color: isCompleted
+                                                        ? Colors.green
+                                                        : Colors.orange,
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    sheet.statusLabel.isNotEmpty
+                                                        ? sheet.statusLabel
+                                                        : sheet.status,
+                                                    style: TextStyle(
+                                                      color: isCompleted
+                                                          ? Colors.green
+                                                          : Colors.orange,
+                                                      fontSize: 12,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 12),
+
+                                        // Project Name
+                                        Text(
+                                          sheet.projectName,
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                            color: textColor,
                                           ),
                                         ),
-                                        const SizedBox(width: 10),
+                                        const SizedBox(height: 16),
+                                        Divider(
+                                          height: 1,
+                                          color: isDark
+                                              ? Colors.white12
+                                              : Colors.grey.shade200,
+                                        ),
+                                        const SizedBox(height: 16),
 
-                                        // View Details Button
-                                        InkWell(
-                                          onTap: () {
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (context) => JobSheetDetailsScreen(jobSheet: sheet),
+                                        // Details Grid
+                                        Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            // Column 1
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  _buildDetailItem(
+                                                    "CLIENT",
+                                                    sheet.clientName,
+                                                  ),
+                                                  const SizedBox(height: 16),
+                                                  _buildOperativeItem(
+                                                    sheet.operative,
+                                                  ),
+                                                  if (!widget
+                                                      .dailyReportsMode) ...[
+                                                    const SizedBox(height: 16),
+                                                    _buildDetailItem(
+                                                      "MATERIAL COST",
+                                                      sheet
+                                                              .materialCost
+                                                              .isNotEmpty
+                                                          ? "£${sheet.materialCost}"
+                                                          : "£0.00",
+                                                      isBold: true,
+                                                    ),
+                                                  ],
+                                                ],
                                               ),
-                                            );
-                                          },
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                            decoration: BoxDecoration(
-                                              color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFF0D6EFD).withValues(alpha: 0.1),
-                                              borderRadius: BorderRadius.circular(20),
                                             ),
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
+                                            const SizedBox(width: 16),
+                                            // Column 2
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  _buildDetailItem(
+                                                    "JOB NO/REF",
+                                                    "${sheet.jobNo} / ${sheet.jobReference}",
+                                                  ),
+                                                  const SizedBox(height: 16),
+                                                  _buildDetailItem(
+                                                    "LOCATION",
+                                                    sheet.location,
+                                                  ),
+                                                  if (!widget
+                                                      .dailyReportsMode) ...[
+                                                    const SizedBox(height: 16),
+                                                    _buildDetailItem(
+                                                      "CHARGE",
+                                                      sheet.charge.isNotEmpty
+                                                          ? "£${sheet.charge}"
+                                                          : "£0.00",
+                                                      isBold: true,
+                                                      color: isDark
+                                                          ? Colors.white
+                                                          : const Color(
+                                                              0xFF0D6EFD,
+                                                            ),
+                                                    ),
+                                                  ],
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+
+                                        const SizedBox(height: 20),
+                                        Divider(
+                                          height: 1,
+                                          color: isDark
+                                              ? Colors.white12
+                                              : Colors.grey.shade200,
+                                        ),
+                                        const SizedBox(height: 16),
+
+                                        // Bottom Section: Dates & Action
+                                        Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              // sheet.created is already localized to the
+                                              // device timezone server-side (the request
+                                              // sends tz=<device tz>) - re-running it
+                                              // through DateHelper here would treat this
+                                              // already-local string as UTC and shift it
+                                              // a second time.
+                                              "Created: ${sheet.created}",
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: textSecondary,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Row(
                                               children: [
+                                                Icon(
+                                                  IconlyLight.time_circle,
+                                                  size: 12,
+                                                  color: textSecondary,
+                                                ),
+                                                const SizedBox(width: 4),
                                                 Text(
-                                                  "View Details",
+                                                  "Updated: ${sheet.lastUpdated}",
                                                   style: TextStyle(
                                                     fontSize: 12,
-                                                    color: isDark ? Colors.white : const Color(0xFF0D6EFD),
-                                                    fontWeight: FontWeight.w600,
+                                                    color: textSecondary,
                                                   ),
-                                                ),
-                                                const SizedBox(width: 6),
-                                                Icon(
-                                                  IconlyLight.arrow_right,
-                                                  size: 14,
-                                                  color: isDark ? Colors.white : const Color(0xFF0D6EFD),
                                                 ),
                                               ],
                                             ),
-                                          ),
+                                            const SizedBox(height: 16),
+                                            Align(
+                                              alignment: Alignment.centerRight,
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  // PDF Action Button
+                                                  InkWell(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          20,
+                                                        ),
+                                                    onTap: () =>
+                                                        _downloadJobSheetPdf(
+                                                          sheet,
+                                                        ),
+                                                    child: Container(
+                                                      padding:
+                                                          const EdgeInsets.symmetric(
+                                                            horizontal: 14,
+                                                            vertical: 8,
+                                                          ),
+                                                      decoration: BoxDecoration(
+                                                        color: isDark
+                                                            ? Colors.red
+                                                                  .withValues(
+                                                                    alpha: 0.15,
+                                                                  )
+                                                            : Colors
+                                                                  .red
+                                                                  .shade50,
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              20,
+                                                            ),
+                                                        border: Border.all(
+                                                          color: isDark
+                                                              ? Colors.red
+                                                                    .withValues(
+                                                                      alpha:
+                                                                          0.3,
+                                                                    )
+                                                              : Colors
+                                                                    .red
+                                                                    .shade200,
+                                                        ),
+                                                      ),
+                                                      child: Row(
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
+                                                        children: [
+                                                          Icon(
+                                                            IconlyLight
+                                                                .document,
+                                                            size: 14,
+                                                            color: isDark
+                                                                ? Colors
+                                                                      .red
+                                                                      .shade300
+                                                                : Colors
+                                                                      .red
+                                                                      .shade700,
+                                                          ),
+                                                          const SizedBox(
+                                                            width: 6,
+                                                          ),
+                                                          Text(
+                                                            "PDF",
+                                                            style: TextStyle(
+                                                              fontSize: 12,
+                                                              color: isDark
+                                                                  ? Colors
+                                                                        .red
+                                                                        .shade300
+                                                                  : Colors
+                                                                        .red
+                                                                        .shade700,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 10),
+
+                                                  // View Details Button
+                                                  InkWell(
+                                                    onTap: () {
+                                                      Navigator.push(
+                                                        context,
+                                                        MaterialPageRoute(
+                                                          builder: (context) =>
+                                                              JobSheetDetailsScreen(
+                                                                jobSheet: sheet,
+                                                              ),
+                                                        ),
+                                                      );
+                                                    },
+                                                    child: Container(
+                                                      padding:
+                                                          const EdgeInsets.symmetric(
+                                                            horizontal: 16,
+                                                            vertical: 8,
+                                                          ),
+                                                      decoration: BoxDecoration(
+                                                        color: isDark
+                                                            ? Colors.white
+                                                                  .withValues(
+                                                                    alpha: 0.05,
+                                                                  )
+                                                            : const Color(
+                                                                0xFF0D6EFD,
+                                                              ).withValues(
+                                                                alpha: 0.1,
+                                                              ),
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              20,
+                                                            ),
+                                                      ),
+                                                      child: Row(
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
+                                                        children: [
+                                                          Text(
+                                                            "View Details",
+                                                            style: TextStyle(
+                                                              fontSize: 12,
+                                                              color: isDark
+                                                                  ? Colors.white
+                                                                  : const Color(
+                                                                      0xFF0D6EFD,
+                                                                    ),
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w600,
+                                                            ),
+                                                          ),
+                                                          const SizedBox(
+                                                            width: 6,
+                                                          ),
+                                                          Icon(
+                                                            IconlyLight
+                                                                .arrow_right,
+                                                            size: 14,
+                                                            color: isDark
+                                                                ? Colors.white
+                                                                : const Color(
+                                                                    0xFF0D6EFD,
+                                                                  ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ],
                                     ),
                                   ),
-                                ],
-                              ),
-                            ],
+                                );
+                              },
+                            ),
                           ),
-                        ),
+                        ],
                       );
                     },
                   ),
                 ),
-              ],
-            );
-          },
-        ),
-      ),
               ],
             ),
           ),
@@ -1490,7 +1842,12 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
     );
   }
 
-  Widget _buildDetailItem(String label, String value, {bool isBold = false, Color? color}) {
+  Widget _buildDetailItem(
+    String label,
+    String value, {
+    bool isBold = false,
+    Color? color,
+  }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final labelColor = isDark ? Colors.grey.shade400 : Colors.black54;
     final valueColor = color ?? (isDark ? Colors.white : Colors.black87);
@@ -1547,7 +1904,11 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
               child: CircleAvatar(
                 radius: 10,
                 backgroundColor: isDark ? Colors.white10 : Colors.blue.shade50,
-                child: Icon(IconlyLight.profile, size: 14, color: isDark ? Colors.white : Colors.blue),
+                child: Icon(
+                  IconlyLight.profile,
+                  size: 14,
+                  color: isDark ? Colors.white : Colors.blue,
+                ),
               ),
             ),
             const SizedBox(width: 8),

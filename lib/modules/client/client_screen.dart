@@ -1,7 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
-import 'dart:io';
+import '../../core/services/download_manager.dart';
 import 'client_controller.dart';
 import 'package:iconly/iconly.dart';
 import '../../core/theme/app_theme.dart';
@@ -54,13 +54,17 @@ class ClientsScreenState extends State<ClientsScreen> {
         final textColor = isDark ? Colors.white : Colors.black87;
         final hintColor = isDark ? Colors.white54 : Colors.grey;
         final inputBorderColor = isDark ? Colors.white24 : Colors.grey.shade300;
-        final inputFillColor = isDark ? Colors.white.withOpacity(0.08) : Colors.transparent;
+        final inputFillColor = isDark
+            ? Colors.white.withOpacity(0.08)
+            : Colors.transparent;
 
         return AlertDialog(
           backgroundColor: dialogBg,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
-            side: isDark ? const BorderSide(color: Colors.white24) : BorderSide.none,
+            side: isDark
+                ? const BorderSide(color: Colors.white24)
+                : BorderSide.none,
           ),
           title: Text(
             isEdit ? "Edit Client" : "Add Client",
@@ -95,7 +99,10 @@ class ClientsScreenState extends State<ClientsScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text("Cancel", style: TextStyle(color: isDark ? Colors.white70 : Colors.grey)),
+              child: Text(
+                "Cancel",
+                style: TextStyle(color: isDark ? Colors.white70 : Colors.grey),
+              ),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -151,7 +158,9 @@ class ClientsScreenState extends State<ClientsScreen> {
           backgroundColor: dialogBg,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
-            side: isDark ? const BorderSide(color: Colors.white24) : BorderSide.none,
+            side: isDark
+                ? const BorderSide(color: Colors.white24)
+                : BorderSide.none,
           ),
           title: Text(
             "Delete Client",
@@ -164,7 +173,10 @@ class ClientsScreenState extends State<ClientsScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text("Cancel", style: TextStyle(color: isDark ? Colors.white70 : Colors.grey)),
+              child: Text(
+                "Cancel",
+                style: TextStyle(color: isDark ? Colors.white70 : Colors.grey),
+              ),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -226,473 +238,583 @@ class ClientsScreenState extends State<ClientsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-              // Header Row
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  IconButton(
-                    onPressed: () async {
-                      try {
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text("Downloading report..."),
-                              duration: Duration(seconds: 1),
-                            ),
-                          );
-                        }
-
-                        final clients = _controller.filteredClients.isNotEmpty
-                            ? _controller.filteredClients
-                            : _controller.clients;
-
-                        final buffer = StringBuffer();
-                        buffer.writeln('Name,Status,Projects,Created Date');
-
-                        for (final client in clients) {
-                          final escapedName =
-                              client.name.contains(',') ||
-                                      client.name.contains('"')
-                                  ? '"${client.name.replaceAll('"', '""')}"'
-                                  : client.name;
-                          final status = client.status.toLowerCase();
-                          final projects = client.projectsCount;
-
-                          String formattedDate = '';
-                          if (client.createdAt != null &&
-                              client.createdAt!.isNotEmpty) {
+                    // Header Row
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        IconButton(
+                          onPressed: () async {
                             try {
-                              final dt = DateTime.parse(client.createdAt!);
-                              formattedDate =
-                                  "${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}";
-                            } catch (_) {
-                              formattedDate = client.createdAt!;
-                            }
-                          } else {
-                            final now = DateTime.now();
-                            formattedDate =
-                                "${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}";
-                          }
-
-                          buffer.writeln(
-                            '$escapedName,$status,$projects,$formattedDate',
-                          );
-                        }
-
-                        final directory = await getTemporaryDirectory();
-                        final file = File('${directory.path}/clients.csv');
-                        await file.writeAsString(buffer.toString());
-
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                        }
-
-                        // Trigger the system share/save sheet
-                        await Share.shareXFiles(
-                          [XFile(file.path)],
-                          text: 'Clients Report CSV',
-                        );
-                      } catch (e) {
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text("Error: $e")),
-                          );
-                        }
-                      }
-                    },
-                    icon: Icon(
-                      IconlyLight.download,
-                      color: isDark ? Colors.white : Colors.black87,
-                    ),
-                    tooltip: "Download Excel Report",
-                  ),
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0D6EFD),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 14,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    onPressed: _showAddEditClientDialog,
-                    icon: const Icon(
-                      IconlyLight.plus,
-                      color: Colors.white,
-                      size: 18,
-                    ),
-                    label: const Text(
-                      "Add Client",
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-
-              // Search / Filter Bar
-              if (_isSearchVisible)
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: cardColor,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                    border: Border.all(color: borderColor),
-                  ),
-                  child: Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    alignment: WrapAlignment.spaceBetween,
-                    children: [
-                      Wrap(
-                        spacing: 12,
-                        runSpacing: 12,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          // Search Field
-                          SizedBox(
-                            width: 200,
-                            height: 40,
-                            child: TextField(
-                              controller: _searchController,
-                              style: TextStyle(color: textColor, fontSize: 14),
-                              onSubmitted: (value) =>
-                                  _controller.searchClients(value),
-                              decoration: InputDecoration(
-                                hintText: "Search clients",
-                                hintStyle: TextStyle(
-                                  color: isDark ? Colors.white54 : Colors.grey.shade400,
-                                  fontSize: 14,
-                                ),
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                ),
-                                filled: true,
-                                fillColor: isDark
-                                    ? Colors.white.withValues(alpha: 0.08)
-                                    : Colors.white,
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(6),
-                                  borderSide: BorderSide(
-                                    color: isDark ? Colors.white24 : Colors.grey.shade300,
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text("Downloading report..."),
+                                    duration: Duration(seconds: 1),
                                   ),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(6),
-                                  borderSide: BorderSide(
-                                    color: isDark ? Colors.white24 : Colors.grey.shade300,
-                                  ),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(6),
-                                  borderSide: const BorderSide(
-                                    color: Color(0xFF0D6EFD),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          // Status Filter Dropdown
-                          Container(
-                            height: 40,
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            decoration: BoxDecoration(
-                              color: isDark
-                                  ? Colors.white.withValues(alpha: 0.08)
-                                  : Colors.white,
-                              border: Border.all(
-                                color: isDark ? Colors.white24 : Colors.grey.shade300,
-                              ),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: DropdownButtonHideUnderline(
-                              child: DropdownButton<String>(
-                                value: _selectedFilter,
-                                dropdownColor: isDark ? const Color(0xFF0F2C4A) : Colors.white,
-                                borderRadius: BorderRadius.circular(8),
-                                menuMaxHeight: 260,
-                                elevation: 8,
-                                icon: Icon(
-                                  IconlyLight.arrow_down_2,
-                                  size: 16,
-                                  color: isDark ? Colors.white70 : Colors.grey.shade700,
-                                ),
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                  color: textColor,
-                                ),
-                                selectedItemBuilder: (context) {
-                                  return _filterOptions.map((e) {
-                                    return Align(
-                                      alignment: Alignment.centerLeft,
-                                      child: Text(
-                                        e,
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w500,
-                                          color: textColor,
-                                        ),
-                                      ),
+                                );
+                              }
+
+                              final clients =
+                                  _controller.filteredClients.isNotEmpty
+                                  ? _controller.filteredClients
+                                  : _controller.clients;
+
+                              final buffer = StringBuffer();
+                              buffer.writeln(
+                                'Name,Status,Projects,Created Date',
+                              );
+
+                              for (final client in clients) {
+                                final escapedName =
+                                    client.name.contains(',') ||
+                                        client.name.contains('"')
+                                    ? '"${client.name.replaceAll('"', '""')}"'
+                                    : client.name;
+                                final status = client.status.toLowerCase();
+                                final projects = client.projectsCount;
+
+                                String formattedDate = '';
+                                if (client.createdAt != null &&
+                                    client.createdAt!.isNotEmpty) {
+                                  try {
+                                    final dt = DateTime.parse(
+                                      client.createdAt!,
                                     );
-                                  }).toList();
-                                },
-                                items: _filterOptions.map((e) {
-                                  final isSelected = e == _selectedFilter;
-                                  return DropdownMenuItem<String>(
-                                    value: e,
-                                    alignment: AlignmentDirectional.centerStart,
-                                    child: Container(
-                                      width: double.infinity,
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 10,
-                                        vertical: 8,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: isSelected
-                                            ? const Color(0xFF0D6EFD)
-                                            : Colors.transparent,
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: Text(
-                                        e,
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: isSelected
-                                              ? FontWeight.w600
-                                              : FontWeight.w500,
-                                          color: isSelected
-                                              ? Colors.white
-                                              : (isDark
-                                                  ? Colors.white
-                                                  : const Color(0xFF0F2C4A)),
-                                        ),
-                                      ),
-                                    ),
-                                  );
-                                }).toList(),
-                                onChanged: (val) {
-                                  if (val != null) {
-                                    setState(() {
-                                      _selectedFilter = val;
-                                    });
+                                    formattedDate =
+                                        "${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}";
+                                  } catch (_) {
+                                    formattedDate = client.createdAt!;
                                   }
-                                },
-                              ),
+                                } else {
+                                  final now = DateTime.now();
+                                  formattedDate =
+                                      "${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}";
+                                }
+
+                                buffer.writeln(
+                                  '$escapedName,$status,$projects,$formattedDate',
+                                );
+                              }
+
+                              await DownloadManager.instance.saveBytes(
+                                bytes: utf8.encode(buffer.toString()),
+                                fileName:
+                                    'clients_${DateTime.now().millisecondsSinceEpoch}.csv',
+                                mimeType: 'text/csv',
+                              );
+                            } catch (e) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text("Error: $e")),
+                                );
+                              }
+                            }
+                          },
+                          icon: Icon(
+                            IconlyLight.download,
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
+                          tooltip: "Download Excel Report",
+                        ),
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF0D6EFD),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 14,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
                             ),
                           ),
-                          // Search Button
-                          SizedBox(
-                            height: 40,
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF0D6EFD),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                              ),
-                              onPressed: () =>
-                                  _controller.searchClients(_searchController.text),
-                              child: const Text(
-                                "Search",
-                                style: TextStyle(color: Colors.white),
-                              ),
-                            ),
+                          onPressed: _showAddEditClientDialog,
+                          icon: const Icon(
+                            IconlyLight.plus,
+                            color: Colors.white,
+                            size: 18,
                           ),
-                          // Refresh Icon
-                          IconButton(
-                            onPressed: () {
-                              _searchController.clear();
-                              _controller.fetchClients();
-                            },
-                            icon: Icon(
-                              Icons.refresh,
-                              color: isDark ? Colors.white : Colors.black87,
-                            ),
-                            tooltip: "Refresh List",
-                          ),
-                        ],
-                      ),
-                      // Pagination Info
-                      AnimatedBuilder(
-                        animation: _controller,
-                        builder: (context, _) {
-                          final count = _controller.filteredClients.length;
-                          return Text(
-                            count > 0 ? "1 - $count of $count" : "0 of 0",
+                          label: const Text(
+                            "Add Client",
                             style: TextStyle(
-                              color: isDark ? Colors.white70 : Colors.grey.shade600,
-                              fontSize: 14,
+                              fontSize: 12,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
                             ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              const SizedBox(height: 24),
-
-              // Clients Card List
-              AnimatedBuilder(
-                animation: _controller,
-                builder: (context, child) {
-                  if (_controller.isLoading &&
-                      _controller.filteredClients.isEmpty) {
-                    return const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(48.0),
-                        child: CircularProgressIndicator(),
-                      ),
-                    );
-                  }
-
-                  if (_controller.errorMessage != null &&
-                      _controller.filteredClients.isEmpty) {
-                    return Padding(
-                      padding: const EdgeInsets.all(40.0),
-                      child: Center(
-                        child: Text(
-                          _controller.errorMessage!,
-                          style: const TextStyle(color: Colors.red),
+                          ),
                         ),
-                      ),
-                    );
-                  }
+                      ],
+                    ),
+                    const SizedBox(height: 24),
 
-                  if (_controller.filteredClients.isEmpty) {
-                    return const Padding(
-                      padding: EdgeInsets.all(40.0),
-                      child: Center(
-                        child: Text(
-                          "No clients found.",
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                      ),
-                    );
-                  }
-
-                  return ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: _controller.filteredClients.length,
-                    itemBuilder: (context, index) {
-                      final client = _controller.filteredClients[index];
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 16),
+                    // Search / Filter Bar
+                    if (_isSearchVisible)
+                      Container(
+                        padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: cardColor,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: borderColor),
+                          borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.02),
-                              blurRadius: 15,
+                              color: Colors.black.withValues(
+                                alpha: isDark ? 0.2 : 0.05,
+                              ),
+                              blurRadius: 10,
                               offset: const Offset(0, 4),
                             ),
                           ],
+                          border: Border.all(color: borderColor),
                         ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Row(
-                            children: [
-                              // Avatar
-                              CircleAvatar(
-                                radius: 24,
-                                backgroundColor: const Color(0xFFE8F2FF),
-                                child: Text(
-                                  client.name.isNotEmpty
-                                      ? client.name.substring(0, 1).toUpperCase()
-                                      : 'C',
-                                  style: const TextStyle(
-                                    color: Color(0xFF0D6EFD),
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 20,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              
-                              // Name & Pills
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      client.name,
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
-                                        color: textColor,
+                        child: Wrap(
+                          spacing: 12,
+                          runSpacing: 12,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          alignment: WrapAlignment.spaceBetween,
+                          children: [
+                            Wrap(
+                              spacing: 12,
+                              runSpacing: 12,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                // Search Field
+                                SizedBox(
+                                  width: 200,
+                                  height: 40,
+                                  child: TextField(
+                                    controller: _searchController,
+                                    style: TextStyle(
+                                      color: textColor,
+                                      fontSize: 14,
+                                    ),
+                                    onSubmitted: (value) =>
+                                        _controller.searchClients(value),
+                                    decoration: InputDecoration(
+                                      hintText: "Search clients",
+                                      hintStyle: TextStyle(
+                                        color: isDark
+                                            ? Colors.white54
+                                            : Colors.grey.shade400,
+                                        fontSize: 14,
+                                      ),
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                            horizontal: 16,
+                                          ),
+                                      filled: true,
+                                      fillColor: isDark
+                                          ? Colors.white.withValues(alpha: 0.08)
+                                          : Colors.white,
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(6),
+                                        borderSide: BorderSide(
+                                          color: isDark
+                                              ? Colors.white24
+                                              : Colors.grey.shade300,
+                                        ),
+                                      ),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(6),
+                                        borderSide: BorderSide(
+                                          color: isDark
+                                              ? Colors.white24
+                                              : Colors.grey.shade300,
+                                        ),
+                                      ),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(6),
+                                        borderSide: const BorderSide(
+                                          color: Color(0xFF0D6EFD),
+                                        ),
                                       ),
                                     ),
-                                    const SizedBox(height: 8),
-                                    Wrap(
-                                      spacing: 8,
-                                      runSpacing: 8,
-                                      children: [
-                                        // Projects Pill
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 10,
-                                            vertical: 6,
+                                  ),
+                                ),
+                                // Status Filter Dropdown
+                                Container(
+                                  height: 40,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isDark
+                                        ? Colors.white.withValues(alpha: 0.08)
+                                        : Colors.white,
+                                    border: Border.all(
+                                      color: isDark
+                                          ? Colors.white24
+                                          : Colors.grey.shade300,
+                                    ),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: DropdownButtonHideUnderline(
+                                    child: DropdownButton<String>(
+                                      value: _selectedFilter,
+                                      dropdownColor: isDark
+                                          ? const Color(0xFF0F2C4A)
+                                          : Colors.white,
+                                      borderRadius: BorderRadius.circular(8),
+                                      menuMaxHeight: 260,
+                                      elevation: 8,
+                                      icon: Icon(
+                                        IconlyLight.arrow_down_2,
+                                        size: 16,
+                                        color: isDark
+                                            ? Colors.white70
+                                            : Colors.grey.shade700,
+                                      ),
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                        color: textColor,
+                                      ),
+                                      selectedItemBuilder: (context) {
+                                        return _filterOptions.map((e) {
+                                          return Align(
+                                            alignment: Alignment.centerLeft,
+                                            child: Text(
+                                              e,
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w500,
+                                                color: textColor,
+                                              ),
+                                            ),
+                                          );
+                                        }).toList();
+                                      },
+                                      items: _filterOptions.map((e) {
+                                        final isSelected = e == _selectedFilter;
+                                        return DropdownMenuItem<String>(
+                                          value: e,
+                                          alignment:
+                                              AlignmentDirectional.centerStart,
+                                          child: Container(
+                                            width: double.infinity,
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 10,
+                                              vertical: 8,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: isSelected
+                                                  ? const Color(0xFF0D6EFD)
+                                                  : Colors.transparent,
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                            ),
+                                            child: Text(
+                                              e,
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: isSelected
+                                                    ? FontWeight.w600
+                                                    : FontWeight.w500,
+                                                color: isSelected
+                                                    ? Colors.white
+                                                    : (isDark
+                                                          ? Colors.white
+                                                          : const Color(
+                                                              0xFF0F2C4A,
+                                                            )),
+                                              ),
+                                            ),
                                           ),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFFE8F2FF),
-                                            borderRadius: BorderRadius.circular(12),
+                                        );
+                                      }).toList(),
+                                      onChanged: (val) {
+                                        if (val != null) {
+                                          setState(() {
+                                            _selectedFilter = val;
+                                          });
+                                        }
+                                      },
+                                    ),
+                                  ),
+                                ),
+                                // Search Button
+                                SizedBox(
+                                  height: 40,
+                                  child: ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF0D6EFD),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                    ),
+                                    onPressed: () => _controller.searchClients(
+                                      _searchController.text,
+                                    ),
+                                    child: const Text(
+                                      "Search",
+                                      style: TextStyle(color: Colors.white),
+                                    ),
+                                  ),
+                                ),
+                                // Refresh Icon
+                                IconButton(
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    _controller.fetchClients();
+                                  },
+                                  icon: Icon(
+                                    Icons.refresh,
+                                    color: isDark
+                                        ? Colors.white
+                                        : Colors.black87,
+                                  ),
+                                  tooltip: "Refresh List",
+                                ),
+                              ],
+                            ),
+                            // Pagination Info
+                            AnimatedBuilder(
+                              animation: _controller,
+                              builder: (context, _) {
+                                final count =
+                                    _controller.filteredClients.length;
+                                return Text(
+                                  count > 0 ? "1 - $count of $count" : "0 of 0",
+                                  style: TextStyle(
+                                    color: isDark
+                                        ? Colors.white70
+                                        : Colors.grey.shade600,
+                                    fontSize: 14,
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    const SizedBox(height: 24),
+
+                    // Clients Card List
+                    AnimatedBuilder(
+                      animation: _controller,
+                      builder: (context, child) {
+                        if (_controller.isLoading &&
+                            _controller.filteredClients.isEmpty) {
+                          return const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(48.0),
+                              child: CircularProgressIndicator(),
+                            ),
+                          );
+                        }
+
+                        if (_controller.errorMessage != null &&
+                            _controller.filteredClients.isEmpty) {
+                          return Padding(
+                            padding: const EdgeInsets.all(40.0),
+                            child: Center(
+                              child: Text(
+                                _controller.errorMessage!,
+                                style: const TextStyle(color: Colors.red),
+                              ),
+                            ),
+                          );
+                        }
+
+                        if (_controller.filteredClients.isEmpty) {
+                          return const Padding(
+                            padding: EdgeInsets.all(40.0),
+                            child: Center(
+                              child: Text(
+                                "No clients found.",
+                                style: TextStyle(color: Colors.grey),
+                              ),
+                            ),
+                          );
+                        }
+
+                        return ListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: _controller.filteredClients.length,
+                          itemBuilder: (context, index) {
+                            final client = _controller.filteredClients[index];
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 16),
+                              decoration: BoxDecoration(
+                                color: cardColor,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: borderColor),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.02),
+                                    blurRadius: 15,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Row(
+                                  children: [
+                                    // Avatar
+                                    CircleAvatar(
+                                      radius: 24,
+                                      backgroundColor: const Color(0xFFE8F2FF),
+                                      child: Text(
+                                        client.name.isNotEmpty
+                                            ? client.name
+                                                  .substring(0, 1)
+                                                  .toUpperCase()
+                                            : 'C',
+                                        style: const TextStyle(
+                                          color: Color(0xFF0D6EFD),
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 20,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+
+                                    // Name & Pills
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            client.name,
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 16,
+                                              color: textColor,
+                                            ),
                                           ),
+                                          const SizedBox(height: 8),
+                                          Wrap(
+                                            spacing: 8,
+                                            runSpacing: 8,
+                                            children: [
+                                              // Projects Pill
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 10,
+                                                      vertical: 6,
+                                                    ),
+                                                decoration: BoxDecoration(
+                                                  color: const Color(
+                                                    0xFFE8F2FF,
+                                                  ),
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                ),
+                                                child: Row(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    const Icon(
+                                                      IconlyLight.document,
+                                                      size: 14,
+                                                      color: Color(0xFF0D6EFD),
+                                                    ),
+                                                    const SizedBox(width: 4),
+                                                    Text(
+                                                      "${client.projectsCount} PROJECT${client.projectsCount == 1 ? '' : 'S'}",
+                                                      style: const TextStyle(
+                                                        fontSize: 11,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                        color: Color(
+                                                          0xFF0D6EFD,
+                                                        ),
+                                                        letterSpacing: 0.5,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              // Status Pill
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 10,
+                                                      vertical: 6,
+                                                    ),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.green.shade50,
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                ),
+                                                child: const Text(
+                                                  "ACTIVE",
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: Colors.green,
+                                                    letterSpacing: 0.5,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+
+                                    // Actions (Edit & Delete only)
+                                    PopupMenuButton<String>(
+                                      icon: const Icon(
+                                        IconlyLight.more_circle,
+                                        color: Colors.grey,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      onSelected: (value) {
+                                        if (value == 'edit') {
+                                          _showAddEditClientDialog(
+                                            id: client.id,
+                                            initialName: client.name,
+                                          );
+                                        } else if (value == 'delete') {
+                                          _confirmDelete(
+                                            client.id,
+                                            client.name,
+                                          );
+                                        }
+                                      },
+                                      itemBuilder: (context) => [
+                                        PopupMenuItem(
+                                          value: 'edit',
                                           child: Row(
-                                            mainAxisSize: MainAxisSize.min,
                                             children: [
                                               const Icon(
-                                                IconlyLight.document,
-                                                size: 14,
+                                                IconlyLight.edit,
+                                                size: 18,
                                                 color: Color(0xFF0D6EFD),
                                               ),
-                                              const SizedBox(width: 4),
+                                              const SizedBox(width: 12),
                                               Text(
-                                                "${client.projectsCount} PROJECT${client.projectsCount == 1 ? '' : 'S'}",
-                                                style: const TextStyle(
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.w600,
-                                                  color: Color(0xFF0D6EFD),
-                                                  letterSpacing: 0.5,
+                                                "Edit",
+                                                style: TextStyle(
+                                                  color: isDark
+                                                      ? Colors.white
+                                                      : Colors.black87,
                                                 ),
                                               ),
                                             ],
                                           ),
                                         ),
-                                        // Status Pill
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 10,
-                                            vertical: 6,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: Colors.green.shade50,
-                                            borderRadius: BorderRadius.circular(12),
-                                          ),
-                                          child: const Text(
-                                            "ACTIVE",
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w600,
-                                              color: Colors.green,
-                                              letterSpacing: 0.5,
-                                            ),
+                                        const PopupMenuItem(
+                                          value: 'delete',
+                                          child: Row(
+                                            children: [
+                                              Icon(
+                                                IconlyLight.delete,
+                                                size: 18,
+                                                color: Colors.red,
+                                              ),
+                                              SizedBox(width: 12),
+                                              Text(
+                                                "Delete",
+                                                style: TextStyle(
+                                                  color: Colors.red,
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ),
                                       ],
@@ -700,75 +822,16 @@ class ClientsScreenState extends State<ClientsScreen> {
                                   ],
                                 ),
                               ),
-                              
-                              // Actions (Edit & Delete only)
-                              PopupMenuButton<String>(
-                                icon: const Icon(IconlyLight.more_circle, color: Colors.grey),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                onSelected: (value) {
-                                  if (value == 'edit') {
-                                    _showAddEditClientDialog(
-                                      id: client.id,
-                                      initialName: client.name,
-                                    );
-                                  } else if (value == 'delete') {
-                                    _confirmDelete(client.id, client.name);
-                                  }
-                                },
-                                itemBuilder: (context) => [
-                                  PopupMenuItem(
-                                    value: 'edit',
-                                    child: Row(
-                                      children: [
-                                        const Icon(
-                                          IconlyLight.edit,
-                                          size: 18,
-                                          color: Color(0xFF0D6EFD),
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Text(
-                                          "Edit",
-                                          style: TextStyle(
-                                            color: isDark ? Colors.white : Colors.black87,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const PopupMenuItem(
-                                    value: 'delete',
-                                    child: Row(
-                                      children: [
-                                        Icon(
-                                          IconlyLight.delete,
-                                          size: 18,
-                                          color: Colors.red,
-                                        ),
-                                        SizedBox(width: 12),
-                                        Text(
-                                          "Delete",
-                                          style: TextStyle(color: Colors.red),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  );
-                },
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ],
+                ),
               ),
-            ],
+            ),
           ),
-        ),
-      ),
-    ),
         ],
       ),
     );

@@ -1,18 +1,14 @@
-import 'dart:io';
-
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:iconly/iconly.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
-
-import '../../../../core/network/api_client.dart';
 import '../../../../core/network/api_endpoints.dart';
+import '../../../../core/services/download_manager.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/date_helper.dart';
 import '../../../../models/admin_member_model.dart';
 import 'admin_members_controller.dart';
+import 'edit_pending_invite_dialog.dart';
 import 'edit_member_dialog.dart';
 import 'invite_member_dialog.dart';
 import 'member_details_dialog.dart';
@@ -55,29 +51,29 @@ class _AdminMembersViewState extends State<AdminMembersView> {
   Future<void> _exportMembers() async {
     try {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Exporting members..."), duration: Duration(seconds: 2)),
+        const SnackBar(
+          content: Text("Exporting members..."),
+          duration: Duration(seconds: 2),
+        ),
       );
-      var url = '${ApiEndpoints.baseUrl}/admin/members/export/?status=${_controller.statusFilter}';
-      if (_controller.roleFilter != 'all') url += '&role=${_controller.roleFilter}';
-      if (_searchQuery.isNotEmpty) url += '&search=${Uri.encodeQueryComponent(_searchQuery)}';
-      final response = await ApiClient.get(url);
-      if (!mounted) return;
-      if (response.statusCode == 200 && response.bodyBytes.isNotEmpty) {
-        final directory = await getTemporaryDirectory();
-        final file = File('${directory.path}/members_export_${DateTime.now().millisecondsSinceEpoch}.xlsx');
-        await file.writeAsBytes(response.bodyBytes);
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        await Share.shareXFiles([XFile(file.path)], text: "Members Export");
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Failed to export (${response.statusCode}).")),
-        );
-      }
+      var url =
+          '${ApiEndpoints.baseUrl}/admin/members/export/?status=${_controller.statusFilter}';
+      if (_controller.roleFilter != 'all')
+        url += '&role=${_controller.roleFilter}';
+      if (_searchQuery.isNotEmpty)
+        url += '&search=${Uri.encodeQueryComponent(_searchQuery)}';
+      await DownloadManager.instance.downloadUrl(
+        url: url,
+        fileName:
+            'members_export_${DateTime.now().millisecondsSinceEpoch}.xlsx',
+        mimeType:
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error exporting members: $e")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Error exporting members: $e")));
       }
     }
   }
@@ -98,7 +94,9 @@ class _AdminMembersViewState extends State<AdminMembersView> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 TextButton.icon(
-                  onPressed: isSubmitting ? null : () => _controller.downloadImportTemplate(),
+                  onPressed: isSubmitting
+                      ? null
+                      : () => _controller.downloadImportTemplate(),
                   icon: const Icon(IconlyLight.download, size: 16),
                   label: const Text("Download Template"),
                 ),
@@ -112,24 +110,36 @@ class _AdminMembersViewState extends State<AdminMembersView> {
                             allowedExtensions: ['xlsx'],
                           );
                           if (result != null && result.files.isNotEmpty) {
-                            setDialogState(() => pickedFile = result.files.first);
+                            setDialogState(
+                              () => pickedFile = result.files.first,
+                            );
                           }
                         },
                   icon: const Icon(Icons.attach_file, size: 16),
                   label: const Text("Choose .xlsx File"),
                 ),
                 const SizedBox(height: 6),
-                Text(pickedFile?.name ?? "No file chosen", style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                Text(
+                  pickedFile?.name ?? "No file chosen",
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                ),
               ],
             ),
             actions: [
-              TextButton(onPressed: isSubmitting ? null : () => Navigator.pop(dialogContext), child: const Text("Cancel")),
+              TextButton(
+                onPressed: isSubmitting
+                    ? null
+                    : () => Navigator.pop(dialogContext),
+                child: const Text("Cancel"),
+              ),
               ElevatedButton(
                 onPressed: (isSubmitting || pickedFile?.path == null)
                     ? null
                     : () async {
                         setDialogState(() => isSubmitting = true);
-                        final result = await _controller.importMembersExcel(pickedFile!.path!);
+                        final result = await _controller.importMembersExcel(
+                          pickedFile!.path!,
+                        );
                         if (!dialogContext.mounted) return;
                         Navigator.pop(dialogContext);
                         if (!mounted) return;
@@ -137,14 +147,24 @@ class _AdminMembersViewState extends State<AdminMembersView> {
                         final errors = (data?['errors'] as List?) ?? [];
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text(errors.isNotEmpty ? "${result['message']} ${errors.length} row(s) skipped." : result['message'] ?? ''),
-                            backgroundColor: result['success'] == true ? Colors.green : Colors.red,
+                            content: Text(
+                              errors.isNotEmpty
+                                  ? "${result['message']} ${errors.length} row(s) skipped."
+                                  : result['message'] ?? '',
+                            ),
+                            backgroundColor: result['success'] == true
+                                ? Colors.green
+                                : Colors.red,
                             duration: const Duration(seconds: 4),
                           ),
                         );
                       },
                 child: isSubmitting
-                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
                     : const Text("Import"),
               ),
             ],
@@ -164,8 +184,22 @@ class _AdminMembersViewState extends State<AdminMembersView> {
   void _showEditDialog(AdminMember member) {
     showDialog(
       context: context,
-      builder: (context) => EditMemberDialog(controller: _controller, member: member),
+      builder: (context) =>
+          EditMemberDialog(controller: _controller, member: member),
     );
+  }
+
+  Future<void> _showEditPendingInvite(AdminMember invite) async {
+    final message = await showDialog<String>(
+      context: context,
+      builder: (_) =>
+          EditPendingInviteDialog(controller: _controller, invite: invite),
+    );
+    if (message != null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: Colors.green),
+      );
+    }
   }
 
   void _showMemberDetails(AdminMember member) {
@@ -213,7 +247,9 @@ class _AdminMembersViewState extends State<AdminMembersView> {
                 decoration: InputDecoration(
                   labelText: "New Password",
                   suffixIcon: IconButton(
-                    icon: Icon(obscure ? Icons.visibility_off : Icons.visibility),
+                    icon: Icon(
+                      obscure ? Icons.visibility_off : Icons.visibility,
+                    ),
                     onPressed: () => setDialogState(() => obscure = !obscure),
                   ),
                 ),
@@ -222,12 +258,17 @@ class _AdminMembersViewState extends State<AdminMembersView> {
               TextField(
                 controller: confirmPasswordController,
                 obscureText: obscure,
-                decoration: const InputDecoration(labelText: "Confirm Password"),
+                decoration: const InputDecoration(
+                  labelText: "Confirm Password",
+                ),
               ),
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text("Cancel")),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text("Cancel"),
+            ),
             ElevatedButton(
               onPressed: () async {
                 final newPassword = newPasswordController.text;
@@ -243,7 +284,9 @@ class _AdminMembersViewState extends State<AdminMembersView> {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(result['message'] ?? ''),
-                    backgroundColor: result['success'] == true ? Colors.green : Colors.red,
+                    backgroundColor: result['success'] == true
+                        ? Colors.green
+                        : Colors.red,
                   ),
                 );
               },
@@ -260,9 +303,14 @@ class _AdminMembersViewState extends State<AdminMembersView> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text("Convert to Guest"),
-        content: Text("Convert ${member.displayName} to a guest user? They will lose member access."),
+        content: Text(
+          "Convert ${member.displayName} to a guest user? They will lose member access.",
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text("Cancel")),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text("Cancel"),
+          ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
             onPressed: () => Navigator.pop(dialogContext, true),
@@ -285,7 +333,8 @@ class _AdminMembersViewState extends State<AdminMembersView> {
   void _showQualificationsDialog(AdminMember member) {
     showDialog(
       context: context,
-      builder: (dialogContext) => QualificationsDialog(member: member, controller: _controller),
+      builder: (dialogContext) =>
+          QualificationsDialog(member: member, controller: _controller),
     );
   }
 
@@ -295,10 +344,10 @@ class _AdminMembersViewState extends State<AdminMembersView> {
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(isPending ? "Revoke Invitation" : "Delete Member"),
+        title: Text(isPending ? "Delete Invite" : "Delete Member"),
         content: Text(
           isPending
-              ? "Are you sure you want to revoke the invitation for ${member.email}?"
+              ? "Permanently delete this pending invite for ${member.email}? This cannot be undone."
               : "Are you sure you want to remove ${member.email}?",
         ),
         actions: [
@@ -310,7 +359,9 @@ class _AdminMembersViewState extends State<AdminMembersView> {
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () async {
               Navigator.pop(dialogContext);
-              final result = await _controller.deleteMember(member.id);
+              final result = isPending
+                  ? await _controller.deletePendingInvite(member.id)
+                  : await _controller.deleteMember(member.id);
               messenger.showSnackBar(
                 SnackBar(
                   content: Text(result['message'] ?? 'Action completed.'),
@@ -320,10 +371,7 @@ class _AdminMembersViewState extends State<AdminMembersView> {
                 ),
               );
             },
-            child: Text(
-              isPending ? "Revoke" : "Delete",
-              style: const TextStyle(color: Colors.white),
-            ),
+            child: Text("Delete", style: const TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -332,7 +380,9 @@ class _AdminMembersViewState extends State<AdminMembersView> {
 
   Future<void> _resendInvite(AdminMember member) async {
     final messenger = ScaffoldMessenger.of(context);
-    final result = await _controller.resendInvite(member.id, email: member.email);
+    final result = _controller.statusFilter == 'pending'
+        ? await _controller.reinvitePendingInvite(member.id)
+        : await _controller.resendInvite(member.id, email: member.email);
     messenger.showSnackBar(
       SnackBar(
         content: Text(result['message'] ?? 'Invitation resent.'),
@@ -392,7 +442,9 @@ class _AdminMembersViewState extends State<AdminMembersView> {
       decoration: BoxDecoration(
         color: isDark ? AppTheme.darkSurface : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isDark ? AppTheme.darkBorder : Colors.grey.shade200),
+        border: Border.all(
+          color: isDark ? AppTheme.darkBorder : Colors.grey.shade200,
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
@@ -414,7 +466,11 @@ class _AdminMembersViewState extends State<AdminMembersView> {
                   color: const Color(0xFF0D6EFD).withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(IconlyLight.work, color: Color(0xFF0D6EFD), size: 22),
+                child: const Icon(
+                  IconlyLight.work,
+                  color: Color(0xFF0D6EFD),
+                  size: 22,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -434,7 +490,9 @@ class _AdminMembersViewState extends State<AdminMembersView> {
                       "Job sheets, approvals, scheduling and project operations access.",
                       style: TextStyle(
                         fontSize: 12,
-                        color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                        color: isDark
+                            ? Colors.grey.shade400
+                            : Colors.grey.shade600,
                         height: 1.3,
                       ),
                     ),
@@ -442,11 +500,16 @@ class _AdminMembersViewState extends State<AdminMembersView> {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: isDark ? Colors.white10 : Colors.grey.shade100,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade300),
+                  border: Border.all(
+                    color: isDark ? Colors.white12 : Colors.grey.shade300,
+                  ),
                 ),
                 child: Text(
                   "$totalSeats seats",
@@ -463,9 +526,14 @@ class _AdminMembersViewState extends State<AdminMembersView> {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
-                  color: isDark ? Colors.white.withValues(alpha: 0.08) : const Color(0xFFF1F5F9),
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.08)
+                      : const Color(0xFFF1F5F9),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
@@ -473,7 +541,12 @@ class _AdminMembersViewState extends State<AdminMembersView> {
                   children: [
                     Text(
                       "Assigned ",
-                      style: TextStyle(fontSize: 12, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDark
+                            ? Colors.grey.shade400
+                            : Colors.grey.shade600,
+                      ),
                     ),
                     Text(
                       "$assigned",
@@ -488,9 +561,14 @@ class _AdminMembersViewState extends State<AdminMembersView> {
               ),
               const SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
-                  color: isDark ? Colors.white.withValues(alpha: 0.08) : const Color(0xFFF1F5F9),
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.08)
+                      : const Color(0xFFF1F5F9),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
@@ -498,7 +576,12 @@ class _AdminMembersViewState extends State<AdminMembersView> {
                   children: [
                     Text(
                       "Invited ",
-                      style: TextStyle(fontSize: 12, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDark
+                            ? Colors.grey.shade400
+                            : Colors.grey.shade600,
+                      ),
                     ),
                     Text(
                       "$invited",
@@ -545,7 +628,9 @@ class _AdminMembersViewState extends State<AdminMembersView> {
                   boxShadow: activeStatus == 'active'
                       ? [
                           BoxShadow(
-                            color: const Color(0xFF0D6EFD).withValues(alpha: 0.3),
+                            color: const Color(
+                              0xFF0D6EFD,
+                            ).withValues(alpha: 0.3),
                             blurRadius: 4,
                             offset: const Offset(0, 2),
                           ),
@@ -560,7 +645,9 @@ class _AdminMembersViewState extends State<AdminMembersView> {
                       fontWeight: FontWeight.bold,
                       color: activeStatus == 'active'
                           ? Colors.white
-                          : (isDark ? Colors.grey.shade400 : const Color(0xFF64748B)),
+                          : (isDark
+                                ? Colors.grey.shade400
+                                : const Color(0xFF64748B)),
                     ),
                   ),
                 ),
@@ -584,7 +671,9 @@ class _AdminMembersViewState extends State<AdminMembersView> {
                   boxShadow: activeStatus == 'pending'
                       ? [
                           BoxShadow(
-                            color: const Color(0xFF0D6EFD).withValues(alpha: 0.3),
+                            color: const Color(
+                              0xFF0D6EFD,
+                            ).withValues(alpha: 0.3),
                             blurRadius: 4,
                             offset: const Offset(0, 2),
                           ),
@@ -602,15 +691,22 @@ class _AdminMembersViewState extends State<AdminMembersView> {
                           fontWeight: FontWeight.bold,
                           color: activeStatus == 'pending'
                               ? Colors.white
-                              : (isDark ? Colors.grey.shade400 : const Color(0xFF64748B)),
+                              : (isDark
+                                    ? Colors.grey.shade400
+                                    : const Color(0xFF64748B)),
                         ),
                       ),
                       if ((_controller.invitedCount ?? 0) > 0) ...[
                         const SizedBox(width: 6),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
-                            color: activeStatus == 'pending' ? Colors.white24 : const Color(0xFFE2E8F0),
+                            color: activeStatus == 'pending'
+                                ? Colors.white24
+                                : const Color(0xFFE2E8F0),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Text(
@@ -618,7 +714,9 @@ class _AdminMembersViewState extends State<AdminMembersView> {
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
-                              color: activeStatus == 'pending' ? Colors.white : Colors.black87,
+                              color: activeStatus == 'pending'
+                                  ? Colors.white
+                                  : Colors.black87,
                             ),
                           ),
                         ),
@@ -651,7 +749,11 @@ class _AdminMembersViewState extends State<AdminMembersView> {
             decoration: InputDecoration(
               hintText: "Search member...",
               hintStyle: TextStyle(color: subtitleColor, fontSize: 13),
-              prefixIcon: Icon(IconlyLight.search, color: subtitleColor, size: 18),
+              prefixIcon: Icon(
+                IconlyLight.search,
+                color: subtitleColor,
+                size: 18,
+              ),
               suffixIcon: _searchQuery.isNotEmpty
                   ? IconButton(
                       icon: Icon(Icons.clear, size: 16, color: subtitleColor),
@@ -663,7 +765,10 @@ class _AdminMembersViewState extends State<AdminMembersView> {
                   : null,
               filled: true,
               fillColor: searchFillColor,
-              contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
+              contentPadding: const EdgeInsets.symmetric(
+                vertical: 0,
+                horizontal: 12,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
                 borderSide: BorderSide(color: borderColor),
@@ -677,7 +782,8 @@ class _AdminMembersViewState extends State<AdminMembersView> {
                 borderSide: const BorderSide(color: Color(0xFF0D6EFD)),
               ),
             ),
-            onChanged: (val) => setState(() => _searchQuery = val.toLowerCase().trim()),
+            onChanged: (val) =>
+                setState(() => _searchQuery = val.toLowerCase().trim()),
           ),
           const SizedBox(height: 10),
 
@@ -698,20 +804,41 @@ class _AdminMembersViewState extends State<AdminMembersView> {
                     child: DropdownButton<String>(
                       value: _controller.roleFilter,
                       isExpanded: true,
-                      dropdownColor: isDark ? AppTheme.darkSurface : Colors.white,
+                      dropdownColor: isDark
+                          ? AppTheme.darkSurface
+                          : Colors.white,
                       style: TextStyle(fontSize: 13, color: textColor),
                       items: const [
-                        DropdownMenuItem(value: 'all', child: Text("Role: All")),
-                        DropdownMenuItem(value: 'manager', child: Text("Manager")),
-                        DropdownMenuItem(value: 'supervisor', child: Text("Supervisor")),
-                        DropdownMenuItem(value: 'operative', child: Text("Operative")),
+                        DropdownMenuItem(
+                          value: 'all',
+                          child: Text("Role: All"),
+                        ),
+                        DropdownMenuItem(
+                          value: 'manager',
+                          child: Text("Manager"),
+                        ),
+                        DropdownMenuItem(
+                          value: 'supervisor',
+                          child: Text("Supervisor"),
+                        ),
+                        DropdownMenuItem(
+                          value: 'operative',
+                          child: Text("Operative"),
+                        ),
                         DropdownMenuItem(value: 'admin', child: Text("Admin")),
-                        DropdownMenuItem(value: 'custom', child: Text("Custom")),
+                        DropdownMenuItem(
+                          value: 'custom',
+                          child: Text("Custom"),
+                        ),
                       ],
                       onChanged: (val) {
                         if (val != null) _controller.setRoleFilter(val);
                       },
-                      icon: Icon(IconlyLight.arrow_down_2, size: 14, color: subtitleColor),
+                      icon: Icon(
+                        IconlyLight.arrow_down_2,
+                        size: 14,
+                        color: subtitleColor,
+                      ),
                     ),
                   ),
                 ),
@@ -720,7 +847,11 @@ class _AdminMembersViewState extends State<AdminMembersView> {
               IconButton(
                 tooltip: "Export members",
                 onPressed: _exportMembers,
-                icon: Icon(IconlyLight.download, color: subtitleColor, size: 20),
+                icon: Icon(
+                  IconlyLight.download,
+                  color: subtitleColor,
+                  size: 20,
+                ),
               ),
               IconButton(
                 tooltip: "Import members from Excel",
@@ -741,7 +872,9 @@ class _AdminMembersViewState extends State<AdminMembersView> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF0D6EFD),
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     elevation: 0,
                   ),
@@ -769,8 +902,12 @@ class _AdminMembersViewState extends State<AdminMembersView> {
   }) {
     final initials = member.displayName.isNotEmpty
         ? member.displayName.substring(0, 2).toUpperCase()
-        : (member.email.isNotEmpty ? member.email.substring(0, 2).toUpperCase() : "U");
-    final avatarColor = _getAvatarColor(member.displayName.isNotEmpty ? member.displayName : member.email);
+        : (member.email.isNotEmpty
+              ? member.email.substring(0, 2).toUpperCase()
+              : "U");
+    final avatarColor = _getAvatarColor(
+      member.displayName.isNotEmpty ? member.displayName : member.email,
+    );
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -821,7 +958,10 @@ class _AdminMembersViewState extends State<AdminMembersView> {
                               decoration: BoxDecoration(
                                 color: Colors.green,
                                 shape: BoxShape.circle,
-                                border: Border.all(color: Colors.white, width: 2),
+                                border: Border.all(
+                                  color: Colors.white,
+                                  width: 2,
+                                ),
                               ),
                             ),
                           ),
@@ -833,7 +973,9 @@ class _AdminMembersViewState extends State<AdminMembersView> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            member.displayName.isNotEmpty ? member.displayName : member.email,
+                            member.displayName.isNotEmpty
+                                ? member.displayName
+                                : member.email,
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 15,
@@ -843,12 +985,18 @@ class _AdminMembersViewState extends State<AdminMembersView> {
                           const SizedBox(height: 2),
                           Text(
                             member.email,
-                            style: TextStyle(color: subtitleColor, fontSize: 12),
+                            style: TextStyle(
+                              color: subtitleColor,
+                              fontSize: 12,
+                            ),
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 6),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
                             decoration: BoxDecoration(
                               color: _getRoleColor(member.role),
                               borderRadius: BorderRadius.circular(10),
@@ -868,12 +1016,18 @@ class _AdminMembersViewState extends State<AdminMembersView> {
                       ),
                     ),
                     PopupMenuButton<String>(
-                      icon: const Icon(IconlyLight.more_circle, color: Colors.grey, size: 20),
+                      icon: const Icon(
+                        IconlyLight.more_circle,
+                        color: Colors.grey,
+                        size: 20,
+                      ),
                       onSelected: (val) {
                         if (val == 'view') _showMemberDetails(member);
                         if (val == 'edit') _showEditDialog(member);
-                        if (val == 'password') _showChangePasswordDialog(member);
-                        if (val == 'qualification') _showQualificationsDialog(member);
+                        if (val == 'password')
+                          _showChangePasswordDialog(member);
+                        if (val == 'qualification')
+                          _showQualificationsDialog(member);
                         if (val == 'convert') _confirmConvertToGuest(member);
                         if (val == 'delete') _deleteMember(member);
                       },
@@ -900,7 +1054,10 @@ class _AdminMembersViewState extends State<AdminMembersView> {
                         ),
                         const PopupMenuItem(
                           value: 'delete',
-                          child: Text("Delete Member", style: TextStyle(color: Colors.red)),
+                          child: Text(
+                            "Delete Member",
+                            style: TextStyle(color: Colors.red),
+                          ),
                         ),
                       ],
                     ),
@@ -909,7 +1066,10 @@ class _AdminMembersViewState extends State<AdminMembersView> {
               ),
               const Divider(height: 1),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
                 child: Row(
                   children: [
                     Expanded(
@@ -918,12 +1078,20 @@ class _AdminMembersViewState extends State<AdminMembersView> {
                         children: [
                           const Text(
                             "TEAM",
-                            style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.grey,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             member.teamName.isNotEmpty ? member.teamName : "-",
-                            style: TextStyle(fontSize: 13, color: textColor, fontWeight: FontWeight.w500),
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: textColor,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ],
                       ),
@@ -934,12 +1102,20 @@ class _AdminMembersViewState extends State<AdminMembersView> {
                         children: [
                           const Text(
                             "PHONE",
-                            style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.grey,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             member.phone.isNotEmpty ? member.phone : "-",
-                            style: TextStyle(fontSize: 13, color: textColor, fontWeight: FontWeight.w500),
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: textColor,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ],
                       ),
@@ -953,6 +1129,51 @@ class _AdminMembersViewState extends State<AdminMembersView> {
       ),
     );
   }
+
+  PopupMenuItem<String> _pendingInviteMenuItem(
+    String value,
+    IconData icon,
+    String title,
+    String subtitle,
+    Color color,
+  ) => PopupMenuItem<String>(
+    value: value,
+    height: 62,
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 3),
+          child: Icon(icon, size: 18, color: color),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                title,
+                style: TextStyle(color: color, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 10,
+                  color: color == Colors.red
+                      ? Colors.red.shade300
+                      : Colors.grey,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
 
   Widget _buildPendingMemberCard(
     AdminMember member, {
@@ -984,7 +1205,11 @@ class _AdminMembersViewState extends State<AdminMembersView> {
                     color: const Color(0xFF0D6EFD).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(IconlyLight.message, color: Color(0xFF0D6EFD), size: 20),
+                  child: const Icon(
+                    IconlyLight.message,
+                    color: Color(0xFF0D6EFD),
+                    size: 20,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -1003,7 +1228,10 @@ class _AdminMembersViewState extends State<AdminMembersView> {
                       Row(
                         children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.amber.shade50,
                               borderRadius: BorderRadius.circular(6),
@@ -1011,18 +1239,27 @@ class _AdminMembersViewState extends State<AdminMembersView> {
                             ),
                             child: const Text(
                               "Sent",
-                              style: TextStyle(fontSize: 10, color: Colors.orange, fontWeight: FontWeight.bold),
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.orange,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                           const SizedBox(width: 8),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
                             decoration: BoxDecoration(
                               color: _getRoleColor(member.role),
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Text(
-                              member.roleDisplayName.isNotEmpty ? member.roleDisplayName : member.role,
+                              member.roleDisplayName.isNotEmpty
+                                  ? member.roleDisplayName
+                                  : member.role,
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
@@ -1036,49 +1273,47 @@ class _AdminMembersViewState extends State<AdminMembersView> {
                   ),
                 ),
                 PopupMenuButton<String>(
-                  icon: const Icon(IconlyLight.more_circle, color: Colors.grey, size: 20),
+                  icon: const Icon(
+                    IconlyLight.more_circle,
+                    color: Colors.grey,
+                    size: 20,
+                  ),
                   onSelected: (val) {
-                    if (val == 'resend') _resendInvite(member);
-                    if (val == 'copy') _copyInviteLink(member);
-                    if (val == 'revoke') _deleteMember(member);
+                    if (val == 'edit') _showEditPendingInvite(member);
+                    if (val == 'reinvite') _resendInvite(member);
+                    if (val == 'delete') _deleteMember(member);
                   },
                   itemBuilder: (context) => [
-                    const PopupMenuItem(
-                      value: 'resend',
-                      child: Row(
-                        children: [
-                          Icon(IconlyLight.send, size: 16, color: Color(0xFF0D6EFD)),
-                          SizedBox(width: 8),
-                          Text("Resend Invite"),
-                        ],
-                      ),
+                    _pendingInviteMenuItem(
+                      'edit',
+                      IconlyLight.edit,
+                      'Edit Invite',
+                      'Edit pending invite details',
+                      const Color(0xFF0D6EFD),
                     ),
-                    const PopupMenuItem(
-                      value: 'copy',
-                      child: Row(
-                        children: [
-                          Icon(IconlyLight.paper, size: 16),
-                          SizedBox(width: 8),
-                          Text("Copy Email"),
-                        ],
-                      ),
+                    _pendingInviteMenuItem(
+                      'reinvite',
+                      IconlyLight.send,
+                      'Reinvite',
+                      'Resend the invite email',
+                      const Color(0xFF0D6EFD),
                     ),
-                    const PopupMenuItem(
-                      value: 'revoke',
-                      child: Row(
-                        children: [
-                          Icon(IconlyLight.delete, size: 16, color: Colors.red),
-                          SizedBox(width: 8),
-                          Text("Revoke Invite", style: TextStyle(color: Colors.red)),
-                        ],
-                      ),
+                    _pendingInviteMenuItem(
+                      'delete',
+                      IconlyLight.delete,
+                      'Delete Invite',
+                      'Permanently delete this pending invite',
+                      Colors.red,
                     ),
                   ],
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            Divider(height: 1, color: isDark ? Colors.white12 : Colors.grey.shade200),
+            Divider(
+              height: 1,
+              color: isDark ? Colors.white12 : Colors.grey.shade200,
+            ),
             const SizedBox(height: 10),
 
             // Bottom Info: Team and Sent Date
@@ -1089,17 +1324,29 @@ class _AdminMembersViewState extends State<AdminMembersView> {
                   children: [
                     Text(
                       "TEAM: ",
-                      style: TextStyle(fontSize: 11, color: subtitleColor, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: subtitleColor,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     Text(
                       member.teamName.isNotEmpty ? member.teamName : "-",
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textColor),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: textColor,
+                      ),
                     ),
                   ],
                 ),
                 Row(
                   children: [
-                    Icon(IconlyLight.time_circle, size: 12, color: subtitleColor),
+                    Icon(
+                      IconlyLight.time_circle,
+                      size: 12,
+                      color: subtitleColor,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       DateHelper.formatToLocal(member.createdAt),
@@ -1124,7 +1371,9 @@ class _AdminMembersViewState extends State<AdminMembersView> {
     final borderColor = isDark ? AppTheme.darkBorder : Colors.grey.shade300;
 
     return Scaffold(
-      backgroundColor: isDark ? AppTheme.darkBackground : const Color(0xFFF8FAFC),
+      backgroundColor: isDark
+          ? AppTheme.darkBackground
+          : const Color(0xFFF8FAFC),
       appBar: AppBar(
         title: const Text("Members"),
         elevation: 0,
@@ -1136,7 +1385,8 @@ class _AdminMembersViewState extends State<AdminMembersView> {
         builder: (context, _) {
           final isPendingTab = _controller.statusFilter == 'pending';
           final filteredMembers = _controller.members.where((m) {
-            final matchesQuery = _searchQuery.isEmpty ||
+            final matchesQuery =
+                _searchQuery.isEmpty ||
                 m.displayName.toLowerCase().contains(_searchQuery) ||
                 m.email.toLowerCase().contains(_searchQuery) ||
                 m.teamName.toLowerCase().contains(_searchQuery);
@@ -1144,7 +1394,8 @@ class _AdminMembersViewState extends State<AdminMembersView> {
             if (!matchesQuery) return false;
 
             if (_controller.roleFilter != 'all') {
-              if (m.role.toLowerCase() != _controller.roleFilter.toLowerCase()) {
+              if (m.role.toLowerCase() !=
+                  _controller.roleFilter.toLowerCase()) {
                 return false;
               }
             }
@@ -1167,80 +1418,91 @@ class _AdminMembersViewState extends State<AdminMembersView> {
               Expanded(
                 child: _controller.isLoading && _controller.members.isEmpty
                     ? const Center(child: CircularProgressIndicator())
-                    : _controller.errorMessage != null && _controller.members.isEmpty
-                        ? Center(
-                            child: Text(
-                              _controller.errorMessage!,
-                              style: const TextStyle(color: Colors.red),
+                    : _controller.errorMessage != null &&
+                          _controller.members.isEmpty
+                    ? Center(
+                        child: Text(
+                          _controller.errorMessage!,
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                      )
+                    : filteredMembers.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              isPendingTab
+                                  ? IconlyLight.send
+                                  : IconlyLight.user_1,
+                              size: 48,
+                              color: Colors.grey.shade400,
                             ),
-                          )
-                        : filteredMembers.isEmpty
-                            ? Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      isPendingTab ? IconlyLight.send : IconlyLight.user_1,
-                                      size: 48,
-                                      color: Colors.grey.shade400,
-                                    ),
-                                    const SizedBox(height: 12),
-                                    Text(
-                                      isPendingTab
-                                          ? "No pending invitations found."
-                                          : "No active members found.",
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: subtitleColor,
-                                      ),
-                                    ),
-                                    if (isPendingTab) ...[
-                                      const SizedBox(height: 16),
-                                      ElevatedButton.icon(
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: const Color(0xFF0D6EFD),
-                                          foregroundColor: Colors.white,
-                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                        ),
-                                        onPressed: _showInviteDialog,
-                                        icon: const Icon(IconlyLight.add_user, size: 16),
-                                        label: const Text("Invite Member"),
-                                      ),
-                                    ] else ...[
-                                      const SizedBox(height: 16),
-                                      TextButton.icon(
-                                        onPressed: _resetFilters,
-                                        icon: const Icon(Icons.refresh, size: 16),
-                                        label: const Text("Reset filters"),
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                              )
-                            : ListView.builder(
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                                itemCount: filteredMembers.length,
-                                itemBuilder: (context, index) {
-                                  final member = filteredMembers[index];
-                                  if (isPendingTab) {
-                                    return _buildPendingMemberCard(
-                                      member,
-                                      isDark: isDark,
-                                      cardColor: cardColor,
-                                      borderColor: borderColor,
-                                      textColor: textColor,
-                                      subtitleColor: subtitleColor,
-                                    );
-                                  }
-                                  return _buildActiveMemberCard(
-                                    member,
-                                    cardColor: cardColor,
-                                    borderColor: borderColor,
-                                    textColor: textColor,
-                                    subtitleColor: subtitleColor,
-                                  );
-                                },
+                            const SizedBox(height: 12),
+                            Text(
+                              isPendingTab
+                                  ? "No pending invitations found."
+                                  : "No active members found.",
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: subtitleColor,
                               ),
+                            ),
+                            if (isPendingTab) ...[
+                              const SizedBox(height: 16),
+                              ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF0D6EFD),
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                                onPressed: _showInviteDialog,
+                                icon: const Icon(
+                                  IconlyLight.add_user,
+                                  size: 16,
+                                ),
+                                label: const Text("Invite Member"),
+                              ),
+                            ] else ...[
+                              const SizedBox(height: 16),
+                              TextButton.icon(
+                                onPressed: _resetFilters,
+                                icon: const Icon(Icons.refresh, size: 16),
+                                label: const Text("Reset filters"),
+                              ),
+                            ],
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 6,
+                        ),
+                        itemCount: filteredMembers.length,
+                        itemBuilder: (context, index) {
+                          final member = filteredMembers[index];
+                          if (isPendingTab) {
+                            return _buildPendingMemberCard(
+                              member,
+                              isDark: isDark,
+                              cardColor: cardColor,
+                              borderColor: borderColor,
+                              textColor: textColor,
+                              subtitleColor: subtitleColor,
+                            );
+                          }
+                          return _buildActiveMemberCard(
+                            member,
+                            cardColor: cardColor,
+                            borderColor: borderColor,
+                            textColor: textColor,
+                            subtitleColor: subtitleColor,
+                          );
+                        },
+                      ),
               ),
             ],
           );

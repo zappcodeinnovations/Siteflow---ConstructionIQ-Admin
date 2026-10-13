@@ -312,6 +312,13 @@ class _CustomDrawerState extends State<CustomDrawer> {
                     '/profile',
                     currentRoute,
                   ),
+                  _buildDrawerItem(
+                    context,
+                    Icons.download_done_outlined,
+                    "View Downloads",
+                    '/downloads',
+                    currentRoute,
+                  ),
 
                   ValueListenableBuilder<ThemeMode>(
                     valueListenable: themeNotifier,

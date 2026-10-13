@@ -13,6 +13,7 @@ import 'package:euroside_admin/modules/drawer_pages/weekly_diary_screen.dart';
 import 'package:euroside_admin/modules/drawer_pages/manager_diary_list_screen.dart';
 import 'package:euroside_admin/modules/drawer_pages/my_approvals_screen.dart';
 import 'package:euroside_admin/modules/drawer_pages/workforce_planner_screen.dart';
+import 'package:euroside_admin/modules/drawer_pages/downloads_screen.dart';
 import 'package:euroside_admin/modules/home/nav_bar.dart';
 import 'package:euroside_admin/modules/profile/profile_screen.dart';
 import 'package:flutter/material.dart';
@@ -56,6 +57,7 @@ class AppRoutes {
     '/register': (context) => const RegistrationScreen(),
     '/home': (context) => const BottomNavScreen(),
     '/profile': (context) => const ProfileScreen(),
+    '/downloads': (context) => const DownloadsScreen(),
     '/jobSheet': (context) =>
         const PermissionGate(menuKey: 'job_sheets', child: JobSheetScreen()),
     '/dailyReports': (context) => const PermissionGate(

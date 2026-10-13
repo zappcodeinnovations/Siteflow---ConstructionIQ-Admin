@@ -1,10 +1,17 @@
-import 'package:flutter/material.dart';
-import 'package:iconly/iconly.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../../core/network/api_client.dart';
-import '../../../core/network/api_endpoints.dart';
 import 'dart:convert';
 
+import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:iconly/iconly.dart';
+
+import '../../../core/network/api_client.dart';
+import '../../../core/network/api_endpoints.dart';
+import '../../../core/theme/app_theme.dart';
+
+/// The mobile equivalent of the web portal's **Project Admin** panel.
+///
+/// The API returns every option required for this form inside `project_setup`,
+/// keeping the app's choices and the web portal's choices in sync.
 class ProjectSetupTab extends StatefulWidget {
   final Map<String, dynamic>? projectSetup;
   final bool canEdit;
@@ -13,8 +20,8 @@ class ProjectSetupTab extends StatefulWidget {
   const ProjectSetupTab({
     super.key,
     required this.projectId,
-    this.projectSetup,
     required this.canEdit,
+    this.projectSetup,
   });
 
   @override
@@ -22,734 +29,892 @@ class ProjectSetupTab extends StatefulWidget {
 }
 
 class _ProjectSetupTabState extends State<ProjectSetupTab> {
-  String? _selectedTeamId;
-  Set<String> _selectedWorkerIds = {};
   final Map<String, dynamic> _changes = {};
+  final Map<String, String> _displayOverrides = {};
+  final Set<String> _selectedWorkerIds = <String>{};
+
+  String? _selectedClientId;
+  String? _selectedTemplateId;
+  String? _selectedStatus;
+  String? _selectedPriority;
+  String? _selectedManagerId;
+  String? _selectedSupervisorId;
+  String? _selectedTeamId;
+  String _workerQuery = '';
   bool _isSaving = false;
+  bool _isGettingLocation = false;
+  bool _initialized = false;
+
+  Map<String, dynamic> get _setup => widget.projectSetup ?? const {};
+  Map<String, dynamic> get _metadata =>
+      Map<String, dynamic>.from(_setup['basic_metadata'] as Map? ?? const {});
+  Map<String, dynamic> get _assignments =>
+      Map<String, dynamic>.from(_setup['assignments'] as Map? ?? const {});
+  Map<String, dynamic> get _dropdowns =>
+      Map<String, dynamic>.from(_setup['dropdown_options'] as Map? ?? const {});
+
+  @override
+  void initState() {
+    super.initState();
+    _hydrateSelections();
+  }
+
+  @override
+  void didUpdateWidget(covariant ProjectSetupTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.projectSetup != widget.projectSetup) _hydrateSelections();
+  }
+
+  void _hydrateSelections() {
+    if (widget.projectSetup == null) return;
+    final metadata = _metadata;
+    final assignments = _assignments;
+    final selectedTeams = assignments['selected_teams'] as List? ?? const [];
+    final selectedWorkers =
+        assignments['selected_workers'] as List? ?? const [];
+    final contractor = assignments['contractor'] as Map?;
+    final supervisor = assignments['site_supervisor'] as Map?;
+
+    _selectedClientId = metadata['client_id']?.toString();
+    _selectedTemplateId = metadata['template_id']?.toString();
+    _selectedStatus = metadata['status']?.toString();
+    _selectedPriority = metadata['priority']?.toString();
+    _selectedManagerId = contractor?['id']?.toString();
+    _selectedSupervisorId = supervisor?['id']?.toString();
+    _selectedTeamId = selectedTeams.isEmpty
+        ? null
+        : selectedTeams.first['id']?.toString();
+    _selectedWorkerIds
+      ..clear()
+      ..addAll(selectedWorkers.map((worker) => worker['id'].toString()));
+    _initialized = true;
+  }
 
   String? _fieldKey(String label) => const {
     'Project Name': 'name',
-    'Progress (%)': 'progress',
-    'Budget': 'budget',
     'Description': 'description',
-    'Start Date': 'start_date',
-    'End Date': 'end_date',
-    'Scheduled Clock In': 'scheduled_clock_in_time',
-    'Scheduled Clock Out': 'scheduled_clock_out_time',
-    'Allowed Radius (metres)': 'allowed_radius_meters',
     'Site Address': 'site_address',
     'City': 'city',
     'State': 'state',
     'Country': 'country',
     'Postal Code': 'postal_code',
+    'Latitude': 'latitude',
+    'Longitude': 'longitude',
+    'Geofence Radius (metres)': 'allowed_radius_meters',
+    'Scheduled Clock-In Time': 'scheduled_clock_in_time',
+    'Scheduled Clock-Out Time': 'scheduled_clock_out_time',
   }[label];
 
-  Future<void> _saveChanges() async {
-    if (_changes.isEmpty) return;
+  String _valueFor(String label, dynamic apiValue) =>
+      _displayOverrides[label] ?? apiValue?.toString() ?? '';
+
+  List<Map<String, dynamic>> _items(String key) =>
+      ((_dropdowns[key] as List?) ?? const [])
+          .whereType<Map>()
+          .map((item) => Map<String, dynamic>.from(item))
+          .toList();
+
+  Future<void> _saveProject() async {
+    if (!widget.canEdit || _isSaving) return;
     setState(() => _isSaving = true);
+    bool success = true;
+    String message = 'Project saved successfully.';
     try {
-      final response = await ApiClient.patch(
-        ApiEndpoints.baseUrl + ApiEndpoints.projectDetails(widget.projectId),
-        body: _changes,
+      if (_changes.isNotEmpty) {
+        final response = await ApiClient.patch(
+          ApiEndpoints.baseUrl + ApiEndpoints.projectDetails(widget.projectId),
+          body: _changes,
+        );
+        final data = _responseData(response.body);
+        success = response.statusCode == 200 && data['status'] == true;
+        message =
+            data['message']?.toString() ??
+            (success
+                ? 'Project details saved.'
+                : 'Project details could not be saved.');
+        if (!success) return;
+      }
+
+      final assignmentResponse = await ApiClient.patch(
+        ApiEndpoints.baseUrl +
+            ApiEndpoints.projectAllInOneDetails(widget.projectId),
+        body: {
+          'module': 'project_setup',
+          'contractor_id': _asInt(_selectedManagerId),
+          'supervisor_id': _asInt(_selectedSupervisorId),
+          'team_ids': _selectedTeamId == null
+              ? <int>[]
+              : [_asInt(_selectedTeamId)!],
+          'worker_ids': _selectedWorkerIds
+              .map(_asInt)
+              .whereType<int>()
+              .toList(),
+        },
       );
-      final data = jsonDecode(response.body);
+      final assignmentData = _responseData(assignmentResponse.body);
+      success =
+          assignmentResponse.statusCode == 200 &&
+          assignmentData['status'] == true;
+      message =
+          assignmentData['message']?.toString() ??
+          (success
+              ? 'Project saved successfully.'
+              : 'Assignments could not be saved.');
+      if (success) _changes.clear();
+    } catch (_) {
+      success = false;
+      message =
+          'Could not save the project. Check your connection and try again.';
+    } finally {
       if (!mounted) return;
-      final success = response.statusCode == 200 && data['status'] == true;
+      setState(() => _isSaving = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            data['message']?.toString() ??
-                (success ? 'Project updated.' : 'Update failed.'),
-          ),
+          content: Text(message),
           backgroundColor: success ? Colors.green : Colors.red,
         ),
       );
-      if (success) _changes.clear();
-    } finally {
-      if (mounted) setState(() => _isSaving = false);
     }
   }
 
-  Widget _buildResponsiveRow(BuildContext context, List<Widget> children) {
-    final double width = MediaQuery.of(context).size.width;
-    if (width > 600) {
-      // Side-by-side with padding
-      final List<Widget> RowChildren = [];
-      for (int i = 0; i < children.length; i++) {
-        RowChildren.add(Expanded(child: children[i]));
-        if (i < children.length - 1) {
-          RowChildren.add(const SizedBox(width: 16));
-        }
-      }
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: RowChildren,
-      );
-    } else {
-      // Stacked vertically
-      final List<Widget> ColumnChildren = [];
-      for (int i = 0; i < children.length; i++) {
-        ColumnChildren.add(children[i]);
-        if (i < children.length - 1) {
-          ColumnChildren.add(const SizedBox(height: 16));
-        }
-      }
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: ColumnChildren,
-      );
+  Map<String, dynamic> _responseData(String body) {
+    try {
+      final decoded = jsonDecode(body);
+      return decoded is Map ? Map<String, dynamic>.from(decoded) : const {};
+    } catch (_) {
+      return const {};
     }
+  }
+
+  int? _asInt(String? value) => value == null ? null : int.tryParse(value);
+
+  Future<void> _useCurrentLocation() async {
+    if (!widget.canEdit || _isGettingLocation) return;
+    setState(() => _isGettingLocation = true);
+    try {
+      var enabled = await Geolocator.isLocationServiceEnabled();
+      if (!enabled)
+        throw const _LocationException(
+          'Turn on location services to use your current location.',
+        );
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        throw const _LocationException(
+          'Location permission is required to use your current location.',
+        );
+      }
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
+      );
+      if (!mounted) return;
+      setState(() {
+        _displayOverrides['Latitude'] = position.latitude.toStringAsFixed(8);
+        _displayOverrides['Longitude'] = position.longitude.toStringAsFixed(8);
+        _changes['latitude'] = _displayOverrides['Latitude'];
+        _changes['longitude'] = _displayOverrides['Longitude'];
+      });
+    } on _LocationException catch (error) {
+      _showError(error.message);
+    } catch (_) {
+      _showError(
+        'Current location could not be determined. Enter coordinates manually.',
+      );
+    } finally {
+      if (mounted) setState(() => _isGettingLocation = false);
+    }
+  }
+
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
+  }
+
+  Future<void> _pickTime(String label, String current) async {
+    final parts = current.split(':');
+    final initial = TimeOfDay(
+      hour: int.tryParse(parts.first) ?? TimeOfDay.now().hour,
+      minute: parts.length > 1 ? int.tryParse(parts[1]) ?? 0 : 0,
+    );
+    final picked = await showTimePicker(context: context, initialTime: initial);
+    if (picked == null || !mounted) return;
+    final value =
+        '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
+    setState(() {
+      _displayOverrides[label] = value;
+      _changes[_fieldKey(label)!] = value;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    if (widget.projectSetup == null) {
-      return const Center(child: Text("Project Admin data not available"));
+    if (widget.projectSetup == null || !_initialized) {
+      return const Center(child: CircularProgressIndicator());
     }
+    final width = MediaQuery.sizeOf(context).width;
+    final wide = width >= 980;
+    final metadata = _metadata;
 
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
+    final information = _section(
+      context,
+      title: 'Project Information',
+      icon: IconlyLight.info_square,
+      children: [
+        _optionField(
+          context,
+          'Client',
+          _selectedClientId,
+          _items('available_clients'),
+          (id) {
+            setState(() {
+              _selectedClientId = id;
+              _changes['client_id'] = _asInt(id);
+            });
+          },
+        ),
+        const SizedBox(height: 16),
+        _textField(context, 'Project Name', metadata['name']),
+        const SizedBox(height: 16),
+        _responsiveRow(context, [
+          _optionField(
+            context,
+            'Status',
+            _selectedStatus,
+            _items('available_statuses'),
+            (id) => setState(() {
+              _selectedStatus = id;
+              _changes['status'] = id;
+            }),
+          ),
+          _optionField(
+            context,
+            'Priority',
+            _selectedPriority,
+            _items('available_priorities'),
+            (id) => setState(() {
+              _selectedPriority = id;
+              _changes['priority'] = id;
+            }),
+          ),
+        ]),
+        const SizedBox(height: 16),
+        _optionField(
+          context,
+          'Project Template',
+          _selectedTemplateId,
+          _items('available_templates'),
+          (id) {
+            setState(() {
+              _selectedTemplateId = id;
+              _changes['selected_template_ids'] = id == null
+                  ? <int>[]
+                  : [_asInt(id)!];
+            });
+          },
+          allowClear: true,
+        ),
+        const SizedBox(height: 16),
+        _textField(
+          context,
+          'Description',
+          metadata['description'],
+          maxLines: 4,
+        ),
+      ],
+    );
 
-    final setup = widget.projectSetup!;
-    final metadata = setup['basic_metadata'] ?? {};
-    final dropdowns = setup['dropdown_options'] ?? {};
-    final assignments = setup['assignments'] ?? {};
-    final availableTeams = dropdowns['available_teams'] as List? ?? [];
-    final availableWorkers = dropdowns['available_workers'] as List? ?? [];
-    // The people actually assigned to this project (not the full list of
-    // everyone eligible to be assigned - that's `available_managers`).
-    final assignedManagers = (assignments['contractors'] as List?) ?? [];
+    final location = _section(
+      context,
+      title: 'Location & Schedule',
+      icon: IconlyLight.location,
+      children: [
+        _textField(
+          context,
+          'Site Address',
+          metadata['site_address'],
+          maxLines: 3,
+        ),
+        const SizedBox(height: 16),
+        _responsiveRow(context, [
+          _textField(context, 'City', metadata['city']),
+          _textField(context, 'State', metadata['state']),
+        ]),
+        const SizedBox(height: 16),
+        _responsiveRow(context, [
+          _textField(context, 'Country', metadata['country']),
+          _textField(context, 'Postal Code', metadata['postal_code']),
+        ]),
+        const SizedBox(height: 16),
+        _textField(
+          context,
+          'Geofence Radius (metres)',
+          metadata['allowed_radius_meters'],
+          keyboardType: TextInputType.number,
+        ),
+        const SizedBox(height: 16),
+        _responsiveRow(context, [
+          _timeField(
+            context,
+            'Scheduled Clock-In Time',
+            metadata['scheduled_clock_in_time'],
+          ),
+          _timeField(
+            context,
+            'Scheduled Clock-Out Time',
+            metadata['scheduled_clock_out_time'],
+          ),
+        ]),
+        const SizedBox(height: 8),
+        Text(
+          'Operatives receive clock-in and clock-out reminders at these times.',
+          style: _mutedStyle(context),
+        ),
+        const SizedBox(height: 20),
+        Text('GPS Coordinates', style: _labelStyle(context)),
+        const SizedBox(height: 8),
+        _responsiveRow(context, [
+          _textField(
+            context,
+            'Latitude',
+            metadata['latitude'],
+            keyboardType: const TextInputType.numberWithOptions(
+              decimal: true,
+              signed: true,
+            ),
+          ),
+          _textField(
+            context,
+            'Longitude',
+            metadata['longitude'],
+            keyboardType: const TextInputType.numberWithOptions(
+              decimal: true,
+              signed: true,
+            ),
+          ),
+        ]),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            OutlinedButton.icon(
+              onPressed: widget.canEdit && !_isGettingLocation
+                  ? _useCurrentLocation
+                  : null,
+              icon: _isGettingLocation
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.my_location_outlined),
+              label: const Text('Use Current Location'),
+            ),
+            OutlinedButton.icon(
+              onPressed: widget.canEdit ? _saveProject : null,
+              icon: const Icon(Icons.save_outlined),
+              label: const Text('Save Location'),
+            ),
+          ],
+        ),
+      ],
+    );
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24.0),
+      padding: const EdgeInsets.all(16),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Top Bar (Responsive Wrap instead of Row)
-          Wrap(
-            spacing: 16,
-            runSpacing: 12,
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
+          Row(
             children: [
-              Text(
-                "Project Admin",
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: textColor,
+              Expanded(
+                child: Text(
+                  'Project Admin',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
-              if (widget.canEdit)
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: isDark
-                        ? Colors.white10
-                        : const Color(0xFF0D6EFD),
-                    foregroundColor: Colors.white,
-                    side: BorderSide(
-                      color: isDark ? Colors.white24 : Colors.transparent,
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 12,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  onPressed: _isSaving ? null : _saveChanges,
-                  icon: const Icon(
-                    IconlyLight.download,
-                    color: Colors.white,
-                    size: 18,
-                  ),
-                  label: const Text(
-                    "Save Changes",
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
+              _saveButton(compact: true),
             ],
           ),
-          const SizedBox(height: 24),
-          Wrap(
-            spacing: 24,
-            runSpacing: 24,
-            crossAxisAlignment: WrapCrossAlignment.start,
-            children: [
-              // Left Column (Basic Info & Location)
-              SizedBox(
-                width: MediaQuery.of(context).size.width > 1000
-                    ? 500
-                    : double.infinity,
-                child: Column(
-                  children: [
-                    _buildSetupCard(
-                      context,
-                      title: "Basic Information",
-                      icon: IconlyLight.info_square,
-                      children: [
-                        _buildTextField(
-                          context,
-                          "Project Code",
-                          metadata['code']?.toString() ?? '',
-                          enabled: false,
-                        ),
-                        const SizedBox(height: 16),
-                        _buildTextField(
-                          context,
-                          "Project Name",
-                          metadata['name']?.toString() ?? '',
-                        ),
-                        const SizedBox(height: 16),
-                        _buildResponsiveRow(context, [
-                          _buildDropdownField(
-                            context,
-                            "Status",
-                            metadata['status']?.toString() ?? '',
-                            dropdowns['available_statuses'] ?? [],
-                          ),
-                          _buildDropdownField(
-                            context,
-                            "Priority",
-                            metadata['priority']?.toString() ?? '',
-                            dropdowns['available_priorities'] ?? [],
-                          ),
-                        ]),
-                        // "Progress (%)" and "Budget" removed - not part of
-                        // the web's Project Admin form (ClickUp 14yjutqfmek);
-                        // progress is computed from task completion.
-                        const SizedBox(height: 16),
-                        _buildTextField(
-                          context,
-                          "Description",
-                          metadata['description']?.toString() ?? '',
-                        ),
-                        const SizedBox(height: 16),
-                        _buildResponsiveRow(context, [
-                          _buildTextField(
-                            context,
-                            "Start Date",
-                            metadata['start_date']?.toString() ?? '',
-                          ),
-                          _buildTextField(
-                            context,
-                            "End Date",
-                            metadata['end_date']?.toString() ?? '',
-                          ),
-                        ]),
-                        const SizedBox(height: 16),
-                        _buildResponsiveRow(context, [
-                          _buildTextField(
-                            context,
-                            "Scheduled Clock In",
-                            metadata['scheduled_clock_in_time']?.toString() ??
-                                '',
-                          ),
-                          _buildTextField(
-                            context,
-                            "Scheduled Clock Out",
-                            metadata['scheduled_clock_out_time']?.toString() ??
-                                '',
-                          ),
-                        ]),
-                        const SizedBox(height: 16),
-                        _buildTextField(
-                          context,
-                          "Allowed Radius (metres)",
-                          metadata['allowed_radius_meters']?.toString() ?? '',
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                    _buildSetupCard(
-                      context,
-                      title: "Location Details",
-                      icon: IconlyLight.location,
-                      children: [
-                        _buildTextField(
-                          context,
-                          "Site Address",
-                          metadata['site_address']?.toString() ?? '',
-                        ),
-                        const SizedBox(height: 16),
-                        _buildResponsiveRow(context, [
-                          _buildTextField(
-                            context,
-                            "City",
-                            metadata['city']?.toString() ?? '',
-                          ),
-                          _buildTextField(
-                            context,
-                            "State",
-                            metadata['state']?.toString() ?? '',
-                          ),
-                        ]),
-                        const SizedBox(height: 16),
-                        _buildResponsiveRow(context, [
-                          _buildTextField(
-                            context,
-                            "Country",
-                            metadata['country']?.toString() ?? '',
-                          ),
-                          _buildTextField(
-                            context,
-                            "Postal Code",
-                            metadata['postal_code']?.toString() ?? '',
-                          ),
-                        ]),
-                      ],
-                    ),
-                  ],
+          const SizedBox(height: 18),
+          if (wide)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    children: [
+                      information,
+                      const SizedBox(height: 20),
+                      location,
+                    ],
+                  ),
                 ),
-              ),
+                const SizedBox(width: 20),
+                Expanded(child: _assignmentColumn(context)),
+              ],
+            )
+          else ...[
+            information,
+            const SizedBox(height: 20),
+            location,
+            const SizedBox(height: 20),
+            _assignmentColumn(context),
+          ],
+          const SizedBox(height: 28),
+          SizedBox(width: double.infinity, child: _saveButton()),
+          const SizedBox(height: 32),
+        ],
+      ),
+    );
+  }
 
-              // Right Column (Assignments & Teams)
-              SizedBox(
-                width: MediaQuery.of(context).size.width > 1000
-                    ? 500
-                    : double.infinity,
-                child: Column(
-                  children: [
-                    _buildSetupCard(
-                      context,
-                      title: "Assignments",
-                      icon: IconlyLight.profile,
-                      children: [
-                        if (assignedManagers.isEmpty)
-                          Text(
-                            "No managers assigned to this project yet.",
-                            style: TextStyle(
-                              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-                              fontSize: 13,
-                            ),
-                          ),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: assignedManagers
-                                    .map((m) {
-                                      return Chip(
-                                        avatar: CircleAvatar(
-                                          backgroundColor:
-                                              Colors.orange.shade100,
-                                          child: Text(
-                                            m['display_name']
-                                                    ?.toString()
-                                                    .substring(0, 1) ??
-                                                'M',
-                                            style: TextStyle(
-                                              color: Colors.orange.shade800,
-                                              fontSize: 10,
-                                            ),
-                                          ),
-                                        ),
-                                        label: Text(
-                                          m['display_name']?.toString() ??
-                                              'Manager',
-                                        ),
-                                        backgroundColor: isDark
-                                            ? AppTheme.corporateBlue
-                                            : Colors.white,
-                                        side: BorderSide(
-                                          color: isDark
-                                              ? Colors.white24
-                                              : Colors.grey.shade300,
-                                        ),
-                                        labelStyle: TextStyle(
-                                          color: isDark
-                                              ? Colors.white
-                                              : Colors.black87,
-                                          fontSize: 12,
-                                        ),
-                                      );
-                                    })
-                                    .toList(),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                    _buildSetupCard(
-                      context,
-                      title: "Teams & Workers",
-                      icon: IconlyLight.user,
-                      children: [
-                        _buildTeamSelection(
-                          context,
-                          availableTeams,
-                          availableWorkers,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+  Widget _assignmentColumn(BuildContext context) => Column(
+    children: [
+      _section(
+        context,
+        title: 'Project Assignments',
+        icon: IconlyLight.profile,
+        children: [
+          _optionField(
+            context,
+            'Select Manager',
+            _selectedManagerId,
+            _items('available_managers'),
+            (id) => setState(() => _selectedManagerId = id),
+            allowClear: true,
+          ),
+          const SizedBox(height: 16),
+          _optionField(
+            context,
+            'Select Site Supervisor',
+            _selectedSupervisorId,
+            _items('available_supervisors'),
+            (id) => setState(() => _selectedSupervisorId = id),
+            allowClear: true,
+          ),
+          const SizedBox(height: 16),
+          _optionField(
+            context,
+            'Select Team',
+            _selectedTeamId,
+            _items('available_teams'),
+            (id) => setState(() => _selectedTeamId = id),
+            allowClear: true,
+          ),
+          const SizedBox(height: 20),
+          Text('Select Worker', style: _labelStyle(context)),
+          const SizedBox(height: 8),
+          TextField(
+            enabled: widget.canEdit,
+            onChanged: (value) =>
+                setState(() => _workerQuery = value.trim().toLowerCase()),
+            style: TextStyle(color: _textColor(context)),
+            decoration: _inputDecoration(
+              context,
+              hint: 'Search workers by name or email',
+              prefix: const Icon(Icons.search),
+            ),
+          ),
+          const SizedBox(height: 8),
+          _workerPicker(context),
+        ],
+      ),
+      const SizedBox(height: 20),
+      _currentTeamCard(context),
+    ],
+  );
+
+  Widget _workerPicker(BuildContext context) {
+    final workers = _items('available_workers').where((worker) {
+      if (_workerQuery.isEmpty) return true;
+      final name = _name(worker).toLowerCase();
+      return name.contains(_workerQuery) ||
+          (worker['email']?.toString().toLowerCase().contains(_workerQuery) ??
+              false);
+    }).toList();
+    if (workers.isEmpty)
+      return Text('No workers found.', style: _mutedStyle(context));
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      constraints: const BoxConstraints(maxHeight: 300),
+      decoration: BoxDecoration(
+        border: Border.all(color: dark ? Colors.white24 : Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: ListView.separated(
+        shrinkWrap: true,
+        itemCount: workers.length,
+        separatorBuilder: (_, __) => Divider(
+          height: 1,
+          color: dark ? Colors.white12 : Colors.grey.shade200,
+        ),
+        itemBuilder: (_, index) {
+          final worker = workers[index];
+          final id = worker['id'].toString();
+          return CheckboxListTile(
+            dense: true,
+            value: _selectedWorkerIds.contains(id),
+            activeColor: Theme.of(context).colorScheme.primary,
+            title: Text(
+              _name(worker),
+              style: TextStyle(
+                color: _textColor(context),
+                fontWeight: FontWeight.w600,
               ),
-            ],
+            ),
+            subtitle: Text(
+              worker['email']?.toString() ?? '',
+              style: _mutedStyle(context),
+            ),
+            onChanged: widget.canEdit
+                ? (checked) => setState(() {
+                    if (checked == true) {
+                      _selectedWorkerIds.add(id);
+                    } else {
+                      _selectedWorkerIds.remove(id);
+                    }
+                  })
+                : null,
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _currentTeamCard(BuildContext context) {
+    final people = <Map<String, dynamic>>[];
+    void add(Map? person, String fallbackRole) {
+      if (person == null ||
+          person['id'] == null ||
+          people.any((p) => p['id'].toString() == person['id'].toString()))
+        return;
+      people.add({...Map<String, dynamic>.from(person), '_role': fallbackRole});
+    }
+
+    final assignments = _assignments;
+    add(assignments['contractor'] as Map?, 'Manager');
+    add(assignments['site_supervisor'] as Map?, 'Site Supervisor');
+    for (final worker in _items('available_workers')) {
+      if (_selectedWorkerIds.contains(worker['id'].toString()))
+        add(worker, 'Operative');
+    }
+    return _section(
+      context,
+      title: 'Current Team',
+      icon: IconlyLight.user,
+      children: [
+        if (people.isEmpty)
+          Text('No active assignees yet.', style: _mutedStyle(context)),
+        ...people.map((person) => _personRow(context, person)),
+      ],
+    );
+  }
+
+  Widget _personRow(BuildContext context, Map<String, dynamic> person) {
+    final name = _name(person);
+    final initials = name
+        .split(RegExp(r'\s+'))
+        .where((item) => item.isNotEmpty)
+        .take(2)
+        .map((item) => item[0])
+        .join()
+        .toUpperCase();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 20,
+            child: Text(initials.isEmpty ? '?' : initials),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  style: TextStyle(
+                    color: _textColor(context),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Text(
+                  person['email']?.toString() ?? 'No email',
+                  style: _mutedStyle(context),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          Text(
+            person['_role']?.toString() ??
+                person['role_label']?.toString() ??
+                '',
+            style: _mutedStyle(context),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildTeamSelection(
-    BuildContext context,
-    List<dynamic> availableTeams,
-    List<dynamic> availableWorkers,
-  ) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final labelColor = isDark ? Colors.grey.shade400 : Colors.grey;
-    final textStyle = TextStyle(color: isDark ? Colors.white : Colors.black87);
+  String _name(Map<String, dynamic> item) =>
+      item['label']?.toString() ??
+      item['display_name']?.toString() ??
+      item['name']?.toString() ??
+      item['role_label']?.toString() ??
+      item['email']?.toString() ??
+      'Unnamed member';
 
-    List<dynamic> teamWorkers = [];
-    if (_selectedTeamId != null) {
-      final team = availableTeams.firstWhere(
-        (t) => t['id'].toString() == _selectedTeamId,
-        orElse: () => null,
-      );
-      if (team != null) {
-        final memberIds = team['member_ids'] as List? ?? [];
-        teamWorkers = availableWorkers
-            .where((w) => memberIds.contains(w['id']))
-            .toList();
-      }
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          "Available Teams",
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 13,
-            color: labelColor,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            color: isDark
-                ? Colors.white.withOpacity(0.05)
-                : Colors.grey.shade50,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: isDark ? Colors.white24 : Colors.grey.shade300,
-            ),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              dropdownColor: isDark ? AppTheme.darkSurface : Colors.white,
-              isExpanded: true,
-              value: _selectedTeamId,
-              hint: Text("Select a team", style: TextStyle(color: labelColor)),
-              items: availableTeams.map((e) {
-                final val = e['id']?.toString() ?? '';
-                final name = e['name']?.toString() ?? '';
-                return DropdownMenuItem(
-                  value: val,
-                  child: Text(
-                    name,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: isDark ? Colors.white : Colors.black87,
-                    ),
-                  ),
-                );
-              }).toList(),
-              onChanged: widget.canEdit
-                  ? (val) {
-                      setState(() {
-                        _selectedTeamId = val;
-                      });
-                    }
-                  : null,
-              icon: Icon(
-                IconlyLight.arrow_down_2,
-                color: isDark ? Colors.white70 : Colors.grey,
-              ),
-            ),
-          ),
-        ),
-        if (_selectedTeamId != null && teamWorkers.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          Text(
-            "Team Workers",
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 13,
-              color: labelColor,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Container(
-            decoration: BoxDecoration(
-              color: isDark
-                  ? Colors.white.withOpacity(0.05)
-                  : Colors.grey.shade50,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: isDark ? Colors.white24 : Colors.grey.shade300,
-              ),
-            ),
-            child: ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: teamWorkers.length,
-              separatorBuilder: (context, index) => Divider(
-                height: 1,
-                color: isDark ? Colors.white12 : Colors.grey.shade200,
-              ),
-              itemBuilder: (context, index) {
-                final worker = teamWorkers[index];
-                final workerId = worker['id'].toString();
-                final workerName =
-                    worker['display_name']?.toString() ?? 'Worker';
-                final isSelected = _selectedWorkerIds.contains(workerId);
-
-                return CheckboxListTile(
-                  title: Text(workerName, style: textStyle),
-                  value: isSelected,
-                  activeColor: const Color(0xFF0D6EFD),
-                  checkColor: Colors.white,
-                  side: BorderSide(
-                    color: isDark ? Colors.white54 : Colors.grey.shade400,
-                  ),
-                  onChanged: widget.canEdit
-                      ? (bool? checked) {
-                          setState(() {
-                            if (checked == true) {
-                              _selectedWorkerIds.add(workerId);
-                            } else {
-                              _selectedWorkerIds.remove(workerId);
-                            }
-                          });
-                        }
-                      : null,
-                );
-              },
-            ),
-          ),
-        ] else if (_selectedTeamId != null) ...[
-          const SizedBox(height: 16),
-          Text(
-            "No workers found for this team.",
-            style: TextStyle(color: labelColor, fontStyle: FontStyle.italic),
-          ),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildSetupCard(
+  Widget _section(
     BuildContext context, {
     required String title,
     required IconData icon,
     required List<Widget> children,
   }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
-    final borderColor = isDark ? Colors.white24 : Colors.grey.shade200;
-    final textColor = isDark ? Colors.white : Colors.black87;
-
+    final dark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: cardColor,
+        color: dark ? AppTheme.darkSurface : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: borderColor),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        border: Border.all(color: dark ? Colors.white24 : Colors.grey.shade200),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(
-                icon,
-                color: isDark ? Colors.white : const Color(0xFF0D6EFD),
-                size: 22,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: textColor,
-                  ),
-                  overflow: TextOverflow.ellipsis,
+              Icon(icon, color: Theme.of(context).colorScheme.primary),
+              const SizedBox(width: 10),
+              Text(
+                title,
+                style: TextStyle(
+                  color: _textColor(context),
+                  fontWeight: FontWeight.w800,
+                  fontSize: 18,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 20),
-          Divider(
-            height: 1,
-            color: isDark ? Colors.white12 : Colors.grey.shade200,
-          ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 18),
           ...children,
         ],
       ),
     );
   }
 
-  Widget _buildTextField(
+  Widget _responsiveRow(BuildContext context, List<Widget> children) {
+    if (MediaQuery.sizeOf(context).width < 620) {
+      return Column(
+        children: [
+          for (var i = 0; i < children.length; i++) ...[
+            children[i],
+            if (i < children.length - 1) const SizedBox(height: 16),
+          ],
+        ],
+      );
+    }
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var i = 0; i < children.length; i++) ...[
+          Expanded(child: children[i]),
+          if (i < children.length - 1) const SizedBox(width: 14),
+        ],
+      ],
+    );
+  }
+
+  Widget _textField(
     BuildContext context,
     String label,
-    String initialValue, {
-    bool enabled = true,
+    dynamic value, {
+    int maxLines = 1,
+    TextInputType? keyboardType,
   }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final labelColor = isDark ? Colors.grey.shade400 : Colors.grey;
-    final textStyle = TextStyle(color: isDark ? Colors.white : Colors.black87);
-
+    final display = _valueFor(label, value);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 13,
-            color: labelColor,
-          ),
-        ),
+        Text(label, style: _labelStyle(context)),
         const SizedBox(height: 6),
         TextFormField(
-          enabled: enabled && widget.canEdit,
-          initialValue: initialValue,
-          onChanged: (value) {
+          key: ValueKey('$label-$display'),
+          enabled: widget.canEdit,
+          initialValue: display,
+          maxLines: maxLines,
+          keyboardType: keyboardType,
+          style: TextStyle(color: _textColor(context)),
+          onChanged: (input) {
             final key = _fieldKey(label);
-            if (key != null) _changes[key] = value;
+            if (key != null) _changes[key] = input;
           },
-          style: textStyle,
-          decoration: InputDecoration(
-            isDense: true,
-            filled: true,
-            fillColor: isDark
-                ? Colors.white.withOpacity(0.05)
-                : Colors.grey.shade50,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 14,
-            ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(
-                color: isDark ? Colors.white24 : Colors.grey.shade300,
-              ),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(
-                color: isDark ? Colors.white24 : Colors.grey.shade300,
-              ),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(
-                color: isDark ? Colors.white : const Color(0xFF0D6EFD),
-                width: 2,
-              ),
-            ),
-          ),
+          decoration: _inputDecoration(context),
         ),
       ],
     );
   }
 
-  Widget _buildDropdownField(
-    BuildContext context,
-    String label,
-    String currentValue,
-    List<dynamic> options,
-  ) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final labelColor = isDark ? Colors.grey.shade400 : Colors.grey;
-
+  Widget _timeField(BuildContext context, String label, dynamic value) {
+    final display = _valueFor(label, value);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 13,
-            color: labelColor,
-          ),
-        ),
+        Text(label, style: _labelStyle(context)),
         const SizedBox(height: 6),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            color: isDark
-                ? Colors.white.withOpacity(0.05)
-                : Colors.grey.shade50,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: isDark ? Colors.white24 : Colors.grey.shade300,
+        InkWell(
+          onTap: widget.canEdit ? () => _pickTime(label, display) : null,
+          borderRadius: BorderRadius.circular(10),
+          child: InputDecorator(
+            decoration: _inputDecoration(
+              context,
+              suffix: const Icon(Icons.access_time_outlined),
             ),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              dropdownColor: isDark ? AppTheme.darkSurface : Colors.white,
-              isExpanded: true,
-              value:
-                  options.any(
-                    (item) =>
-                        (item['value']?.toString() ?? item['id']?.toString()) ==
-                        currentValue,
-                  )
-                  ? currentValue
-                  : (options.isNotEmpty
-                        ? options.first['value']?.toString() ??
-                              options.first['id']?.toString()
-                        : null),
-              items: options.map((e) {
-                final val = e['value']?.toString() ?? e['id']?.toString() ?? '';
-                final name =
-                    e['label']?.toString() ?? e['name']?.toString() ?? '';
-                return DropdownMenuItem(
-                  value: val,
-                  child: Text(
-                    name,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: isDark ? Colors.white : Colors.black87,
-                    ),
-                  ),
-                );
-              }).toList(),
-              onChanged: widget.canEdit
-                  ? (val) {
-                      final key = label == 'Status'
-                          ? 'status'
-                          : label == 'Priority'
-                          ? 'priority'
-                          : null;
-                      if (key != null) _changes[key] = val;
-                    }
-                  : null,
-              icon: Icon(
-                IconlyLight.arrow_down_2,
-                color: isDark ? Colors.white70 : Colors.grey,
-              ),
+            child: Text(
+              display.isEmpty ? 'Select time' : display,
+              style: TextStyle(color: _textColor(context)),
             ),
           ),
         ),
       ],
     );
   }
+
+  Widget _optionField(
+    BuildContext context,
+    String label,
+    String? value,
+    List<Map<String, dynamic>> options,
+    ValueChanged<String?> onChanged, {
+    bool allowClear = false,
+  }) {
+    final valid = options.any(
+      (item) => (item['id'] ?? item['value']).toString() == value,
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: _labelStyle(context)),
+        const SizedBox(height: 6),
+        DropdownButtonFormField<String>(
+          value: valid ? value : null,
+          isExpanded: true,
+          dropdownColor: Theme.of(context).brightness == Brightness.dark
+              ? AppTheme.darkSurface
+              : Colors.white,
+          style: TextStyle(color: _textColor(context)),
+          decoration: _inputDecoration(context),
+          hint: Text(
+            'Select ${label.toLowerCase()}',
+            style: _mutedStyle(context),
+          ),
+          items: [
+            if (allowClear)
+              const DropdownMenuItem<String>(
+                value: null,
+                child: Text('Not assigned'),
+              ),
+            ...options.map(
+              (item) => DropdownMenuItem<String>(
+                value: (item['id'] ?? item['value']).toString(),
+                child: Text(_name(item), overflow: TextOverflow.ellipsis),
+              ),
+            ),
+          ],
+          onChanged: widget.canEdit ? onChanged : null,
+        ),
+      ],
+    );
+  }
+
+  InputDecoration _inputDecoration(
+    BuildContext context, {
+    String? hint,
+    Widget? prefix,
+    Widget? suffix,
+  }) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final border = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(10),
+      borderSide: BorderSide(
+        color: dark ? Colors.white24 : Colors.grey.shade300,
+      ),
+    );
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: _mutedStyle(context),
+      prefixIcon: prefix,
+      suffixIcon: suffix,
+      isDense: true,
+      filled: true,
+      fillColor: dark ? Colors.white.withOpacity(.05) : Colors.grey.shade50,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      border: border,
+      enabledBorder: border,
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(
+          color: Theme.of(context).colorScheme.primary,
+          width: 1.8,
+        ),
+      ),
+    );
+  }
+
+  TextStyle _labelStyle(BuildContext context) => TextStyle(
+    color: Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade300
+        : Colors.grey.shade700,
+    fontSize: 12,
+    fontWeight: FontWeight.w700,
+  );
+  TextStyle _mutedStyle(BuildContext context) => TextStyle(
+    color: Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade400
+        : Colors.grey.shade600,
+    fontSize: 12,
+  );
+  Color _textColor(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark
+      ? Colors.white
+      : const Color(0xFF18263B);
+
+  Widget _saveButton({bool compact = false}) => ElevatedButton.icon(
+    onPressed: widget.canEdit && !_isSaving ? _saveProject : null,
+    icon: _isSaving
+        ? const SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(
+              color: Colors.white,
+              strokeWidth: 2,
+            ),
+          )
+        : const Icon(Icons.save_outlined),
+    label: Text(compact ? 'Save' : 'Save Project'),
+    style: ElevatedButton.styleFrom(
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 16 : 24,
+        vertical: 14,
+      ),
+      backgroundColor: const Color(0xFF0D6EFD),
+      foregroundColor: Colors.white,
+    ),
+  );
+}
+
+class _LocationException implements Exception {
+  final String message;
+  const _LocationException(this.message);
 }

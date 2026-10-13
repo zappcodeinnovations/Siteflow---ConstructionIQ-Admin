@@ -1,10 +1,8 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/api_endpoints.dart';
+import '../../../../core/services/download_manager.dart';
 import '../../../../models/admin_activity_log_model.dart';
 
 class AdminActivityLogsController extends ChangeNotifier {
@@ -76,13 +74,13 @@ class AdminActivityLogsController extends ChangeNotifier {
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
         if (decoded is Map<String, dynamic>) {
-           if (decoded.containsKey('data')) {
-              _kpi = ActivityLogKPI.fromJson(decoded['data']);
-           } else if (decoded.containsKey('kpis')) {
-              _kpi = ActivityLogKPI.fromJson(decoded['kpis']);
-           } else {
-              _kpi = ActivityLogKPI.fromJson(decoded);
-           }
+          if (decoded.containsKey('data')) {
+            _kpi = ActivityLogKPI.fromJson(decoded['data']);
+          } else if (decoded.containsKey('kpis')) {
+            _kpi = ActivityLogKPI.fromJson(decoded['kpis']);
+          } else {
+            _kpi = ActivityLogKPI.fromJson(decoded);
+          }
         }
         notifyListeners();
       }
@@ -98,13 +96,13 @@ class AdminActivityLogsController extends ChangeNotifier {
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
         if (decoded is Map<String, dynamic>) {
-           if (decoded.containsKey('data')) {
-              _filterOptions = decoded['data'];
-           } else if (decoded.containsKey('filters')) {
-              _filterOptions = decoded['filters'];
-           } else {
-              _filterOptions = decoded;
-           }
+          if (decoded.containsKey('data')) {
+            _filterOptions = decoded['data'];
+          } else if (decoded.containsKey('filters')) {
+            _filterOptions = decoded['filters'];
+          } else {
+            _filterOptions = decoded;
+          }
         }
         notifyListeners();
       }
@@ -118,7 +116,8 @@ class AdminActivityLogsController extends ChangeNotifier {
       // The activity-log filter is manager-specific.  Ask the API for that
       // role instead of downloading the whole member directory and trying to
       // infer roles on the device.
-      final url = '${ApiEndpoints.baseUrl}/admin/members/?role=manager&page_size=1000';
+      final url =
+          '${ApiEndpoints.baseUrl}/admin/members/?role=manager&page_size=1000';
       final response = await ApiClient.get(url);
       if (response.statusCode == 200) {
         final decodedData = jsonDecode(response.body);
@@ -135,29 +134,37 @@ class AdminActivityLogsController extends ChangeNotifier {
           }
         }
 
-        final filteredManagers = list.where((item) {
-          if (item is! Map) return false;
-          final role = (item['role'] ??
-                  item['role_name'] ??
-                  item['role_display_name'] ??
-                  '')
-              .toString()
-              .toLowerCase();
-          return role == 'manager';
-        }).map((item) {
-          final first = item['first_name']?.toString() ?? '';
-          final last = item['last_name']?.toString() ?? '';
-          final fullName = '$first $last'.trim();
-          final displayName = item['display_name']?.toString() ?? '';
-          final name = displayName.isNotEmpty ? displayName : (fullName.isNotEmpty ? fullName : item['email']?.toString() ?? '');
-          return {
-            'id': item['id'],
-            'display_name': name,
-            'name': name,
-            'email': item['email'] ?? '',
-            'role': item['role'] ?? item['role_name'] ?? 'Manager',
-          };
-        }).toList();
+        final filteredManagers = list
+            .where((item) {
+              if (item is! Map) return false;
+              final role =
+                  (item['role'] ??
+                          item['role_name'] ??
+                          item['role_display_name'] ??
+                          '')
+                      .toString()
+                      .toLowerCase();
+              return role == 'manager';
+            })
+            .map((item) {
+              final first = item['first_name']?.toString() ?? '';
+              final last = item['last_name']?.toString() ?? '';
+              final fullName = '$first $last'.trim();
+              final displayName = item['display_name']?.toString() ?? '';
+              final name = displayName.isNotEmpty
+                  ? displayName
+                  : (fullName.isNotEmpty
+                        ? fullName
+                        : item['email']?.toString() ?? '');
+              return {
+                'id': item['id'],
+                'display_name': name,
+                'name': name,
+                'email': item['email'] ?? '',
+                'role': item['role'] ?? item['role_name'] ?? 'Manager',
+              };
+            })
+            .toList();
 
         if (filteredManagers.isNotEmpty) {
           _managers = filteredManagers;
@@ -185,7 +192,7 @@ class AdminActivityLogsController extends ChangeNotifier {
     if (from != null) fromDate = from.isEmpty ? null : from;
     if (to != null) toDate = to.isEmpty ? null : to;
     if (search != null) searchQuery = search;
-    
+
     fetchLogs();
   }
 
@@ -203,11 +210,16 @@ class AdminActivityLogsController extends ChangeNotifier {
   String _buildLogsUrl(int page) {
     List<String> queryParams = ['page=$page', 'page_size=50'];
 
-    if (selectedManager != null && selectedManager!.isNotEmpty) queryParams.add('user_id=$selectedManager');
-    if (selectedRole != null && selectedRole!.isNotEmpty) queryParams.add('role=$selectedRole');
-    if (selectedModule != null && selectedModule!.isNotEmpty) queryParams.add('module=$selectedModule');
-    if (selectedAction != null && selectedAction!.isNotEmpty) queryParams.add('action_type=$selectedAction');
-    if (fromDate != null && fromDate!.isNotEmpty) queryParams.add('from=$fromDate');
+    if (selectedManager != null && selectedManager!.isNotEmpty)
+      queryParams.add('user_id=$selectedManager');
+    if (selectedRole != null && selectedRole!.isNotEmpty)
+      queryParams.add('role=$selectedRole');
+    if (selectedModule != null && selectedModule!.isNotEmpty)
+      queryParams.add('module=$selectedModule');
+    if (selectedAction != null && selectedAction!.isNotEmpty)
+      queryParams.add('action_type=$selectedAction');
+    if (fromDate != null && fromDate!.isNotEmpty)
+      queryParams.add('from=$fromDate');
     if (toDate != null && toDate!.isNotEmpty) queryParams.add('to=$toDate');
     if (searchQuery.isNotEmpty) queryParams.add('search=$searchQuery');
 
@@ -230,14 +242,21 @@ class AdminActivityLogsController extends ChangeNotifier {
         final decoded = jsonDecode(response.body);
         if (decoded is Map<String, dynamic>) {
           final dataList = (decoded['data'] as List?) ?? [];
-          _logs = dataList.map((i) => ActivityLog.fromJson(i as Map<String, dynamic>)).toList();
+          _logs = dataList
+              .map((i) => ActivityLog.fromJson(i as Map<String, dynamic>))
+              .toList();
           _currentPage = decoded['page'] is int ? decoded['page'] as int : 1;
-          _totalPages = decoded['total_pages'] is int ? decoded['total_pages'] as int : 1;
-          totalCount = decoded['count'] is int ? decoded['count'] as int : _logs.length;
+          _totalPages = decoded['total_pages'] is int
+              ? decoded['total_pages'] as int
+              : 1;
+          totalCount = decoded['count'] is int
+              ? decoded['count'] as int
+              : _logs.length;
         }
         _errorMessage = null;
       } else {
-        _errorMessage = 'Failed to load activity logs (${response.statusCode}).';
+        _errorMessage =
+            'Failed to load activity logs (${response.statusCode}).';
       }
     } catch (e) {
       _errorMessage = 'An error occurred: $e';
@@ -262,11 +281,19 @@ class AdminActivityLogsController extends ChangeNotifier {
           final dataList = (decoded['data'] as List?) ?? [];
           _logs = [
             ..._logs,
-            ...dataList.map((i) => ActivityLog.fromJson(i as Map<String, dynamic>)),
+            ...dataList.map(
+              (i) => ActivityLog.fromJson(i as Map<String, dynamic>),
+            ),
           ];
-          _currentPage = decoded['page'] is int ? decoded['page'] as int : _currentPage + 1;
-          _totalPages = decoded['total_pages'] is int ? decoded['total_pages'] as int : _totalPages;
-          totalCount = decoded['count'] is int ? decoded['count'] as int : totalCount;
+          _currentPage = decoded['page'] is int
+              ? decoded['page'] as int
+              : _currentPage + 1;
+          _totalPages = decoded['total_pages'] is int
+              ? decoded['total_pages'] as int
+              : _totalPages;
+          totalCount = decoded['count'] is int
+              ? decoded['count'] as int
+              : totalCount;
         }
       }
     } catch (_) {
@@ -279,35 +306,38 @@ class AdminActivityLogsController extends ChangeNotifier {
 
   String? exportError;
 
-  /// Downloads the export through the authenticated API client and shares
-  /// the resulting file - launchUrl() previously opened the export URL in
-  /// an external browser with no Authorization header at all, so every tap
-  /// silently hit a 401/403 (this endpoint has no query-string-JWT support
-  /// the way a couple of other export links in the app do).
+  /// Downloads the export through the authenticated API client and stores it
+  /// in the app's shared download history.
   Future<bool> exportLogs(String format) async {
     exportError = null;
     try {
-      String url = '${ApiEndpoints.baseUrl}/admin/activity-logs/export/?format=$format';
-      if (selectedManager != null && selectedManager!.isNotEmpty) url += '&user_id=$selectedManager';
-      if (selectedRole != null && selectedRole!.isNotEmpty) url += '&role=$selectedRole';
-      if (selectedModule != null && selectedModule!.isNotEmpty) url += '&module=$selectedModule';
-      if (selectedAction != null && selectedAction!.isNotEmpty) url += '&action_type=$selectedAction';
+      String url =
+          '${ApiEndpoints.baseUrl}/admin/activity-logs/export/?format=$format';
+      if (selectedManager != null && selectedManager!.isNotEmpty)
+        url += '&user_id=$selectedManager';
+      if (selectedRole != null && selectedRole!.isNotEmpty)
+        url += '&role=$selectedRole';
+      if (selectedModule != null && selectedModule!.isNotEmpty)
+        url += '&module=$selectedModule';
+      if (selectedAction != null && selectedAction!.isNotEmpty)
+        url += '&action_type=$selectedAction';
       if (fromDate != null && fromDate!.isNotEmpty) url += '&from=$fromDate';
       if (toDate != null && toDate!.isNotEmpty) url += '&to=$toDate';
       if (searchQuery.isNotEmpty) url += '&search=$searchQuery';
 
-      final response = await ApiClient.get(url);
-      if (response.statusCode != 200 || response.bodyBytes.isEmpty) {
-        exportError = 'Failed to export (${response.statusCode}).';
-        return false;
-      }
-
       final ext = format == 'excel' ? 'xlsx' : format;
-      final directory = await getTemporaryDirectory();
-      final file = File('${directory.path}/activity_logs_${DateTime.now().millisecondsSinceEpoch}.$ext');
-      await file.writeAsBytes(response.bodyBytes);
-      await Share.shareXFiles([XFile(file.path)], text: "Activity Logs Export");
-      return true;
+      final mimeType = switch (ext) {
+        'xlsx' =>
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'pdf' => 'application/pdf',
+        _ => 'text/csv',
+      };
+      final result = await DownloadManager.instance.downloadUrl(
+        url: url,
+        fileName: 'activity_logs_${DateTime.now().millisecondsSinceEpoch}.$ext',
+        mimeType: mimeType,
+      );
+      return result != null;
     } catch (e) {
       exportError = 'Export error: $e';
       debugPrint(exportError);
@@ -322,10 +352,10 @@ class AdminActivityLogsController extends ChangeNotifier {
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
         if (decoded is Map<String, dynamic>) {
-           if (decoded.containsKey('data')) {
-              return decoded['data'];
-           }
-           return decoded;
+          if (decoded.containsKey('data')) {
+            return decoded['data'];
+          }
+          return decoded;
         }
       }
     } catch (e) {

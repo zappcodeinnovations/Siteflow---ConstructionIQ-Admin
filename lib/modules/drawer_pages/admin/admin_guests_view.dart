@@ -1,12 +1,8 @@
-import 'dart:io';
-
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
-import '../../../../core/network/api_client.dart';
 import '../../../../core/network/api_endpoints.dart';
+import '../../../../core/services/download_manager.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/date_helper.dart';
 import '../../../../models/admin_guest_model.dart';
@@ -63,24 +59,12 @@ class _AdminGuestsViewState extends State<AdminGuestsView> {
       }
       final url =
           '${ApiEndpoints.baseUrl}/admin/guests/export/?${queryParams.join('&')}';
-      final response = await ApiClient.get(url);
-      if (!mounted) return;
-      if (response.statusCode == 200 && response.bodyBytes.isNotEmpty) {
-        final directory = await getTemporaryDirectory();
-        final file = File(
-          '${directory.path}/guests_export_${DateTime.now().millisecondsSinceEpoch}.xlsx',
-        );
-        await file.writeAsBytes(response.bodyBytes);
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        await SharePlus.instance.share(
-          ShareParams(files: [XFile(file.path)], text: 'Guests Export'),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Failed to export (${response.statusCode}).")),
-        );
-      }
+      await DownloadManager.instance.downloadUrl(
+        url: url,
+        fileName: 'guests_export_${DateTime.now().millisecondsSinceEpoch}.xlsx',
+        mimeType:
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(

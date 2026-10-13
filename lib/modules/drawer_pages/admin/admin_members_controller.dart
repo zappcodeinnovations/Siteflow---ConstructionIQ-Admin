@@ -1,10 +1,8 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/api_endpoints.dart';
+import '../../../../core/services/download_manager.dart';
 import '../../../../models/admin_member_model.dart';
 
 class AdminMembersController extends ChangeNotifier {
@@ -32,7 +30,11 @@ class AdminMembersController extends ChangeNotifier {
   String _roleFilter = 'all';
   String get roleFilter => _roleFilter;
 
-  Future<void> fetchMembers({String? status, String? role, String? search}) async {
+  Future<void> fetchMembers({
+    String? status,
+    String? role,
+    String? search,
+  }) async {
     if (status != null) _statusFilter = status;
     if (role != null) _roleFilter = role;
 
@@ -52,11 +54,15 @@ class AdminMembersController extends ChangeNotifier {
         queryParams.add('search=${Uri.encodeComponent(search)}');
       }
 
-      final url = '${ApiEndpoints.baseUrl}/admin/members/?${queryParams.join('&')}';
+      final url =
+          '${ApiEndpoints.baseUrl}/admin/members/?${queryParams.join('&')}';
       final response = await ApiClient.get(url);
       final decodedData = jsonDecode(response.body);
 
-      if (response.statusCode == 200 && (decodedData['status'] == true || decodedData is List || decodedData.containsKey('data'))) {
+      if (response.statusCode == 200 &&
+          (decodedData['status'] == true ||
+              decodedData is List ||
+              decodedData.containsKey('data'))) {
         final parsedResponse = AdminMemberResponse.fromJson(decodedData);
         _members = parsedResponse.data;
         _totalCount = parsedResponse.totalCount ?? _members.length;
@@ -92,34 +98,111 @@ class AdminMembersController extends ChangeNotifier {
   Future<Map<String, dynamic>> resendInvite(int id, {String? email}) async {
     try {
       final url = '${ApiEndpoints.baseUrl}/admin/members/$id/resend-invite/';
-      final response = await ApiClient.post(url, body: {
-        if (email != null && email.isNotEmpty) "email": email,
-      });
+      final response = await ApiClient.post(
+        url,
+        body: {if (email != null && email.isNotEmpty) "email": email},
+      );
       final decodedData = jsonDecode(response.body);
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        return {"success": true, "message": decodedData['message'] ?? "Invitation resent successfully."};
+        return {
+          "success": true,
+          "message":
+              decodedData['message'] ?? "Invitation resent successfully.",
+        };
       }
 
       // Fallback endpoint
-      final fallbackUrl = '${ApiEndpoints.baseUrl}/admin/members/invite/resend/';
-      final fallbackRes = await ApiClient.post(fallbackUrl, body: {
-        "member_id": id,
-        if (email != null && email.isNotEmpty) "email": email,
-      });
+      final fallbackUrl =
+          '${ApiEndpoints.baseUrl}/admin/members/invite/resend/';
+      final fallbackRes = await ApiClient.post(
+        fallbackUrl,
+        body: {
+          "member_id": id,
+          if (email != null && email.isNotEmpty) "email": email,
+        },
+      );
       final fallbackDecoded = jsonDecode(fallbackRes.body);
 
       if (fallbackRes.statusCode == 200 || fallbackRes.statusCode == 201) {
-        return {"success": true, "message": fallbackDecoded['message'] ?? "Invitation resent successfully."};
+        return {
+          "success": true,
+          "message":
+              fallbackDecoded['message'] ?? "Invitation resent successfully.",
+        };
       }
 
-      return {"success": false, "message": decodedData['message'] ?? fallbackDecoded['message'] ?? "Failed to resend invite."};
+      return {
+        "success": false,
+        "message":
+            decodedData['message'] ??
+            fallbackDecoded['message'] ??
+            "Failed to resend invite.",
+      };
     } catch (e) {
       return {"success": false, "message": "An error occurred: $e"};
     }
   }
 
-  Future<Map<String, dynamic>> inviteMember(Map<String, dynamic> payload) async {
+  Future<Map<String, dynamic>> reinvitePendingInvite(int inviteId) async {
+    try {
+      final response = await ApiClient.post(
+        '${ApiEndpoints.baseUrl}/admin/member-invites/$inviteId/reinvite/',
+        body: const {},
+      );
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final success = response.statusCode == 200 && data['status'] == true;
+      if (success) await fetchMembers();
+      return {
+        'success': success,
+        'message': data['message'] ?? 'Failed to reinvite member.',
+      };
+    } catch (e) {
+      return {'success': false, 'message': 'An error occurred: $e'};
+    }
+  }
+
+  Future<Map<String, dynamic>> updatePendingInvite(
+    int inviteId,
+    Map<String, dynamic> payload,
+  ) async {
+    try {
+      final response = await ApiClient.patch(
+        '${ApiEndpoints.baseUrl}/admin/member-invites/$inviteId/',
+        body: payload,
+      );
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final success = response.statusCode == 200 && data['status'] == true;
+      if (success) await fetchMembers();
+      return {
+        'success': success,
+        'message': data['message'] ?? 'Failed to update invite.',
+      };
+    } catch (e) {
+      return {'success': false, 'message': 'An error occurred: $e'};
+    }
+  }
+
+  Future<Map<String, dynamic>> deletePendingInvite(int inviteId) async {
+    try {
+      final response = await ApiClient.delete(
+        '${ApiEndpoints.baseUrl}/admin/member-invites/$inviteId/',
+      );
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final success = response.statusCode == 200 && data['status'] == true;
+      if (success) await fetchMembers();
+      return {
+        'success': success,
+        'message': data['message'] ?? 'Failed to delete invite.',
+      };
+    } catch (e) {
+      return {'success': false, 'message': 'An error occurred: $e'};
+    }
+  }
+
+  Future<Map<String, dynamic>> inviteMember(
+    Map<String, dynamic> payload,
+  ) async {
     try {
       final url = '${ApiEndpoints.baseUrl}/admin/members/invite/';
       final response = await ApiClient.post(url, body: payload);
@@ -128,10 +211,16 @@ class AdminMembersController extends ChangeNotifier {
       if (response.statusCode == 200 || response.statusCode == 201) {
         if (decodedData['status'] == true) {
           await fetchMembers();
-          return {"success": true, "message": decodedData['message'] ?? "Invite sent successfully."};
+          return {
+            "success": true,
+            "message": decodedData['message'] ?? "Invite sent successfully.",
+          };
         }
       }
-      return {"success": false, "message": decodedData['message'] ?? "Failed to invite member."};
+      return {
+        "success": false,
+        "message": decodedData['message'] ?? "Failed to invite member.",
+      };
     } catch (e) {
       return {"success": false, "message": "An error occurred: $e"};
     }
@@ -146,16 +235,25 @@ class AdminMembersController extends ChangeNotifier {
       if (response.statusCode == 200) {
         if (decodedData['status'] == true) {
           await fetchMembers();
-          return {"success": true, "message": decodedData['message'] ?? "Member deleted successfully."};
+          return {
+            "success": true,
+            "message": decodedData['message'] ?? "Member deleted successfully.",
+          };
         }
       }
-      return {"success": false, "message": decodedData['message'] ?? "Failed to delete member."};
+      return {
+        "success": false,
+        "message": decodedData['message'] ?? "Failed to delete member.",
+      };
     } catch (e) {
       return {"success": false, "message": "An error occurred: $e"};
     }
   }
 
-  Future<Map<String, dynamic>> updateMember(int id, Map<String, dynamic> payload) async {
+  Future<Map<String, dynamic>> updateMember(
+    int id,
+    Map<String, dynamic> payload,
+  ) async {
     try {
       final url = '${ApiEndpoints.baseUrl}/admin/members/$id/';
       final response = await ApiClient.patch(url, body: payload);
@@ -163,9 +261,15 @@ class AdminMembersController extends ChangeNotifier {
 
       if (response.statusCode == 200 && decodedData['status'] == true) {
         await fetchMembers();
-        return {"success": true, "message": decodedData['message'] ?? "Member updated successfully."};
+        return {
+          "success": true,
+          "message": decodedData['message'] ?? "Member updated successfully.",
+        };
       }
-      return {"success": false, "message": decodedData['message'] ?? "Failed to update member."};
+      return {
+        "success": false,
+        "message": decodedData['message'] ?? "Failed to update member.",
+      };
     } catch (e) {
       return {"success": false, "message": "An error occurred: $e"};
     }
@@ -179,11 +283,14 @@ class AdminMembersController extends ChangeNotifier {
   }) async {
     try {
       final url = '${ApiEndpoints.baseUrl}/admin/members/$id/change-password/';
-      final response = await ApiClient.post(url, body: {
-        "new_password": newPassword,
-        "confirm_password": confirmPassword,
-        "send_password_email": sendEmail,
-      });
+      final response = await ApiClient.post(
+        url,
+        body: {
+          "new_password": newPassword,
+          "confirm_password": confirmPassword,
+          "send_password_email": sendEmail,
+        },
+      );
       final decodedData = jsonDecode(response.body);
       return {
         "success": response.statusCode == 200 && decodedData['status'] == true,
@@ -201,9 +308,15 @@ class AdminMembersController extends ChangeNotifier {
       final decodedData = jsonDecode(response.body);
       if (response.statusCode == 200 && decodedData['status'] == true) {
         await fetchMembers();
-        return {"success": true, "message": decodedData['message'] ?? "Converted to guest."};
+        return {
+          "success": true,
+          "message": decodedData['message'] ?? "Converted to guest.",
+        };
       }
-      return {"success": false, "message": decodedData['message'] ?? "Failed to convert member."};
+      return {
+        "success": false,
+        "message": decodedData['message'] ?? "Failed to convert member.",
+      };
     } catch (e) {
       return {"success": false, "message": "An error occurred: $e"};
     }
@@ -236,37 +349,64 @@ class AdminMembersController extends ChangeNotifier {
     String? attachmentPath,
   }) async {
     try {
-      final url = '${ApiEndpoints.baseUrl}/admin/members/$memberId/qualifications/';
+      final url =
+          '${ApiEndpoints.baseUrl}/admin/members/$memberId/qualifications/';
       final fields = <String, String>{
         "title": title,
         if (issuer != null && issuer.isNotEmpty) "issuer": issuer,
-        if (referenceNumber != null && referenceNumber.isNotEmpty) "reference_number": referenceNumber,
+        if (referenceNumber != null && referenceNumber.isNotEmpty)
+          "reference_number": referenceNumber,
         if (issueDate != null && issueDate.isNotEmpty) "issue_date": issueDate,
-        if (expiryDate != null && expiryDate.isNotEmpty) "expiry_date": expiryDate,
+        if (expiryDate != null && expiryDate.isNotEmpty)
+          "expiry_date": expiryDate,
         if (notes != null && notes.isNotEmpty) "notes": notes,
       };
       final response = attachmentPath != null
-          ? await ApiClient.postMultipart(url, fields: fields, filePath: attachmentPath, fileFieldName: "attachment")
+          ? await ApiClient.postMultipart(
+              url,
+              fields: fields,
+              filePath: attachmentPath,
+              fileFieldName: "attachment",
+            )
           : await ApiClient.post(url, body: fields);
       final decodedData = jsonDecode(response.body);
-      if ((response.statusCode == 200 || response.statusCode == 201) && decodedData['status'] == true) {
-        return {"success": true, "message": decodedData['message'] ?? 'Qualification added.', "data": decodedData['data']};
+      if ((response.statusCode == 200 || response.statusCode == 201) &&
+          decodedData['status'] == true) {
+        return {
+          "success": true,
+          "message": decodedData['message'] ?? 'Qualification added.',
+          "data": decodedData['data'],
+        };
       }
-      return {"success": false, "message": decodedData['message'] ?? 'Failed to add qualification.'};
+      return {
+        "success": false,
+        "message": decodedData['message'] ?? 'Failed to add qualification.',
+      };
     } catch (e) {
       return {"success": false, "message": "An error occurred: $e"};
     }
   }
 
-  Future<Map<String, dynamic>> deleteQualification(int memberId, int qualificationId) async {
+  Future<Map<String, dynamic>> deleteQualification(
+    int memberId,
+    int qualificationId,
+  ) async {
     try {
-      final url = '${ApiEndpoints.baseUrl}/admin/members/$memberId/qualifications/$qualificationId/';
+      final url =
+          '${ApiEndpoints.baseUrl}/admin/members/$memberId/qualifications/$qualificationId/';
       final response = await ApiClient.delete(url);
       final decodedData = jsonDecode(response.body);
       if (response.statusCode == 200 && decodedData['status'] == true) {
-        return {"success": true, "message": decodedData['message'] ?? 'Qualification removed.', "data": decodedData['data']};
+        return {
+          "success": true,
+          "message": decodedData['message'] ?? 'Qualification removed.',
+          "data": decodedData['data'],
+        };
       }
-      return {"success": false, "message": decodedData['message'] ?? 'Failed to remove qualification.'};
+      return {
+        "success": false,
+        "message": decodedData['message'] ?? 'Failed to remove qualification.',
+      };
     } catch (e) {
       return {"success": false, "message": "An error occurred: $e"};
     }
@@ -275,13 +415,13 @@ class AdminMembersController extends ChangeNotifier {
   Future<bool> downloadImportTemplate() async {
     try {
       final url = '${ApiEndpoints.baseUrl}/admin/members/import-template/';
-      final response = await ApiClient.get(url);
-      if (response.statusCode != 200 || response.bodyBytes.isEmpty) return false;
-      final directory = await getTemporaryDirectory();
-      final file = File('${directory.path}/member-import-template.xlsx');
-      await file.writeAsBytes(response.bodyBytes);
-      await Share.shareXFiles([XFile(file.path)], text: "Member Import Template");
-      return true;
+      final result = await DownloadManager.instance.downloadUrl(
+        url: url,
+        fileName: 'member-import-template.xlsx',
+        mimeType:
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      );
+      return result != null;
     } catch (e) {
       debugPrint("Error downloading member import template: $e");
       return false;
@@ -291,13 +431,24 @@ class AdminMembersController extends ChangeNotifier {
   Future<Map<String, dynamic>> importMembersExcel(String filePath) async {
     try {
       final url = '${ApiEndpoints.baseUrl}/admin/members/import/';
-      final response = await ApiClient.postMultipart(url, filePath: filePath, fileFieldName: "xlsx_file");
+      final response = await ApiClient.postMultipart(
+        url,
+        filePath: filePath,
+        fileFieldName: "xlsx_file",
+      );
       final decodedData = jsonDecode(response.body);
       if (response.statusCode == 200 && decodedData['status'] == true) {
         await fetchMembers();
-        return {"success": true, "message": decodedData['message'] ?? 'Import complete.', "data": decodedData['data']};
+        return {
+          "success": true,
+          "message": decodedData['message'] ?? 'Import complete.',
+          "data": decodedData['data'],
+        };
       }
-      return {"success": false, "message": decodedData['message'] ?? 'Failed to import members.'};
+      return {
+        "success": false,
+        "message": decodedData['message'] ?? 'Failed to import members.',
+      };
     } catch (e) {
       return {"success": false, "message": "An error occurred: $e"};
     }

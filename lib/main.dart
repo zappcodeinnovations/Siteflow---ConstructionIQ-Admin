@@ -6,10 +6,15 @@ import 'core/routes/app_routes.dart';
 import 'core/theme/app_theme.dart';
 import 'core/services/theme_service.dart';
 import 'core/utils/app_logger.dart';
+import 'core/services/download_manager.dart';
+import 'core/widgets/download_progress_overlay.dart';
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
-  AppLogger.i("Handling a background message: ${message.messageId}", tag: "FCM");
+  AppLogger.i(
+    "Handling a background message: ${message.messageId}",
+    tag: "FCM",
+  );
 }
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -22,6 +27,7 @@ void main() async {
   // Load saved theme preference from local storage
   final savedTheme = await ThemeService.getSavedThemeMode();
   themeNotifier.value = savedTheme;
+  await DownloadManager.instance.load();
 
   // Persist theme changes automatically whenever theme is toggled
   themeNotifier.addListener(() {
@@ -62,9 +68,17 @@ void main() async {
       badge: true,
       sound: true,
     );
-    AppLogger.i("FCM Authorization Status: ${settings.authorizationStatus}", tag: "FCM");
+    AppLogger.i(
+      "FCM Authorization Status: ${settings.authorizationStatus}",
+      tag: "FCM",
+    );
   } catch (e, stack) {
-    AppLogger.e("Failed to initialize Firebase", error: e, stackTrace: stack, tag: "FCM");
+    AppLogger.e(
+      "Failed to initialize Firebase",
+      error: e,
+      stackTrace: stack,
+      tag: "FCM",
+    );
   }
 
   runApp(const MyApp());
@@ -80,9 +94,7 @@ class MyApp extends StatelessWidget {
       builder: (_, ThemeMode currentMode, __) {
         return MaterialApp(
           navigatorKey: navigatorKey,
-          navigatorObservers: [
-            AppNavigatorObserver(),
-          ],
+          navigatorObservers: [AppNavigatorObserver()],
           debugShowCheckedModeBanner: false,
           title: 'SiteFlow - Admin',
           theme: AppTheme.lightTheme,
@@ -90,6 +102,15 @@ class MyApp extends StatelessWidget {
           themeMode: currentMode,
           initialRoute: '/',
           routes: AppRoutes.routes,
+          builder: (context, child) => Stack(
+            children: [
+              if (child != null) child,
+              DownloadProgressOverlay(
+                onViewDownloads: () =>
+                    navigatorKey.currentState?.pushNamed('/downloads'),
+              ),
+            ],
+          ),
         );
       },
     );

@@ -1,11 +1,7 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
-import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
+import '../../../core/services/download_manager.dart';
 import '../../../core/theme/app_theme.dart';
 import '../specification_controller.dart';
 import '../specification_detail_screen.dart';
@@ -23,7 +19,9 @@ class SpecificationsTab extends StatefulWidget {
 }
 
 class _SpecificationsTabState extends State<SpecificationsTab> {
-  late final SpecificationController _controller = SpecificationController(widget.projectId);
+  late final SpecificationController _controller = SpecificationController(
+    widget.projectId,
+  );
   final _searchController = TextEditingController();
 
   @override
@@ -55,7 +53,13 @@ class _SpecificationsTabState extends State<SpecificationsTab> {
       builder: (dialogContext) => AlertDialog(
         backgroundColor: isDark ? AppTheme.darkSurface : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text("Add Specification", style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF0F2C4A))),
+        title: Text(
+          "Add Specification",
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: isDark ? Colors.white : const Color(0xFF0F2C4A),
+          ),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -63,28 +67,52 @@ class _SpecificationsTabState extends State<SpecificationsTab> {
               controller: nameController,
               autofocus: true,
               style: TextStyle(color: isDark ? Colors.white : Colors.black87),
-              decoration: InputDecoration(labelText: "Name", border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))),
+              decoration: InputDecoration(
+                labelText: "Name",
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: codeController,
               style: TextStyle(color: isDark ? Colors.white : Colors.black87),
-              decoration: InputDecoration(labelText: "Code (optional)", border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))),
+              decoration: InputDecoration(
+                labelText: "Code (optional)",
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
             ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text("Cancel")),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text("Cancel"),
+          ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0D6EFD), foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0D6EFD),
+              foregroundColor: Colors.white,
+            ),
             onPressed: () async {
               final name = nameController.text.trim();
               if (name.isEmpty) return;
               Navigator.pop(dialogContext);
-              final result = await _controller.createSpecification(name, codeController.text.trim());
+              final result = await _controller.createSpecification(
+                name,
+                codeController.text.trim(),
+              );
               if (!mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(result['message'] ?? ''), backgroundColor: result['success'] == true ? Colors.green : Colors.red),
+                SnackBar(
+                  content: Text(result['message'] ?? ''),
+                  backgroundColor: result['success'] == true
+                      ? Colors.green
+                      : Colors.red,
+                ),
               );
               if (result['success'] == true && result['data'] != null) {
                 final spec = (result['data'] as Map).cast<String, dynamic>();
@@ -105,8 +133,14 @@ class _SpecificationsTabState extends State<SpecificationsTab> {
         title: const Text("Delete Specification"),
         content: Text('Delete "${spec['name']}"? This cannot be undone.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text("Cancel")),
-          TextButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text("Delete", style: TextStyle(color: Colors.red))),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text("Delete", style: TextStyle(color: Colors.red)),
+          ),
         ],
       ),
     );
@@ -114,34 +148,34 @@ class _SpecificationsTabState extends State<SpecificationsTab> {
     final result = await _controller.deleteSpecification(spec['id'] as int);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(result['message'] ?? ''), backgroundColor: result['success'] == true ? Colors.green : Colors.red),
+      SnackBar(
+        content: Text(result['message'] ?? ''),
+        backgroundColor: result['success'] == true ? Colors.green : Colors.red,
+      ),
     );
   }
 
   Future<void> _downloadReport() async {
     try {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Downloading report..."), duration: Duration(seconds: 2)),
+        const SnackBar(
+          content: Text("Downloading report..."),
+          duration: Duration(seconds: 2),
+        ),
       );
-      final url = '${ApiEndpoints.baseUrl}${ApiEndpoints.projectSpecifications(widget.projectId)}?export=csv';
-      final response = await ApiClient.get(url);
-      if (!mounted) return;
-      if (response.statusCode == 200) {
-        final directory = await getTemporaryDirectory();
-        final file = File('${directory.path}/specifications_report_${DateTime.now().millisecondsSinceEpoch}.csv');
-        await file.writeAsBytes(response.bodyBytes);
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        await Share.shareXFiles([XFile(file.path)], text: "Specifications Report");
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Failed to download report (${response.statusCode}).")),
-        );
-      }
+      final url =
+          '${ApiEndpoints.baseUrl}${ApiEndpoints.projectSpecifications(widget.projectId)}?export=csv';
+      await DownloadManager.instance.downloadUrl(
+        url: url,
+        fileName:
+            'specifications_report_${DateTime.now().millisecondsSinceEpoch}.csv',
+        mimeType: 'text/csv',
+      );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error downloading report: $e")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Error downloading report: $e")));
       }
     }
   }
@@ -154,7 +188,9 @@ class _SpecificationsTabState extends State<SpecificationsTab> {
       context: context,
       isScrollControlled: true,
       backgroundColor: isDark ? AppTheme.darkSurface : Colors.white,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (sheetContext) {
         return AnimatedBuilder(
           animation: _controller,
@@ -174,45 +210,94 @@ class _SpecificationsTabState extends State<SpecificationsTab> {
                       children: [
                         Text(
                           "Manage Attributes",
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF0F2C4A)),
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: isDark
+                                ? Colors.white
+                                : const Color(0xFF0F2C4A),
+                          ),
                         ),
-                        IconButton(icon: const Icon(IconlyLight.close_square), onPressed: () => Navigator.pop(context)),
+                        IconButton(
+                          icon: const Icon(IconlyLight.close_square),
+                          onPressed: () => Navigator.pop(context),
+                        ),
                       ],
                     ),
                     Text(
                       "These attributes are available on every specification in this project.",
-                      style: TextStyle(fontSize: 12, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDark
+                            ? Colors.grey.shade400
+                            : Colors.grey.shade600,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     Expanded(
                       child: _controller.isLoadingAttributeDefinitions
                           ? const Center(child: CircularProgressIndicator())
                           : _controller.attributeDefinitions.isEmpty
-                              ? const Center(child: Text("No attributes defined for this project yet."))
-                              : ListView.builder(
-                                  controller: scrollController,
-                                  itemCount: _controller.attributeDefinitions.length,
-                                  itemBuilder: (context, index) {
-                                    final def = _controller.attributeDefinitions[index];
-                                    return ListTile(
-                                      title: Text(def['name']?.toString() ?? '', style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
-                                      subtitle: Text(
-                                        (def['attribute_type']?.toString() ?? 'text'),
-                                        style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
-                                      ),
-                                      trailing: IconButton(
-                                        icon: const Icon(IconlyLight.delete, size: 18, color: Colors.red),
-                                        onPressed: () async {
-                                          final result = await _controller.deleteAttributeDefinition(def['id'] as int);
-                                          if (!context.mounted) return;
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(content: Text(result['message'] ?? ''), backgroundColor: result['success'] == true ? Colors.green : Colors.red),
+                          ? const Center(
+                              child: Text(
+                                "No attributes defined for this project yet.",
+                              ),
+                            )
+                          : ListView.builder(
+                              controller: scrollController,
+                              itemCount:
+                                  _controller.attributeDefinitions.length,
+                              itemBuilder: (context, index) {
+                                final def =
+                                    _controller.attributeDefinitions[index];
+                                return ListTile(
+                                  title: Text(
+                                    def['name']?.toString() ?? '',
+                                    style: TextStyle(
+                                      color: isDark
+                                          ? Colors.white
+                                          : Colors.black87,
+                                    ),
+                                  ),
+                                  subtitle: Text(
+                                    (def['attribute_type']?.toString() ??
+                                        'text'),
+                                    style: TextStyle(
+                                      color: isDark
+                                          ? Colors.grey.shade400
+                                          : Colors.grey.shade600,
+                                    ),
+                                  ),
+                                  trailing: IconButton(
+                                    icon: const Icon(
+                                      IconlyLight.delete,
+                                      size: 18,
+                                      color: Colors.red,
+                                    ),
+                                    onPressed: () async {
+                                      final result = await _controller
+                                          .deleteAttributeDefinition(
+                                            def['id'] as int,
                                           );
-                                        },
-                                      ),
-                                    );
-                                  },
-                                ),
+                                      if (!context.mounted) return;
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            result['message'] ?? '',
+                                          ),
+                                          backgroundColor:
+                                              result['success'] == true
+                                              ? Colors.green
+                                              : Colors.red,
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                );
+                              },
+                            ),
                     ),
                     const SizedBox(height: 12),
                     SizedBox(
@@ -248,17 +333,29 @@ class _SpecificationsTabState extends State<SpecificationsTab> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(controller: nameController, decoration: const InputDecoration(labelText: "Name", border: OutlineInputBorder())),
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(
+                  labelText: "Name",
+                  border: OutlineInputBorder(),
+                ),
+              ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: type,
-                decoration: const InputDecoration(labelText: "Type", border: OutlineInputBorder()),
+                decoration: const InputDecoration(
+                  labelText: "Type",
+                  border: OutlineInputBorder(),
+                ),
                 items: const [
                   DropdownMenuItem(value: 'text', child: Text("Text")),
                   DropdownMenuItem(value: 'number', child: Text("Number")),
                   DropdownMenuItem(value: 'yes_no', child: Text("Yes/No")),
                   DropdownMenuItem(value: 'select', child: Text("Select")),
-                  DropdownMenuItem(value: 'multiselect', child: Text("Multiselect")),
+                  DropdownMenuItem(
+                    value: 'multiselect',
+                    child: Text("Multiselect"),
+                  ),
                 ],
                 onChanged: (val) => setDialogState(() => type = val ?? 'text'),
               ),
@@ -267,23 +364,42 @@ class _SpecificationsTabState extends State<SpecificationsTab> {
                 TextField(
                   controller: optionsController,
                   maxLines: 3,
-                  decoration: const InputDecoration(labelText: "Options (one per line)", border: OutlineInputBorder()),
+                  decoration: const InputDecoration(
+                    labelText: "Options (one per line)",
+                    border: OutlineInputBorder(),
+                  ),
                 ),
               ],
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text("Cancel")),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text("Cancel"),
+            ),
             ElevatedButton(
               onPressed: () async {
                 final name = nameController.text.trim();
                 if (name.isEmpty) return;
-                final options = optionsController.text.split('\n').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+                final options = optionsController.text
+                    .split('\n')
+                    .map((e) => e.trim())
+                    .where((e) => e.isNotEmpty)
+                    .toList();
                 Navigator.pop(dialogContext);
-                final result = await _controller.createAttributeDefinition(name: name, attributeType: type, options: options);
+                final result = await _controller.createAttributeDefinition(
+                  name: name,
+                  attributeType: type,
+                  options: options,
+                );
                 if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(result['message'] ?? ''), backgroundColor: result['success'] == true ? Colors.green : Colors.red),
+                  SnackBar(
+                    content: Text(result['message'] ?? ''),
+                    backgroundColor: result['success'] == true
+                        ? Colors.green
+                        : Colors.red,
+                  ),
                 );
               },
               child: const Text("Add"),
@@ -298,7 +414,10 @@ class _SpecificationsTabState extends State<SpecificationsTab> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => SpecificationDetailScreen(projectId: widget.projectId, specId: specId),
+        builder: (_) => SpecificationDetailScreen(
+          projectId: widget.projectId,
+          specId: specId,
+        ),
       ),
     ).then((_) => _controller.fetchSpecifications());
   }
@@ -322,7 +441,9 @@ class _SpecificationsTabState extends State<SpecificationsTab> {
               isDense: true,
               hintText: "Search specifications…",
               prefixIcon: const Icon(IconlyLight.search, size: 18),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(20)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
             ),
             onSubmitted: (val) => _controller.fetchSpecifications(search: val),
           ),
@@ -334,7 +455,10 @@ class _SpecificationsTabState extends State<SpecificationsTab> {
             child: Row(
               children: [
                 ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0D6EFD), foregroundColor: Colors.white),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0D6EFD),
+                    foregroundColor: Colors.white,
+                  ),
                   onPressed: _showAddDialog,
                   icon: const Icon(IconlyLight.plus, size: 16),
                   label: const Text("Add"),
@@ -359,61 +483,97 @@ class _SpecificationsTabState extends State<SpecificationsTab> {
           child: _controller.isLoading
               ? const Center(child: CircularProgressIndicator())
               : _controller.error != null
-                  ? Center(child: Text(_controller.error!, style: const TextStyle(color: Colors.red)))
-                  : _controller.specifications.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(IconlyLight.document, size: 64, color: isDark ? Colors.white24 : Colors.grey.shade300),
-                              const SizedBox(height: 16),
-                              Text("No specifications yet.", style: TextStyle(color: textSecondary, fontSize: 16)),
-                            ],
-                          ),
-                        )
-                      : ListView.separated(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          itemCount: _controller.specifications.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 12),
-                          itemBuilder: (context, index) {
-                            final spec = _controller.specifications[index];
-                            return InkWell(
-                              borderRadius: BorderRadius.circular(12),
-                              onTap: () => _openDetail(spec['id'] as int),
-                              child: Container(
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(12), border: Border.all(color: borderColor)),
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(spec['name']?.toString() ?? '', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: textColor)),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            "${spec['code']?.toString().isNotEmpty == true ? '${spec['code']} · ' : ''}${spec['location_count'] ?? 0} location(s)",
-                                            style: TextStyle(fontSize: 12, color: textSecondary),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    Text("£${spec['total_value'] ?? '0.00'}", style: TextStyle(fontWeight: FontWeight.bold, color: textColor)),
-                                    const SizedBox(width: 4),
-                                    TextButton(
-                                      onPressed: () => _openDetail(spec['id'] as int),
-                                      child: const Text("Open"),
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(IconlyLight.delete, size: 18, color: Colors.red),
-                                      onPressed: () => _confirmDelete(spec),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
+              ? Center(
+                  child: Text(
+                    _controller.error!,
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                )
+              : _controller.specifications.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        IconlyLight.document,
+                        size: 64,
+                        color: isDark ? Colors.white24 : Colors.grey.shade300,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        "No specifications yet.",
+                        style: TextStyle(color: textSecondary, fontSize: 16),
+                      ),
+                    ],
+                  ),
+                )
+              : ListView.separated(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: _controller.specifications.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  itemBuilder: (context, index) {
+                    final spec = _controller.specifications[index];
+                    return InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () => _openDetail(spec['id'] as int),
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: cardColor,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: borderColor),
                         ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    spec['name']?.toString() ?? '',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15,
+                                      color: textColor,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    "${spec['code']?.toString().isNotEmpty == true ? '${spec['code']} · ' : ''}${spec['location_count'] ?? 0} location(s)",
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Text(
+                              "£${spec['total_value'] ?? '0.00'}",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: textColor,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            TextButton(
+                              onPressed: () => _openDetail(spec['id'] as int),
+                              child: const Text("Open"),
+                            ),
+                            IconButton(
+                              icon: const Icon(
+                                IconlyLight.delete,
+                                size: 18,
+                                color: Colors.red,
+                              ),
+                              onPressed: () => _confirmDelete(spec),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
         ),
       ],
     );

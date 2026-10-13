@@ -33,6 +33,7 @@ class JobSheet {
   final Map<String, dynamic> rawFields;
   final Map<String, dynamic> payload;
   final String material;
+  final List<Map<String, dynamic>> materialsUsed;
 
   JobSheet({
     required this.id,
@@ -69,6 +70,7 @@ class JobSheet {
     this.rawFields = const {},
     this.payload = const {},
     this.material = '',
+    this.materialsUsed = const [],
   });
 
   // Reviewable from mobile (approve / reject / request rectification) only
@@ -104,15 +106,24 @@ class JobSheet {
       rejectionReason: json['rejection_reason']?.toString() ?? '',
       reviewedBy: json['reviewed_by']?.toString() ?? '',
       reviewed: json['reviewed']?.toString() ?? '',
-      resubmissionCount: json['resubmission_count'] is int ? json['resubmission_count'] : 0,
+      resubmissionCount: json['resubmission_count'] is int
+          ? json['resubmission_count']
+          : 0,
       qaStatus: json['qa_status']?.toString() ?? 'pending',
       qaStatusLabel: json['qa_status_label']?.toString() ?? 'Pending',
       qaNotes: json['qa_notes']?.toString() ?? '',
       qaCheckedBy: json['qa_checked_by']?.toString() ?? '',
       qaChecked: json['qa_checked']?.toString() ?? '',
-      rawFields: (json['raw_fields'] as Map?)?.cast<String, dynamic>() ?? const {},
+      rawFields:
+          (json['raw_fields'] as Map?)?.cast<String, dynamic>() ?? const {},
       payload: (json['payload'] as Map?)?.cast<String, dynamic>() ?? const {},
       material: json['material']?.toString() ?? '',
+      materialsUsed:
+          (json['materials_used'] as List?)
+              ?.whereType<Map>()
+              .map((item) => item.cast<String, dynamic>())
+              .toList() ??
+          const [],
     );
   }
 }

@@ -1,11 +1,9 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 import '../../core/network/api_client.dart';
 import '../../core/network/api_endpoints.dart';
+import '../../core/services/download_manager.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/background_stripes_painter.dart';
 import '../../models/job_sheet_model.dart';
@@ -61,7 +59,8 @@ class _WeeklyDiaryScreenState extends State<WeeklyDiaryScreen> {
       if (row.projectId != null) {
         queryParams.add('project_id=${row.projectId}');
       }
-      if (_controller.data?.weekStart != null && _controller.data!.weekStart.isNotEmpty) {
+      if (_controller.data?.weekStart != null &&
+          _controller.data!.weekStart.isNotEmpty) {
         queryParams.add('week=${_controller.data!.weekStart}');
       }
       if (submissionIds.isNotEmpty) {
@@ -69,37 +68,41 @@ class _WeeklyDiaryScreenState extends State<WeeklyDiaryScreen> {
       }
       queryParams.add('export=pdf');
 
-      String urlStr = '${ApiEndpoints.baseUrl}${ApiEndpoints.weeklyDiary}?${queryParams.join('&')}';
+      String urlStr =
+          '${ApiEndpoints.baseUrl}${ApiEndpoints.weeklyDiary}?${queryParams.join('&')}';
       var response = await ApiClient.get(urlStr);
 
       // If weekly diary endpoint didn't return binary pdf and submissionIds are present, try job-sheets endpoint
       if (response.statusCode != 200 && submissionIds.isNotEmpty) {
-        final fallbackUrl = '${ApiEndpoints.baseUrl}${ApiEndpoints.jobSheets}?ids=${submissionIds.join(',')}&export=pdf';
+        final fallbackUrl =
+            '${ApiEndpoints.baseUrl}${ApiEndpoints.jobSheets}?ids=${submissionIds.join(',')}&export=pdf';
         final fallbackResp = await ApiClient.get(fallbackUrl);
-        if (fallbackResp.statusCode == 200 && fallbackResp.bodyBytes.isNotEmpty) {
+        if (fallbackResp.statusCode == 200 &&
+            fallbackResp.bodyBytes.isNotEmpty) {
           response = fallbackResp;
         }
       }
 
       if (response.statusCode == 200 && response.bodyBytes.isNotEmpty) {
         final contentType = response.headers['content-type'] ?? '';
-        final isPdfBinary = contentType.contains('application/pdf') ||
+        final isPdfBinary =
+            contentType.contains('application/pdf') ||
             (response.bodyBytes.length >= 4 &&
                 response.bodyBytes[0] == 0x25 && // %
                 response.bodyBytes[1] == 0x50 && // P
                 response.bodyBytes[2] == 0x44 && // D
-                response.bodyBytes[3] == 0x46);   // F
+                response.bodyBytes[3] == 0x46); // F
 
         if (isPdfBinary) {
-          final directory = await getTemporaryDirectory();
-          final safeName = '${row.operative}_${row.project}'.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
-          final file = File('${directory.path}/weekly_diary_$safeName.pdf');
-          await file.writeAsBytes(response.bodyBytes);
-
-          if (mounted) {
-            ScaffoldMessenger.of(context).hideCurrentSnackBar();
-            await Share.shareXFiles([XFile(file.path)], text: 'Weekly Diary: ${row.operative} - ${row.project}');
-          }
+          final safeName = '${row.operative}_${row.project}'.replaceAll(
+            RegExp(r'[^a-zA-Z0-9_-]'),
+            '_',
+          );
+          await DownloadManager.instance.saveBytes(
+            bytes: response.bodyBytes,
+            fileName: 'weekly_diary_$safeName.pdf',
+            mimeType: 'application/pdf',
+          );
           return;
         }
       }
@@ -114,7 +117,8 @@ class _WeeklyDiaryScreenState extends State<WeeklyDiaryScreen> {
 
       if (firstSubmissionId != null && mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        final formUrl = '${ApiEndpoints.baseUrl}${ApiEndpoints.jobSheets}user_form/$firstSubmissionId/html/';
+        final formUrl =
+            '${ApiEndpoints.baseUrl}${ApiEndpoints.jobSheets}user_form/$firstSubmissionId/html/';
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -129,14 +133,16 @@ class _WeeklyDiaryScreenState extends State<WeeklyDiaryScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("PDF is not available for this entry yet.")),
+          const SnackBar(
+            content: Text("PDF is not available for this entry yet."),
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error downloading PDF: $e")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Error downloading PDF: $e")));
       }
     }
   }
@@ -145,20 +151,30 @@ class _WeeklyDiaryScreenState extends State<WeeklyDiaryScreen> {
     if (day.submissionId == null || _openingDetail) return;
     setState(() => _openingDetail = true);
     try {
-      final url = '${ApiEndpoints.baseUrl}${ApiEndpoints.jobSheets}user_form/${day.submissionId}/';
+      final url =
+          '${ApiEndpoints.baseUrl}${ApiEndpoints.jobSheets}user_form/${day.submissionId}/';
       final response = await ApiClient.get(url);
       final decoded = jsonDecode(response.body);
       if (response.statusCode == 200 && decoded['status'] == true && mounted) {
         final sheet = JobSheet.fromJson(decoded['data']);
-        Navigator.push(context, MaterialPageRoute(builder: (_) => JobSheetDetailsScreen(jobSheet: sheet)));
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => JobSheetDetailsScreen(jobSheet: sheet),
+          ),
+        );
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(decoded['message'] ?? 'Could not open this entry.')),
+          SnackBar(
+            content: Text(decoded['message'] ?? 'Could not open this entry.'),
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     } finally {
       if (mounted) setState(() => _openingDetail = false);
@@ -205,7 +221,11 @@ class _WeeklyDiaryScreenState extends State<WeeklyDiaryScreen> {
       ),
       body: Stack(
         children: [
-          Positioned.fill(child: CustomPaint(painter: BackgroundStripesPainter(isDark: isDark))),
+          Positioned.fill(
+            child: CustomPaint(
+              painter: BackgroundStripesPainter(isDark: isDark),
+            ),
+          ),
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(24.0),
@@ -217,29 +237,48 @@ class _WeeklyDiaryScreenState extends State<WeeklyDiaryScreen> {
                       final data = _controller.data;
                       return Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                         decoration: BoxDecoration(
                           color: isDark ? AppTheme.darkSurface : Colors.white,
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade200),
+                          border: Border.all(
+                            color: isDark
+                                ? Colors.white24
+                                : Colors.grey.shade200,
+                          ),
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             IconButton(
-                              icon: Icon(IconlyLight.arrow_left_2, color: isDark ? Colors.white : Colors.black87),
-                              onPressed: _controller.isLoading ? null : _controller.goToPreviousWeek,
+                              icon: Icon(
+                                IconlyLight.arrow_left_2,
+                                color: isDark ? Colors.white : Colors.black87,
+                              ),
+                              onPressed: _controller.isLoading
+                                  ? null
+                                  : _controller.goToPreviousWeek,
                             ),
                             Text(
-                              data == null ? '' : '${_formatDateUk(data.weekStart)}  →  ${_formatDateUk(data.weekEnd)}',
+                              data == null
+                                  ? ''
+                                  : '${_formatDateUk(data.weekStart)}  →  ${_formatDateUk(data.weekEnd)}',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: isDark ? Colors.white : Colors.black87,
                               ),
                             ),
                             IconButton(
-                              icon: Icon(IconlyLight.arrow_right_2, color: isDark ? Colors.white : Colors.black87),
-                              onPressed: _controller.isLoading ? null : _controller.goToNextWeek,
+                              icon: Icon(
+                                IconlyLight.arrow_right_2,
+                                color: isDark ? Colors.white : Colors.black87,
+                              ),
+                              onPressed: _controller.isLoading
+                                  ? null
+                                  : _controller.goToNextWeek,
                             ),
                           ],
                         ),
@@ -259,16 +298,28 @@ class _WeeklyDiaryScreenState extends State<WeeklyDiaryScreen> {
                             ),
                           );
                         }
-                        if (_controller.errorMessage != null && _controller.data == null) {
-                          return Center(child: Text(_controller.errorMessage!, style: const TextStyle(color: Colors.red)));
+                        if (_controller.errorMessage != null &&
+                            _controller.data == null) {
+                          return Center(
+                            child: Text(
+                              _controller.errorMessage!,
+                              style: const TextStyle(color: Colors.red),
+                            ),
+                          );
                         }
                         final rows = _controller.data?.rows ?? [];
                         if (rows.isEmpty) {
-                          return const Center(child: Text("No Daily Diary entries this week.", style: TextStyle(color: Colors.grey)));
+                          return const Center(
+                            child: Text(
+                              "No Daily Diary entries this week.",
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                          );
                         }
                         return ListView.builder(
                           itemCount: rows.length,
-                          itemBuilder: (context, index) => _buildRowCard(context, rows[index], isDark),
+                          itemBuilder: (context, index) =>
+                              _buildRowCard(context, rows[index], isDark),
                         );
                       },
                     ),
@@ -296,7 +347,13 @@ class _WeeklyDiaryScreenState extends State<WeeklyDiaryScreen> {
         color: cardColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: borderColor),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 15, offset: const Offset(0, 4))],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 15,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -308,28 +365,49 @@ class _WeeklyDiaryScreenState extends State<WeeklyDiaryScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(row.operative, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor)),
+                    Text(
+                      row.operative,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: textColor,
+                      ),
+                    ),
                     const SizedBox(height: 2),
-                    Text('${row.project} · ${row.client}', style: TextStyle(fontSize: 13, color: textSecondary)),
+                    Text(
+                      '${row.project} · ${row.client}',
+                      style: TextStyle(fontSize: 13, color: textSecondary),
+                    ),
                   ],
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
-                  color: isComplete ? Colors.green.shade50 : Colors.orange.shade50,
+                  color: isComplete
+                      ? Colors.green.shade50
+                      : Colors.orange.shade50,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   row.statusLabel,
-                  style: TextStyle(color: isComplete ? Colors.green : Colors.orange, fontSize: 12, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    color: isComplete ? Colors.green : Colors.orange,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 16),
           Row(
-            children: row.days.map((day) => Expanded(child: _buildDayPill(day, isDark))).toList(),
+            children: row.days
+                .map((day) => Expanded(child: _buildDayPill(day, isDark)))
+                .toList(),
           ),
           const SizedBox(height: 12),
           Row(
@@ -344,8 +422,13 @@ class _WeeklyDiaryScreenState extends State<WeeklyDiaryScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF0D6EFD),
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   elevation: 0,
                   visualDensity: VisualDensity.compact,
                 ),
@@ -369,13 +452,13 @@ class _WeeklyDiaryScreenState extends State<WeeklyDiaryScreen> {
     final bg = !filled
         ? (isDark ? Colors.white10 : Colors.grey.shade100)
         : approved
-            ? Colors.green.shade50
-            : Colors.amber.shade50;
+        ? Colors.green.shade50
+        : Colors.amber.shade50;
     final fg = !filled
         ? (isDark ? Colors.white38 : Colors.grey.shade400)
         : approved
-            ? Colors.green.shade700
-            : Colors.amber.shade800;
+        ? Colors.green.shade700
+        : Colors.amber.shade800;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 3),
@@ -384,13 +467,25 @@ class _WeeklyDiaryScreenState extends State<WeeklyDiaryScreen> {
         onTap: filled ? () => _openDay(day) : null,
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10)),
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(10),
+          ),
           child: Column(
             children: [
-              Text(day.label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: fg)),
+              Text(
+                day.label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: fg,
+                ),
+              ),
               const SizedBox(height: 4),
               Icon(
-                filled ? (approved ? Icons.check_circle : Icons.access_time_filled) : Icons.remove_circle_outline,
+                filled
+                    ? (approved ? Icons.check_circle : Icons.access_time_filled)
+                    : Icons.remove_circle_outline,
                 size: 16,
                 color: fg,
               ),

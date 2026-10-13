@@ -1,10 +1,8 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/api_endpoints.dart';
+import '../../../../core/services/download_manager.dart';
 import '../../../../models/admin_guest_model.dart';
 
 class AdminGuestsController extends ChangeNotifier {
@@ -188,17 +186,13 @@ class AdminGuestsController extends ChangeNotifier {
   Future<bool> downloadImportTemplate() async {
     try {
       final url = '${ApiEndpoints.baseUrl}/admin/guests/import-template/';
-      final response = await ApiClient.get(url);
-      if (response.statusCode != 200 || response.bodyBytes.isEmpty) {
-        return false;
-      }
-      final directory = await getTemporaryDirectory();
-      final file = File('${directory.path}/guest-import-template.xlsx');
-      await file.writeAsBytes(response.bodyBytes);
-      await SharePlus.instance.share(
-        ShareParams(files: [XFile(file.path)], text: 'Guest Import Template'),
+      final result = await DownloadManager.instance.downloadUrl(
+        url: url,
+        fileName: 'guest-import-template.xlsx',
+        mimeType:
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       );
-      return true;
+      return result != null;
     } catch (e) {
       debugPrint("Error downloading guest import template: $e");
       return false;

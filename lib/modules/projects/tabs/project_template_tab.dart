@@ -75,7 +75,7 @@ class _ProjectTemplateTabState extends State<ProjectTemplateTab> {
                         Text("No template assigned to this project.",
                             style: TextStyle(fontWeight: FontWeight.bold, color: textColor, fontSize: 16)),
                         const SizedBox(height: 8),
-                        Text("Templates are assigned from the web admin panel's Project Setup.",
+                        Text("Templates are assigned from the web admin panel's Project Admin.",
                             textAlign: TextAlign.center, style: TextStyle(color: textSecondary, fontSize: 14)),
                       ],
                     ),

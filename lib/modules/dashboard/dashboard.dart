@@ -1,12 +1,9 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
+import '../../core/services/download_manager.dart';
 import '../../core/widgets/status_chip.dart';
-import '../../core/network/api_client.dart';
 import '../../core/network/api_endpoints.dart';
 import 'dashboard_controller.dart';
 import '../../models/project_model.dart';
@@ -617,24 +614,12 @@ class _DashboardAttendancePanelState extends State<DashboardAttendancePanel> {
           .join('&');
       final url =
           '${ApiEndpoints.baseUrl}/admin/dashboard/attendance/export/${query.isEmpty ? '' : '?$query'}';
-      final response = await ApiClient.get(url);
-      if (!mounted) return;
-      if (response.statusCode != 200 || response.bodyBytes.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Attendance export failed (${response.statusCode}).'),
-          ),
-        );
-        return;
-      }
-      final directory = await getTemporaryDirectory();
-      final file = File(
-        '${directory.path}/attendance_${DateTime.now().millisecondsSinceEpoch}.xlsx',
+      await DownloadManager.instance.downloadUrl(
+        url: url,
+        fileName: 'attendance_${DateTime.now().millisecondsSinceEpoch}.xlsx',
+        mimeType:
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       );
-      await file.writeAsBytes(response.bodyBytes, flush: true);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      await Share.shareXFiles([XFile(file.path)], text: "Today's Attendance");
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

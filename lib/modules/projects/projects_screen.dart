@@ -1,17 +1,15 @@
 import 'dart:convert';
-import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:euroside_admin/models/project_model.dart';
 import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'package:share_plus/share_plus.dart';
 import 'project_controller.dart';
 import 'project_details_screen.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/background_stripes_painter.dart';
 import '../../models/client_model.dart';
+import '../../core/services/download_manager.dart';
 
 class ProjectsScreen extends StatefulWidget {
   final Client? filterClient;
@@ -593,17 +591,10 @@ class ProjectsScreenState extends State<ProjectsScreen> {
         );
       }
 
-      final directory = await getTemporaryDirectory();
-      final file = File('${directory.path}/projects.csv');
-      await file.writeAsString(buffer.toString());
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      }
-
-      // Trigger the system share/save sheet
-      await SharePlus.instance.share(
-        ShareParams(files: [XFile(file.path)], text: 'Projects Report CSV'),
+      await DownloadManager.instance.saveBytes(
+        bytes: utf8.encode(buffer.toString()),
+        fileName: 'projects_${DateTime.now().millisecondsSinceEpoch}.csv',
+        mimeType: 'text/csv',
       );
     } catch (e) {
       if (mounted) {
@@ -1222,24 +1213,13 @@ class ProjectsScreenState extends State<ProjectsScreen> {
         return;
       }
 
-      final tempDir = await getTemporaryDirectory();
       final sanitizedCode =
           (project.code.isNotEmpty ? project.code : 'PROJ_${project.id}')
               .replaceAll(RegExp(r'[^a-zA-Z0-9_\-]'), '_');
-      final file = File('${tempDir.path}/QR_$sanitizedCode.png');
-      await file.writeAsBytes(picData.buffer.asUint8List());
-
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("QR Code exported ($sanitizedCode.png)")),
-        );
-      }
-
-      await SharePlus.instance.share(
-        ShareParams(
-          files: [XFile(file.path)],
-          text: 'Project QR Code: ${project.name} ($sanitizedCode)',
-        ),
+      await DownloadManager.instance.saveBytes(
+        bytes: picData.buffer.asUint8List(),
+        fileName: 'QR_$sanitizedCode.png',
+        mimeType: 'image/png',
       );
     } catch (e) {
       if (context.mounted) {
