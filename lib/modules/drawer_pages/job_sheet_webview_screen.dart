@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import '../../core/theme/app_theme.dart';
@@ -84,7 +86,10 @@ Page resource error:
   }
 
   Future<void> _injectAutoFitScript() async {
-    const script = r"""
+    final accessToken = await AuthService.getAccessToken();
+    final tokenAssignment =
+        'window.__eurosideAccessToken = ${jsonEncode(accessToken ?? '')};';
+    final script = '$tokenAssignment\n${r"""
 (function() {
   function fitFormToScreen() {
     // Keep the WebView on the physical device width. The document itself is
@@ -154,6 +159,22 @@ Page resource error:
           max-width: 100% !important;
           flex-wrap: wrap !important;
         }
+        .header table, .company table, .sheet-header table,
+        table.header, table.company, table.sheet-header {
+          table-layout: fixed !important;
+        }
+        .header img, .company img, .sheet-header img,
+        .logo img, .logo-block img {
+          width: auto !important;
+          max-width: min(100%, 180px) !important;
+          margin-left: auto !important;
+          margin-right: auto !important;
+        }
+        .header td, .header th, .company td, .company th,
+        .sheet-header td, .sheet-header th {
+          font-size: clamp(9px, 2.6vw, 12px) !important;
+          line-height: 1.25 !important;
+        }
         table {
           width: 100% !important;
           max-width: 100% !important;
@@ -212,9 +233,57 @@ Page resource error:
           margin-left: 12px !important;
           margin-right: 12px !important;
         }
+        #siteflow-form-scroll-indicator {
+          position: fixed;
+          z-index: 2147483646;
+          top: calc(env(safe-area-inset-top, 0px) + 10px);
+          right: 3px;
+          width: 4px;
+          min-height: 28px;
+          border-radius: 999px;
+          background: rgba(13, 110, 253, .62);
+          box-shadow: 0 1px 3px rgba(15, 23, 42, .24);
+          opacity: 0;
+          pointer-events: none;
+          transition: opacity .2s ease;
+        }
       }
     `;
     document.head.appendChild(style);
+
+    var scrollIndicator = document.getElementById('siteflow-form-scroll-indicator');
+    if (!scrollIndicator) {
+      scrollIndicator = document.createElement('div');
+      scrollIndicator.id = 'siteflow-form-scroll-indicator';
+      scrollIndicator.setAttribute('aria-hidden', 'true');
+      document.body.appendChild(scrollIndicator);
+    }
+    var hideScrollIndicatorTimer = null;
+    function updateScrollIndicator() {
+      var root = document.scrollingElement || document.documentElement;
+      var visibleHeight = root.clientHeight || window.innerHeight || 1;
+      var totalHeight = root.scrollHeight || visibleHeight;
+      if (totalHeight <= visibleHeight + 1) {
+        scrollIndicator.style.opacity = '0';
+        return;
+      }
+      var trackHeight = Math.max(visibleHeight - 20, 1);
+      var thumbHeight = Math.max((visibleHeight / totalHeight) * trackHeight, 28);
+      var maxTop = Math.max(trackHeight - thumbHeight, 0);
+      var maxScroll = Math.max(totalHeight - visibleHeight, 1);
+      var top = (root.scrollTop / maxScroll) * maxTop;
+      scrollIndicator.style.height = thumbHeight + 'px';
+      scrollIndicator.style.transform = 'translateY(' + top + 'px)';
+      scrollIndicator.style.opacity = '.9';
+      if (hideScrollIndicatorTimer) clearTimeout(hideScrollIndicatorTimer);
+      hideScrollIndicatorTimer = setTimeout(function () {
+        scrollIndicator.style.opacity = '.35';
+      }, 900);
+    }
+    window.addEventListener('scroll', updateScrollIndicator, { passive: true });
+    window.addEventListener('resize', updateScrollIndicator);
+    setTimeout(updateScrollIndicator, 0);
+    setTimeout(updateScrollIndicator, 500);
 
     // Templates often carry inline desktop widths (and width attributes),
     // which can beat their own CSS. Clear only layout widths in the reusable
@@ -336,7 +405,7 @@ Page resource error:
   setTimeout(applyEnhancements, 1200);
   window.addEventListener('resize', applyEnhancements);
 })();
-""";
+"""}';
     try {
       await _controller.runJavaScript(script);
     } catch (e) {
