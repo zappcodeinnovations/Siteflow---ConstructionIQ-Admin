@@ -43,8 +43,12 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
   Future<void> _downloadJobSheetPdf(JobSheet sheet) async {
     try {
       final reportMode = widget.dailyReportsMode ? '&daily_reports=true' : '';
+      // IDs are only unique within a source table.  A Daily Diary and a
+      // project job sheet can share the same numeric ID, so qualify it using
+      // the API's supported "source_id" selection syntax.
+      final selectedId = '${sheet.source}_${sheet.id}';
       final urlStr =
-          '${ApiEndpoints.baseUrl}/job-sheets/?ids=${sheet.id}&export=pdf$reportMode';
+          '${ApiEndpoints.baseUrl}/job-sheets/?ids=${Uri.encodeComponent(selectedId)}&export=pdf$reportMode';
       final fileName =
           'job_sheet_${sheet.sheetNo.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_')}.pdf';
       final saved = await DownloadManager.instance.downloadUrl(
@@ -101,7 +105,9 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
     }
 
     try {
-      final ids = _controller.jobSheets.map((e) => e.id).join(',');
+      final ids = _controller.jobSheets
+          .map((sheet) => '${sheet.source}_${sheet.id}')
+          .join(',');
       final reportMode = widget.dailyReportsMode ? '&daily_reports=true' : '';
       final urlStr =
           '${ApiEndpoints.baseUrl}/job-sheets/?ids=$ids&export=excel$reportMode';
@@ -139,7 +145,7 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
           'project=${Uri.encodeComponent(_controller.selectedProject!)}',
         );
       }
-      queryParams.add('ids=$ids');
+      queryParams.add('ids=${Uri.encodeComponent(ids)}');
       queryParams.add('export=pdf');
       if (widget.dailyReportsMode) {
         queryParams.add('daily_reports=true');
