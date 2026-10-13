@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import '../../core/network/api_client.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/services/auth_service.dart';
 
@@ -47,6 +48,22 @@ class _JobSheetWebviewScreenState extends State<JobSheetWebviewScreen> {
               _isLoading = false;
             });
             await _injectAutoFitScript();
+          },
+          onNavigationRequest: (request) {
+            final target = Uri.tryParse(request.url);
+            final source = Uri.tryParse(widget.url);
+            // Success/reload links inside a form are normal browser
+            // navigations. Re-fetch same-origin userform pages through the
+            // authenticated API client so WebView never loses its JWT.
+            if (request.isMainFrame &&
+                target != null &&
+                source != null &&
+                target.host == source.host &&
+                target.path.startsWith('/api/userform/')) {
+              _loadUrlWithAuth(request.url);
+              return NavigationDecision.prevent;
+            }
+            return NavigationDecision.navigate;
           },
           onWebResourceError: (WebResourceError error) {
             debugPrint('''
@@ -233,55 +250,90 @@ Page resource error:
           margin-left: 12px !important;
           margin-right: 12px !important;
         }
-        #siteflow-form-scroll-indicator {
+        #siteflow-form-scroll-track {
           position: fixed;
           z-index: 2147483646;
           top: calc(env(safe-area-inset-top, 0px) + 10px);
           right: 3px;
+          bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
+          width: 14px;
+          border-radius: 999px;
+          background: rgba(15, 23, 42, .08);
+          opacity: .72;
+          touch-action: none;
+        }
+        #siteflow-form-scroll-indicator {
+          position: absolute;
+          left: 5px;
+          top: 0;
           width: 4px;
-          min-height: 28px;
+          min-height: 36px;
           border-radius: 999px;
           background: rgba(13, 110, 253, .62);
           box-shadow: 0 1px 3px rgba(15, 23, 42, .24);
-          opacity: 0;
-          pointer-events: none;
-          transition: opacity .2s ease;
+          pointer-events: auto;
         }
       }
     `;
     document.head.appendChild(style);
 
+    var scrollTrack = document.getElementById('siteflow-form-scroll-track');
+    if (!scrollTrack) {
+      scrollTrack = document.createElement('div');
+      scrollTrack.id = 'siteflow-form-scroll-track';
+      scrollTrack.setAttribute('aria-label', 'Form scroll position');
+      document.body.appendChild(scrollTrack);
+    }
     var scrollIndicator = document.getElementById('siteflow-form-scroll-indicator');
     if (!scrollIndicator) {
       scrollIndicator = document.createElement('div');
       scrollIndicator.id = 'siteflow-form-scroll-indicator';
       scrollIndicator.setAttribute('aria-hidden', 'true');
-      document.body.appendChild(scrollIndicator);
+      scrollTrack.appendChild(scrollIndicator);
     }
-    var hideScrollIndicatorTimer = null;
     function updateScrollIndicator() {
       var root = document.scrollingElement || document.documentElement;
       var visibleHeight = root.clientHeight || window.innerHeight || 1;
       var totalHeight = root.scrollHeight || visibleHeight;
       if (totalHeight <= visibleHeight + 1) {
-        scrollIndicator.style.opacity = '0';
+        scrollTrack.style.display = 'none';
         return;
       }
-      var trackHeight = Math.max(visibleHeight - 20, 1);
-      var thumbHeight = Math.max((visibleHeight / totalHeight) * trackHeight, 28);
+      scrollTrack.style.display = 'block';
+      var trackHeight = Math.max(scrollTrack.clientHeight, 1);
+      var thumbHeight = Math.max((visibleHeight / totalHeight) * trackHeight, 36);
       var maxTop = Math.max(trackHeight - thumbHeight, 0);
       var maxScroll = Math.max(totalHeight - visibleHeight, 1);
       var top = (root.scrollTop / maxScroll) * maxTop;
       scrollIndicator.style.height = thumbHeight + 'px';
       scrollIndicator.style.transform = 'translateY(' + top + 'px)';
-      scrollIndicator.style.opacity = '.9';
-      if (hideScrollIndicatorTimer) clearTimeout(hideScrollIndicatorTimer);
-      hideScrollIndicatorTimer = setTimeout(function () {
-        scrollIndicator.style.opacity = '.35';
-      }, 900);
     }
     window.addEventListener('scroll', updateScrollIndicator, { passive: true });
     window.addEventListener('resize', updateScrollIndicator);
+    function scrollFromPointer(event) {
+      var root = document.scrollingElement || document.documentElement;
+      var point = event.touches && event.touches.length ? event.touches[0] : event;
+      var bounds = scrollTrack.getBoundingClientRect();
+      var ratio = Math.max(0, Math.min(1, (point.clientY - bounds.top) / Math.max(bounds.height, 1)));
+      root.scrollTop = ratio * Math.max(root.scrollHeight - root.clientHeight, 0);
+      updateScrollIndicator();
+    }
+    scrollTrack.addEventListener('pointerdown', function (event) {
+      event.preventDefault();
+      scrollFromPointer(event);
+      if (scrollTrack.setPointerCapture) scrollTrack.setPointerCapture(event.pointerId);
+    });
+    scrollTrack.addEventListener('pointermove', function (event) {
+      if (event.buttons) scrollFromPointer(event);
+    });
+    scrollTrack.addEventListener('touchstart', function (event) {
+      event.preventDefault();
+      scrollFromPointer(event);
+    }, { passive: false });
+    scrollTrack.addEventListener('touchmove', function (event) {
+      event.preventDefault();
+      scrollFromPointer(event);
+    }, { passive: false });
     setTimeout(updateScrollIndicator, 0);
     setTimeout(updateScrollIndicator, 500);
 
@@ -413,13 +465,33 @@ Page resource error:
     }
   }
 
-  Future<void> _loadUrlWithAuth() async {
-    final token = await AuthService.getAccessToken();
-    final headers = <String, String>{};
-    if (token != null) {
-      headers['Authorization'] = 'Bearer $token';
+  Future<void> _loadUrlWithAuth([String? url]) async {
+    final sourceUrl = url ?? widget.url;
+    try {
+      // Android WebView does not consistently retain custom Authorization
+      // headers for a top-level page navigation. Fetching the HTML through
+      // ApiClient guarantees the same authenticated request/refresh flow the
+      // rest of the app uses, then keeps the original URL as the document's
+      // base so relative assets and form endpoints still resolve correctly.
+      final response = await ApiClient.get(sourceUrl);
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        await _controller.loadHtmlString(response.body, baseUrl: sourceUrl);
+        return;
+      }
+      await _controller.loadHtmlString(
+        _formLoadErrorHtml(response.statusCode),
+        baseUrl: sourceUrl,
+      );
+    } catch (error) {
+      await _controller.loadHtmlString(_formLoadErrorHtml(null), baseUrl: sourceUrl);
     }
-    await _controller.loadRequest(Uri.parse(widget.url), headers: headers);
+  }
+
+  String _formLoadErrorHtml(int? statusCode) {
+    final detail = statusCode == 401
+        ? 'Your session has expired. Please sign in again.'
+        : 'The form could not be opened. Please retry.';
+    return '''<!doctype html><html><body style="font-family:Arial,sans-serif;padding:24px;color:#0f172a"><h2>Unable to open form</h2><p>$detail</p></body></html>''';
   }
 
   @override
