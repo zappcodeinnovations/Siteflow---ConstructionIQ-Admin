@@ -169,7 +169,7 @@ class _JobSheetDetailsScreenState extends State<JobSheetDetailsScreen> {
     if (value is String &&
         (normalized.contains('started_at') ||
             normalized.contains('finished_at'))) {
-      return DateHelper.formatToLocal(value);
+      return DateHelper.formatDisplayTimestamp(value);
     }
     if (value is List) {
       return value

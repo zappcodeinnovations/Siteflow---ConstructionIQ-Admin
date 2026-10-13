@@ -177,6 +177,54 @@ class DateHelper {
     return format.format(parsed.toLocal());
   }
 
+  /// Formats a timestamp that the API has already converted to the viewer's
+  /// display timezone.  Job-sheet traceability historically contains these
+  /// values without an ISO timezone suffix.  Treating such a value as UTC and
+  /// calling [formatToLocal] a second time moves it into the future for users
+  /// east of UTC (for example 13:16 becomes 18:46 in Asia/Kolkata).
+  static String formatDisplayTimestamp(
+    String? rawDate, {
+    bool includeTime = true,
+  }) {
+    if (rawDate == null ||
+        rawDate.trim().isEmpty ||
+        rawDate == 'null' ||
+        rawDate == '-') {
+      return '-';
+    }
+
+    final trimmed = rawDate.trim();
+    final hasExplicitOffset =
+        trimmed.endsWith('Z') ||
+        trimmed.endsWith('z') ||
+        RegExp(r'[+-]\d{2}:?\d{2}$').hasMatch(trimmed);
+    if (hasExplicitOffset) {
+      return formatToLocal(trimmed, includeTime: includeTime);
+    }
+
+    final format = includeTime
+        ? DateFormat('dd/MM/yyyy hh:mm a')
+        : DateFormat('dd/MM/yyyy');
+    final patterns = [
+      'yyyy-MM-dd HH:mm:ss',
+      'yyyy-MM-dd HH:mm',
+      'yyyy-MM-ddTHH:mm:ss',
+      'dd/MM/yyyy HH:mm:ss',
+      'dd/MM/yyyy HH:mm',
+      'dd/MM/yyyy hh:mm a',
+      'dd MMM yyyy HH:mm',
+      'dd MMM yyyy hh:mm a',
+    ];
+    for (final pattern in patterns) {
+      try {
+        // DateFormat.parse returns a local wall-clock DateTime.  Deliberately
+        // do not call toLocal(): this value is already in display time.
+        return format.format(DateFormat(pattern, 'en_US').parse(trimmed));
+      } catch (_) {}
+    }
+    return trimmed;
+  }
+
   /// Formats a date string (e.g. "yyyy-MM-dd" or ISO format) to "dd/MM/yyyy".
   static String formatDate(String? rawDate) {
     if (rawDate == null ||
