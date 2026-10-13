@@ -6,6 +6,18 @@ import '../../../../core/services/download_manager.dart';
 import '../../../../models/admin_activity_log_model.dart';
 
 class AdminActivityLogsController extends ChangeNotifier {
+  bool _isDisposed = false;
+
+  void _notifySafely() {
+    if (!_isDisposed) notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    super.dispose();
+  }
+
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
@@ -57,7 +69,7 @@ class AdminActivityLogsController extends ChangeNotifier {
   Future<void> initializeData() async {
     _isLoading = true;
     _errorMessage = null;
-    notifyListeners();
+    _notifySafely();
 
     await Future.wait([
       fetchKPIs(),
@@ -82,7 +94,7 @@ class AdminActivityLogsController extends ChangeNotifier {
             _kpi = ActivityLogKPI.fromJson(decoded);
           }
         }
-        notifyListeners();
+        _notifySafely();
       }
     } catch (e) {
       debugPrint("Error fetching Activity Log KPIs: $e");
@@ -104,7 +116,7 @@ class AdminActivityLogsController extends ChangeNotifier {
             _filterOptions = decoded;
           }
         }
-        notifyListeners();
+        _notifySafely();
       }
     } catch (e) {
       debugPrint("Error fetching Activity Log filters: $e");
@@ -168,7 +180,7 @@ class AdminActivityLogsController extends ChangeNotifier {
 
         if (filteredManagers.isNotEmpty) {
           _managers = filteredManagers;
-          notifyListeners();
+          _notifySafely();
         }
       }
     } catch (e) {
@@ -210,16 +222,21 @@ class AdminActivityLogsController extends ChangeNotifier {
   String _buildLogsUrl(int page) {
     List<String> queryParams = ['page=$page', 'page_size=50'];
 
-    if (selectedManager != null && selectedManager!.isNotEmpty)
+    if (selectedManager != null && selectedManager!.isNotEmpty) {
       queryParams.add('user_id=$selectedManager');
-    if (selectedRole != null && selectedRole!.isNotEmpty)
+    }
+    if (selectedRole != null && selectedRole!.isNotEmpty) {
       queryParams.add('role=$selectedRole');
-    if (selectedModule != null && selectedModule!.isNotEmpty)
+    }
+    if (selectedModule != null && selectedModule!.isNotEmpty) {
       queryParams.add('module=$selectedModule');
-    if (selectedAction != null && selectedAction!.isNotEmpty)
+    }
+    if (selectedAction != null && selectedAction!.isNotEmpty) {
       queryParams.add('action_type=$selectedAction');
-    if (fromDate != null && fromDate!.isNotEmpty)
+    }
+    if (fromDate != null && fromDate!.isNotEmpty) {
       queryParams.add('from=$fromDate');
+    }
     if (toDate != null && toDate!.isNotEmpty) queryParams.add('to=$toDate');
     if (searchQuery.isNotEmpty) queryParams.add('search=$searchQuery');
 
@@ -230,7 +247,7 @@ class AdminActivityLogsController extends ChangeNotifier {
     if (!isInitial) {
       _isLoading = true;
       _errorMessage = null;
-      notifyListeners();
+      _notifySafely();
     }
     _currentPage = 1;
     _totalPages = 1;
@@ -262,7 +279,7 @@ class AdminActivityLogsController extends ChangeNotifier {
       _errorMessage = 'An error occurred: $e';
     } finally {
       _isLoading = false;
-      notifyListeners();
+      _notifySafely();
     }
   }
 
@@ -272,7 +289,7 @@ class AdminActivityLogsController extends ChangeNotifier {
   Future<void> loadMoreLogs() async {
     if (_isLoading || _isLoadingMore || !hasMore) return;
     _isLoadingMore = true;
-    notifyListeners();
+    _notifySafely();
     try {
       final response = await ApiClient.get(_buildLogsUrl(_currentPage + 1));
       if (response.statusCode == 200) {
@@ -300,7 +317,7 @@ class AdminActivityLogsController extends ChangeNotifier {
       // Keep what's already loaded visible if a later page fails.
     } finally {
       _isLoadingMore = false;
-      notifyListeners();
+      _notifySafely();
     }
   }
 
@@ -313,14 +330,18 @@ class AdminActivityLogsController extends ChangeNotifier {
     try {
       String url =
           '${ApiEndpoints.baseUrl}/admin/activity-logs/export/?format=$format';
-      if (selectedManager != null && selectedManager!.isNotEmpty)
+      if (selectedManager != null && selectedManager!.isNotEmpty) {
         url += '&user_id=$selectedManager';
-      if (selectedRole != null && selectedRole!.isNotEmpty)
+      }
+      if (selectedRole != null && selectedRole!.isNotEmpty) {
         url += '&role=$selectedRole';
-      if (selectedModule != null && selectedModule!.isNotEmpty)
+      }
+      if (selectedModule != null && selectedModule!.isNotEmpty) {
         url += '&module=$selectedModule';
-      if (selectedAction != null && selectedAction!.isNotEmpty)
+      }
+      if (selectedAction != null && selectedAction!.isNotEmpty) {
         url += '&action_type=$selectedAction';
+      }
       if (fromDate != null && fromDate!.isNotEmpty) url += '&from=$fromDate';
       if (toDate != null && toDate!.isNotEmpty) url += '&to=$toDate';
       if (searchQuery.isNotEmpty) url += '&search=$searchQuery';

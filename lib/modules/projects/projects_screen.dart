@@ -618,7 +618,7 @@ class ProjectsScreenState extends State<ProjectsScreen> {
         ? Colors.grey.shade400
         : Colors.grey.shade600;
 
-    return Container(
+    return Material(
       color: bgColor,
       child: Stack(
         children: [
