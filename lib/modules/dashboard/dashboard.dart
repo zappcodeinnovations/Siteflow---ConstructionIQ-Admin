@@ -26,7 +26,31 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen>
     with WidgetsBindingObserver {
   final DashboardController _dashboardController = DashboardController();
+  final GlobalKey<_DashboardAttendancePanelState> _attendancePanelKey =
+      GlobalKey<_DashboardAttendancePanelState>();
   Timer? _autoRefreshTimer;
+
+  void _showAbsentOperatives() {
+    _attendancePanelKey.currentState?.showAbsent();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final attendanceContext = _attendancePanelKey.currentContext;
+      if (mounted && attendanceContext != null) {
+        Scrollable.ensureVisible(
+          attendanceContext,
+          duration: const Duration(milliseconds: 350),
+          curve: Curves.easeOut,
+          alignment: 0.08,
+        );
+      }
+    });
+  }
+
+  Future<void> _openOperativeAttendance() async {
+    await Navigator.pushNamed(context, '/timesheet');
+    if (mounted) {
+      _dashboardController.fetchDashboard(silent: true);
+    }
+  }
 
   @override
   void initState() {
@@ -233,16 +257,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                                     icon: IconlyLight.profile,
                                     bgColor: const Color(0xff0891B2),
                                     topAction: "Today",
-                                    onTap: () =>
-                                        Navigator.pushNamed(
-                                          context,
-                                          '/managerAttendance',
-                                        ).then((_) {
-                                          if (mounted)
-                                            _dashboardController.fetchDashboard(
-                                              silent: true,
-                                            );
-                                        }),
+                                    onTap: _openOperativeAttendance,
                                   ),
                                   ModernKpiCard(
                                     title: "Not Clocked In Today",
@@ -251,16 +266,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                                     icon: IconlyLight.danger,
                                     bgColor: const Color(0xffDC2626),
                                     topAction: "View List",
-                                    onTap: () =>
-                                        Navigator.pushNamed(
-                                          context,
-                                          '/managerAttendance',
-                                        ).then((_) {
-                                          if (mounted)
-                                            _dashboardController.fetchDashboard(
-                                              silent: true,
-                                            );
-                                        }),
+                                    onTap: _showAbsentOperatives,
                                   ),
                                   ModernKpiCard(
                                     title: "Not Clocked Out",
@@ -394,16 +400,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                                     icon: IconlyLight.profile,
                                     bgColor: const Color(0xff2563EB), // Blue
                                     topAction: "Today",
-                                    onTap: () =>
-                                        Navigator.pushNamed(
-                                          context,
-                                          '/managerAttendance',
-                                        ).then((_) {
-                                          if (mounted)
-                                            _dashboardController.fetchDashboard(
-                                              silent: true,
-                                            );
-                                        }),
+                                    onTap: _openOperativeAttendance,
                                   ),
                                   // 8. Clocked Out Pending
                                   ModernKpiCard(
@@ -432,22 +429,14 @@ class _DashboardScreenState extends State<DashboardScreen>
                                     icon: IconlyLight.danger,
                                     bgColor: const Color(0xffDC2626), // Red
                                     topAction: "View List",
-                                    onTap: () =>
-                                        Navigator.pushNamed(
-                                          context,
-                                          '/managerAttendance',
-                                        ).then((_) {
-                                          if (mounted)
-                                            _dashboardController.fetchDashboard(
-                                              silent: true,
-                                            );
-                                        }),
+                                    onTap: _showAbsentOperatives,
                                   ),
                                 ],
                         ),
 
                         const SizedBox(height: 24),
                         DashboardAttendancePanel(
+                          key: _attendancePanelKey,
                           present: data?.presentOperativesToday ?? const [],
                           absent: data?.absentOperativesToday ?? const [],
                         ),
@@ -525,6 +514,11 @@ class _DashboardAttendancePanelState extends State<DashboardAttendancePanel> {
   String _search = '';
   String? _selectedTeam;
   String? _selectedProject;
+
+  void showAbsent() {
+    if (!_showPresent) return;
+    setState(() => _showPresent = false);
+  }
 
   @override
   void dispose() {

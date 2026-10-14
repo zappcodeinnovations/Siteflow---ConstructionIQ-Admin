@@ -31,7 +31,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (user == null) return;
 
     final formKey = GlobalKey<FormState>();
-    final firstNameController = TextEditingController(text: user.firstName ?? '');
+    final firstNameController = TextEditingController(
+      text: user.firstName ?? '',
+    );
     final lastNameController = TextEditingController(text: user.lastName ?? '');
     final phoneController = TextEditingController(text: user.phone ?? '');
 
@@ -56,7 +58,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   fontSize: 14,
                 ),
                 floatingLabelStyle: TextStyle(
-                  color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF0D6EFD),
+                  color: isDark
+                      ? const Color(0xFF60A5FA)
+                      : const Color(0xFF0D6EFD),
                   fontWeight: FontWeight.w600,
                 ),
                 prefixIcon: Icon(
@@ -65,8 +69,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   color: isDark ? Colors.white70 : const Color(0xFF0D6EFD),
                 ),
                 filled: true,
-                fillColor: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.grey.shade50,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                fillColor: isDark
+                    ? Colors.white.withValues(alpha: 0.06)
+                    : Colors.grey.shade50,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                   borderSide: BorderSide(
@@ -86,7 +95,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 focusedErrorBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: Colors.redAccent, width: 1.8),
+                  borderSide: const BorderSide(
+                    color: Colors.redAccent,
+                    width: 1.8,
+                  ),
                 ),
               );
             }
@@ -108,7 +120,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
               content: SizedBox(
-                width: MediaQuery.of(context).size.width > 400 ? 360 : double.maxFinite,
+                width: MediaQuery.of(context).size.width > 400
+                    ? 360
+                    : double.maxFinite,
                 child: Form(
                   key: formKey,
                   child: SingleChildScrollView(
@@ -170,10 +184,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
               ),
-              actionsPadding: const EdgeInsets.only(left: 20, right: 20, bottom: 20),
+              actionsPadding: const EdgeInsets.only(
+                left: 20,
+                right: 20,
+                bottom: 20,
+              ),
               actions: [
                 TextButton(
-                  onPressed: isSubmitting ? null : () => Navigator.pop(dialogContext),
+                  onPressed: isSubmitting
+                      ? null
+                      : () => Navigator.pop(dialogContext),
                   child: Text(
                     "Cancel",
                     style: TextStyle(
@@ -185,7 +205,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF0D6EFD),
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 12,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -221,7 +244,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text(
-                                    _controller.errorMessage ?? "Failed to update profile",
+                                    _controller.errorMessage ??
+                                        "Failed to update profile",
                                   ),
                                   backgroundColor: Colors.redAccent,
                                 ),
@@ -286,7 +310,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   fontSize: 14,
                 ),
                 floatingLabelStyle: TextStyle(
-                  color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF0D6EFD),
+                  color: isDark
+                      ? const Color(0xFF60A5FA)
+                      : const Color(0xFF0D6EFD),
                   fontWeight: FontWeight.w600,
                 ),
                 prefixIcon: Icon(
@@ -303,8 +329,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   onPressed: onToggle,
                 ),
                 filled: true,
-                fillColor: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.grey.shade50,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                fillColor: isDark
+                    ? Colors.white.withValues(alpha: 0.06)
+                    : Colors.grey.shade50,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                   borderSide: BorderSide(
@@ -324,7 +355,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 focusedErrorBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: Colors.redAccent, width: 1.8),
+                  borderSide: const BorderSide(
+                    color: Colors.redAccent,
+                    width: 1.8,
+                  ),
                 ),
               );
             }
@@ -339,7 +373,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               title: Row(
                 children: [
-                  const Icon(IconlyLight.lock, color: Color(0xFF0D6EFD), size: 22),
+                  const Icon(
+                    IconlyLight.lock,
+                    color: Color(0xFF0D6EFD),
+                    size: 22,
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     "Change Password",
@@ -352,7 +390,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ],
               ),
               content: SizedBox(
-                width: MediaQuery.of(context).size.width > 400 ? 360 : double.maxFinite,
+                width: MediaQuery.of(context).size.width > 400
+                    ? 360
+                    : double.maxFinite,
                 child: Form(
                   key: formKey,
                   child: SingleChildScrollView(
@@ -370,7 +410,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           decoration: buildInputDecoration(
                             label: "Current Password",
                             isObscured: obscureCurrent,
-                            onToggle: () => setDialogState(() => obscureCurrent = !obscureCurrent),
+                            onToggle: () => setDialogState(
+                              () => obscureCurrent = !obscureCurrent,
+                            ),
                           ),
                           validator: (val) {
                             if (val == null || val.trim().isEmpty) {
@@ -390,7 +432,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           decoration: buildInputDecoration(
                             label: "New Password",
                             isObscured: obscureNew,
-                            onToggle: () => setDialogState(() => obscureNew = !obscureNew),
+                            onToggle: () =>
+                                setDialogState(() => obscureNew = !obscureNew),
                           ),
                           validator: (val) {
                             if (val == null || val.trim().isEmpty) {
@@ -413,13 +456,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           decoration: buildInputDecoration(
                             label: "Confirm New Password",
                             isObscured: obscureConfirm,
-                            onToggle: () => setDialogState(() => obscureConfirm = !obscureConfirm),
+                            onToggle: () => setDialogState(
+                              () => obscureConfirm = !obscureConfirm,
+                            ),
                           ),
                           validator: (val) {
                             if (val == null || val.trim().isEmpty) {
                               return "Please confirm new password";
                             }
-                            if (val.trim() != newPasswordController.text.trim()) {
+                            if (val.trim() !=
+                                newPasswordController.text.trim()) {
                               return "Passwords do not match";
                             }
                             return null;
@@ -431,10 +477,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
               ),
-              actionsPadding: const EdgeInsets.only(left: 20, right: 20, bottom: 20),
+              actionsPadding: const EdgeInsets.only(
+                left: 20,
+                right: 20,
+                bottom: 20,
+              ),
               actions: [
                 TextButton(
-                  onPressed: isSubmitting ? null : () => Navigator.pop(dialogContext),
+                  onPressed: isSubmitting
+                      ? null
+                      : () => Navigator.pop(dialogContext),
                   child: Text(
                     "Cancel",
                     style: TextStyle(
@@ -446,7 +498,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF0D6EFD),
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 12,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -461,9 +516,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           });
 
                           final result = await _controller.changePassword(
-                            currentPassword: currentPasswordController.text.trim(),
+                            currentPassword: currentPasswordController.text
+                                .trim(),
                             newPassword: newPasswordController.text.trim(),
-                            confirmPassword: confirmPasswordController.text.trim(),
+                            confirmPassword: confirmPasswordController.text
+                                .trim(),
                           );
 
                           if (dialogContext.mounted) {
@@ -481,7 +538,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               });
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
-                                  content: Text(result['message'] ?? "Failed to change password"),
+                                  content: Text(
+                                    result['message'] ??
+                                        "Failed to change password",
+                                  ),
                                   backgroundColor: Colors.redAccent,
                                 ),
                               );
@@ -519,7 +579,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF162A42) : const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+        border: Border.all(
+          color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -555,11 +617,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
         children: [
-          const Icon(Icons.check_circle_rounded, color: Color(0xFF0D6EFD), size: 18),
+          const Icon(
+            Icons.check_circle_rounded,
+            color: Color(0xFF0D6EFD),
+            size: 18,
+          ),
           const SizedBox(width: 12),
           Text(
             text,
-            style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurface),
+            style: TextStyle(
+              fontSize: 13,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
           ),
         ],
       ),
@@ -628,7 +697,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       builder: (context, _) {
         final isDark = Theme.of(context).brightness == Brightness.dark;
         final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
-        final shadowColor = isDark ? Colors.black26 : Colors.black.withValues(alpha: 0.04);
+        final shadowColor = isDark
+            ? Colors.black26
+            : Colors.black.withValues(alpha: 0.04);
         final textColor = isDark ? Colors.white : Colors.black87;
         final subtitleColor = isDark ? Colors.white70 : Colors.grey.shade600;
 
@@ -656,12 +727,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
         final displayName = user.firstName != null && user.lastName != null
             ? "${user.firstName} ${user.lastName}".trim()
-            : (user.displayName.isNotEmpty ? user.displayName : (user.email.isNotEmpty ? user.email : "Unknown"));
+            : (user.displayName.isNotEmpty
+                  ? user.displayName
+                  : (user.email.isNotEmpty ? user.email : "Unknown"));
 
-        final initial = user.initials ?? (displayName.isNotEmpty ? displayName[0].toUpperCase() : "?");
+        final initial =
+            user.initials ??
+            (displayName.isNotEmpty ? displayName[0].toUpperCase() : "?");
 
         return Scaffold(
-          backgroundColor: isDark ? AppTheme.darkBackground : const Color(0xFFF8F9FA),
+          backgroundColor: isDark
+              ? AppTheme.darkBackground
+              : const Color(0xFFF8F9FA),
           body: SingleChildScrollView(
             child: Column(
               children: [
@@ -752,14 +829,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF1E293B) : const Color(0xFFEFF6FF),
+                    color: isDark
+                        ? const Color(0xFF1E293B)
+                        : const Color(0xFFEFF6FF),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFBFDBFE)),
+                    border: Border.all(
+                      color: isDark ? Colors.white12 : const Color(0xFFBFDBFE),
+                    ),
                   ),
                   child: Text(
                     user.roleLabel?.isNotEmpty == true
                         ? user.roleLabel!
-                        : (user.effectiveRole.isNotEmpty ? user.effectiveRole.toUpperCase() : "SUPER ADMIN"),
+                        : (user.effectiveRole.isNotEmpty
+                              ? user.effectiveRole.toUpperCase()
+                              : "SUPER ADMIN"),
                     style: const TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
@@ -781,8 +864,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         style: TextStyle(fontWeight: FontWeight.w600),
                       ),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: isDark ? Colors.white70 : const Color(0xFF334155),
-                        side: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
+                        foregroundColor: isDark
+                            ? Colors.white70
+                            : const Color(0xFF334155),
+                        side: BorderSide(
+                          color: isDark ? Colors.white24 : Colors.grey.shade300,
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(20),
                         ),
@@ -795,10 +882,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     const SizedBox(width: 12),
                     ElevatedButton.icon(
                       onPressed: _showEditProfileDialog,
-                      icon: const Icon(IconlyLight.edit, size: 16, color: Colors.white),
+                      icon: const Icon(
+                        IconlyLight.edit,
+                        size: 16,
+                        color: Colors.white,
+                      ),
                       label: const Text(
                         "Edit Profile",
-                        style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF0D6EFD),
@@ -828,7 +922,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         decoration: BoxDecoration(
                           color: cardColor,
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
+                          border: Border.all(
+                            color: isDark
+                                ? Colors.white12
+                                : Colors.grey.shade200,
+                          ),
                           boxShadow: [
                             BoxShadow(
                               color: shadowColor,
@@ -853,7 +951,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
-                                    color: isDark ? Colors.white : const Color(0xFF0F2C4A),
+                                    color: isDark
+                                        ? Colors.white
+                                        : const Color(0xFF0F2C4A),
                                   ),
                                 ),
                               ],
@@ -864,42 +964,95 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 final isNarrow = constraints.maxWidth < 600;
                                 final fullName = user.displayName.isNotEmpty
                                     ? user.displayName
-                                    : (user.firstName != null && user.lastName != null
-                                        ? "${user.firstName} ${user.lastName}".trim()
-                                        : user.email);
-                                final username = user.username.isNotEmpty ? user.username : user.email;
-                                final mobile = user.phone?.isNotEmpty == true ? user.phone! : "-";
-                                final company = user.companyName?.isNotEmpty == true
+                                    : (user.firstName != null &&
+                                              user.lastName != null
+                                          ? "${user.firstName} ${user.lastName}"
+                                                .trim()
+                                          : user.email);
+                                final username = user.username.isNotEmpty
+                                    ? user.username
+                                    : user.email;
+                                final mobile = user.phone?.isNotEmpty == true
+                                    ? user.phone!
+                                    : "-";
+                                final company =
+                                    user.companyName?.isNotEmpty == true
                                     ? user.companyName!
                                     : "Euroside Construction Limited";
-                                final roleType = user.roleLabel?.isNotEmpty == true
+                                final roleType =
+                                    user.roleLabel?.isNotEmpty == true
                                     ? user.roleLabel!
-                                    : (user.effectiveRole.isNotEmpty ? user.effectiveRole : "Super Admin");
-                                final accountStatus = user.isActive ? "Active" : "Inactive";
-                                final joiningDate = DateHelper.formatToLocal(user.joinedAt);
-                                final lastLogin = DateHelper.formatToLocal(user.lastLogin);
+                                    : (user.effectiveRole.isNotEmpty
+                                          ? user.effectiveRole
+                                          : "Super Admin");
+                                final accountStatus = user.isActive
+                                    ? "Active"
+                                    : "Inactive";
+                                final joiningDate = DateHelper.formatToLocal(
+                                  user.joinedAt,
+                                );
+                                final lastLogin = DateHelper.formatToLocal(
+                                  user.lastLogin,
+                                );
 
                                 if (isNarrow) {
                                   return Column(
-                                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
                                     children: [
-                                      _buildDetailTile("Full Name", fullName, isDark: isDark),
+                                      _buildDetailTile(
+                                        "Full Name",
+                                        fullName,
+                                        isDark: isDark,
+                                      ),
                                       const SizedBox(height: 10),
-                                      _buildDetailTile("Email Address", user.email, isDark: isDark),
+                                      _buildDetailTile(
+                                        "Email Address",
+                                        user.email,
+                                        isDark: isDark,
+                                      ),
                                       const SizedBox(height: 10),
-                                      _buildDetailTile("Username", username, isDark: isDark),
+                                      _buildDetailTile(
+                                        "Username",
+                                        username,
+                                        isDark: isDark,
+                                      ),
                                       const SizedBox(height: 10),
-                                      _buildDetailTile("Mobile Number", mobile, isDark: isDark),
+                                      _buildDetailTile(
+                                        "Mobile Number",
+                                        mobile,
+                                        isDark: isDark,
+                                      ),
                                       const SizedBox(height: 10),
-                                      _buildDetailTile("Company Name", company, isDark: isDark),
+                                      _buildDetailTile(
+                                        "Company Name",
+                                        company,
+                                        isDark: isDark,
+                                      ),
                                       const SizedBox(height: 10),
-                                      _buildDetailTile("Role Type", roleType, isDark: isDark),
+                                      _buildDetailTile(
+                                        "Role Type",
+                                        roleType,
+                                        isDark: isDark,
+                                      ),
                                       const SizedBox(height: 10),
-                                      _buildDetailTile("Account Status", accountStatus, isDark: isDark),
+                                      _buildDetailTile(
+                                        "Account Status",
+                                        accountStatus,
+                                        isDark: isDark,
+                                      ),
                                       const SizedBox(height: 10),
-                                      _buildDetailTile("Joining Date", joiningDate, isDark: isDark),
+                                      _buildDetailTile(
+                                        "Joining Date",
+                                        joiningDate,
+                                        isDark: isDark,
+                                      ),
                                       const SizedBox(height: 10),
-                                      _buildDetailTile("Last Login", lastLogin, isDark: isDark),
+                                      _buildDetailTile(
+                                        "Last Login",
+                                        lastLogin,
+                                        isDark: isDark,
+                                      ),
                                     ],
                                   );
                                 }
@@ -907,39 +1060,93 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   children: [
                                     Row(
                                       children: [
-                                        Expanded(child: _buildDetailTile("Full Name", fullName, isDark: isDark)),
+                                        Expanded(
+                                          child: _buildDetailTile(
+                                            "Full Name",
+                                            fullName,
+                                            isDark: isDark,
+                                          ),
+                                        ),
                                         const SizedBox(width: 12),
-                                        Expanded(child: _buildDetailTile("Email Address", user.email, isDark: isDark)),
+                                        Expanded(
+                                          child: _buildDetailTile(
+                                            "Email Address",
+                                            user.email,
+                                            isDark: isDark,
+                                          ),
+                                        ),
                                       ],
                                     ),
                                     const SizedBox(height: 10),
                                     Row(
                                       children: [
-                                        Expanded(child: _buildDetailTile("Username", username, isDark: isDark)),
+                                        Expanded(
+                                          child: _buildDetailTile(
+                                            "Username",
+                                            username,
+                                            isDark: isDark,
+                                          ),
+                                        ),
                                         const SizedBox(width: 12),
-                                        Expanded(child: _buildDetailTile("Mobile Number", mobile, isDark: isDark)),
+                                        Expanded(
+                                          child: _buildDetailTile(
+                                            "Mobile Number",
+                                            mobile,
+                                            isDark: isDark,
+                                          ),
+                                        ),
                                       ],
                                     ),
                                     const SizedBox(height: 10),
                                     Row(
                                       children: [
-                                        Expanded(child: _buildDetailTile("Company Name", company, isDark: isDark)),
+                                        Expanded(
+                                          child: _buildDetailTile(
+                                            "Company Name",
+                                            company,
+                                            isDark: isDark,
+                                          ),
+                                        ),
                                         const SizedBox(width: 12),
-                                        Expanded(child: _buildDetailTile("Role Type", roleType, isDark: isDark)),
+                                        Expanded(
+                                          child: _buildDetailTile(
+                                            "Role Type",
+                                            roleType,
+                                            isDark: isDark,
+                                          ),
+                                        ),
                                       ],
                                     ),
                                     const SizedBox(height: 10),
                                     Row(
                                       children: [
-                                        Expanded(child: _buildDetailTile("Account Status", accountStatus, isDark: isDark)),
+                                        Expanded(
+                                          child: _buildDetailTile(
+                                            "Account Status",
+                                            accountStatus,
+                                            isDark: isDark,
+                                          ),
+                                        ),
                                         const SizedBox(width: 12),
-                                        Expanded(child: _buildDetailTile("Joining Date", joiningDate, isDark: isDark)),
+                                        Expanded(
+                                          child: _buildDetailTile(
+                                            "Joining Date",
+                                            joiningDate,
+                                            isDark: isDark,
+                                          ),
+                                        ),
                                       ],
                                     ),
                                     const SizedBox(height: 10),
                                     Row(
                                       children: [
-                                        Expanded(child: _buildDetailTile("Last Login", lastLogin, isDark: isDark)),
+                                        Expanded(
+                                          child: _buildDetailTile(
+                                            "Last Login",
+                                            lastLogin,
+                                            isDark: isDark,
+                                          ),
+                                        ),
                                         const SizedBox(width: 12),
                                         const Expanded(child: SizedBox()),
                                       ],
@@ -960,7 +1167,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         decoration: BoxDecoration(
                           color: cardColor,
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
+                          border: Border.all(
+                            color: isDark
+                                ? Colors.white12
+                                : Colors.grey.shade200,
+                          ),
                           boxShadow: [
                             BoxShadow(
                               color: shadowColor,
@@ -985,7 +1196,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
-                                    color: isDark ? Colors.white : const Color(0xFF0F2C4A),
+                                    color: isDark
+                                        ? Colors.white
+                                        : const Color(0xFF0F2C4A),
                                   ),
                                 ),
                               ],
@@ -995,14 +1208,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               children: [
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         "Force UK time",
                                         style: TextStyle(
                                           fontSize: 14,
                                           fontWeight: FontWeight.bold,
-                                          color: isDark ? Colors.white : const Color(0xFF0F2C4A),
+                                          color: isDark
+                                              ? Colors.white
+                                              : const Color(0xFF0F2C4A),
                                         ),
                                       ),
                                       const SizedBox(height: 4),
@@ -1019,9 +1235,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 ),
                                 const SizedBox(width: 12),
                                 Switch(
-                                  value: true,
+                                  value: user.forceUkDisplayTime,
                                   activeThumbColor: const Color(0xFF10B981),
-                                  onChanged: (val) {},
+                                  onChanged: _controller.isLoading
+                                      ? null
+                                      : (enabled) async {
+                                          final updated = await _controller
+                                              .updateForceUkDisplayTime(
+                                                enabled,
+                                              );
+                                          if (!mounted) return;
+                                          ScaffoldMessenger.of(this.context)
+                                            ..hideCurrentSnackBar()
+                                            ..showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                  updated
+                                                      ? (enabled
+                                                            ? 'UK time enabled.'
+                                                            : 'Local device time enabled.')
+                                                      : (_controller
+                                                                .errorMessage ??
+                                                            'Unable to update the time display setting.'),
+                                                ),
+                                                backgroundColor: updated
+                                                    ? const Color(0xFF059669)
+                                                    : Colors.redAccent,
+                                              ),
+                                            );
+                                        },
                                 ),
                               ],
                             ),
@@ -1037,7 +1279,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         decoration: BoxDecoration(
                           color: cardColor,
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
+                          border: Border.all(
+                            color: isDark
+                                ? Colors.white12
+                                : Colors.grey.shade200,
+                          ),
                           boxShadow: [
                             BoxShadow(
                               color: shadowColor,
@@ -1062,16 +1308,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
-                                    color: isDark ? Colors.white : const Color(0xFF0F2C4A),
+                                    color: isDark
+                                        ? Colors.white
+                                        : const Color(0xFF0F2C4A),
                                   ),
                                 ),
                               ],
                             ),
                             const SizedBox(height: 16),
                             _buildPermissionItem("Full admin dashboard access"),
-                            _buildPermissionItem("Manage admins, members, and guests"),
-                            _buildPermissionItem("Manage projects, jobs, library, and settings"),
-                            _buildPermissionItem("Manage organisation profile and support tickets"),
+                            _buildPermissionItem(
+                              "Manage admins, members, and guests",
+                            ),
+                            _buildPermissionItem(
+                              "Manage projects, jobs, library, and settings",
+                            ),
+                            _buildPermissionItem(
+                              "Manage organisation profile and support tickets",
+                            ),
                           ],
                         ),
                       ),
@@ -1084,7 +1338,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         decoration: BoxDecoration(
                           color: cardColor,
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
+                          border: Border.all(
+                            color: isDark
+                                ? Colors.white12
+                                : Colors.grey.shade200,
+                          ),
                           boxShadow: [
                             BoxShadow(
                               color: shadowColor,
@@ -1109,7 +1367,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
-                                    color: isDark ? Colors.white : const Color(0xFF0F2C4A),
+                                    color: isDark
+                                        ? Colors.white
+                                        : const Color(0xFF0F2C4A),
                                   ),
                                 ),
                               ],
@@ -1133,14 +1393,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               IconlyLight.edit,
                               "Profile last updated",
                               "Profile details and account attributes updated",
-                              DateHelper.formatToLocal(user.updatedAt ?? user.lastLogin),
+                              DateHelper.formatToLocal(
+                                user.updatedAt ?? user.lastLogin,
+                              ),
                               Colors.purple.shade400,
                             ),
                             _buildActivityItem(
                               IconlyLight.shield_done,
                               "Password configured",
                               "Secure credentials active and verified",
-                              DateHelper.formatToLocal(user.updatedAt ?? user.joinedAt),
+                              DateHelper.formatToLocal(
+                                user.updatedAt ?? user.joinedAt,
+                              ),
                               Colors.green.shade600,
                             ),
                           ],

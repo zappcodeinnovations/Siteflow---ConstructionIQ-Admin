@@ -15,6 +15,7 @@ class User {
   final String? team;
   final bool isActive;
   final bool isPasswordSet;
+  final bool forceUkDisplayTime;
   final String? deviceId;
   final String? fcmToken;
   final bool changePassword;
@@ -40,6 +41,7 @@ class User {
     this.team,
     required this.isActive,
     required this.isPasswordSet,
+    this.forceUkDisplayTime = false,
     this.deviceId,
     this.fcmToken,
     required this.changePassword,
@@ -57,7 +59,8 @@ class User {
       username: json['username'] ?? json['email'] ?? '',
       firstName: json['first_name'],
       lastName: json['last_name'],
-      displayName: json['display_name'] ??
+      displayName:
+          json['display_name'] ??
           (json['first_name'] != null && json['last_name'] != null
               ? "${json['first_name']} ${json['last_name']}".trim()
               : (json['email'] ?? '')),
@@ -70,13 +73,19 @@ class User {
       team: json['team']?.toString(),
       isActive: json['is_active'] ?? true,
       isPasswordSet: json['is_password_set'] ?? false,
+      forceUkDisplayTime: json['force_uk_display_time'] == true,
       deviceId: json['device_id'],
       fcmToken: json['fcm_token'],
       changePassword: json['change_password'] ?? false,
       joinedAt: json['joined_at'] ?? json['created_at'] ?? json['date_joined'],
       updatedAt: json['updated_at'],
-      lastLogin: json['last_login'] ?? json['last_login_at'] ?? json['last_activity'],
-      companyName: json['company_name'] ?? json['organization_name'] ?? json['organisation_name'] ?? 'Euroside Construction Limited',
+      lastLogin:
+          json['last_login'] ?? json['last_login_at'] ?? json['last_activity'],
+      companyName:
+          json['company_name'] ??
+          json['organization_name'] ??
+          json['organisation_name'] ??
+          'Euroside Construction Limited',
     );
   }
 }

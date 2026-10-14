@@ -10,10 +10,27 @@ import '../../main.dart'; // To access the global navigatorKey
 class ApiClient {
   static final http.Client _client = http.Client();
   static String? _deviceTimezone;
+  static bool _timeDisplayPreferenceLoaded = false;
+
+  /// Re-resolve the timezone header after a user changes their time-display
+  /// setting. The next request then carries either Europe/London or the
+  /// device's real timezone.
+  static void resetTimezoneHeader() {
+    _deviceTimezone = null;
+  }
+
+  static Future<void> _restoreTimeDisplayPreference() async {
+    if (_timeDisplayPreferenceLoaded) return;
+    DateHelper.setForceUkDisplayTime(
+      await AuthService.getForceUkDisplayTime(),
+    );
+    _timeDisplayPreferenceLoaded = true;
+  }
 
   static Future<Map<String, String>> _getHeaders() async {
     final token = await AuthService.getAccessToken();
-    
+    await _restoreTimeDisplayPreference();
+
     try {
       _deviceTimezone ??= await DateHelper.getDeviceTimezone();
     } catch (e) {
@@ -30,49 +47,89 @@ class ApiClient {
 
   static bool _isRefreshing = false;
 
-  static Future<http.Response> _handleRequest(Future<http.Response> Function() requestAction) async {
+  static Future<http.Response> _handleRequest(
+    Future<http.Response> Function() requestAction,
+  ) async {
     http.Response response = await requestAction();
-    
+
     if (response.statusCode == 401 && !_isRefreshing) {
-      AppLogger.w("Received 401 Unauthorized for URL: ${response.request?.url}", tag: "API Client");
+      AppLogger.w(
+        "Received 401 Unauthorized for URL: ${response.request?.url}",
+        tag: "API Client",
+      );
       _isRefreshing = true;
       try {
         final refreshToken = await AuthService.getRefreshToken();
-        AppLogger.i("Stored Refresh Token: ${refreshToken != null ? 'Found (length: ${refreshToken.length})' : 'Null/Empty'}", tag: "API Client");
-        
+        AppLogger.i(
+          "Stored Refresh Token: ${refreshToken != null ? 'Found (length: ${refreshToken.length})' : 'Null/Empty'}",
+          tag: "API Client",
+        );
+
         if (refreshToken != null && refreshToken.isNotEmpty) {
           final refreshUrl = ApiEndpoints.baseUrl + ApiEndpoints.refresh;
-          AppLogger.i("Attempting token refresh at: $refreshUrl", tag: "API Client");
+          AppLogger.i(
+            "Attempting token refresh at: $refreshUrl",
+            tag: "API Client",
+          );
           final refreshResponse = await http.post(
             Uri.parse(refreshUrl),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({'refresh': refreshToken}),
           );
 
-          AppLogger.i("Refresh Response Status: ${refreshResponse.statusCode}", tag: "API Client");
+          AppLogger.i(
+            "Refresh Response Status: ${refreshResponse.statusCode}",
+            tag: "API Client",
+          );
 
           if (refreshResponse.statusCode == 200) {
             final data = jsonDecode(refreshResponse.body);
-            final newAccess = data['access'] ?? data['data']?['access'] ?? data['tokens']?['access'] ?? data['token'];
-            final newRefresh = data['refresh'] ?? data['data']?['refresh'] ?? data['tokens']?['refresh'] ?? refreshToken;
-            
+            final newAccess =
+                data['access'] ??
+                data['data']?['access'] ??
+                data['tokens']?['access'] ??
+                data['token'];
+            final newRefresh =
+                data['refresh'] ??
+                data['data']?['refresh'] ??
+                data['tokens']?['refresh'] ??
+                refreshToken;
+
             if (newAccess != null) {
-              AppLogger.i("Refresh successful! Saving new access token.", tag: "API Client");
-              await AuthService.saveTokens(access: newAccess, refresh: newRefresh);
+              AppLogger.i(
+                "Refresh successful! Saving new access token.",
+                tag: "API Client",
+              );
+              await AuthService.saveTokens(
+                access: newAccess,
+                refresh: newRefresh,
+              );
               _isRefreshing = false;
               return await requestAction();
             } else {
-              AppLogger.w("Refresh succeeded but new access token was null in payload.", tag: "API Client");
+              AppLogger.w(
+                "Refresh succeeded but new access token was null in payload.",
+                tag: "API Client",
+              );
             }
           } else {
-            AppLogger.w("Refresh failed with status: ${refreshResponse.statusCode}", tag: "API Client");
+            AppLogger.w(
+              "Refresh failed with status: ${refreshResponse.statusCode}",
+              tag: "API Client",
+            );
           }
         } else {
-          AppLogger.w("No refresh token found. Skipping refresh flow.", tag: "API Client");
+          AppLogger.w(
+            "No refresh token found. Skipping refresh flow.",
+            tag: "API Client",
+          );
         }
-        
+
         // If refresh fails or no refresh token exists, log out
-        AppLogger.w("Clearing stored tokens and redirecting to Login.", tag: "API Client");
+        AppLogger.w(
+          "Clearing stored tokens and redirecting to Login.",
+          tag: "API Client",
+        );
         await AuthService.clearTokens();
         if (navigatorKey.currentState != null) {
           final context = navigatorKey.currentState!.context;
@@ -95,15 +152,23 @@ class ApiClient {
             );
           }
 
-          navigatorKey.currentState!.pushNamedAndRemoveUntil('/login', (route) => false);
+          navigatorKey.currentState!.pushNamedAndRemoveUntil(
+            '/login',
+            (route) => false,
+          );
         }
       } catch (e, stack) {
-        AppLogger.e("Exception caught during refresh flow", error: e, stackTrace: stack, tag: "API Client");
+        AppLogger.e(
+          "Exception caught during refresh flow",
+          error: e,
+          stackTrace: stack,
+          tag: "API Client",
+        );
       } finally {
         _isRefreshing = false;
       }
     }
-    
+
     return response;
   }
 
@@ -111,7 +176,8 @@ class ApiClient {
     required String method,
     required String url,
     dynamic body,
-    required Future<http.Response> Function(Map<String, String> headers) requestAction,
+    required Future<http.Response> Function(Map<String, String> headers)
+    requestAction,
   }) async {
     final headers = await _getHeaders();
     AppLogger.request(method, url, headers: headers, body: body);
@@ -149,7 +215,10 @@ class ApiClient {
     );
   }
 
-  static Future<http.Response> post(String url, {Map<String, dynamic>? body}) async {
+  static Future<http.Response> post(
+    String url, {
+    Map<String, dynamic>? body,
+  }) async {
     return _executeWithLogging(
       method: 'POST',
       url: url,
@@ -166,11 +235,15 @@ class ApiClient {
     return _executeWithLogging(
       method: 'DELETE',
       url: url,
-      requestAction: (headers) => _client.delete(Uri.parse(url), headers: headers),
+      requestAction: (headers) =>
+          _client.delete(Uri.parse(url), headers: headers),
     );
   }
 
-  static Future<http.Response> put(String url, {Map<String, dynamic>? body}) async {
+  static Future<http.Response> put(
+    String url, {
+    Map<String, dynamic>? body,
+  }) async {
     return _executeWithLogging(
       method: 'PUT',
       url: url,
@@ -196,18 +269,25 @@ class ApiClient {
     final headers = await _getHeaders();
     headers.remove('Content-Type'); // let MultipartRequest set its own boundary
 
-    AppLogger.request('POST (MULTIPART)', url, headers: headers, body: {
-      'fileFieldName': fileFieldName,
-      'filePath': filePath,
-      if (fields != null) 'fields': fields,
-    });
+    AppLogger.request(
+      'POST (MULTIPART)',
+      url,
+      headers: headers,
+      body: {
+        'fileFieldName': fileFieldName,
+        'filePath': filePath,
+        if (fields != null) 'fields': fields,
+      },
+    );
 
     try {
       final response = await _handleRequest(() async {
         final request = http.MultipartRequest('POST', Uri.parse(url))
           ..headers.addAll(headers)
           ..fields.addAll(fields ?? {})
-          ..files.add(await http.MultipartFile.fromPath(fileFieldName, filePath));
+          ..files.add(
+            await http.MultipartFile.fromPath(fileFieldName, filePath),
+          );
         final streamedResponse = await request.send();
         return await http.Response.fromStream(streamedResponse);
       });
@@ -234,7 +314,10 @@ class ApiClient {
     }
   }
 
-  static Future<http.Response> patch(String url, {Map<String, dynamic>? body}) async {
+  static Future<http.Response> patch(
+    String url, {
+    Map<String, dynamic>? body,
+  }) async {
     return _executeWithLogging(
       method: 'PATCH',
       url: url,

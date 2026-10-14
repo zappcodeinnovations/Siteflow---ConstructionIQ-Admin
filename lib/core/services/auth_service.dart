@@ -7,6 +7,7 @@ class AuthService {
   static const String _userRoleKey = 'user_effective_role';
   static const String _userRoleLabelKey = 'user_role_label';
   static const String _permissionsKey = 'user_rbac_permissions';
+  static const String _forceUkDisplayTimeKey = 'force_uk_display_time';
 
   // Roles that get admin-only areas (e.g. "Admin Control"). Mirrors the
   // backend's own admin check (`_is_admin_api_user` in API/views.py):
@@ -52,6 +53,7 @@ class AuthService {
     await prefs.remove(_userRoleKey);
     await prefs.remove(_userRoleLabelKey);
     await prefs.remove(_permissionsKey);
+    await prefs.remove(_forceUkDisplayTimeKey);
   }
 
   static Future<bool> isLoggedIn() async {
@@ -95,6 +97,16 @@ class AuthService {
     if (permissions is! Map) return;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_permissionsKey, jsonEncode(permissions));
+  }
+
+  static Future<void> saveForceUkDisplayTime(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_forceUkDisplayTimeKey, enabled);
+  }
+
+  static Future<bool> getForceUkDisplayTime() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_forceUkDisplayTimeKey) ?? false;
   }
 
   static Future<Map<String, dynamic>> getPermissions() async {

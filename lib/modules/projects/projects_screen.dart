@@ -1754,6 +1754,10 @@ class ProjectsScreenState extends State<ProjectsScreen> {
             }
 
             return Dialog(
+              insetPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 24,
+              ),
               backgroundColor: dialogBg,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
@@ -1968,6 +1972,10 @@ class ProjectsScreenState extends State<ProjectsScreen> {
             }).toList();
 
             return Dialog(
+              insetPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 20,
+              ),
               backgroundColor: dialogBg,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
@@ -1976,8 +1984,9 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                     : BorderSide.none,
               ),
               child: Container(
+                width: double.infinity,
                 constraints: BoxConstraints(
-                  maxHeight: MediaQuery.of(context).size.height * 0.8,
+                  maxHeight: MediaQuery.of(context).size.height * 0.84,
                   maxWidth: 500,
                 ),
                 padding: const EdgeInsets.all(20.0),
@@ -2182,8 +2191,13 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                                 )
                               else
                                 Container(
-                                  constraints: const BoxConstraints(
-                                    maxHeight: 220,
+                                  constraints: BoxConstraints(
+                                    minHeight:
+                                        MediaQuery.of(context).size.height *
+                                        0.32,
+                                    maxHeight:
+                                        MediaQuery.of(context).size.height *
+                                        0.46,
                                   ),
                                   decoration: BoxDecoration(
                                     border: Border.all(color: borderColor),

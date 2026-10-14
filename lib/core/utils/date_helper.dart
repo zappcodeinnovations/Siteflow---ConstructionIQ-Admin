@@ -11,6 +11,7 @@ class DateHelper {
   /// Retained for the few places that explicitly request a UK conversion.
   static const String defaultUkTimezone = 'Europe/London';
   static String? _cachedTimezone;
+  static bool _forceUkDisplayTime = false;
 
   static const Map<String, String> _timezoneAliases = {
     'Asia/Calcutta': 'Asia/Kolkata',
@@ -24,8 +25,27 @@ class DateHelper {
     _cachedTimezone = _canonicalTimezone(tz);
   }
 
+  /// Applies the signed-in account's display preference without changing the
+  /// device timezone that is restored when the preference is switched off.
+  static void setForceUkDisplayTime(bool enabled) {
+    _forceUkDisplayTime = enabled;
+    if (enabled) {
+      _cachedTimezone = defaultUkTimezone;
+    } else {
+      // Re-read the actual device timezone on the next request instead of
+      // retaining the previous UK override.
+      _cachedTimezone = null;
+    }
+  }
+
+  static bool get isForceUkDisplayTimeEnabled => _forceUkDisplayTime;
+
   /// Returns the device's real IANA timezone for API display payloads.
   static Future<String> getDeviceTimezone() async {
+    if (_forceUkDisplayTime) {
+      return defaultUkTimezone;
+    }
+
     if (_cachedTimezone != null && _cachedTimezone!.isNotEmpty) {
       return _cachedTimezone!;
     }
@@ -174,7 +194,9 @@ class DateHelper {
     final format = includeTime
         ? DateFormat('dd/MM/yyyy hh:mm a')
         : DateFormat('dd/MM/yyyy');
-    return format.format(parsed.toLocal());
+    return format.format(
+      _forceUkDisplayTime ? toUkDateTime(parsed) : parsed.toLocal(),
+    );
   }
 
   /// Formats a timestamp that the API has already converted to the viewer's

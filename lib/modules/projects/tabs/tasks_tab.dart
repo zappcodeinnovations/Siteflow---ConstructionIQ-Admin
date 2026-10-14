@@ -70,7 +70,8 @@ class _TasksTabState extends State<TasksTab> {
 
   String _getTaskDate(dynamic task) {
     if (task is Map) {
-      final raw = task['date'] ??
+      final raw =
+          task['date'] ??
           task['task_date'] ??
           task['scheduled_date'] ??
           task['submission_date'] ??
@@ -86,12 +87,17 @@ class _TasksTabState extends State<TasksTab> {
 
   String _normalizeStatus(dynamic task) {
     if (task is Map) {
-      final raw = (task['status'] ?? task['status_label'] ?? task['state'] ?? task['status_display'] ?? '')
-          .toString()
-          .trim()
-          .toLowerCase()
-          .replaceAll('-', '_')
-          .replaceAll(' ', '_');
+      final raw =
+          (task['status'] ??
+                  task['status_label'] ??
+                  task['state'] ??
+                  task['status_display'] ??
+                  '')
+              .toString()
+              .trim()
+              .toLowerCase()
+              .replaceAll('-', '_')
+              .replaceAll(' ', '_');
 
       if (raw == 'in_progress' || raw == 'open' || raw == 'active') {
         return 'in_progress';
@@ -99,8 +105,13 @@ class _TasksTabState extends State<TasksTab> {
       if (raw == 'awaiting' || raw == 'pending') {
         return 'awaiting';
       }
-      if (raw == 'completed' || raw == 'closed' || raw == 'done' || raw == 'finished' || raw == 'approved' ||
-          task['is_closed'] == true || task['is_completed'] == true) {
+      if (raw == 'completed' ||
+          raw == 'closed' ||
+          raw == 'done' ||
+          raw == 'finished' ||
+          raw == 'approved' ||
+          task['is_closed'] == true ||
+          task['is_completed'] == true) {
         return 'completed';
       }
       return raw;
@@ -113,13 +124,19 @@ class _TasksTabState extends State<TasksTab> {
       return widget.tasks;
     }
     if (_selectedStatus == 'Awaiting') {
-      return widget.tasks.where((t) => _normalizeStatus(t) == 'awaiting').toList();
+      return widget.tasks
+          .where((t) => _normalizeStatus(t) == 'awaiting')
+          .toList();
     }
     if (_selectedStatus == 'In Progress') {
-      return widget.tasks.where((t) => _normalizeStatus(t) == 'in_progress').toList();
+      return widget.tasks
+          .where((t) => _normalizeStatus(t) == 'in_progress')
+          .toList();
     }
     if (_selectedStatus == 'Completed') {
-      return widget.tasks.where((t) => _normalizeStatus(t) == 'completed').toList();
+      return widget.tasks
+          .where((t) => _normalizeStatus(t) == 'completed')
+          .toList();
     }
     return widget.tasks;
   }
@@ -139,68 +156,82 @@ class _TasksTabState extends State<TasksTab> {
         Padding(
           padding: const EdgeInsets.all(16.0),
           child: Container(
+            width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-                color: isDark ? AppTheme.darkSurface : Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade200),
-                boxShadow: [
-                  BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.02),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4))
-                ]),
-            child: Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              alignment: WrapAlignment.spaceBetween,
+              color: isDark ? AppTheme.darkSurface : Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isDark ? Colors.white24 : Colors.grey.shade200,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.02),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
               children: [
-                Wrap(
-                  spacing: 12,
-                  children: [
-                    Container(
-                      height: 36,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      decoration: BoxDecoration(
-                        color: isDark ? Colors.white10 : Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          dropdownColor: isDark ? AppTheme.darkSurface : Colors.white,
-                          value: _selectedStatus,
-                          items: options
-                              .map((e) => DropdownMenuItem(
-                                  value: e,
-                                  child: Text(e,
-                                      style: TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w600,
-                                          color: isDark ? Colors.white : Colors.black87))))
-                              .toList(),
-                          onChanged: (val) {
-                            if (val != null) {
-                              setState(() {
-                                _selectedStatus = val;
-                              });
-                            }
-                          },
-                          icon: Icon(IconlyLight.arrow_down_2,
-                              color: isDark ? Colors.white70 : Colors.black54, size: 18),
+                Expanded(
+                  child: Container(
+                    height: 36,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white10 : Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        isExpanded: true,
+                        dropdownColor: isDark
+                            ? AppTheme.darkSurface
+                            : Colors.white,
+                        value: _selectedStatus,
+                        items: options
+                            .map(
+                              (e) => DropdownMenuItem(
+                                value: e,
+                                child: Text(
+                                  e,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: isDark
+                                        ? Colors.white
+                                        : Colors.black87,
+                                  ),
+                                ),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (val) {
+                          if (val != null) {
+                            setState(() {
+                              _selectedStatus = val;
+                            });
+                          }
+                        },
+                        icon: Icon(
+                          IconlyLight.arrow_down_2,
+                          color: isDark ? Colors.white70 : Colors.black54,
+                          size: 18,
                         ),
                       ),
                     ),
-                    // A separate "Filters" button opened a sheet with only the
-                    // same status choices as this dropdown - removed as a
-                    // duplicate filter control (ClickUp 14yjutqfkug).
-                  ],
+                  ),
                 ),
-                Text("Total: ${displayedTasks.length}",
-                    style: TextStyle(
-                        color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold)),
+                const SizedBox(width: 12),
+                Text(
+                  "Total: ${displayedTasks.length}",
+                  style: TextStyle(
+                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ],
             ),
           ),
@@ -213,20 +244,30 @@ class _TasksTabState extends State<TasksTab> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(IconlyLight.document,
-                          size: 64, color: isDark ? Colors.white24 : Colors.grey.shade300),
+                      Icon(
+                        IconlyLight.document,
+                        size: 64,
+                        color: isDark ? Colors.white24 : Colors.grey.shade300,
+                      ),
                       const SizedBox(height: 16),
-                      Text("No tasks found",
-                          style: TextStyle(
-                              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500)),
+                      Text(
+                        "No tasks found",
+                        style: TextStyle(
+                          color: isDark
+                              ? Colors.grey.shade400
+                              : Colors.grey.shade600,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
                     ],
                   ),
                 )
               : ListView.separated(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 16.0, vertical: 8.0),
+                    horizontal: 16.0,
+                    vertical: 8.0,
+                  ),
                   itemCount: displayedTasks.length,
                   separatorBuilder: (context, index) =>
                       const SizedBox(height: 16),
@@ -268,39 +309,58 @@ class _TasksTabState extends State<TasksTab> {
     final textColor = isDark ? Colors.white : Colors.black87;
     final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
 
-    final normStatus = status.toLowerCase().replaceAll('-', '_').replaceAll(' ', '_');
-    final isCompleted = normStatus == 'completed' || normStatus == 'closed' || normStatus == 'done';
+    final normStatus = status
+        .toLowerCase()
+        .replaceAll('-', '_')
+        .replaceAll(' ', '_');
+    final isCompleted =
+        normStatus == 'completed' ||
+        normStatus == 'closed' ||
+        normStatus == 'done';
     final isAwaiting = normStatus == 'awaiting' || normStatus == 'pending';
-    
+
     Color statusColor = const Color(0xFF0D6EFD);
-    Color statusBgColor = isDark ? Colors.blue.withValues(alpha: 0.2) : Colors.blue.shade50;
-    String displayStatus = status.replaceAll('_', ' ').replaceAll('-', ' ').toUpperCase();
+    Color statusBgColor = isDark
+        ? Colors.blue.withValues(alpha: 0.2)
+        : Colors.blue.shade50;
+    String displayStatus = status
+        .replaceAll('_', ' ')
+        .replaceAll('-', ' ')
+        .toUpperCase();
 
     if (isCompleted) {
       statusColor = Colors.green;
-      statusBgColor = isDark ? Colors.green.withValues(alpha: 0.2) : Colors.green.shade50;
+      statusBgColor = isDark
+          ? Colors.green.withValues(alpha: 0.2)
+          : Colors.green.shade50;
       displayStatus = 'COMPLETED';
     } else if (isAwaiting) {
       statusColor = Colors.orange.shade700;
-      statusBgColor = isDark ? Colors.orange.withValues(alpha: 0.2) : Colors.orange.shade50;
+      statusBgColor = isDark
+          ? Colors.orange.withValues(alpha: 0.2)
+          : Colors.orange.shade50;
       displayStatus = 'AWAITING';
     } else if (normStatus == 'in_progress' || normStatus == 'open') {
       statusColor = const Color(0xFF0D6EFD);
-      statusBgColor = isDark ? Colors.blue.withValues(alpha: 0.2) : Colors.blue.shade50;
+      statusBgColor = isDark
+          ? Colors.blue.withValues(alpha: 0.2)
+          : Colors.blue.shade50;
       displayStatus = 'IN PROGRESS';
     }
 
     return Container(
       decoration: BoxDecoration(
-          color: cardColor,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: borderColor),
-          boxShadow: [
-            BoxShadow(
-                color: Colors.black.withValues(alpha: 0.02),
-                blurRadius: 10,
-                offset: const Offset(0, 4))
-          ]),
+        color: cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -317,29 +377,38 @@ class _TasksTabState extends State<TasksTab> {
                       color: isDark ? Colors.white10 : Colors.blue.shade50,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Icon(IconlyLight.document,
-                        color: isDark ? Colors.white : const Color(0xFF0D6EFD), size: 18),
+                    child: Icon(
+                      IconlyLight.document,
+                      color: isDark ? Colors.white : const Color(0xFF0D6EFD),
+                      size: 18,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text("Task #$taskNo",
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                              color: textColor)),
+                      Text(
+                        "Task #$taskNo",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: textColor,
+                        ),
+                      ),
                       const SizedBox(height: 2),
-                      Text(reference,
-                          style: TextStyle(
-                              color: textSecondary, fontSize: 13)),
+                      Text(
+                        reference,
+                        style: TextStyle(color: textSecondary, fontSize: 13),
+                      ),
                     ],
                   ),
                 ],
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: statusBgColor,
                   borderRadius: BorderRadius.circular(6),
@@ -359,7 +428,9 @@ class _TasksTabState extends State<TasksTab> {
                     Text(
                       displayStatus,
                       style: TextStyle(
-                        color: isDark ? Colors.white : statusColor.withValues(alpha: 0.9),
+                        color: isDark
+                            ? Colors.white
+                            : statusColor.withValues(alpha: 0.9),
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 0.5,
@@ -373,7 +444,10 @@ class _TasksTabState extends State<TasksTab> {
 
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 16),
-            child: Divider(height: 1, color: isDark ? Colors.white12 : Colors.grey.shade200),
+            child: Divider(
+              height: 1,
+              color: isDark ? Colors.white12 : Colors.grey.shade200,
+            ),
           ),
 
           // Body Row
@@ -383,17 +457,31 @@ class _TasksTabState extends State<TasksTab> {
               Expanded(
                 flex: 4,
                 child: _buildInfoColumn(
-                    context, "OPERATIVE", operativeName, IconlyLight.profile),
+                  context,
+                  "OPERATIVE",
+                  operativeName,
+                  IconlyLight.profile,
+                ),
               ),
               const SizedBox(width: 8),
               Expanded(
                 flex: 3,
-                child: _buildInfoColumn(context, "FORM", form, IconlyLight.paper),
+                child: _buildInfoColumn(
+                  context,
+                  "FORM",
+                  form,
+                  IconlyLight.paper,
+                ),
               ),
               const SizedBox(width: 8),
               Expanded(
                 flex: 2,
-                child: _buildInfoColumn(context, "SHEETS", sheets, IconlyLight.paper),
+                child: _buildInfoColumn(
+                  context,
+                  "SHEETS",
+                  sheets,
+                  IconlyLight.paper,
+                ),
               ),
             ],
           ),
@@ -432,29 +520,43 @@ class _TasksTabState extends State<TasksTab> {
             children: [
               TextButton.icon(
                 onPressed: () => _confirmAndDeleteTask(context, task),
-                icon: const Icon(IconlyLight.delete,
-                    size: 16, color: Colors.red),
-                label: const Text("Delete",
-                    style: TextStyle(
-                        color: Colors.red, fontWeight: FontWeight.w600)),
+                icon: const Icon(
+                  IconlyLight.delete,
+                  size: 16,
+                  color: Colors.red,
+                ),
+                label: const Text(
+                  "Delete",
+                  style: TextStyle(
+                    color: Colors.red,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
               const SizedBox(width: 12),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: isDark ? Colors.white10 : Colors.white,
-                  foregroundColor: isDark ? Colors.white : const Color(0xFF0D6EFD),
-                  side: BorderSide(color: isDark ? Colors.white24 : const Color(0xFF0D6EFD)),
+                  foregroundColor: isDark
+                      ? Colors.white
+                      : const Color(0xFF0D6EFD),
+                  side: BorderSide(
+                    color: isDark ? Colors.white24 : const Color(0xFF0D6EFD),
+                  ),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8)),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   elevation: 0,
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                 ),
                 onPressed: () => _showTaskDetails(context, task),
-                child: const Text("View Details",
-                    style: TextStyle(fontWeight: FontWeight.bold)),
+                child: const Text(
+                  "View Details",
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
               ),
             ],
-          )
+          ),
         ],
       ),
     );
@@ -468,7 +570,9 @@ class _TasksTabState extends State<TasksTab> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text("Delete Task"),
-        content: const Text("Are you sure you want to delete this task? This cannot be undone."),
+        content: const Text(
+          "Are you sure you want to delete this task? This cannot be undone.",
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
@@ -485,23 +589,35 @@ class _TasksTabState extends State<TasksTab> {
 
     try {
       final response = await ApiClient.delete(
-        ApiEndpoints.baseUrl + ApiEndpoints.adminTaskDelete(taskId is int ? taskId : int.parse(taskId.toString())),
+        ApiEndpoints.baseUrl +
+            ApiEndpoints.adminTaskDelete(
+              taskId is int ? taskId : int.parse(taskId.toString()),
+            ),
       );
       if (!context.mounted) return;
       if (response.statusCode == 200 || response.statusCode == 204) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Task deleted"), backgroundColor: Colors.green),
+          const SnackBar(
+            content: Text("Task deleted"),
+            backgroundColor: Colors.green,
+          ),
         );
         widget.onChanged?.call();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Failed to delete task (${response.statusCode})"), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text("Failed to delete task (${response.statusCode})"),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } catch (e) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to delete task: $e"), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text("Failed to delete task: $e"),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -539,14 +655,21 @@ class _TasksTabState extends State<TasksTab> {
   }
 
   Widget _detailRow(String label, String? value) {
-    if (value == null || value.isEmpty || value == 'null') return const SizedBox.shrink();
+    if (value == null || value.isEmpty || value == 'null')
+      return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label.toUpperCase(),
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey.shade600)),
+          Text(
+            label.toUpperCase(),
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey.shade600,
+            ),
+          ),
           const SizedBox(height: 2),
           Text(value, style: const TextStyle(fontSize: 14)),
         ],
@@ -554,7 +677,12 @@ class _TasksTabState extends State<TasksTab> {
     );
   }
 
-  Widget _buildInfoColumn(BuildContext context, String label, String value, IconData icon) {
+  Widget _buildInfoColumn(
+    BuildContext context,
+    String label,
+    String value,
+    IconData icon,
+  ) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade500;
     final textColor = isDark ? Colors.white : Colors.black87;
@@ -570,10 +698,11 @@ class _TasksTabState extends State<TasksTab> {
               child: Text(
                 label,
                 style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: textSecondary,
-                    letterSpacing: 0.5),
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: textSecondary,
+                  letterSpacing: 0.5,
+                ),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -583,10 +712,11 @@ class _TasksTabState extends State<TasksTab> {
         Text(
           value,
           style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: textColor,
-              height: 1.25),
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: textColor,
+            height: 1.25,
+          ),
           softWrap: true,
           maxLines: 3,
           overflow: TextOverflow.ellipsis,

@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../core/network/api_client.dart';
 import '../../core/network/api_endpoints.dart';
+import '../../core/services/auth_service.dart';
+import '../../core/utils/date_helper.dart';
 import '../../models/user_model.dart';
 
 class ProfileController extends ChangeNotifier {
@@ -20,12 +22,17 @@ class ProfileController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await ApiClient.get(ApiEndpoints.baseUrl + ApiEndpoints.profile);
+      final response = await ApiClient.get(
+        ApiEndpoints.baseUrl + ApiEndpoints.profile,
+      );
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200 && data['status'] == true) {
         final payload = data['data'] ?? data;
         _profile = User.fromJson(payload['user'] ?? payload);
+        DateHelper.setForceUkDisplayTime(_profile!.forceUkDisplayTime);
+        await AuthService.saveForceUkDisplayTime(_profile!.forceUkDisplayTime);
+        ApiClient.resetTimezoneHeader();
       } else {
         _errorMessage = data['message'] ?? 'Failed to fetch profile';
       }
@@ -64,7 +71,12 @@ class ProfileController extends ChangeNotifier {
       }
 
       if ((response.statusCode == 200 || response.statusCode == 201) &&
-          (data is Map && (data['status'] == true || data['status'] == 'success' || data['user'] != null || data['data'] != null || data['id'] != null))) {
+          (data is Map &&
+              (data['status'] == true ||
+                  data['status'] == 'success' ||
+                  data['user'] != null ||
+                  data['data'] != null ||
+                  data['id'] != null))) {
         final payload = data['data'] ?? data;
         final userMap = payload['user'] ?? payload;
         if (userMap is Map<String, dynamic> && userMap.containsKey('id')) {
@@ -92,7 +104,8 @@ class ProfileController extends ChangeNotifier {
               _errorMessage = firstVal.toString();
             }
           } else {
-            _errorMessage = 'Failed to update profile (Status ${response.statusCode})';
+            _errorMessage =
+                'Failed to update profile (Status ${response.statusCode})';
           }
         } else {
           _errorMessage = 'Failed to update profile';
@@ -107,6 +120,16 @@ class ProfileController extends ChangeNotifier {
       notifyListeners();
       return false;
     }
+  }
+
+  Future<bool> updateForceUkDisplayTime(bool enabled) async {
+    final updated = await updateProfile({'force_uk_display_time': enabled});
+    if (updated && _profile != null) {
+      DateHelper.setForceUkDisplayTime(_profile!.forceUkDisplayTime);
+      await AuthService.saveForceUkDisplayTime(_profile!.forceUkDisplayTime);
+      ApiClient.resetTimezoneHeader();
+    }
+    return updated;
   }
 
   Future<Map<String, dynamic>> changePassword({
@@ -143,19 +166,35 @@ class ProfileController extends ChangeNotifier {
 
           if (response.statusCode == 200 || response.statusCode == 201) {
             if (lastDecoded is Map && lastDecoded['status'] == false) {
-              return {"success": false, "message": lastDecoded['message'] ?? "Failed to change password."};
+              return {
+                "success": false,
+                "message":
+                    lastDecoded['message'] ?? "Failed to change password.",
+              };
             }
-            return {"success": true, "message": (lastDecoded is Map && lastDecoded['message'] != null) ? lastDecoded['message'] : "Password updated successfully."};
+            return {
+              "success": true,
+              "message": (lastDecoded is Map && lastDecoded['message'] != null)
+                  ? lastDecoded['message']
+                  : "Password updated successfully.",
+            };
           } else if (response.statusCode != 404 && response.statusCode != 405) {
             String errorMsg = "Failed to update password.";
             if (lastDecoded is Map) {
-              errorMsg = lastDecoded['message'] ?? lastDecoded['detail'] ?? lastDecoded['error'] ?? errorMsg;
+              errorMsg =
+                  lastDecoded['message'] ??
+                  lastDecoded['detail'] ??
+                  lastDecoded['error'] ??
+                  errorMsg;
             }
             return {"success": false, "message": errorMsg};
           }
         } catch (_) {}
       }
-      return {"success": false, "message": "Failed to update password. Please try again."};
+      return {
+        "success": false,
+        "message": "Failed to update password. Please try again.",
+      };
     } catch (e) {
       return {"success": false, "message": "An error occurred: $e"};
     }

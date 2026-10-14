@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/network/api_client.dart';
 import '../../core/network/api_endpoints.dart';
 import '../../core/services/auth_service.dart';
+import '../../core/utils/date_helper.dart';
 import '../../models/user_model.dart';
 
 class LoginController extends ChangeNotifier {
@@ -48,6 +49,11 @@ class LoginController extends ChangeNotifier {
 
         // Parse user
         _currentUser = User.fromJson(payload['user']);
+        DateHelper.setForceUkDisplayTime(_currentUser!.forceUkDisplayTime);
+        await AuthService.saveForceUkDisplayTime(
+          _currentUser!.forceUkDisplayTime,
+        );
+        ApiClient.resetTimezoneHeader();
 
         // Persist the role the backend decided for these credentials
         // (admin/superuser vs. manager vs. any other role) so the rest of
