@@ -6,6 +6,8 @@ import '../../core/theme/app_theme.dart';
 import '../../core/widgets/background_stripes_painter.dart';
 import '../../core/widgets/custom_date_picker_dialog.dart';
 import 'package:intl/intl.dart';
+import '../../core/services/auth_service.dart';
+import '../../core/services/auth_service.dart';
 
 class ManagerAttendanceScreen extends StatefulWidget {
   const ManagerAttendanceScreen({super.key});
@@ -19,6 +21,7 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
   final ManagerAttendanceController _controller = ManagerAttendanceController();
   final ScrollController _scrollController = ScrollController();
   bool _isClocking = false;
+  bool _isSupervisor = false;
 
   String _formatDateLabel(String? fromDate, String? toDate) {
     if (fromDate == null || fromDate.isEmpty) return 'Select - Date';
@@ -91,6 +94,9 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
   @override
   void initState() {
     super.initState();
+    AuthService.isSupervisorUser().then((val) {
+      if (mounted) setState(() => _isSupervisor = val);
+    });
     _scrollController.addListener(_loadMoreWhenNeeded);
     _controller.fetchFilterOptions();
     _controller.fetchManagerAttendance();
@@ -409,7 +415,7 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
         iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black87),
         backgroundColor: isDark ? AppTheme.darkSurface : Colors.white,
         title: Text(
-          "Manager Attendance",
+          _isSupervisor ? "Supervisor Attendance" : "Manager Attendance",
           style: TextStyle(
             color: isDark ? Colors.white : const Color(0xFF0F2C4A),
             fontSize: 22,
@@ -443,7 +449,7 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
                                   ? AppTheme.corporateBlue
                                   : Colors.white,
                               decoration: InputDecoration(
-                                labelText: "Filter by Manager",
+                                labelText: _isSupervisor ? "Filter by Supervisor / Manager" : "Filter by Manager",
                                 labelStyle: TextStyle(
                                   color: isDark
                                       ? Colors.white70
@@ -471,7 +477,7 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
                                 DropdownMenuItem<String>(
                                   value: null,
                                   child: Text(
-                                    "All Managers",
+                                    _isSupervisor ? "All Authorities" : "All Managers",
                                     style: TextStyle(
                                       color: isDark
                                           ? Colors.white

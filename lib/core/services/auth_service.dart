@@ -90,7 +90,17 @@ class AuthService {
   /// been saved yet.
   static Future<bool> isAdminUser() async {
     final role = await getUserRole();
-    return role != null && _adminRoles.contains(role);
+    return role != null && _adminRoles.contains(role.toLowerCase());
+  }
+
+  static Future<bool> isManagerUser() async {
+    final role = await getUserRole();
+    return role?.toLowerCase() == 'manager';
+  }
+
+  static Future<bool> isSupervisorUser() async {
+    final role = await getUserRole();
+    return role?.toLowerCase() == 'supervisor';
   }
 
   static Future<void> savePermissions(dynamic permissions) async {
@@ -123,8 +133,10 @@ class AuthService {
 
   static Future<bool> can(String menuKey, {String action = 'view'}) async {
     if (await isAdminUser()) return true;
-    final role = await getUserRole();
-    if (role == 'manager' && _managerRestrictedMenus.contains(menuKey)) {
+    final rawRole = await getUserRole();
+    final role = rawRole?.toLowerCase();
+    if ((role == 'manager' || role == 'supervisor') &&
+        _managerRestrictedMenus.contains(menuKey)) {
       return false;
     }
     final permissions = await getPermissions();
@@ -145,6 +157,20 @@ class AuthService {
             'approvals',
             'productivity',
             'workforce_planner',
+            'timesheets',
+            'manager_attendance',
+          }.contains(menuKey);
+    }
+    if (role == 'supervisor') {
+      return action == 'view' &&
+          const {
+            'dashboard',
+            'projects',
+            'tasks',
+            'job_sheets',
+            'daily_reports',
+            'weekly_diary',
+            'manager_diary',
             'timesheets',
             'manager_attendance',
           }.contains(menuKey);

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../core/services/download_manager.dart';
 import '../../core/network/api_endpoints.dart';
 import 'timesheet_controller.dart';
@@ -418,7 +419,7 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
   Widget _buildKpiCard(String title, String value, Color color, IconData icon) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
-    final borderColor = isDark ? Colors.white24 : color.withOpacity(0.3);
+    final borderColor = isDark ? Colors.white24 : color.withValues(alpha: 0.3);
     final textColor = isDark ? Colors.white : Colors.black87;
     final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
 
@@ -429,13 +430,13 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
         border: Border.all(color: borderColor, width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: color.withOpacity(0.05),
+            color: color.withValues(alpha: 0.05),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
         ],
       ),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
@@ -458,13 +459,18 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: textColor,
+          const SizedBox(height: 10),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              maxLines: 1,
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: textColor,
+              ),
             ),
           ),
         ],
@@ -515,7 +521,7 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
               return SingleChildScrollView(
                 controller: _scrollController,
                 child: Padding(
-                  padding: const EdgeInsets.all(20.0),
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -523,56 +529,65 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          InkWell(
-                            onTap: () => _selectDateRange(context),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 10,
-                              ),
-                              decoration: BoxDecoration(
-                                color: isDark
-                                    ? AppTheme.darkSurface
-                                    : Colors.white,
-                                border: Border.all(
-                                  color: isDark
-                                      ? Colors.white24
-                                      : Colors.grey.shade200,
+                          Flexible(
+                            child: InkWell(
+                              onTap: () => _selectDateRange(context),
+                              borderRadius: BorderRadius.circular(24),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 9,
                                 ),
-                                borderRadius: BorderRadius.circular(24),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    IconlyLight.calendar,
-                                    size: 14,
+                                decoration: BoxDecoration(
+                                  color: isDark
+                                      ? AppTheme.darkSurface
+                                      : Colors.white,
+                                  border: Border.all(
                                     color: isDark
-                                        ? Colors.white
-                                        : Colors.blue.shade700,
+                                        ? Colors.white24
+                                        : Colors.grey.shade200,
                                   ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    "${_controller.fromDate ?? 'Select'} - ${_controller.toDate ?? 'Date'}",
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 13,
+                                  borderRadius: BorderRadius.circular(24),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      IconlyLight.calendar,
+                                      size: 14,
                                       color: isDark
                                           ? Colors.white
-                                          : Colors.black87,
+                                          : Colors.blue.shade700,
                                     ),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Icon(
-                                    IconlyLight.arrow_down_2,
-                                    size: 16,
-                                    color: isDark
-                                        ? Colors.white70
-                                        : Colors.grey.shade600,
-                                  ),
-                                ],
+                                    const SizedBox(width: 8),
+                                    Flexible(
+                                      child: Text(
+                                        "${_controller.fromDate ?? 'Select'} - ${_controller.toDate ?? 'Date'}",
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 13,
+                                          color: isDark
+                                              ? Colors.white
+                                              : Colors.black87,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Icon(
+                                      IconlyLight.arrow_down_2,
+                                      size: 16,
+                                      color: isDark
+                                          ? Colors.white70
+                                          : Colors.grey.shade600,
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
+                          const SizedBox(width: 8),
                           TextButton.icon(
                             style: TextButton.styleFrom(
                               foregroundColor: isDark
@@ -598,15 +613,15 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 20),
 
                       // KPI Grid
                       if (_controller.data?.kpi != null)
                         GridView.count(
                           crossAxisCount: 2,
-                          crossAxisSpacing: 16,
-                          mainAxisSpacing: 16,
-                          childAspectRatio: 1.4,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
+                          childAspectRatio: 1.45,
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
                           children: [
@@ -687,6 +702,7 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
                               itemBuilder: (context, index) => _TimesheetCard(
                                 record: _controller.data!.data[index],
                                 index: index,
+                                controller: _controller,
                               ),
                             ),
                             if (_controller.isLoadingMore)
@@ -709,15 +725,21 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: const Color(0xFF0D6EFD),
-        onPressed: () {
-          showDialog(
-            context: context,
-            builder: (context) => AddAttendanceDialog(controller: _controller),
-          );
-        },
-        child: const Icon(IconlyLight.plus, color: Colors.white),
+      floatingActionButton: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 4.0, right: 2.0),
+          child: FloatingActionButton(
+            backgroundColor: const Color(0xFF0D6EFD),
+            tooltip: "Add Attendance",
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (context) => AddAttendanceDialog(controller: _controller),
+              );
+            },
+            child: const Icon(IconlyLight.plus, color: Colors.white),
+          ),
+        ),
       ),
     );
   }
@@ -726,15 +748,18 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
 class _TimesheetCard extends StatefulWidget {
   final TimesheetRecord record;
   final int index;
-  const _TimesheetCard({required this.record, required this.index});
+  final TimesheetController controller;
+  const _TimesheetCard({
+    required this.record,
+    required this.index,
+    required this.controller,
+  });
 
   @override
   State<_TimesheetCard> createState() => _TimesheetCardState();
 }
 
 class _TimesheetCardState extends State<_TimesheetCard> {
-  bool _isExpanded = false;
-
   static final Map<String, String> _addressCache = {};
 
   String _startAddress = "";
@@ -826,6 +851,38 @@ class _TimesheetCardState extends State<_TimesheetCard> {
     return latLongStr;
   }
 
+  void _showClockOutDialog(BuildContext context) {
+    int? sessionId = widget.record.activeSessionId;
+    if (sessionId == null) {
+      for (final e in widget.record.projectEntries) {
+        if (e.isOpenSession && e.sessionId != null) {
+          sessionId = e.sessionId;
+          break;
+        }
+      }
+    }
+
+    if (sessionId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Unable to find active session ID to clock out."),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => SupervisorClockOutDialog(
+        record: widget.record,
+        sessionId: sessionId!,
+        controller: widget.controller,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     String statusLabel = "Completed";
@@ -870,7 +927,7 @@ class _TimesheetCardState extends State<_TimesheetCard> {
         border: Border.all(color: borderColor),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -881,7 +938,7 @@ class _TimesheetCardState extends State<_TimesheetCard> {
         children: [
           // Header
           Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 12.0),
             child: Row(
               children: [
                 CircleAvatar(
@@ -892,6 +949,7 @@ class _TimesheetCardState extends State<_TimesheetCard> {
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
+                      fontSize: 14,
                     ),
                   ),
                 ),
@@ -902,38 +960,44 @@ class _TimesheetCardState extends State<_TimesheetCard> {
                     children: [
                       Text(
                         widget.record.operatorName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 16,
+                          fontSize: 15,
                           fontWeight: FontWeight.bold,
                           color: textColor,
                         ),
                       ),
+                      const SizedBox(height: 2),
                       Text(
                         "OP-${widget.record.operatorCode}",
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(fontSize: 12, color: textSecondary),
                       ),
                     ],
                   ),
                 ),
+                const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10,
-                    vertical: 6,
+                    vertical: 5,
                   ),
                   decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.1),
+                    color: statusColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(IconlyLight.category, size: 8, color: statusColor),
+                      Icon(IconlyLight.category, size: 9, color: statusColor),
                       const SizedBox(width: 4),
                       Text(
                         statusLabel,
                         style: TextStyle(
                           color: statusColor,
-                          fontSize: 12,
+                          fontSize: 11,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -950,12 +1014,13 @@ class _TimesheetCardState extends State<_TimesheetCard> {
 
           // Body
           Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(14.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Row(
                       children: [
@@ -989,8 +1054,8 @@ class _TimesheetCardState extends State<_TimesheetCard> {
                               : "-",
                           style: TextStyle(
                             fontSize: widget.record.shiftHours.trim().isNotEmpty
-                                ? 16
-                                : 13,
+                                ? 15
+                                : 12,
                             fontWeight: FontWeight.bold,
                             color: widget.record.shiftHours.trim().isNotEmpty
                                 ? (isDark
@@ -1011,20 +1076,27 @@ class _TimesheetCardState extends State<_TimesheetCard> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 Text(
                   widget.record.projectName,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.bold,
                     color: textColor,
                   ),
                 ),
-                Text(
-                  "Project Code: ${widget.record.projectCode}",
-                  style: TextStyle(fontSize: 12, color: textSecondary),
-                ),
-                const SizedBox(height: 12),
+                if (widget.record.projectCode.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    "Project Code: ${widget.record.projectCode}",
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 12, color: textSecondary),
+                  ),
+                ],
+                const SizedBox(height: 10),
                 Row(
                   children: [
                     Icon(
@@ -1033,9 +1105,15 @@ class _TimesheetCardState extends State<_TimesheetCard> {
                       color: textSecondary,
                     ),
                     const SizedBox(width: 6),
-                    Text(
-                      "${widget.record.clockIn} - ${widget.record.clockOut}",
-                      style: TextStyle(fontSize: 13, color: textColor),
+                    Expanded(
+                      child: Text(
+                        widget.record.clockOut.trim().isNotEmpty
+                            ? "${widget.record.clockIn} - ${widget.record.clockOut}"
+                            : "${widget.record.clockIn} - Active",
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 13, color: textColor, fontWeight: FontWeight.w500),
+                      ),
                     ),
                   ],
                 ),
@@ -1104,7 +1182,7 @@ class _TimesheetCardState extends State<_TimesheetCard> {
                                   ),
                                 ),
                                 Text(
-                                  _endAddress.isNotEmpty ? _endAddress : "N/A",
+                                  _endAddress.isNotEmpty ? _endAddress : (widget.record.isOpenSession ? "Active Session" : "N/A"),
                                   style: TextStyle(
                                     fontSize: 11,
                                     color: textColor,
@@ -1124,59 +1202,578 @@ class _TimesheetCardState extends State<_TimesheetCard> {
             ),
           ),
 
-          if (widget.record.projectEntries.isNotEmpty) ...[
+          if (widget.record.isOpenSession || widget.record.projectEntries.isNotEmpty) ...[
             Divider(
               height: 1,
               color: isDark ? Colors.white12 : Colors.grey.shade100,
-              thickness: 2,
             ),
             Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16.0,
-                vertical: 12.0,
-              ),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton.icon(
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    backgroundColor:
-                        (isDark ? Colors.white : const Color(0xFF0D6EFD))
-                            .withValues(alpha: 0.1),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (ctx) => AttendanceLogsDialog(
-                        record: widget.record,
-                        entryStartAddresses: _entryStartAddresses,
-                        entryEndAddresses: _entryEndAddresses,
+              padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 10.0),
+              child: Row(
+                children: [
+                  if (widget.record.projectEntries.isNotEmpty)
+                    TextButton.icon(
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 9,
+                        ),
+                        backgroundColor:
+                            (isDark ? Colors.white : const Color(0xFF0D6EFD))
+                                .withValues(alpha: 0.1),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
-                    );
-                  },
-                  icon: Icon(
-                    IconlyLight.document,
-                    size: 16,
-                    color: isDark ? Colors.white : const Color(0xFF0D6EFD),
-                  ),
-                  label: Text(
-                    "View Log",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : const Color(0xFF0D6EFD),
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (ctx) => AttendanceLogsDialog(
+                            record: widget.record,
+                            entryStartAddresses: _entryStartAddresses,
+                            entryEndAddresses: _entryEndAddresses,
+                          ),
+                        );
+                      },
+                      icon: Icon(
+                        IconlyLight.document,
+                        size: 16,
+                        color: isDark ? Colors.white : const Color(0xFF0D6EFD),
+                      ),
+                      label: Text(
+                        "View Log",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          color: isDark ? Colors.white : const Color(0xFF0D6EFD),
+                        ),
+                      ),
                     ),
-                  ),
-                ),
+                  if (widget.record.isOpenSession && widget.record.projectEntries.isNotEmpty)
+                    const SizedBox(width: 10),
+                  if (widget.record.isOpenSession)
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.orange.shade700,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 9),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        onPressed: () => _showClockOutDialog(context),
+                        icon: const Icon(IconlyLight.time_circle, size: 16, color: Colors.white),
+                        label: const Text(
+                          "Clock Out Operative",
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.white),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+class SupervisorClockOutDialog extends StatefulWidget {
+  final TimesheetRecord record;
+  final int sessionId;
+  final TimesheetController controller;
+
+  const SupervisorClockOutDialog({
+    super.key,
+    required this.record,
+    required this.sessionId,
+    required this.controller,
+  });
+
+  @override
+  State<SupervisorClockOutDialog> createState() => _SupervisorClockOutDialogState();
+}
+
+class _SupervisorClockOutDialogState extends State<SupervisorClockOutDialog> {
+  final TextEditingController _workPerformedController = TextEditingController();
+  final TextEditingController _workLocationController = TextEditingController();
+  final TextEditingController _commentsController = TextEditingController();
+  final TextEditingController _signatureController = TextEditingController();
+
+  double? _acquiredLat;
+  double? _acquiredLon;
+  bool _isAcquiringLocation = false;
+  bool _isSubmitting = false;
+  String? _errorMessage;
+
+  @override
+  void dispose() {
+    _workPerformedController.dispose();
+    _workLocationController.dispose();
+    _commentsController.dispose();
+    _signatureController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _getCurrentLocation() async {
+    setState(() => _isAcquiringLocation = true);
+    try {
+      final enabled = await Geolocator.isLocationServiceEnabled();
+      if (!enabled) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Location services are disabled on your device.")),
+          );
+        }
+        return;
+      }
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Location permission is required to acquire current location.")),
+          );
+        }
+        return;
+      }
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 10),
+        ),
+      );
+      if (!mounted) return;
+      setState(() {
+        _acquiredLat = pos.latitude;
+        _acquiredLon = pos.longitude;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Location acquired: ${pos.latitude.toStringAsFixed(5)}, ${pos.longitude.toStringAsFixed(5)}"),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error acquiring location: $e")),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isAcquiringLocation = false);
+    }
+  }
+
+  Future<void> _handleSubmit() async {
+    final work = _workPerformedController.text.trim();
+    final sig = _signatureController.text.trim();
+
+    if (work.isEmpty) {
+      setState(() => _errorMessage = "Work Performed is required.");
+      return;
+    }
+    if (sig.isEmpty) {
+      setState(() => _errorMessage = "Text Signature is required.");
+      return;
+    }
+
+    setState(() {
+      _errorMessage = null;
+      _isSubmitting = true;
+    });
+
+    final res = await widget.controller.clockOutSession(
+      widget.sessionId,
+      workPerformed: work,
+      signatureText: sig,
+      workLocation: _workLocationController.text.trim(),
+      comments: _commentsController.text.trim(),
+      latitude: _acquiredLat,
+      longitude: _acquiredLon,
+    );
+
+    if (!mounted) return;
+    setState(() => _isSubmitting = false);
+
+    if (res['success'] == true) {
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(res['message'] ?? 'Operative clocked out successfully.'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } else {
+      setState(() {
+        _errorMessage = res['message'] ?? 'Failed to clock out operative.';
+      });
+    }
+  }
+
+  Widget _buildFieldLabel(String label, {bool isRequired = false}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final labelColor = isDark ? Colors.grey.shade400 : Colors.black87;
+    return RichText(
+      text: TextSpan(
+        text: label,
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.bold,
+          color: labelColor,
+        ),
+        children: [
+          if (isRequired)
+            const TextSpan(
+              text: ' *',
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTextField(
+    String label,
+    TextEditingController controller, {
+    int maxLines = 1,
+    String? hintText,
+    bool isRequired = false,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final boxBgColor = isDark ? const Color(0xFF1F2E40) : Colors.grey.shade50;
+    final borderColor = isDark ? Colors.white24 : Colors.grey.shade200;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final hintColor = isDark ? Colors.white38 : Colors.grey.shade500;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildFieldLabel(label, isRequired: isRequired),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller,
+          maxLines: maxLines,
+          style: TextStyle(color: textColor),
+          decoration: InputDecoration(
+            hintText: hintText,
+            hintStyle: TextStyle(color: hintColor, fontSize: 13),
+            filled: true,
+            fillColor: boxBgColor,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: borderColor),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: borderColor),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF0D6EFD)),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? AppTheme.darkSurface : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
+    final mediaQuery = MediaQuery.of(context);
+    final screenHeight = mediaQuery.size.height;
+    final keyboardHeight = mediaQuery.viewInsets.bottom;
+
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      elevation: 0,
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: 580,
+            maxHeight: screenHeight - keyboardHeight - 48,
+          ),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.1),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                )
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Icon(IconlyLight.time_circle, color: Colors.orange.shade700, size: 22),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              "Complete Daily Diary & Clock Out",
+                              style: TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.bold,
+                                color: textColor,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    InkWell(
+                      onTap: () => Navigator.of(context).pop(),
+                      borderRadius: BorderRadius.circular(20),
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.white24 : Colors.grey.shade100,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          IconlyLight.close_square,
+                          size: 18,
+                          color: isDark ? Colors.white : Colors.black54,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                // Info banner for Operative & Project
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1F2E40) : Colors.orange.shade50.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: isDark ? Colors.white12 : Colors.orange.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(IconlyLight.profile, color: Colors.orange.shade800, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          "${widget.record.operatorName}${widget.record.projectName.isNotEmpty ? " • ${widget.record.projectName}" : ""}",
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? Colors.white : Colors.orange.shade900,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+
+                if (_errorMessage != null) ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.red.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(IconlyLight.danger, color: Colors.red.shade700, size: 18),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _errorMessage!,
+                            style: TextStyle(color: Colors.red.shade900, fontSize: 13),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+
+                Flexible(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildTextField(
+                          "Work Performed",
+                          _workPerformedController,
+                          maxLines: 4,
+                          hintText: "Describe the work completed during this shift",
+                          isRequired: true,
+                        ),
+                        const SizedBox(height: 16),
+                        _buildTextField(
+                          "Work Location",
+                          _workLocationController,
+                          hintText: "e.g. Floor 2, Grid line A-C",
+                        ),
+                        const SizedBox(height: 16),
+                        _buildTextField(
+                          "Comments",
+                          _commentsController,
+                          maxLines: 3,
+                          hintText: "Additional notes or remarks",
+                        ),
+                        const SizedBox(height: 16),
+                        _buildTextField(
+                          "Text Signature",
+                          _signatureController,
+                          hintText: "Type the operative's signature name",
+                          isRequired: true,
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Location Button & Status
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                side: BorderSide(
+                                  color: _acquiredLat != null
+                                      ? Colors.green
+                                      : (isDark ? Colors.white24 : Colors.grey.shade300),
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              ),
+                              onPressed: _isAcquiringLocation ? null : _getCurrentLocation,
+                              icon: _isAcquiringLocation
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                    )
+                                  : Icon(
+                                      IconlyLight.location,
+                                      size: 16,
+                                      color: _acquiredLat != null
+                                          ? Colors.green
+                                          : (isDark ? Colors.white : Colors.black87),
+                                    ),
+                              label: Text(
+                                _acquiredLat != null
+                                    ? "Location: ${_acquiredLat!.toStringAsFixed(4)}, ${_acquiredLon!.toStringAsFixed(4)}"
+                                    : "Use Current Location",
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: _acquiredLat != null
+                                      ? Colors.green
+                                      : (isDark ? Colors.white : Colors.black87),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              _acquiredLat != null
+                                  ? "Current location added."
+                                  : "Current location is required for clock out.",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: _acquiredLat != null
+                                    ? Colors.green.shade700
+                                    : (isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Actions
+                SafeArea(
+                  top: false,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            side: BorderSide(
+                              color: isDark ? Colors.white24 : Colors.grey.shade300,
+                            ),
+                          ),
+                          onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(),
+                          child: Text(
+                            "Cancel",
+                            style: TextStyle(
+                              color: isDark ? Colors.white : Colors.black87,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        flex: 2,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            backgroundColor: Colors.orange.shade700,
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          onPressed: _isSubmitting ? null : _handleSubmit,
+                          child: _isSubmitting
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                )
+                              : const Text(
+                                  "Save Diary & Clock Out",
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

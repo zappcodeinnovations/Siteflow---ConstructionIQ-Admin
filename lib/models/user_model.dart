@@ -88,4 +88,18 @@ class User {
           'Euroside Construction Limited',
     );
   }
+
+  bool get isAdmin =>
+      effectiveRole.toLowerCase() == 'admin' ||
+      effectiveRole.toLowerCase() == 'administrator' ||
+      effectiveRole.toLowerCase() == 'superuser' ||
+      effectiveRole.toLowerCase() == 'superadmin';
+
+  bool get isManager => effectiveRole.toLowerCase() == 'manager';
+
+  bool get isSupervisor => effectiveRole.toLowerCase() == 'supervisor';
+
+  bool get isOperative =>
+      effectiveRole.toLowerCase() == 'operative' ||
+      effectiveRole.toLowerCase() == 'operator';
 }

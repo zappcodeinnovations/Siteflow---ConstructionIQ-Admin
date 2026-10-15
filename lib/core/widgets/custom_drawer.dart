@@ -13,6 +13,7 @@ class CustomDrawer extends StatefulWidget {
 
 class _CustomDrawerState extends State<CustomDrawer> {
   Set<String> _allowedMenus = {};
+  bool _isSupervisor = false;
   final ScrollController _menuScrollController = ScrollController();
 
   @override
@@ -57,8 +58,12 @@ class _CustomDrawerState extends State<CustomDrawer> {
     for (var i = 0; i < keys.length; i++) {
       if (values[i]) allowed.add(keys[i]);
     }
+    final isSupervisor = await AuthService.isSupervisorUser();
     if (mounted) {
-      setState(() => _allowedMenus = allowed);
+      setState(() {
+        _allowedMenus = allowed;
+        _isSupervisor = isSupervisor;
+      });
     }
   }
 
@@ -209,7 +214,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                     _buildDrawerItem(
                       context,
                       IconlyLight.edit,
-                      "Manager Diary",
+                      _isSupervisor ? "Supervisor Diary" : "Manager Diary",
                       '/managerDiary',
                       currentRoute,
                     ),
@@ -249,7 +254,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                     _buildDrawerItem(
                       context,
                       IconlyLight.user_1,
-                      "Authority Attendance",
+                      _isSupervisor ? "Supervisor Attendance" : "Authority Attendance",
                       '/managerAttendance',
                       currentRoute,
                     ),

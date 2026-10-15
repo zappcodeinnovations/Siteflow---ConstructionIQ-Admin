@@ -7,6 +7,8 @@ import '../../models/manager_diary_model.dart';
 import 'job_sheet_webview_screen.dart';
 import 'manager_diary_controller.dart';
 import 'manager_diary_select_screen.dart';
+import '../../core/services/auth_service.dart';
+import '../../core/services/auth_service.dart';
 
 /// Mirrors the web's Manager Diary list: sheets filled directly by
 /// managers/admins themselves, outside of any job, saved here for admin
@@ -21,10 +23,14 @@ class ManagerDiaryListScreen extends StatefulWidget {
 
 class _ManagerDiaryListScreenState extends State<ManagerDiaryListScreen> {
   final ManagerDiaryController _controller = ManagerDiaryController();
+  bool _isSupervisor = false;
 
   @override
   void initState() {
     super.initState();
+    AuthService.isSupervisorUser().then((val) {
+      if (mounted) setState(() => _isSupervisor = val);
+    });
     _controller.fetchEntries();
   }
 
@@ -74,7 +80,7 @@ class _ManagerDiaryListScreenState extends State<ManagerDiaryListScreen> {
         iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black87),
         backgroundColor: isDark ? AppTheme.darkSurface : Colors.white,
         title: Text(
-          "Manager Diary",
+          _isSupervisor ? "Supervisor Diary" : "Manager Diary",
           style: TextStyle(
             color: isDark ? Colors.white : const Color(0xFF0F2C4A),
             fontSize: 22,
@@ -123,10 +129,13 @@ class _ManagerDiaryListScreenState extends State<ManagerDiaryListScreen> {
                     _buildHeaderInfo(isDark, paginationText),
                     const SizedBox(height: 16),
                     if (_controller.entries.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.only(top: 48.0),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 48.0),
                         child: Center(
-                          child: Text("No Manager Diary entries yet.", style: TextStyle(color: Colors.grey)),
+                          child: Text(
+                            _isSupervisor ? "No Supervisor Diary entries yet." : "No Manager Diary entries yet.",
+                            style: const TextStyle(color: Colors.grey),
+                          ),
                         ),
                       )
                     else
@@ -167,7 +176,7 @@ class _ManagerDiaryListScreenState extends State<ManagerDiaryListScreen> {
         children: [
           Expanded(
             child: Text(
-              "Sheets filled directly by managers/admins, outside of any job. Saved here for admin review.",
+              _isSupervisor ? "Sheets filled directly by supervisors, outside of any job. Saved here for admin review." : "Sheets filled directly by managers/admins, outside of any job. Saved here for admin review.",
               style: TextStyle(fontSize: 12, color: textSecondary, height: 1.3),
             ),
           ),

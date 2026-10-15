@@ -6,6 +6,7 @@ import '../../core/network/api_endpoints.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/custom_date_picker_dialog.dart';
 import 'timesheet_controller.dart';
+import 'package:geolocator/geolocator.dart';
 
 class AddAttendanceDialog extends StatefulWidget {
   final TimesheetController controller;
@@ -20,7 +21,14 @@ class _AddAttendanceDialogState extends State<AddAttendanceDialog> {
   String? _selectedOperatorId;
   String? _selectedProjectId;
   String? _selectedJobId;
+  String? _selectedSiteContact;
   final List<String> _selectedTaskSheets = [];
+  Map<String, dynamic> _siteContactsByProject = {};
+  List<Map<String, dynamic>> _eligibleSiteContacts = [];
+  bool _clockInOnly = false;
+  double? _acquiredLat;
+  double? _acquiredLon;
+  bool _isAcquiringLocation = false;
 
   List<Map<String, dynamic>> _projectTasks = [];
   List<Map<String, dynamic>> _projectTaskSheets = [];
@@ -37,6 +45,8 @@ class _AddAttendanceDialogState extends State<AddAttendanceDialog> {
 
   final TextEditingController _notesController = TextEditingController();
   final TextEditingController _signatureController = TextEditingController();
+  final TextEditingController _newTaskReferenceController = TextEditingController();
+  final TextEditingController _instructionsController = TextEditingController();
 
   bool _isSubmitting = false;
 
@@ -61,9 +71,11 @@ class _AddAttendanceDialogState extends State<AddAttendanceDialog> {
             .whereType<Map>()
             .map((j) => j.cast<String, dynamic>())
             .toList();
+        final rawContacts = (decoded['data']?['site_contacts'] as Map? ?? {});
         if (mounted) {
           setState(() {
             _entryJobs = jobs;
+            _siteContactsByProject = rawContacts.cast<String, dynamic>();
             _entryJobsLoaded = true;
           });
         }
@@ -106,13 +118,73 @@ class _AddAttendanceDialogState extends State<AddAttendanceDialog> {
               'form_names': job['form_names'] ?? const [],
             })
         .toList();
+
+    final contactsList = (_siteContactsByProject[projectId] as List? ?? [])
+        .whereType<Map>()
+        .map((c) => c.cast<String, dynamic>())
+        .toList();
+
     setState(() {
       _selectedProjectId = projectId;
       _selectedJobId = null;
       _selectedTaskSheets.clear();
       _projectTasks = tasks;
       _projectTaskSheets = [];
+      _eligibleSiteContacts = contactsList;
+      _selectedSiteContact = contactsList.isNotEmpty ? contactsList.first['id']?.toString() : null;
     });
+  }
+
+  Future<void> _getCurrentLocation() async {
+    setState(() => _isAcquiringLocation = true);
+    try {
+      final enabled = await Geolocator.isLocationServiceEnabled();
+      if (!enabled) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Location services are disabled on your device.")),
+          );
+        }
+        return;
+      }
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Location permission is required to acquire current location.")),
+          );
+        }
+        return;
+      }
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 10),
+        ),
+      );
+      if (!mounted) return;
+      setState(() {
+        _acquiredLat = pos.latitude;
+        _acquiredLon = pos.longitude;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Location acquired: ${pos.latitude.toStringAsFixed(5)}, ${pos.longitude.toStringAsFixed(5)}"),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error acquiring location: $e")),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isAcquiringLocation = false);
+    }
   }
 
   void _selectJob(String? jobId) {
@@ -135,6 +207,8 @@ class _AddAttendanceDialogState extends State<AddAttendanceDialog> {
   void dispose() {
     _notesController.dispose();
     _signatureController.dispose();
+    _newTaskReferenceController.dispose();
+    _instructionsController.dispose();
     super.dispose();
   }
 
@@ -375,7 +449,7 @@ class _AddAttendanceDialogState extends State<AddAttendanceDialog> {
   }
 
   void _submit() async {
-    if (_selectedOperatorId == null || _clockIn == null || _clockOut == null) {
+    if (_selectedOperatorId == null || _clockIn == null || (!_clockInOnly && _clockOut == null)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Please fill all required fields.")),
       );
@@ -386,7 +460,7 @@ class _AddAttendanceDialogState extends State<AddAttendanceDialog> {
       _isSubmitting = true;
     });
 
-    final payload = {
+    final payload = <String, dynamic>{
       "operator": int.parse(_selectedOperatorId!),
       "project": _selectedProjectId != null
           ? int.tryParse(_selectedProjectId!)
@@ -394,10 +468,18 @@ class _AddAttendanceDialogState extends State<AddAttendanceDialog> {
       "job": _selectedJobId != null ? int.tryParse(_selectedJobId!) : null,
       if (_selectedTaskSheets.isNotEmpty) "task_sheets": _selectedTaskSheets,
       "clock_in": _clockIn!.toIso8601String().split('.').first,
-      "clock_out": _clockOut!.toIso8601String().split('.').first,
-      // No location sent: the backend falls back to the project's own
-      // location (as the web does). A hardcoded London coordinate used to be
-      // sent here, recording every manual entry at the wrong place.
+      if (!_clockInOnly && _clockOut != null)
+        "clock_out": _clockOut!.toIso8601String().split('.').first,
+      if (_acquiredLat != null && _acquiredLon != null) ...{
+        "location_latitude": _acquiredLat!.toStringAsFixed(7),
+        "location_longitude": _acquiredLon!.toStringAsFixed(7),
+      },
+      if (_selectedSiteContact != null && _selectedSiteContact!.isNotEmpty)
+        "site_contact": _selectedSiteContact,
+      if (_newTaskReferenceController.text.trim().isNotEmpty)
+        "new_task_reference": _newTaskReferenceController.text.trim(),
+      if (_instructionsController.text.trim().isNotEmpty)
+        "instructions": _instructionsController.text.trim(),
       "notes": _notesController.text,
       "signature_text": _signatureController.text,
     };
@@ -472,135 +554,214 @@ class _AddAttendanceDialogState extends State<AddAttendanceDialog> {
     final iconBgColor = isDark ? Colors.white24 : Colors.grey.shade100;
     final iconColor = isDark ? Colors.white : Colors.black54;
 
+    final mediaQuery = MediaQuery.of(context);
+    final screenWidth = mediaQuery.size.width;
+    final screenHeight = mediaQuery.size.height;
+    final keyboardHeight = mediaQuery.viewInsets.bottom;
+
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       elevation: 0,
       backgroundColor: Colors.transparent,
-      child: Container(
-        width: 600,
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 20,
-              offset: const Offset(0, 10),
-            )
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  "Add Attendance",
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: textColor,
-                  ),
-                ),
-                InkWell(
-                  onTap: () => Navigator.pop(context),
-                  borderRadius: BorderRadius.circular(20),
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: iconBgColor,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      IconlyLight.close_square,
-                      size: 18,
-                      color: iconColor,
-                    ),
-                  ),
-                ),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: 600,
+            maxHeight: screenHeight - keyboardHeight - 48,
+          ),
+          child: Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: screenWidth < 380 ? 16 : 24,
+              vertical: 20,
+            ),
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.1),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                )
               ],
             ),
-            const SizedBox(height: 24),
-            Flexible(
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isNarrow = constraints.maxWidth < 460;
+
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Operative & Project (Cascading)
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Expanded(
-                          child: _buildPremiumDropdown(
-                            labelWidget: _buildFieldLabel("Operative", isDoubleRequired: true),
-                            value: _selectedOperatorId,
-                            hintText: "Select an Operative",
-                            isEnabled: true,
-                            items: operators.map((o) {
-                              return DropdownMenuItem(
-                                value: o['id'].toString(),
-                                child: Text(
-                                  o['name'].toString(),
-                                  maxLines: 2,
-                                  softWrap: true,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              );
-                            }).toList(),
-                            onChanged: (val) {
-                              setState(() {
-                                _selectedOperatorId = val;
-                                _selectedProjectId = null;
-                                _selectedJobId = null;
-                                _selectedTaskSheets.clear();
-                                _projectTasks = [];
-                                _projectTaskSheets = [];
-                              });
-                            },
+                        Text(
+                          "Add Attendance",
+                          style: TextStyle(
+                            fontSize: screenWidth < 360 ? 18 : 20,
+                            fontWeight: FontWeight.bold,
+                            color: textColor,
                           ),
                         ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: _buildPremiumDropdown(
-                            labelWidget: _buildFieldLabel("Project"),
-                            value: _selectedProjectId,
-                            hintText: _selectedOperatorId == null
-                                ? "Select operative first"
-                                : projects.isEmpty
-                                    ? "No assigned projects"
-                                    : "Select option",
-                            isEnabled: _selectedOperatorId != null && projects.isNotEmpty,
-                            items: projects.map((p) {
-                              return DropdownMenuItem(
-                                value: p['id'].toString(),
-                                child: Text(
-                                  p['name'].toString(),
-                                  maxLines: 2,
-                                  softWrap: true,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              );
-                            }).toList(),
-                            onChanged: (val) {
-                              if (val == null) return;
-                              if (_entryJobsLoaded) {
-                                _selectProject(val);
-                              } else {
-                                setState(() => _selectedProjectId = val);
-                                _fetchProjectTasksAndSheets(val);
-                              }
-                            },
+                        InkWell(
+                          onTap: () => Navigator.pop(context),
+                          borderRadius: BorderRadius.circular(20),
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: iconBgColor,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              IconlyLight.close_square,
+                              size: 18,
+                              color: iconColor,
+                            ),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 20),
+                    Flexible(
+                      child: SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Operative & Project (Cascading)
+                            if (isNarrow) ...[
+                              _buildPremiumDropdown(
+                                labelWidget: _buildFieldLabel("Operative", isDoubleRequired: true),
+                                value: _selectedOperatorId,
+                                hintText: "Select an Operative",
+                                isEnabled: true,
+                                items: operators.map((o) {
+                                  return DropdownMenuItem(
+                                    value: o['id'].toString(),
+                                    child: Text(
+                                      o['name'].toString(),
+                                      maxLines: 2,
+                                      softWrap: true,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  );
+                                }).toList(),
+                                onChanged: (val) {
+                                  setState(() {
+                                    _selectedOperatorId = val;
+                                    _selectedProjectId = null;
+                                    _selectedJobId = null;
+                                    _selectedTaskSheets.clear();
+                                    _projectTasks = [];
+                                    _projectTaskSheets = [];
+                                  });
+                                },
+                              ),
+                              const SizedBox(height: 16),
+                              _buildPremiumDropdown(
+                                labelWidget: _buildFieldLabel("Project"),
+                                value: _selectedProjectId,
+                                hintText: _selectedOperatorId == null
+                                    ? "Select operative first"
+                                    : projects.isEmpty
+                                        ? "No assigned projects"
+                                        : "Select option",
+                                isEnabled: _selectedOperatorId != null && projects.isNotEmpty,
+                                items: projects.map((p) {
+                                  return DropdownMenuItem(
+                                    value: p['id'].toString(),
+                                    child: Text(
+                                      p['name'].toString(),
+                                      maxLines: 2,
+                                      softWrap: true,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  );
+                                }).toList(),
+                                onChanged: (val) {
+                                  if (val == null) return;
+                                  if (_entryJobsLoaded) {
+                                    _selectProject(val);
+                                  } else {
+                                    setState(() => _selectedProjectId = val);
+                                    _fetchProjectTasksAndSheets(val);
+                                  }
+                                },
+                              ),
+                            ] else ...[
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _buildPremiumDropdown(
+                                      labelWidget: _buildFieldLabel("Operative", isDoubleRequired: true),
+                                      value: _selectedOperatorId,
+                                      hintText: "Select an Operative",
+                                      isEnabled: true,
+                                      items: operators.map((o) {
+                                        return DropdownMenuItem(
+                                          value: o['id'].toString(),
+                                          child: Text(
+                                            o['name'].toString(),
+                                            maxLines: 2,
+                                            softWrap: true,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        );
+                                      }).toList(),
+                                      onChanged: (val) {
+                                        setState(() {
+                                          _selectedOperatorId = val;
+                                          _selectedProjectId = null;
+                                          _selectedJobId = null;
+                                          _selectedTaskSheets.clear();
+                                          _projectTasks = [];
+                                          _projectTaskSheets = [];
+                                        });
+                                      },
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: _buildPremiumDropdown(
+                                      labelWidget: _buildFieldLabel("Project"),
+                                      value: _selectedProjectId,
+                                      hintText: _selectedOperatorId == null
+                                          ? "Select operative first"
+                                          : projects.isEmpty
+                                              ? "No assigned projects"
+                                              : "Select option",
+                                      isEnabled: _selectedOperatorId != null && projects.isNotEmpty,
+                                      items: projects.map((p) {
+                                        return DropdownMenuItem(
+                                          value: p['id'].toString(),
+                                          child: Text(
+                                            p['name'].toString(),
+                                            maxLines: 2,
+                                            softWrap: true,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        );
+                                      }).toList(),
+                                      onChanged: (val) {
+                                        if (val == null) return;
+                                        if (_entryJobsLoaded) {
+                                          _selectProject(val);
+                                        } else {
+                                          setState(() => _selectedProjectId = val);
+                                          _fetchProjectTasksAndSheets(val);
+                                        }
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                            const SizedBox(height: 16),
 
-                    // Task Name (Job)
+                            // Existing Task Sheet (Job)
                     _buildPremiumDropdown(
-                      labelWidget: _buildFieldLabel("Task Name (Job)", isRequired: true),
+                      labelWidget: _buildFieldLabel("Existing Task Sheet"),
                       value: _selectedJobId,
                       hintText: _selectedProjectId == null
                           ? "Select project first"
@@ -640,30 +801,179 @@ class _AddAttendanceDialogState extends State<AddAttendanceDialog> {
                     ),
                     const SizedBox(height: 16),
 
+                    // Or Create Task Sheet
+                    _buildPremiumTextField(
+                      "Or Create Task Sheet",
+                      _newTaskReferenceController,
+                      hintText: "Task description / reference",
+                    ),
+                    const SizedBox(height: 16),
+
                     // Task Sheet Multi-Select
                     _buildTaskSheetsField(),
                     const SizedBox(height: 16),
 
-                    // Date & Time Fields
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildDateTimeField(
-                            labelWidget: _buildFieldLabel("Clocked in", isRequired: true),
-                            value: _clockIn,
-                            onTap: () => _selectDateTime(true),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: _buildDateTimeField(
-                            labelWidget: _buildFieldLabel("Clocked out", isRequired: true),
-                            value: _clockOut,
-                            onTap: () => _selectDateTime(false),
-                          ),
-                        ),
-                      ],
+                    // Site Contact Dropdown
+                    if (_selectedProjectId != null && _eligibleSiteContacts.isNotEmpty) ...[
+                      _buildPremiumDropdown(
+                        labelWidget: _buildFieldLabel("Site Contact"),
+                        value: _selectedSiteContact,
+                        hintText: "Select Site Contact",
+                        isEnabled: true,
+                        items: _eligibleSiteContacts.map((c) {
+                          final name = (c['name'] ?? 'Contact').toString();
+                          final role = (c['role_label'] ?? '').toString();
+                          final label = role.isNotEmpty ? "$name ($role)" : name;
+                          return DropdownMenuItem(
+                            value: c['id'].toString(),
+                            child: Text(
+                              label,
+                              maxLines: 2,
+                              softWrap: true,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          setState(() => _selectedSiteContact = val);
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+
+                    // Reference Details
+                    _buildPremiumTextField(
+                      "Reference Details",
+                      _instructionsController,
+                      hintText: "Instructions / reference notes",
                     ),
+                    const SizedBox(height: 16),
+
+                    // Daily Diary Notice
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: isDark ? AppTheme.darkSurface : Colors.blue.shade50.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: isDark ? Colors.white12 : Colors.blue.shade100),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(IconlyLight.document, color: Color(0xFF0D6EFD), size: 20),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "Daily Diary",
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                    color: textColor,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  "Daily Diary will open for completion at Clock Out.",
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: isDark ? Colors.grey.shade400 : Colors.blue.shade900,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Attendance Mode Toggle (Clock In Only vs Full Shift)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isDark ? AppTheme.darkSurface : Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "Clock In Only (Active Session)",
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                    color: textColor,
+                                  ),
+                                ),
+                                Text(
+                                  "Operative will remain clocked in until clocked out from timesheets.",
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Switch(
+                            value: _clockInOnly,
+                            activeColor: const Color(0xFF0D6EFD),
+                            onChanged: (val) {
+                              setState(() => _clockInOnly = val);
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Date & Time Fields
+                    if (_clockInOnly) ...[
+                      _buildDateTimeField(
+                        labelWidget: _buildFieldLabel("Clocked in", isRequired: true),
+                        value: _clockIn,
+                        onTap: () => _selectDateTime(true),
+                      ),
+                    ] else if (isNarrow) ...[
+                      _buildDateTimeField(
+                        labelWidget: _buildFieldLabel("Clocked in", isRequired: true),
+                        value: _clockIn,
+                        onTap: () => _selectDateTime(true),
+                      ),
+                      const SizedBox(height: 16),
+                      _buildDateTimeField(
+                        labelWidget: _buildFieldLabel("Clocked out", isRequired: true),
+                        value: _clockOut,
+                        onTap: () => _selectDateTime(false),
+                      ),
+                    ] else ...[
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildDateTimeField(
+                              labelWidget: _buildFieldLabel("Clocked in", isRequired: true),
+                              value: _clockIn,
+                              onTap: () => _selectDateTime(true),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: _buildDateTimeField(
+                              labelWidget: _buildFieldLabel("Clocked out", isRequired: true),
+                              value: _clockOut,
+                              onTap: () => _selectDateTime(false),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: 16),
 
                     // Location Action Button & Helper text
@@ -673,7 +983,7 @@ class _AddAttendanceDialogState extends State<AddAttendanceDialog> {
                         OutlinedButton.icon(
                           style: OutlinedButton.styleFrom(
                             side: BorderSide(
-                              color: isDark ? Colors.white24 : Colors.grey.shade300,
+                              color: _acquiredLat != null ? Colors.green : (isDark ? Colors.white24 : Colors.grey.shade300),
                             ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
@@ -683,22 +993,26 @@ class _AddAttendanceDialogState extends State<AddAttendanceDialog> {
                               vertical: 12,
                             ),
                           ),
-                          onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text("Current location acquired successfully."),
-                              ),
-                            );
-                          },
-                          icon: Icon(
-                            IconlyLight.location,
-                            size: 16,
-                            color: isDark ? Colors.white : Colors.black87,
-                          ),
+                          onPressed: _isAcquiringLocation ? null : _getCurrentLocation,
+                          icon: _isAcquiringLocation
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : Icon(
+                                  IconlyLight.location,
+                                  size: 16,
+                                  color: _acquiredLat != null ? Colors.green : (isDark ? Colors.white : Colors.black87),
+                                ),
                           label: Text(
-                            "Use Current Location",
+                            _acquiredLat != null
+                                ? "Location: ${_acquiredLat!.toStringAsFixed(4)}, ${_acquiredLon!.toStringAsFixed(4)}"
+                                : "Use Current Location",
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              color: isDark ? Colors.white : Colors.black87,
+                              color: _acquiredLat != null ? Colors.green : (isDark ? Colors.white : Colors.black87),
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -726,68 +1040,76 @@ class _AddAttendanceDialogState extends State<AddAttendanceDialog> {
             const SizedBox(height: 24),
 
             // Actions
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+            SafeArea(
+              top: false,
+              child: Row(
+                children: [
+                  Expanded(
+                    flex: 1,
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        side: BorderSide(
+                          color: isDark ? Colors.white24 : Colors.grey.shade300,
+                        ),
                       ),
-                      side: BorderSide(
-                        color: isDark ? Colors.white24 : Colors.grey.shade300,
-                      ),
-                    ),
-                    onPressed: () => Navigator.pop(context),
-                    child: Text(
-                      "Cancel",
-                      style: TextStyle(
-                        color: isDark ? Colors.white : Colors.black87,
-                        fontWeight: FontWeight.w600,
+                      onPressed: () => Navigator.pop(context),
+                      child: Text(
+                        "Cancel",
+                        style: TextStyle(
+                          color: isDark ? Colors.white : Colors.black87,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  flex: 2,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      backgroundColor: const Color(0xFF0D6EFD),
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: isNarrow ? 1 : 2,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        backgroundColor: const Color(0xFF0D6EFD),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
+                      onPressed: _isSubmitting ? null : _submit,
+                      child: _isSubmitting
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Text(
+                              "Add Entry",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
                     ),
-                    onPressed: _isSubmitting ? null : _submit,
-                    child: _isSubmitting
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : const Text(
-                            "Add Entry",
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
-        ),
-      ),
-    );
-  }
+        );
+      },
+    ),
+  ),
+),
+),
+);
+}
 
   Widget _buildTaskSheetsField() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -956,14 +1278,19 @@ class _AddAttendanceDialogState extends State<AddAttendanceDialog> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  value != null ? _formatDateTime(value) : 'dd-mm-yyyy hh:mm',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: value != null ? textColor : hintColor,
+                Expanded(
+                  child: Text(
+                    value != null ? _formatDateTime(value) : 'dd-mm-yyyy hh:mm',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: value != null ? textColor : hintColor,
+                    ),
                   ),
                 ),
+                const SizedBox(width: 8),
                 Icon(IconlyLight.calendar, size: 16, color: iconColor),
               ],
             ),
@@ -977,12 +1304,14 @@ class _AddAttendanceDialogState extends State<AddAttendanceDialog> {
     String label,
     TextEditingController controller, {
     int maxLines = 1,
+    String? hintText,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final boxBgColor = isDark ? const Color(0xFF1F2E40) : Colors.grey.shade50;
     final borderColor = isDark ? Colors.white24 : Colors.grey.shade200;
     final labelColor = isDark ? Colors.grey.shade400 : Colors.black87;
     final textColor = isDark ? Colors.white : Colors.black87;
+    final hintColor = isDark ? Colors.white38 : Colors.grey.shade500;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1001,6 +1330,8 @@ class _AddAttendanceDialogState extends State<AddAttendanceDialog> {
           maxLines: maxLines,
           style: TextStyle(color: textColor),
           decoration: InputDecoration(
+            hintText: hintText,
+            hintStyle: TextStyle(color: hintColor, fontSize: 13),
             filled: true,
             fillColor: boxBgColor,
             contentPadding: const EdgeInsets.symmetric(

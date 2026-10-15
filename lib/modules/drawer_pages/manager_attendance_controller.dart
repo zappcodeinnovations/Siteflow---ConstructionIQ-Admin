@@ -4,6 +4,8 @@ import '../../core/network/api_client.dart';
 import '../../core/network/api_endpoints.dart';
 import '../dashboard/dashboard_controller.dart';
 import '../../models/manager_attendance_model.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geolocator/geolocator.dart';
 
 class ManagerAttendanceController extends ChangeNotifier {
   bool _isLoading = false;
@@ -122,11 +124,51 @@ class ManagerAttendanceController extends ChangeNotifier {
 
   Future<Map<String, dynamic>> clockAction(String action) async {
     try {
+      double? lat;
+      double? lon;
+      try {
+        final enabled = await Geolocator.isLocationServiceEnabled();
+        if (!enabled) {
+          return {
+            "success": false,
+            "message": "Location services are disabled on your device. Please turn them on to clock attendance.",
+          };
+        }
+        var permission = await Geolocator.checkPermission();
+        if (permission == LocationPermission.denied) {
+          permission = await Geolocator.requestPermission();
+        }
+        if (permission == LocationPermission.denied ||
+            permission == LocationPermission.deniedForever) {
+          return {
+            "success": false,
+            "message": "Location permission is required to clock attendance. Please grant permission in your settings.",
+          };
+        }
+        final pos = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+            timeLimit: Duration(seconds: 10),
+          ),
+        );
+        lat = pos.latitude;
+        lon = pos.longitude;
+      } catch (locErr) {
+        debugPrint("Location error during clock: $locErr");
+      }
+
+      if (lat == null || lon == null) {
+        return {
+          "success": false,
+          "message": "Unable to acquire current location. Please verify GPS signal and try again.",
+        };
+      }
+
       final url = '${ApiEndpoints.baseUrl}/manager-attendance/clock/';
       final payload = {
         "action": action,
-        "latitude": "53.3498053", // Mocked Dublin
-        "longitude": "-6.2603097",
+        "latitude": lat.toStringAsFixed(7),
+        "longitude": lon.toStringAsFixed(7),
       };
 
       final response = await ApiClient.post(url, body: payload);

@@ -120,11 +120,60 @@ class TimesheetController extends ChangeNotifier {
           await fetchTimesheets();
           DashboardController.triggerGlobalRefresh();
           debugPrint("Add Attendance Response /timesheets/add/ : $decodedData");
-          return {"success": true, "message": decodedData['message'] ?? "Attendance added successfully."};
+          return {"success": true, "message": decodedData['message'] ?? "Attendance recorded successfully."};
         }
       }
       debugPrint("this is a response and error /timesheets/add/ ${response.body}");
-      return {"success": false, "message": decodedData['message'] ?? "Failed to add attendance."};
+      return {"success": false, "message": decodedData['message'] ?? "Failed to record attendance."};
+    } catch (e) {
+      return {"success": false, "message": "An error occurred: $e"};
+    }
+  }
+
+  Future<Map<String, dynamic>> clockOutSession(
+    int sessionId, {
+    String? workPerformed,
+    String? signatureText,
+    String? workLocation,
+    String? comments,
+    double? latitude,
+    double? longitude,
+    String? notes,
+    String? clockOut,
+  }) async {
+    try {
+      final url = '${ApiEndpoints.baseUrl}/timesheets/clock-out/$sessionId/';
+      final payload = <String, dynamic>{
+        if (workPerformed != null && workPerformed.trim().isNotEmpty)
+          'work_performed': workPerformed.trim(),
+        if (signatureText != null && signatureText.trim().isNotEmpty)
+          'signature_text': signatureText.trim(),
+        if (workLocation != null && workLocation.trim().isNotEmpty)
+          'work_location': workLocation.trim(),
+        if (comments != null && comments.trim().isNotEmpty)
+          'comments': comments.trim(),
+        if (latitude != null) 'location_latitude': latitude.toStringAsFixed(7),
+        if (longitude != null) 'location_longitude': longitude.toStringAsFixed(7),
+        if (notes != null && notes.trim().isNotEmpty) 'notes': notes.trim(),
+        if (clockOut != null && clockOut.trim().isNotEmpty) 'clock_out': clockOut.trim(),
+      };
+      final response = await ApiClient.post(url, body: payload);
+      final decodedData = jsonDecode(response.body);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        if (decodedData['status'] == true) {
+          await fetchTimesheets();
+          DashboardController.triggerGlobalRefresh();
+          return {
+            "success": true,
+            "message": decodedData['message'] ?? "Operative clocked out successfully.",
+          };
+        }
+      }
+      return {
+        "success": false,
+        "message": decodedData['message'] ?? "Failed to clock out operative.",
+      };
     } catch (e) {
       return {"success": false, "message": "An error occurred: $e"};
     }

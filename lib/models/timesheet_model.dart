@@ -38,6 +38,8 @@ class ProjectEntry {
   final String notes;
   final String device;
   final String flags;
+  final int? sessionId;
+  final bool isOpenSession;
 
   ProjectEntry({
     required this.projectName,
@@ -50,6 +52,8 @@ class ProjectEntry {
     required this.notes,
     this.device = '',
     this.flags = '',
+    this.sessionId,
+    this.isOpenSession = false,
   });
 
   static String _extractString(dynamic val) {
@@ -88,6 +92,11 @@ class ProjectEntry {
             json['attendance_flags'] ??
             json['status'],
       ),
+      sessionId: json['session_id'] is int
+          ? json['session_id'] as int
+          : int.tryParse(json['session_id']?.toString() ?? ''),
+      isOpenSession: json['is_open_session'] == true ||
+          (json['clock_out_time'] == null || json['clock_out_time'].toString().trim().isEmpty),
     );
   }
 }
@@ -106,6 +115,8 @@ class TimesheetRecord {
   final String attendanceState;
   final String device;
   final String flags;
+  final bool isOpenSession;
+  final int? activeSessionId;
   final List<ProjectEntry> projectEntries;
 
   TimesheetRecord({
@@ -122,6 +133,8 @@ class TimesheetRecord {
     required this.attendanceState,
     this.device = '',
     this.flags = '',
+    this.isOpenSession = false,
+    this.activeSessionId,
     required this.projectEntries,
   });
 
@@ -135,7 +148,29 @@ class TimesheetRecord {
 
   factory TimesheetRecord.fromJson(Map<String, dynamic> json) {
     var entriesList = json['project_entries'] as List? ?? [];
+    final parsedEntries = entriesList.map((i) => ProjectEntry.fromJson(i)).toList();
+    final isOpen = json['is_open_session'] == true ||
+        json['attendance_state'] == 'clocked_in' ||
+        (json['clock_in'] != null &&
+            json['clock_in'].toString().isNotEmpty &&
+            (json['clock_out'] == null || json['clock_out'].toString().isEmpty));
+
+    int? activeId = json['active_session_id'] is int
+        ? json['active_session_id'] as int
+        : int.tryParse(json['active_session_id']?.toString() ?? '');
+
+    if (activeId == null) {
+      for (final e in parsedEntries) {
+        if (e.isOpenSession && e.sessionId != null) {
+          activeId = e.sessionId;
+          break;
+        }
+      }
+    }
+
     return TimesheetRecord(
+      isOpenSession: isOpen,
+      activeSessionId: activeId,
       operatorName: _extractString(json['operator_name']),
       operatorCode: _extractString(json['operator_code']),
       projectName: _extractString(json['project_name']),
@@ -165,7 +200,7 @@ class TimesheetRecord {
             json['attendance_flags'] ??
             json['status'],
       ),
-      projectEntries: entriesList.map((i) => ProjectEntry.fromJson(i)).toList(),
+      projectEntries: parsedEntries,
     );
   }
 }
