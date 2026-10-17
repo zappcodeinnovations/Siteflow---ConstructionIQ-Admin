@@ -201,10 +201,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   compact: compact,
                   suffixIcon: IconButton(
                     visualDensity: VisualDensity.compact,
-                    tooltip: obscurePassword ? 'Show password' : 'Hide password',
-                    onPressed: () => setState(
-                      () => obscurePassword = !obscurePassword,
-                    ),
+                    tooltip: obscurePassword
+                        ? 'Show password'
+                        : 'Hide password',
+                    onPressed: () =>
+                        setState(() => obscurePassword = !obscurePassword),
                     icon: Icon(
                       obscurePassword
                           ? Icons.visibility_off_outlined
@@ -230,9 +231,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(3),
                       ),
-                      onChanged: (value) => setState(
-                        () => _rememberMe = value ?? false,
-                      ),
+                      onChanged: (value) =>
+                          setState(() => _rememberMe = value ?? false),
                     ),
                   ),
                   const SizedBox(width: 4),
@@ -267,13 +267,14 @@ class _LoginScreenState extends State<LoginScreen> {
                   width: double.infinity,
                   height: compact ? 42 : 46,
                   child: ElevatedButton(
-                    onPressed:
-                        _loginController.isLoading ? null : _handleLogin,
+                    onPressed: _loginController.isLoading ? null : _handleLogin,
                     style: ElevatedButton.styleFrom(
                       elevation: 1,
                       backgroundColor: _brandBlue,
                       foregroundColor: Colors.white,
-                      disabledBackgroundColor: _brandBlue.withValues(alpha: .65),
+                      disabledBackgroundColor: _brandBlue.withValues(
+                        alpha: .65,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -408,8 +409,11 @@ class _LoginScreenState extends State<LoginScreen> {
             final height = constraints.maxHeight;
             final width = constraints.maxWidth;
             final compact = height < 690 || width < 350;
-            final heroHeight = (height * (compact ? .37 : .40))
-                .clamp(compact ? 178.0 : 220.0, compact ? 235.0 : 310.0);
+            final isTablet = width >= 600;
+            final heroHeight = (height * (compact ? .37 : .40)).clamp(
+              compact ? 178.0 : 220.0,
+              compact ? 235.0 : 310.0,
+            );
             final cardTop = heroHeight - (compact ? 20 : 26);
             final horizontal = width >= 600 ? width * .20 : 16.0;
             final cardWidth = (width - (horizontal * 2)).clamp(0.0, 440.0);
@@ -528,14 +532,19 @@ class _LoginScreenState extends State<LoginScreen> {
                     bottom: height >= 620 ? 48 : 6,
                     child: Align(
                       alignment: Alignment.topCenter,
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.topCenter,
-                        child: SizedBox(
-                          width: cardWidth,
-                          child: _loginCard(compact: compact),
-                        ),
-                      ),
+                      child: isTablet
+                          ? SizedBox(
+                              width: cardWidth,
+                              child: _loginCard(compact: false),
+                            )
+                          : FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.topCenter,
+                              child: SizedBox(
+                                width: cardWidth,
+                                child: _loginCard(compact: compact),
+                              ),
+                            ),
                     ),
                   ),
                   if (height >= 620)
@@ -546,9 +555,15 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          _footerBadge(Icons.verified_user_outlined, 'SAFE SITES'),
+                          _footerBadge(
+                            Icons.verified_user_outlined,
+                            'SAFE SITES',
+                          ),
                           _footerBadge(Icons.groups_rounded, 'STRONGER PEOPLE'),
-                          _footerBadge(Icons.bar_chart_rounded, 'HIGHER STANDARDS'),
+                          _footerBadge(
+                            Icons.bar_chart_rounded,
+                            'HIGHER STANDARDS',
+                          ),
                         ],
                       ),
                     ),

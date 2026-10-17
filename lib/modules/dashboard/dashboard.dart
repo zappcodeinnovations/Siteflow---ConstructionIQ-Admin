@@ -211,227 +211,252 @@ class _DashboardScreenState extends State<DashboardScreen>
                         const SizedBox(height: 24),
 
                         // KPI GRID - 9 Standard Summary Cards bound directly to Backend API
-                        GridView(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                crossAxisSpacing: 16,
-                                mainAxisSpacing: 16,
-                                childAspectRatio: 1.3,
-                              ),
-                          children: isManagerRole
-                              ? [
-                                  // Mirrors contractor_dashboard.html's 6
-                                  // manager-stat-cards exactly.
-                                  ModernKpiCard(
-                                    title: "Total Projects",
-                                    value: "${kpis?.projects['total'] ?? 0}",
-                                    icon: IconlyLight.folder,
-                                    bgColor: const Color(0xff185EA5),
-                                    topAction: "",
-                                    onTap: widget.onProjectsTap,
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final isTablet = constraints.maxWidth >= 700;
+                            final columnCount = constraints.maxWidth >= 1100
+                                ? 4
+                                : isTablet
+                                ? 3
+                                : 2;
+                            return GridView(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              gridDelegate:
+                                  SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: columnCount,
+                                    crossAxisSpacing: 16,
+                                    mainAxisSpacing: 16,
+                                    childAspectRatio: isTablet ? 1.55 : 1.3,
                                   ),
-                                  ModernKpiCard(
-                                    title: "Active Projects",
-                                    value: "${kpis?.projects['active'] ?? 0}",
-                                    icon: IconlyLight.play,
-                                    bgColor: const Color(0xff16A34A),
-                                    topAction: "",
-                                    onTap: widget.onProjectsTap,
-                                  ),
-                                  ModernKpiCard(
-                                    title: "Completed Projects",
-                                    value:
-                                        "${kpis?.projects['completed'] ?? 0}",
-                                    icon: IconlyLight.tick_square,
-                                    bgColor: const Color(0xff6B7280),
-                                    topAction: "",
-                                    onTap: widget.onProjectsTap,
-                                  ),
-                                  ModernKpiCard(
-                                    title: "Clocked In Today",
-                                    value:
-                                        "${kpis?.attendance['clocked_in_today'] ?? 0}",
-                                    icon: IconlyLight.profile,
-                                    bgColor: const Color(0xff0891B2),
-                                    topAction: "Today",
-                                    onTap: _openOperativeAttendance,
-                                  ),
-                                  ModernKpiCard(
-                                    title: "Not Clocked In Today",
-                                    value:
-                                        "${kpis?.attendance['not_clocked_in'] ?? kpis?.attendance['not_clocked_in_today'] ?? 0}",
-                                    icon: IconlyLight.danger,
-                                    bgColor: const Color(0xffDC2626),
-                                    topAction: "View List",
-                                    onTap: _showAbsentOperatives,
-                                  ),
-                                  ModernKpiCard(
-                                    title: "Not Clocked Out",
-                                    value:
-                                        "${kpis?.attendance['not_clocked_out'] ?? 0}",
-                                    icon: IconlyLight.logout,
-                                    bgColor: const Color(0xffD97706),
-                                    topAction: "Action",
-                                    onTap: () =>
-                                        Navigator.pushNamed(
-                                          context,
-                                          '/managerAttendance',
-                                        ).then((_) {
-                                          if (mounted)
-                                            _dashboardController.fetchDashboard(
-                                              silent: true,
-                                            );
-                                        }),
-                                  ),
-                                ]
-                              : [
-                                  // 1. Active Projects
-                                  ModernKpiCard(
-                                    title: "Active Projects",
-                                    value:
-                                        "${kpis?.projects['active'] ?? kpis?.projects['active_projects'] ?? 0}",
-                                    icon: IconlyLight.category,
-                                    bgColor: const Color(0xff185EA5), // Blue
-                                    topAction: _getTrendFromMap(
-                                      kpis?.projects,
-                                      "-50%",
-                                    ),
-                                    onTap: widget.onProjectsTap,
-                                  ),
-                                  // 2. Completed Tasks
-                                  ModernKpiCard(
-                                    title: "Completed Tasks",
-                                    value:
-                                        "${kpis?.tasks['completed'] ?? kpis?.tasks['completed_tasks'] ?? 0}",
-                                    icon: IconlyLight.tick_square,
-                                    bgColor: const Color(0xff16A34A), // Green
-                                    topAction: _getTrendFromMap(
-                                      kpis?.tasks,
-                                      "+100%",
-                                      isCompleted: true,
-                                    ),
-                                    onTap: widget.onTasksTap,
-                                  ),
-                                  // 3. Pending Tasks
-                                  ModernKpiCard(
-                                    title: "Pending Tasks",
-                                    value:
-                                        "${kpis?.tasks['pending'] ?? kpis?.tasks['pending_tasks'] ?? kpis?.tasks['open'] ?? 0}",
-                                    icon: IconlyLight.time_circle,
-                                    bgColor: const Color(
-                                      0xffD97706,
-                                    ), // Yellowish/Orange
-                                    topAction: _getTrendFromMap(
-                                      kpis?.tasks,
-                                      "+100%",
-                                      isPending: true,
-                                    ),
-                                    onTap: widget.onTasksTap,
-                                  ),
-                                  // 4. Total Operatives
-                                  ModernKpiCard(
-                                    title: "Total Operatives",
-                                    value:
-                                        "${kpis?.users['operatives'] ?? kpis?.users['total_operatives'] ?? kpis?.users['operative'] ?? 0}",
-                                    icon: IconlyLight.user,
-                                    bgColor: const Color(
-                                      0xff0F2C59,
-                                    ), // Dark Navy Blue
-                                    topAction: "",
-                                    onTap: () =>
-                                        Navigator.pushNamed(
-                                          context,
-                                          '/timesheet',
-                                        ).then((_) {
-                                          if (mounted)
-                                            _dashboardController.fetchDashboard(
-                                              silent: true,
-                                            );
-                                        }),
-                                  ),
-                                  // 5. Total Managers
-                                  ModernKpiCard(
-                                    title: "Total Managers",
-                                    value:
-                                        "${kpis?.users['managers'] ?? kpis?.users['total_managers'] ?? kpis?.users['manager'] ?? 0}",
-                                    icon: IconlyLight.work,
-                                    bgColor: const Color(0xff16A34A), // Green
-                                    topAction: "",
-                                    onTap: () =>
-                                        Navigator.pushNamed(
-                                          context,
-                                          '/managerAttendance',
-                                        ).then((_) {
-                                          if (mounted)
-                                            _dashboardController.fetchDashboard(
-                                              silent: true,
-                                            );
-                                        }),
-                                  ),
-                                  // 6. Total Supervisors
-                                  ModernKpiCard(
-                                    title: "Total Supervisors",
-                                    value:
-                                        "${kpis?.users['supervisors'] ?? kpis?.users['total_supervisors'] ?? kpis?.users['supervisor'] ?? 0}",
-                                    icon: IconlyLight.shield_done,
-                                    bgColor: const Color(
-                                      0xffD97706,
-                                    ), // Mustard / Orange
-                                    topAction: "",
-                                    onTap: () =>
-                                        Navigator.pushNamed(
-                                          context,
-                                          '/managerAttendance',
-                                        ).then((_) {
-                                          if (mounted)
-                                            _dashboardController.fetchDashboard(
-                                              silent: true,
-                                            );
-                                        }),
-                                  ),
-                                  // 7. Clocked In Today
-                                  ModernKpiCard(
-                                    title: "Clocked In Today",
-                                    value:
-                                        "${kpis?.attendance['clocked_in_today'] ?? kpis?.attendance['clocked_in'] ?? 0}",
-                                    icon: IconlyLight.profile,
-                                    bgColor: const Color(0xff2563EB), // Blue
-                                    topAction: "Today",
-                                    onTap: _openOperativeAttendance,
-                                  ),
-                                  // 8. Clocked Out Pending
-                                  ModernKpiCard(
-                                    title: "Clocked Out Pending",
-                                    value:
-                                        "${kpis?.attendance['not_clocked_out'] ?? kpis?.attendance['clocked_out_pending'] ?? 0}",
-                                    icon: IconlyLight.logout,
-                                    bgColor: const Color(0xffDC2626), // Red
-                                    topAction: "Action",
-                                    onTap: () =>
-                                        Navigator.pushNamed(
-                                          context,
-                                          '/managerAttendance',
-                                        ).then((_) {
-                                          if (mounted)
-                                            _dashboardController.fetchDashboard(
-                                              silent: true,
-                                            );
-                                        }),
-                                  ),
-                                  // 9. Not Clocked In Today
-                                  ModernKpiCard(
-                                    title: "Not Clocked In Today",
-                                    value:
-                                        "${kpis?.attendance['not_clocked_in'] ?? kpis?.attendance['not_clocked_in_today'] ?? 0}",
-                                    icon: IconlyLight.danger,
-                                    bgColor: const Color(0xffDC2626), // Red
-                                    topAction: "View List",
-                                    onTap: _showAbsentOperatives,
-                                  ),
-                                ],
+                              children: isManagerRole
+                                  ? [
+                                      // Mirrors contractor_dashboard.html's 6
+                                      // manager-stat-cards exactly.
+                                      ModernKpiCard(
+                                        title: "Total Projects",
+                                        value:
+                                            "${kpis?.projects['total'] ?? 0}",
+                                        icon: IconlyLight.folder,
+                                        bgColor: const Color(0xff185EA5),
+                                        topAction: "",
+                                        onTap: widget.onProjectsTap,
+                                      ),
+                                      ModernKpiCard(
+                                        title: "Active Projects",
+                                        value:
+                                            "${kpis?.projects['active'] ?? 0}",
+                                        icon: IconlyLight.play,
+                                        bgColor: const Color(0xff16A34A),
+                                        topAction: "",
+                                        onTap: widget.onProjectsTap,
+                                      ),
+                                      ModernKpiCard(
+                                        title: "Completed Projects",
+                                        value:
+                                            "${kpis?.projects['completed'] ?? 0}",
+                                        icon: IconlyLight.tick_square,
+                                        bgColor: const Color(0xff6B7280),
+                                        topAction: "",
+                                        onTap: widget.onProjectsTap,
+                                      ),
+                                      ModernKpiCard(
+                                        title: "Clocked In Today",
+                                        value:
+                                            "${kpis?.attendance['clocked_in_today'] ?? 0}",
+                                        icon: IconlyLight.profile,
+                                        bgColor: const Color(0xff0891B2),
+                                        topAction: "Today",
+                                        onTap: _openOperativeAttendance,
+                                      ),
+                                      ModernKpiCard(
+                                        title: "Not Clocked In Today",
+                                        value:
+                                            "${kpis?.attendance['not_clocked_in'] ?? kpis?.attendance['not_clocked_in_today'] ?? 0}",
+                                        icon: IconlyLight.danger,
+                                        bgColor: const Color(0xffDC2626),
+                                        topAction: "View List",
+                                        onTap: _showAbsentOperatives,
+                                      ),
+                                      ModernKpiCard(
+                                        title: "Not Clocked Out",
+                                        value:
+                                            "${kpis?.attendance['not_clocked_out'] ?? 0}",
+                                        icon: IconlyLight.logout,
+                                        bgColor: const Color(0xffD97706),
+                                        topAction: "Action",
+                                        onTap: () =>
+                                            Navigator.pushNamed(
+                                              context,
+                                              '/managerAttendance',
+                                            ).then((_) {
+                                              if (mounted)
+                                                _dashboardController
+                                                    .fetchDashboard(
+                                                      silent: true,
+                                                    );
+                                            }),
+                                      ),
+                                    ]
+                                  : [
+                                      // 1. Active Projects
+                                      ModernKpiCard(
+                                        title: "Active Projects",
+                                        value:
+                                            "${kpis?.projects['active'] ?? kpis?.projects['active_projects'] ?? 0}",
+                                        icon: IconlyLight.category,
+                                        bgColor: const Color(
+                                          0xff185EA5,
+                                        ), // Blue
+                                        topAction: _getTrendFromMap(
+                                          kpis?.projects,
+                                          "-50%",
+                                        ),
+                                        onTap: widget.onProjectsTap,
+                                      ),
+                                      // 2. Completed Tasks
+                                      ModernKpiCard(
+                                        title: "Completed Tasks",
+                                        value:
+                                            "${kpis?.tasks['completed'] ?? kpis?.tasks['completed_tasks'] ?? 0}",
+                                        icon: IconlyLight.tick_square,
+                                        bgColor: const Color(
+                                          0xff16A34A,
+                                        ), // Green
+                                        topAction: _getTrendFromMap(
+                                          kpis?.tasks,
+                                          "+100%",
+                                          isCompleted: true,
+                                        ),
+                                        onTap: widget.onTasksTap,
+                                      ),
+                                      // 3. Pending Tasks
+                                      ModernKpiCard(
+                                        title: "Pending Tasks",
+                                        value:
+                                            "${kpis?.tasks['pending'] ?? kpis?.tasks['pending_tasks'] ?? kpis?.tasks['open'] ?? 0}",
+                                        icon: IconlyLight.time_circle,
+                                        bgColor: const Color(
+                                          0xffD97706,
+                                        ), // Yellowish/Orange
+                                        topAction: _getTrendFromMap(
+                                          kpis?.tasks,
+                                          "+100%",
+                                          isPending: true,
+                                        ),
+                                        onTap: widget.onTasksTap,
+                                      ),
+                                      // 4. Total Operatives
+                                      ModernKpiCard(
+                                        title: "Total Operatives",
+                                        value:
+                                            "${kpis?.users['operatives'] ?? kpis?.users['total_operatives'] ?? kpis?.users['operative'] ?? 0}",
+                                        icon: IconlyLight.user,
+                                        bgColor: const Color(
+                                          0xff0F2C59,
+                                        ), // Dark Navy Blue
+                                        topAction: "",
+                                        onTap: () =>
+                                            Navigator.pushNamed(
+                                              context,
+                                              '/timesheet',
+                                            ).then((_) {
+                                              if (mounted)
+                                                _dashboardController
+                                                    .fetchDashboard(
+                                                      silent: true,
+                                                    );
+                                            }),
+                                      ),
+                                      // 5. Total Managers
+                                      ModernKpiCard(
+                                        title: "Total Managers",
+                                        value:
+                                            "${kpis?.users['managers'] ?? kpis?.users['total_managers'] ?? kpis?.users['manager'] ?? 0}",
+                                        icon: IconlyLight.work,
+                                        bgColor: const Color(
+                                          0xff16A34A,
+                                        ), // Green
+                                        topAction: "",
+                                        onTap: () =>
+                                            Navigator.pushNamed(
+                                              context,
+                                              '/managerAttendance',
+                                            ).then((_) {
+                                              if (mounted)
+                                                _dashboardController
+                                                    .fetchDashboard(
+                                                      silent: true,
+                                                    );
+                                            }),
+                                      ),
+                                      // 6. Total Supervisors
+                                      ModernKpiCard(
+                                        title: "Total Supervisors",
+                                        value:
+                                            "${kpis?.users['supervisors'] ?? kpis?.users['total_supervisors'] ?? kpis?.users['supervisor'] ?? 0}",
+                                        icon: IconlyLight.shield_done,
+                                        bgColor: const Color(
+                                          0xffD97706,
+                                        ), // Mustard / Orange
+                                        topAction: "",
+                                        onTap: () =>
+                                            Navigator.pushNamed(
+                                              context,
+                                              '/managerAttendance',
+                                            ).then((_) {
+                                              if (mounted)
+                                                _dashboardController
+                                                    .fetchDashboard(
+                                                      silent: true,
+                                                    );
+                                            }),
+                                      ),
+                                      // 7. Clocked In Today
+                                      ModernKpiCard(
+                                        title: "Clocked In Today",
+                                        value:
+                                            "${kpis?.attendance['clocked_in_today'] ?? kpis?.attendance['clocked_in'] ?? 0}",
+                                        icon: IconlyLight.profile,
+                                        bgColor: const Color(
+                                          0xff2563EB,
+                                        ), // Blue
+                                        topAction: "Today",
+                                        onTap: _openOperativeAttendance,
+                                      ),
+                                      // 8. Clocked Out Pending
+                                      ModernKpiCard(
+                                        title: "Clocked Out Pending",
+                                        value:
+                                            "${kpis?.attendance['not_clocked_out'] ?? kpis?.attendance['clocked_out_pending'] ?? 0}",
+                                        icon: IconlyLight.logout,
+                                        bgColor: const Color(0xffDC2626), // Red
+                                        topAction: "Action",
+                                        onTap: () =>
+                                            Navigator.pushNamed(
+                                              context,
+                                              '/managerAttendance',
+                                            ).then((_) {
+                                              if (mounted)
+                                                _dashboardController
+                                                    .fetchDashboard(
+                                                      silent: true,
+                                                    );
+                                            }),
+                                      ),
+                                      // 9. Not Clocked In Today
+                                      ModernKpiCard(
+                                        title: "Not Clocked In Today",
+                                        value:
+                                            "${kpis?.attendance['not_clocked_in'] ?? kpis?.attendance['not_clocked_in_today'] ?? 0}",
+                                        icon: IconlyLight.danger,
+                                        bgColor: const Color(0xffDC2626), // Red
+                                        topAction: "View List",
+                                        onTap: _showAbsentOperatives,
+                                      ),
+                                    ],
+                            );
+                          },
                         ),
 
                         const SizedBox(height: 24),

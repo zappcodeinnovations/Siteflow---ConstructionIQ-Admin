@@ -2,6 +2,7 @@ import 'package:euroside_admin/modules/client/client_screen.dart';
 import 'package:euroside_admin/modules/dashboard/dashboard.dart';
 import 'package:euroside_admin/modules/tasks/task_screen.dart';
 import '../dashboard/dashboard_controller.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../projects/projects_screen.dart';
@@ -124,7 +125,11 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
     }
 
     final width = MediaQuery.of(context).size.width;
-    final isDesktop = width > 800;
+    // iPad must keep the drawer available: the compact NavigationRail only
+    // exposes the primary tabs and otherwise makes the remaining admin pages
+    // unreachable in landscape. Reserve the rail for actual desktop shells.
+    final isDesktop =
+        width >= 1200 && defaultTargetPlatform != TargetPlatform.iOS;
 
     return Scaffold(
       appBar: CustomAppBar(
@@ -145,9 +150,7 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
               } else {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (_) => const GlobalSearchScreen(),
-                  ),
+                  MaterialPageRoute(builder: (_) => const GlobalSearchScreen()),
                 );
               }
             },
