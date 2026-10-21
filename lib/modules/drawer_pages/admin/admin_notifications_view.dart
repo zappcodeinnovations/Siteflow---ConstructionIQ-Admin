@@ -7,6 +7,7 @@ import 'admin_notifications_controller.dart';
 import 'add_notification_dialog.dart';
 import 'notification_details_dialog.dart';
 import '../../../../core/services/auth_service.dart';
+import '../../../../core/services/notification_seen_service.dart';
 
 class AdminNotificationsView extends StatefulWidget {
   const AdminNotificationsView({super.key});
@@ -41,7 +42,16 @@ class _AdminNotificationsViewState extends State<AdminNotificationsView> {
       _canCreate = access[0];
       _canDelete = access[1];
     });
+    await _fetchAllAndMarkSeen();
+  }
+
+  /// Loads the unfiltered list; viewing it marks those notifications as
+  /// seen so the bell badge clears.
+  Future<void> _fetchAllAndMarkSeen() async {
     await _controller.fetchNotifications();
+    if (_controller.errorMessage == null) {
+      await NotificationSeenService.markSeen(_controller.notifications);
+    }
   }
 
   @override
@@ -64,7 +74,7 @@ class _AdminNotificationsViewState extends State<AdminNotificationsView> {
       _searchController.clear();
       _selectedAudience = "all_notifications";
     });
-    await _controller.fetchNotifications();
+    await _fetchAllAndMarkSeen();
   }
 
   void _showAddDialog() {
@@ -600,8 +610,27 @@ class _AdminNotificationsViewState extends State<AdminNotificationsView> {
                       )
                     : ListView.builder(
                         padding: const EdgeInsets.all(16),
-                        itemCount: filtered.length,
+                        // One extra row at the end loads the next page.
+                        itemCount:
+                            filtered.length + (_controller.hasMore ? 1 : 0),
                         itemBuilder: (context, index) {
+                          if (index >= filtered.length) {
+                            WidgetsBinding.instance.addPostFrameCallback(
+                              (_) => _controller.loadMore(),
+                            );
+                            return const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 16),
+                              child: Center(
+                                child: SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                              ),
+                            );
+                          }
                           return _buildNotificationCard(
                             filtered[index],
                             cardColor: cardColor,

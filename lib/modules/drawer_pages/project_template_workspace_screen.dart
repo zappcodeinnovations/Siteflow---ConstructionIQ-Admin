@@ -6,6 +6,7 @@ import '../../models/library_template_model.dart';
 import 'project_template_workspace_controller.dart';
 import 'job_sheet_webview_screen.dart';
 import '../../core/network/api_endpoints.dart';
+import '../../core/widgets/app_back_button.dart';
 
 class ProjectTemplateWorkspaceScreen extends StatefulWidget {
   final LibraryTemplateModel template;
@@ -68,24 +69,7 @@ class _ProjectTemplateWorkspaceScreenState extends State<ProjectTemplateWorkspac
           "Project Template: ${_controller.templateName}",
           style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 17),
         ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          tooltip: "Back to Templates",
-          onPressed: () => Navigator.pop(context),
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: TextButton.icon(
-              onPressed: () => Navigator.pop(context),
-              icon: const Icon(Icons.arrow_back, size: 16, color: Color(0xFF0F62FE)),
-              label: const Text(
-                "Back to Templates",
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Color(0xFF0F62FE)),
-              ),
-            ),
-          ),
-        ],
+        leading: const AppBackButton(),
       ),
       body: Stack(
         children: [

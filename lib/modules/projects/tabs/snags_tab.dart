@@ -10,6 +10,7 @@ import '../../../models/admin_member_model.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
 import '../project_issues_controller.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class SnagsTab extends StatefulWidget {
   final int projectId;
@@ -1265,8 +1266,12 @@ class _SnagDetailsDialog extends StatelessWidget {
                   children: snag.photoUrls.map((url) {
                     return ClipRRect(
                       borderRadius: BorderRadius.circular(8),
-                      child: Image.network(
-                        url,
+                      child: Image(
+                        image: ResizeImage.resizeIfNeeded(
+                          240,
+                          null,
+                          CachedNetworkImageProvider(url),
+                        ),
                         width: 70,
                         height: 70,
                         fit: BoxFit.cover,

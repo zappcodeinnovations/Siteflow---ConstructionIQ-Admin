@@ -7,7 +7,6 @@ import '../../models/manager_diary_model.dart';
 import 'job_sheet_webview_screen.dart';
 import 'manager_diary_controller.dart';
 import 'manager_diary_select_screen.dart';
-import '../../core/services/auth_service.dart';
 import '../../core/services/auth_service.dart';
 
 /// Mirrors the web's Manager Diary list: sheets filled directly by

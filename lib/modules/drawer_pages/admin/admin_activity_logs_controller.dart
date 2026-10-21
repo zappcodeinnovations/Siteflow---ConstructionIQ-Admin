@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/api_endpoints.dart';
+import '../../../../core/services/auth_service.dart';
 import '../../../../core/services/download_manager.dart';
 import '../../../../models/admin_activity_log_model.dart';
 
@@ -66,15 +67,22 @@ class AdminActivityLogsController extends ChangeNotifier {
   String? toDate;
   String searchQuery = "";
 
+  /// Manager/supervisor login: the backend returns only the operatives in
+  /// the teams they lead, and the person filter lists those operatives.
+  bool operativeScope = false;
+
   Future<void> initializeData() async {
     _isLoading = true;
     _errorMessage = null;
     _notifySafely();
 
+    operativeScope = await AuthService.canViewOperativeLogs();
     await Future.wait([
       fetchKPIs(),
       fetchFilterOptions(),
-      fetchManagers(),
+      // The members directory is admin-only; operatives come from the
+      // filter-options endpoint instead.
+      if (!operativeScope) fetchManagers(),
       fetchLogs(isInitial: true),
     ]);
   }

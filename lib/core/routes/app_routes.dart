@@ -3,6 +3,7 @@ import 'package:euroside_admin/modules/auth/login_screen.dart';
 import 'package:euroside_admin/modules/auth/forgot_password_screen.dart';
 import 'package:euroside_admin/modules/auth/registration_screen.dart';
 import 'package:euroside_admin/modules/drawer_pages/admin_screen.dart';
+import 'package:euroside_admin/modules/drawer_pages/operative_logs_screen.dart';
 import 'package:euroside_admin/modules/drawer_pages/job_sheet_screen.dart';
 import 'package:euroside_admin/modules/drawer_pages/library_screen.dart';
 import 'package:euroside_admin/modules/drawer_pages/productivity_screen.dart';
@@ -93,5 +94,6 @@ class AppRoutes {
     '/settings': (context) =>
         const PermissionGate(menuKey: 'settings', child: SettingsScreen()),
     '/admin': (context) => const AdminScreen(),
+    '/operativeLogs': (context) => const OperativeLogsScreen(),
   };
 }

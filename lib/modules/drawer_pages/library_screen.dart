@@ -15,6 +15,7 @@ import 'project_template_workspace_screen.dart';
 import 'dart:convert';
 import '../../core/network/api_client.dart';
 import '../../core/network/api_endpoints.dart';
+import '../../core/widgets/app_back_button.dart';
 
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
@@ -61,6 +62,8 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
     return Scaffold(
       backgroundColor: background,
       appBar: AppBar(
+        leading: const AppNavLeading(),
+        leadingWidth: AppNavigation.backAndMenuLeadingWidth,
         title: const Text('Library', style: TextStyle(fontWeight: FontWeight.w700)),
         bottom: TabBar(
           controller: _tabController,

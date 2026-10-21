@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
 import '../create_task_controller.dart';
 import '../../../models/job_create_setup_model.dart';
-import '../../../models/project_model.dart';
 
 class CreateTaskDialog extends StatefulWidget {
   final int? projectId;

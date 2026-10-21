@@ -3,6 +3,7 @@ import 'admin_activity_logs_controller.dart';
 import 'activity_log_details_view.dart';
 import '../../../core/widgets/custom_date_picker_dialog.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/services/auth_service.dart';
 import 'package:iconly/iconly.dart';
 
 class AdminActivityLogsView extends StatefulWidget {
@@ -26,9 +27,15 @@ class _AdminActivityLogsViewState extends State<AdminActivityLogsView> {
 
   bool _isFilterExpanded = true;
 
+  /// Manager/supervisor login: "Operative Logs" wording and filters.
+  bool _operativeScope = false;
+
   @override
   void initState() {
     super.initState();
+    AuthService.canViewOperativeLogs().then((value) {
+      if (mounted) setState(() => _operativeScope = value);
+    });
     _controller.initializeData();
   }
 
@@ -204,7 +211,7 @@ class _AdminActivityLogsViewState extends State<AdminActivityLogsView> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              "Activity Logs",
+                              _operativeScope ? "Operative Logs" : "Activity Logs",
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
@@ -215,7 +222,9 @@ class _AdminActivityLogsViewState extends State<AdminActivityLogsView> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          "See who changed what, when, and from where.",
+                          _operativeScope
+                              ? "Activity of the operatives in the teams you lead."
+                              : "See who changed what, when, and from where.",
                           style: TextStyle(
                             color: subtitleColor,
                             fontSize: 11,
@@ -245,7 +254,7 @@ class _AdminActivityLogsViewState extends State<AdminActivityLogsView> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                "Activity Logs",
+                                _operativeScope ? "Operative Logs" : "Activity Logs",
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
@@ -254,7 +263,9 @@ class _AdminActivityLogsViewState extends State<AdminActivityLogsView> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                "See who changed what, when, and from where.",
+                                _operativeScope
+                              ? "Activity of the operatives in the teams you lead."
+                              : "See who changed what, when, and from where.",
                                 style: TextStyle(
                                   color: subtitleColor,
                                   fontSize: 12,
@@ -288,7 +299,7 @@ class _AdminActivityLogsViewState extends State<AdminActivityLogsView> {
                           children: [
                             Expanded(
                               child: _buildKpiCard(
-                                "TOTAL MANAGERS",
+                                _operativeScope ? "TOTAL OPERATIVES" : "TOTAL MANAGERS",
                                 kpi?.totalManagers.toString() ?? "0",
                                 cardColor: cardColor,
                                 borderColor: borderColor,
@@ -299,7 +310,7 @@ class _AdminActivityLogsViewState extends State<AdminActivityLogsView> {
                             const SizedBox(width: 12),
                             Expanded(
                               child: _buildKpiCard(
-                                "ACTIVE MANAGERS",
+                                _operativeScope ? "ACTIVE OPERATIVES" : "ACTIVE MANAGERS",
                                 kpi?.activeManagers.toString() ?? "0",
                                 cardColor: cardColor,
                                 borderColor: borderColor,
@@ -360,7 +371,7 @@ class _AdminActivityLogsViewState extends State<AdminActivityLogsView> {
                     children: [
                       Expanded(
                         child: _buildKpiCard(
-                          "TOTAL MANAGERS",
+                          _operativeScope ? "TOTAL OPERATIVES" : "TOTAL MANAGERS",
                           kpi?.totalManagers.toString() ?? "0",
                           cardColor: cardColor,
                           borderColor: borderColor,
@@ -371,7 +382,7 @@ class _AdminActivityLogsViewState extends State<AdminActivityLogsView> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: _buildKpiCard(
-                          "ACTIVE MANAGERS",
+                          _operativeScope ? "ACTIVE OPERATIVES" : "ACTIVE MANAGERS",
                           kpi?.activeManagers.toString() ?? "0",
                           cardColor: cardColor,
                           borderColor: borderColor,
@@ -492,12 +503,16 @@ class _AdminActivityLogsViewState extends State<AdminActivityLogsView> {
                             children: [
                               _buildModernDropdown(
                                 width: isMobile ? double.infinity : 180,
-                                hint: "All managers",
+                                hint: _operativeScope ? "All operatives" : "All managers",
                                 value: _selectedManager,
                                 items: [
-                                  const DropdownMenuItem<String>(
+                                  DropdownMenuItem<String>(
                                     value: "",
-                                    child: Text("All managers"),
+                                    child: Text(
+                                      _operativeScope
+                                          ? "All operatives"
+                                          : "All managers",
+                                    ),
                                   ),
                                   ..._controller.availableManagers.map(
                                     (u) {
@@ -539,15 +554,22 @@ class _AdminActivityLogsViewState extends State<AdminActivityLogsView> {
                                 // backend, so any other role here would
                                 // always return zero results - matches
                                 // web, which only offers "Manager" too.
-                                items: const [
-                                  DropdownMenuItem<String>(
+                                // Operative Logs (manager/supervisor login)
+                                // are operative-only for the same reason.
+                                items: [
+                                  const DropdownMenuItem<String>(
                                     value: "",
                                     child: Text("All roles"),
                                   ),
-                                  DropdownMenuItem<String>(
-                                    value: "manager",
-                                    child: Text("Manager"),
-                                  ),
+                                  _operativeScope
+                                      ? const DropdownMenuItem<String>(
+                                          value: "operative",
+                                          child: Text("Operative"),
+                                        )
+                                      : const DropdownMenuItem<String>(
+                                          value: "manager",
+                                          child: Text("Manager"),
+                                        ),
                                 ],
                                 onChanged: (val) => setState(() =>
                                     _selectedRole = (val != null && val.isNotEmpty)

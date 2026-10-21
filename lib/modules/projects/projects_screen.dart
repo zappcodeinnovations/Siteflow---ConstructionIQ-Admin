@@ -10,6 +10,8 @@ import '../../core/theme/app_theme.dart';
 import '../../core/widgets/background_stripes_painter.dart';
 import '../../models/client_model.dart';
 import '../../core/services/download_manager.dart';
+import '../../core/services/auth_service.dart';
+import '../../core/widgets/shimmer_loading.dart';
 
 class ProjectsScreen extends StatefulWidget {
   final Client? filterClient;
@@ -25,6 +27,7 @@ class ProjectsScreenState extends State<ProjectsScreen> {
   final ScrollController _verticalScrollController = ScrollController();
   final ScrollController _horizontalScrollController = ScrollController();
   bool _isSearchVisible = false;
+  bool _canCreateProject = false;
 
   void toggleSearch() {
     setState(() {
@@ -39,9 +42,12 @@ class ProjectsScreenState extends State<ProjectsScreen> {
   void initState() {
     super.initState();
     _selectedClient = widget.filterClient;
+    AuthService.canCreateProject().then((allowed) {
+      if (mounted) setState(() => _canCreateProject = allowed);
+    });
     _verticalScrollController.addListener(_loadMoreProjectsWhenNeeded);
     _controller.fetchAvailableClients();
-    _controller.fetchProjects().then((_) {
+    _controller.fetchProjects(useCache: widget.filterClient == null).then((_) {
       if (widget.filterClient != null) {
         _controller.filterByClient(widget.filterClient!);
       }
@@ -655,32 +661,33 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                               ),
                               tooltip: "Export as CSV",
                             ),
-                            ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF0D6EFD),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 20,
-                                  vertical: 14,
+                            if (_canCreateProject)
+                              ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF0D6EFD),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 20,
+                                    vertical: 14,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
                                 ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                              ),
-                              onPressed: _showCreateProjectDialog,
-                              icon: const Icon(
-                                IconlyLight.plus,
-                                color: Colors.white,
-                                size: 18,
-                              ),
-                              label: const Text(
-                                "Create Project",
-                                style: TextStyle(
-                                  fontSize: 12,
+                                onPressed: _showCreateProjectDialog,
+                                icon: const Icon(
+                                  IconlyLight.plus,
                                   color: Colors.white,
-                                  fontWeight: FontWeight.w600,
+                                  size: 18,
+                                ),
+                                label: const Text(
+                                  "Create Project",
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                               ),
-                            ),
                           ],
                         ),
                         const SizedBox(height: 16),
@@ -1053,12 +1060,7 @@ class ProjectsScreenState extends State<ProjectsScreen> {
       animation: _controller,
       builder: (context, child) {
         if (_controller.isLoading && _controller.filteredProjects.isEmpty) {
-          return const Center(
-            child: Padding(
-              padding: EdgeInsets.all(48.0),
-              child: CircularProgressIndicator(),
-            ),
-          );
+          return const ShimmerLoadingList(itemCount: 4, itemHeight: 150);
         }
 
         if (_controller.errorMessage != null &&

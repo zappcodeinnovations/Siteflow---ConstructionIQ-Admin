@@ -2,10 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/date_helper.dart';
+import '../../core/services/auth_service.dart';
+import '../../core/widgets/app_back_button.dart';
 import 'profile_controller.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+  /// False when embedded inside another screen that already has its own
+  /// navigation bar (avoids a duplicate back button).
+  final bool showBackButton;
+
+  const ProfileScreen({super.key, this.showBackButton = true});
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -13,11 +20,27 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final ProfileController _controller = ProfileController();
+  String _sessionRoleName = 'Admin';
 
   @override
   void initState() {
     super.initState();
     _controller.fetchProfile();
+    AuthService.getRoleDisplayName().then((name) {
+      if (mounted) setState(() => _sessionRoleName = name);
+    });
+  }
+
+  /// Role shown on the profile: the backend label first, then the raw role,
+  /// then the role of the current login (never a hard-coded "Super Admin").
+  String _roleText(String? roleLabel, String effectiveRole) {
+    final label = roleLabel?.trim() ?? '';
+    if (label.isNotEmpty) return label;
+    final role = effectiveRole.trim();
+    if (role.isNotEmpty) {
+      return role[0].toUpperCase() + role.substring(1).toLowerCase();
+    }
+    return _sessionRoleName;
   }
 
   @override
@@ -703,26 +726,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final textColor = isDark ? Colors.white : Colors.black87;
         final subtitleColor = isDark ? Colors.white70 : Colors.grey.shade600;
 
+        // Loading / error states keep a navigation bar so the user can
+        // always go back.
+        Widget withNavBar(Widget body) => widget.showBackButton
+            ? Scaffold(appBar: AppBar(title: const Text('Profile')), body: body)
+            : body;
+
         if (_controller.isLoading) {
-          return const Center(
-            child: Padding(
-              padding: EdgeInsets.all(48.0),
-              child: CircularProgressIndicator(),
+          return withNavBar(
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(48.0),
+                child: CircularProgressIndicator(),
+              ),
             ),
           );
         }
         if (_controller.errorMessage != null && _controller.profile == null) {
-          return Center(
-            child: Text(
-              _controller.errorMessage!,
-              style: const TextStyle(color: Colors.red),
+          return withNavBar(
+            Center(
+              child: Text(
+                _controller.errorMessage!,
+                style: const TextStyle(color: Colors.red),
+              ),
             ),
           );
         }
 
         final user = _controller.profile;
         if (user == null) {
-          return const Center(child: Text("No profile data found."));
+          return withNavBar(
+            const Center(child: Text("No profile data found.")),
+          );
         }
 
         final displayName = user.firstName != null && user.lastName != null
@@ -758,6 +793,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ),
                     ),
+                    if (widget.showBackButton)
+                      const Positioned(
+                        top: 0,
+                        left: 4,
+                        child: SafeArea(
+                          bottom: false,
+                          child: AppBackButton(color: Colors.white),
+                        ),
+                      ),
                     Positioned(
                       bottom: -40,
                       child: Stack(
@@ -771,7 +815,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               radius: 40,
                               backgroundColor: Colors.grey.shade200,
                               backgroundImage: user.profileImageUrl != null
-                                  ? NetworkImage(user.profileImageUrl!)
+                                  ? CachedNetworkImageProvider(user.profileImageUrl!)
                                   : null,
                               child: user.profileImageUrl == null
                                   ? Text(
@@ -838,11 +882,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ),
                   child: Text(
-                    user.roleLabel?.isNotEmpty == true
-                        ? user.roleLabel!
-                        : (user.effectiveRole.isNotEmpty
-                              ? user.effectiveRole.toUpperCase()
-                              : "SUPER ADMIN"),
+                    _roleText(
+                      user.roleLabel,
+                      user.effectiveRole,
+                    ).toUpperCase(),
                     style: const TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
@@ -979,12 +1022,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     user.companyName?.isNotEmpty == true
                                     ? user.companyName!
                                     : "Euroside Construction Limited";
-                                final roleType =
-                                    user.roleLabel?.isNotEmpty == true
-                                    ? user.roleLabel!
-                                    : (user.effectiveRole.isNotEmpty
-                                          ? user.effectiveRole
-                                          : "Super Admin");
+                                final roleType = _roleText(
+                                  user.roleLabel,
+                                  user.effectiveRole,
+                                );
                                 final accountStatus = user.isActive
                                     ? "Active"
                                     : "Inactive";
@@ -1385,7 +1426,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             _buildActivityItem(
                               IconlyLight.login,
                               "Last login",
-                              "Authenticated session via Admin portal",
+                              "Authenticated session via $_sessionRoleName portal",
                               DateHelper.formatToLocal(user.lastLogin),
                               Colors.teal,
                             ),

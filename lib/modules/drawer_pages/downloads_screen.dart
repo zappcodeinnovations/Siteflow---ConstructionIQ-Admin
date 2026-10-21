@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../core/services/download_manager.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/custom_drawer.dart';
+import '../../core/widgets/app_back_button.dart';
 
 class DownloadsScreen extends StatefulWidget {
   const DownloadsScreen({super.key});
@@ -82,7 +83,10 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
     return Scaffold(
       backgroundColor: dark ? AppTheme.darkBackground : const Color(0xFFF8FAFC),
       drawer: const CustomDrawer(),
-      appBar: AppBar(title: const Text('View Downloads')),
+      appBar: AppBar(
+        leading: const AppNavLeading(),
+        leadingWidth: AppNavigation.backAndMenuLeadingWidth,
+        title: const Text('View Downloads')),
       body: AnimatedBuilder(
         animation: _manager,
         builder: (context, _) {

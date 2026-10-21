@@ -4,6 +4,7 @@ import 'package:iconly/iconly.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
 import '../../../core/theme/app_theme.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 /// Tap-to-place pin viewer for a single drawing, backed by the real
 /// DrawingLocationsAPIView/DrawingLocationCreateAPIView/
@@ -41,7 +42,7 @@ class _DrawingPinViewerScreenState extends State<DrawingPinViewerScreen> {
   void _resolveAspectRatio(String url) {
     if (_aspectRatios.containsKey(url)) return;
     _aspectRatios[url] = 0; // in flight
-    final stream = NetworkImage(url).resolve(const ImageConfiguration());
+    final stream = CachedNetworkImageProvider(url).resolve(const ImageConfiguration());
     late final ImageStreamListener listener;
     listener = ImageStreamListener(
       (info, _) {
@@ -493,8 +494,8 @@ class _DrawingPinViewerScreenState extends State<DrawingPinViewerScreen> {
                 alignment: Alignment.center,
                 clipBehavior: Clip.none,
                 children: [
-                  Image.network(
-                    fileUrl,
+                  Image(
+                    image: CachedNetworkImageProvider(fileUrl),
                     width: constraints.maxWidth,
                     height: constraints.maxHeight,
                     fit: BoxFit.fill,

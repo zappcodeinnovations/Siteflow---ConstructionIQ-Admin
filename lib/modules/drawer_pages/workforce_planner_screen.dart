@@ -10,6 +10,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/widgets/background_stripes_painter.dart';
 import '../../core/widgets/custom_drawer.dart';
 import '../../models/project_model.dart';
+import '../../core/widgets/app_back_button.dart';
 
 class WorkforcePlannerScreen extends StatefulWidget {
   const WorkforcePlannerScreen({super.key});
@@ -349,6 +350,8 @@ class _WorkforcePlannerScreenState extends State<WorkforcePlannerScreen> {
           ? AppTheme.darkBackground
           : const Color(0xFFF4F7FB),
       appBar: AppBar(
+        leading: const AppNavLeading(),
+        leadingWidth: AppNavigation.backAndMenuLeadingWidth,
         title: const Text(
           'Workforce Planner',
           style: TextStyle(fontWeight: FontWeight.w700),

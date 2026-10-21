@@ -7,6 +7,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
 import 'drawing_pin_viewer_screen.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class DrawingsTab extends StatefulWidget {
   final int? projectId;
@@ -945,8 +946,12 @@ class _DrawingsTabState extends State<DrawingsTab> {
                                       ),
                                       clipBehavior: Clip.antiAlias,
                                       child: fileUrl.isNotEmpty
-                                          ? Image.network(
-                                              fileUrl,
+                                          ? Image(
+                                              image: ResizeImage.resizeIfNeeded(
+                                                240,
+                                                null,
+                                                CachedNetworkImageProvider(fileUrl),
+                                              ),
                                               fit: BoxFit.cover,
                                               errorBuilder: (_, __, ___) => const Center(
                                                 child: Icon(IconlyLight.image, size: 28, color: Colors.grey),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../widgets/app_back_button.dart';
 
 class AppTheme {
   static const Color corporateBlue = Color(0xFF00529B);
@@ -17,6 +18,8 @@ class AppTheme {
     scaffoldBackgroundColor: Colors.white,
     colorScheme: ColorScheme.fromSeed(seedColor: corporateBlue),
     textTheme: GoogleFonts.interTextTheme(),
+    // Consistent iOS-style chevron on every automatic AppBar back button.
+    actionIconTheme: AppNavigation.actionIconTheme,
 
     appBarTheme: const AppBarTheme(
       backgroundColor: corporateBlue,
@@ -84,6 +87,7 @@ class AppTheme {
     brightness: Brightness.dark,
     primaryColor: corporateBlue,
     scaffoldBackgroundColor: darkBackground,
+    actionIconTheme: AppNavigation.actionIconTheme,
     canvasColor: darkSurface,
     cardColor: darkSurface,
     dividerColor: darkBorder,

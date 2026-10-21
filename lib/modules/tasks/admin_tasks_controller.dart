@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../../core/network/api_client.dart';
 import '../../core/network/api_endpoints.dart';
 import '../../models/admin_task_model.dart';
+import '../../core/services/response_cache.dart';
 
 /// Controller for the global Tasks screen.
 ///
@@ -80,6 +81,27 @@ class AdminTasksController extends ChangeNotifier {
     return options;
   }
 
+  static const String _cacheName = 'tasks_page1';
+
+  bool get _isDefaultView =>
+      _status == 'all' &&
+      (_project?.isEmpty ?? true) &&
+      (_client?.isEmpty ?? true) &&
+      (_operative?.isEmpty ?? true) &&
+      _search.isEmpty;
+
+  void _applyFirstPage(Map decoded) {
+    final records = decoded['data'] as List? ?? const [];
+    _tasks = records
+        .whereType<Map>()
+        .map((task) => AdminTaskModel.fromJson(Map<String, dynamic>.from(task)))
+        .toList(growable: false);
+    _currentPage = _asInt(decoded['page'], 1);
+    _totalPages = _asInt(decoded['total_pages'], 1);
+    _totalCount = _asInt(decoded['count'], _tasks.length);
+    _filterOptions = _parseFilterOptions(decoded['filter_options']);
+  }
+
   int _asInt(dynamic value, int fallback) =>
       value is int ? value : int.tryParse(value?.toString() ?? '') ?? fallback;
 
@@ -94,6 +116,23 @@ class AdminTasksController extends ChangeNotifier {
     _totalCount = 0;
     notifyListeners();
 
+    // Unfiltered view: show the last saved first page right away.
+    final useCache = _isDefaultView;
+    if (useCache) {
+      final cached = await ResponseCache.read(_cacheName);
+      if (cached != null && requestVersion == _requestVersion) {
+        try {
+          final decoded = jsonDecode(cached);
+          if (decoded is Map) {
+            _applyFirstPage(decoded);
+            notifyListeners();
+          }
+        } catch (_) {
+          // Ignore a corrupt cache entry; the network result replaces it.
+        }
+      }
+    }
+
     try {
       final response = await ApiClient.get(_buildUrl(1));
       final decoded = jsonDecode(response.body);
@@ -102,25 +141,16 @@ class AdminTasksController extends ChangeNotifier {
       if (response.statusCode == 200 &&
           decoded is Map &&
           decoded['status'] == true) {
-        final records = decoded['data'] as List? ?? const [];
-        _tasks = records
-            .whereType<Map>()
-            .map(
-              (task) =>
-                  AdminTaskModel.fromJson(Map<String, dynamic>.from(task)),
-            )
-            .toList(growable: false);
-        _currentPage = _asInt(decoded['page'], 1);
-        _totalPages = _asInt(decoded['total_pages'], 1);
-        _totalCount = _asInt(decoded['count'], _tasks.length);
-        _filterOptions = _parseFilterOptions(decoded['filter_options']);
-      } else {
+        _applyFirstPage(decoded);
+        if (useCache) ResponseCache.write(_cacheName, response.body);
+      } else if (_tasks.isEmpty) {
         _errorMessage = decoded is Map
             ? decoded['message']?.toString() ?? 'Unable to load tasks.'
             : 'Unable to load tasks.';
       }
     } catch (_) {
-      if (requestVersion == _requestVersion) {
+      // Keep showing cached tasks when offline; only error on an empty list.
+      if (requestVersion == _requestVersion && _tasks.isEmpty) {
         _errorMessage =
             'Unable to load tasks. Please check your connection and retry.';
       }

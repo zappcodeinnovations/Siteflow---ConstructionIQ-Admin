@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/services/auth_service.dart';
+import '../dashboard/dashboard_controller.dart';
 import 'login_controller.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -21,6 +23,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool obscurePassword = true;
   bool _rememberMe = false;
+  // True while the dashboard is loaded after a successful login, so the
+  // button keeps spinning and the dashboard opens ready.
+  bool _preparingDashboard = false;
 
   @override
   void initState() {
@@ -65,6 +70,13 @@ class _LoginScreenState extends State<LoginScreen> {
       } else {
         await prefs.remove('remember_email');
         await prefs.remove('remember_password');
+      }
+      if (await AuthService.can('dashboard')) {
+        if (mounted) setState(() => _preparingDashboard = true);
+        await DashboardController.prefetch().timeout(
+          const Duration(seconds: 8),
+          onTimeout: () {},
+        );
       }
       if (mounted) Navigator.pushReplacementNamed(context, '/home');
       return;
@@ -164,6 +176,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 keyboardType: TextInputType.emailAddress,
                 textCapitalization: TextCapitalization.none,
                 textInputAction: TextInputAction.next,
+                scrollPadding: const EdgeInsets.only(bottom: 160),
                 style: const TextStyle(color: Color(0xFF17253B), fontSize: 13),
                 decoration: _fieldDecoration(
                   hint: 'Enter your email',
@@ -193,6 +206,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 controller: passwordController,
                 obscureText: obscurePassword,
                 textInputAction: TextInputAction.done,
+                scrollPadding: const EdgeInsets.only(bottom: 120),
                 onFieldSubmitted: (_) => _handleLogin(),
                 style: const TextStyle(color: Color(0xFF17253B), fontSize: 13),
                 decoration: _fieldDecoration(
@@ -236,9 +250,15 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   const SizedBox(width: 4),
-                  const Text(
-                    'Remember me',
-                    style: TextStyle(color: Color(0xFF485971), fontSize: 10.5),
+                  const Flexible(
+                    child: Text(
+                      'Remember me',
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Color(0xFF485971),
+                        fontSize: 10.5,
+                      ),
+                    ),
                   ),
                   const Spacer(),
                   TextButton(
@@ -267,7 +287,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   width: double.infinity,
                   height: compact ? 42 : 46,
                   child: ElevatedButton(
-                    onPressed: _loginController.isLoading ? null : _handleLogin,
+                    onPressed: _loginController.isLoading || _preparingDashboard
+                        ? null
+                        : _handleLogin,
                     style: ElevatedButton.styleFrom(
                       elevation: 1,
                       backgroundColor: _brandBlue,
@@ -279,7 +301,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    child: _loginController.isLoading
+                    child: _loginController.isLoading || _preparingDashboard
                         ? const SizedBox(
                             width: 20,
                             height: 20,
@@ -323,30 +345,34 @@ class _LoginScreenState extends State<LoginScreen> {
                   const Expanded(child: Divider(color: Color(0xFFDDE5EF))),
                 ],
               ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text(
-                    "Don't have an account?",
-                    style: TextStyle(color: Color(0xFF8793A4), fontSize: 9.5),
-                  ),
-                  TextButton(
-                    style: TextButton.styleFrom(
-                      minimumSize: const Size(0, 30),
-                      padding: const EdgeInsets.only(left: 4),
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      "Don't have an account?",
+                      style: TextStyle(color: Color(0xFF8793A4), fontSize: 9.5),
                     ),
-                    onPressed: () => Navigator.pushNamed(context, '/register'),
-                    child: const Text(
-                      'Contact Admin',
-                      style: TextStyle(
-                        color: _brandBlue,
-                        fontSize: 9.5,
-                        fontWeight: FontWeight.w800,
+                    TextButton(
+                      style: TextButton.styleFrom(
+                        minimumSize: const Size(0, 30),
+                        padding: const EdgeInsets.only(left: 4),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      onPressed: () =>
+                          Navigator.pushNamed(context, '/register'),
+                      child: const Text(
+                        'Contact Admin',
+                        style: TextStyle(
+                          color: _brandBlue,
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ],
           ),
@@ -400,179 +426,192 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      resizeToAvoidBottomInset: false,
+      // Let the body shrink above the keyboard so the scroll view below can
+      // bring the focused field (e.g. password) into view.
+      resizeToAvoidBottomInset: true,
       backgroundColor: const Color(0xFFF8FAFD),
       body: SafeArea(
         bottom: false,
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final height = constraints.maxHeight;
+            // Size the design from the full screen height (ignoring the
+            // keyboard) so the layout doesn't collapse when the keyboard opens.
+            final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
+            final height = constraints.maxHeight + keyboardInset;
             final width = constraints.maxWidth;
             final compact = height < 690 || width < 350;
-            final isTablet = width >= 600;
             final heroHeight = (height * (compact ? .37 : .40)).clamp(
               compact ? 178.0 : 220.0,
               compact ? 235.0 : 310.0,
             );
             final cardTop = heroHeight - (compact ? 20 : 26);
-            final horizontal = width >= 600 ? width * .20 : 16.0;
-            final cardWidth = (width - (horizontal * 2)).clamp(0.0, 440.0);
+            final showFooter = height >= 620;
 
-            return ClipRect(
-              child: Stack(
-                children: [
-                  Positioned(
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    height: heroHeight,
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        Image.asset(
-                          'assets/images/login_bg.png',
-                          fit: BoxFit.cover,
-                          alignment: const Alignment(0, -.35),
+            return SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              child: ClipRect(
+                child: Stack(
+                  children: [
+                    Positioned(
+                      left: -height * .12,
+                      right: -height * .20,
+                      bottom: -height * .25,
+                      height: height * .31,
+                      child: Container(
+                        decoration: const BoxDecoration(
+                          color: _accentOrange,
+                          shape: BoxShape.circle,
                         ),
-                        const DecoratedBox(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.centerLeft,
-                              end: Alignment.centerRight,
-                              colors: [
-                                Color(0xB3122538),
-                                Color(0x4D122538),
-                                Color(0x11122538),
-                              ],
-                              stops: [0, .56, 1],
-                            ),
+                      ),
+                    ),
+                    Positioned(
+                      left: -height * .10,
+                      right: -height * .18,
+                      bottom: -height * .27,
+                      height: height * .30,
+                      child: Container(
+                        decoration: const BoxDecoration(
+                          color: _brandBlue,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: heroHeight,
+                      child: _hero(compact: compact),
+                    ),
+                    // The card is the only non-positioned child, so it sets
+                    // the Stack's height: at least one screen tall, taller (and
+                    // scrollable) when the card doesn't fit.
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: height,
+                        minWidth: width,
+                      ),
+                      child: Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          16,
+                          cardTop,
+                          16,
+                          showFooter ? 56 : 12,
+                        ),
+                        child: Align(
+                          alignment: Alignment.topCenter,
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 440),
+                            child: _loginCard(compact: compact),
                           ),
                         ),
-                        Padding(
-                          padding: EdgeInsets.fromLTRB(
-                            compact ? 17 : 22,
-                            compact ? 11 : 16,
-                            16,
-                            compact ? 24 : 32,
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                      ),
+                    ),
+                    if (showFooter)
+                      Positioned(
+                        left: 14,
+                        right: 14,
+                        bottom: 15,
+                        child: _FitWidth(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              _brandHeader(compact: compact),
-                              const Spacer(),
-                              Container(
-                                width: 32,
-                                height: 3,
-                                decoration: BoxDecoration(
-                                  color: _accentOrange,
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
+                              _footerBadge(
+                                Icons.verified_user_outlined,
+                                'SAFE SITES',
                               ),
-                              const SizedBox(height: 6),
-                              Text.rich(
-                                TextSpan(
-                                  children: [
-                                    const TextSpan(text: 'Smarter\nSites\n'),
-                                    TextSpan(
-                                      text: 'Stronger\nTomorrow',
-                                      style: TextStyle(color: _accentOrange),
-                                    ),
-                                  ],
-                                ),
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  height: .93,
-                                  fontSize: compact ? 18 : 22,
-                                  fontWeight: FontWeight.w900,
-                                ),
+                              _footerBadge(
+                                Icons.groups_rounded,
+                                'STRONGER PEOPLE',
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Track. Build. Deliver.',
-                                style: TextStyle(
-                                  color: Colors.white.withValues(alpha: .88),
-                                  fontSize: compact ? 8.5 : 9.5,
-                                  fontWeight: FontWeight.w700,
-                                ),
+                              _footerBadge(
+                                Icons.bar_chart_rounded,
+                                'HIGHER STANDARDS',
                               ),
                             ],
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                  Positioned(
-                    left: -height * .12,
-                    right: -height * .20,
-                    bottom: -height * .25,
-                    height: height * .31,
-                    child: Container(
-                      decoration: const BoxDecoration(
-                        color: _accentOrange,
-                        shape: BoxShape.circle,
                       ),
-                    ),
-                  ),
-                  Positioned(
-                    left: -height * .10,
-                    right: -height * .18,
-                    bottom: -height * .27,
-                    height: height * .30,
-                    child: Container(
-                      decoration: const BoxDecoration(
-                        color: _brandBlue,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    top: cardTop,
-                    left: horizontal,
-                    right: horizontal,
-                    bottom: height >= 620 ? 48 : 6,
-                    child: Align(
-                      alignment: Alignment.topCenter,
-                      child: isTablet
-                          ? SizedBox(
-                              width: cardWidth,
-                              child: _loginCard(compact: false),
-                            )
-                          : FittedBox(
-                              fit: BoxFit.scaleDown,
-                              alignment: Alignment.topCenter,
-                              child: SizedBox(
-                                width: cardWidth,
-                                child: _loginCard(compact: compact),
-                              ),
-                            ),
-                    ),
-                  ),
-                  if (height >= 620)
-                    Positioned(
-                      left: 14,
-                      right: 14,
-                      bottom: 15,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          _footerBadge(
-                            Icons.verified_user_outlined,
-                            'SAFE SITES',
-                          ),
-                          _footerBadge(Icons.groups_rounded, 'STRONGER PEOPLE'),
-                          _footerBadge(
-                            Icons.bar_chart_rounded,
-                            'HIGHER STANDARDS',
-                          ),
-                        ],
-                      ),
-                    ),
-                ],
+                  ],
+                ),
               ),
             );
           },
         ),
       ),
+    );
+  }
+
+  Widget _hero({required bool compact}) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(
+          'assets/images/login_bg.png',
+          fit: BoxFit.cover,
+          alignment: const Alignment(0, -.35),
+        ),
+        const DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              colors: [Color(0xB3122538), Color(0x4D122538), Color(0x11122538)],
+              stops: [0, .56, 1],
+            ),
+          ),
+        ),
+        Padding(
+          padding: EdgeInsets.fromLTRB(
+            compact ? 17 : 22,
+            compact ? 11 : 16,
+            16,
+            compact ? 24 : 32,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _brandHeader(compact: compact),
+              const Spacer(),
+              Container(
+                width: 32,
+                height: 3,
+                decoration: BoxDecoration(
+                  color: _accentOrange,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text.rich(
+                TextSpan(
+                  children: [
+                    const TextSpan(text: 'Smarter\nSites\n'),
+                    TextSpan(
+                      text: 'Stronger\nTomorrow',
+                      style: TextStyle(color: _accentOrange),
+                    ),
+                  ],
+                ),
+                style: TextStyle(
+                  color: Colors.white,
+                  height: .93,
+                  fontSize: compact ? 18 : 22,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Track. Build. Deliver.',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: .88),
+                  fontSize: compact ? 8.5 : 9.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -591,6 +630,27 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Lays [child] out at the available width, but scales it down (instead of
+/// overflowing) when its content is wider than that.
+class _FitWidth extends StatelessWidget {
+  final Widget child;
+
+  const _FitWidth({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) => FittedBox(
+        fit: BoxFit.scaleDown,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minWidth: constraints.maxWidth),
+          child: IntrinsicWidth(child: child),
+        ),
+      ),
     );
   }
 }

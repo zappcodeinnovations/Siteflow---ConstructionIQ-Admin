@@ -391,16 +391,6 @@ class _AdminMembersViewState extends State<AdminMembersView> {
     );
   }
 
-  void _copyInviteLink(AdminMember member) {
-    Clipboard.setData(ClipboardData(text: member.email));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Member email copied to clipboard."),
-        backgroundColor: Colors.blue,
-      ),
-    );
-  }
-
   Color _getAvatarColor(String name) {
     final colors = [
       const Color(0xFF0F2C4A), // Dark navy

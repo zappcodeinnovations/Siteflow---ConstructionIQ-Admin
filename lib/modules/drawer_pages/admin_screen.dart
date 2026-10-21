@@ -13,6 +13,7 @@ import 'package:iconly/iconly.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/background_stripes_painter.dart';
 import '../../core/services/auth_service.dart';
+import '../../core/widgets/app_back_button.dart';
 
 class AdminScreen extends StatefulWidget {
   final int initialIndex;
@@ -28,6 +29,7 @@ class _AdminScreenState extends State<AdminScreen> {
   late int _currentIndex;
   late PageController _pageController;
   final ScrollController _mobileScrollController = ScrollController();
+  String _screenTitle = 'ADMIN';
 
   final List<Map<String, dynamic>> _allSideMenus = [
     {"title": "Members", "icon": IconlyLight.user_1, "key": "admin_members"},
@@ -75,8 +77,10 @@ class _AdminScreenState extends State<AdminScreen> {
     for (final item in _allSideMenus) {
       if (await AuthService.can(item['key'] as String)) allowed.add(item);
     }
+    final roleName = await AuthService.getRoleDisplayName();
     if (!mounted) return;
     setState(() {
+      _screenTitle = roleName.toUpperCase();
       _sideMenus = allowed;
       final requestedIndex = widget.initialMenuKey == null
           ? -1
@@ -137,7 +141,7 @@ class _AdminScreenState extends State<AdminScreen> {
   Widget _buildContent(String menu) {
     switch (menu) {
       case "Profile":
-        return const ProfileScreen();
+        return const ProfileScreen(showBackButton: false);
       case "Members":
         return const AdminMembersView();
       // case "Guests" removed — feature disabled
@@ -185,7 +189,7 @@ class _AdminScreenState extends State<AdminScreen> {
     }
     if (_sideMenus.isEmpty) {
       return Scaffold(
-        appBar: AppBar(title: const Text('ADMIN')),
+        appBar: AppBar(title: Text(_screenTitle)),
         body: const Center(
           child: Text('You do not have permission to view this section.'),
         ),
@@ -199,9 +203,11 @@ class _AdminScreenState extends State<AdminScreen> {
       backgroundColor: bgColor,
       drawer: const CustomDrawer(),
       appBar: AppBar(
-        title: const Text(
-          "ADMIN",
-          style: TextStyle(
+        leading: const AppNavLeading(),
+        leadingWidth: AppNavigation.backAndMenuLeadingWidth,
+        title: Text(
+          _screenTitle,
+          style: const TextStyle(
             color: Colors.white,
             fontSize: 16,
             fontWeight: FontWeight.bold,

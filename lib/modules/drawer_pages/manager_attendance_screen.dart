@@ -6,7 +6,6 @@ import '../../core/theme/app_theme.dart';
 import '../../core/widgets/background_stripes_painter.dart';
 import '../../core/widgets/custom_date_picker_dialog.dart';
 import 'package:intl/intl.dart';
-import '../../core/services/auth_service.dart';
 import '../../core/services/auth_service.dart';
 
 class ManagerAttendanceScreen extends StatefulWidget {

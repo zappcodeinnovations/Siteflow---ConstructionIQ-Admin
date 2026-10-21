@@ -20,16 +20,32 @@ class AdminAnnouncementsController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final url = '${ApiEndpoints.baseUrl}/admin/announcements/?page_size=1000';
-      final response = await ApiClient.get(url);
-      final decodedData = jsonDecode(response.body);
+      // The screen filters this list locally, so it needs every
+      // announcement. The API returns at most 100 per page (asking for 1000
+      // silently dropped the rest), so walk the pages.
+      final all = <Announcement>[];
+      var page = 1;
+      var totalPages = 1;
+      String? failure;
+      do {
+        final url =
+            '${ApiEndpoints.baseUrl}/admin/announcements/?page=$page&page_size=100';
+        final response = await ApiClient.get(url);
+        final decodedData = jsonDecode(response.body);
+        if (response.statusCode != 200 || decodedData['status'] != true) {
+          failure = decodedData['message'] ?? 'Failed to fetch announcements';
+          break;
+        }
+        all.addAll(AnnouncementResponse.fromJson(decodedData).data);
+        final pages = decodedData['total_pages'];
+        totalPages = pages is int ? pages : int.tryParse('$pages') ?? 1;
+        page++;
+      } while (page <= totalPages && page <= 50);
 
-      if (response.statusCode == 200 && decodedData['status'] == true) {
-        final parsedResponse = AnnouncementResponse.fromJson(decodedData);
-        _announcements = parsedResponse.data;
-      } else {
-        _errorMessage = decodedData['message'] ?? 'Failed to fetch announcements';
+      if (failure == null || all.isNotEmpty) {
+        _announcements = all;
       }
+      _errorMessage = failure;
     } catch (e) {
       _errorMessage = 'An error occurred: $e';
     } finally {
@@ -38,7 +54,9 @@ class AdminAnnouncementsController extends ChangeNotifier {
     }
   }
 
-  Future<Map<String, dynamic>> createAnnouncement(Map<String, dynamic> payload) async {
+  Future<Map<String, dynamic>> createAnnouncement(
+    Map<String, dynamic> payload,
+  ) async {
     try {
       final url = '${ApiEndpoints.baseUrl}/admin/announcements/';
       final response = await ApiClient.post(url, body: payload);
@@ -47,10 +65,17 @@ class AdminAnnouncementsController extends ChangeNotifier {
       if (response.statusCode == 200 || response.statusCode == 201) {
         if (decodedData['status'] == true) {
           await fetchAnnouncements();
-          return {"success": true, "message": decodedData['message'] ?? "Announcement created successfully."};
+          return {
+            "success": true,
+            "message":
+                decodedData['message'] ?? "Announcement created successfully.",
+          };
         }
       }
-      return {"success": false, "message": decodedData['message'] ?? "Failed to create announcement."};
+      return {
+        "success": false,
+        "message": decodedData['message'] ?? "Failed to create announcement.",
+      };
     } catch (e) {
       return {"success": false, "message": "An error occurred: $e"};
     }
@@ -72,7 +97,10 @@ class AdminAnnouncementsController extends ChangeNotifier {
     }
   }
 
-  Future<Map<String, dynamic>> updateAnnouncement(int id, Map<String, dynamic> payload) async {
+  Future<Map<String, dynamic>> updateAnnouncement(
+    int id,
+    Map<String, dynamic> payload,
+  ) async {
     try {
       final url = '${ApiEndpoints.baseUrl}/admin/announcements/$id/';
       final response = await ApiClient.patch(url, body: payload);
@@ -81,10 +109,17 @@ class AdminAnnouncementsController extends ChangeNotifier {
       if (response.statusCode == 200) {
         if (decodedData['status'] == true) {
           await fetchAnnouncements();
-          return {"success": true, "message": decodedData['message'] ?? "Announcement updated successfully."};
+          return {
+            "success": true,
+            "message":
+                decodedData['message'] ?? "Announcement updated successfully.",
+          };
         }
       }
-      return {"success": false, "message": decodedData['message'] ?? "Failed to update announcement."};
+      return {
+        "success": false,
+        "message": decodedData['message'] ?? "Failed to update announcement.",
+      };
     } catch (e) {
       return {"success": false, "message": "An error occurred: $e"};
     }
@@ -99,10 +134,17 @@ class AdminAnnouncementsController extends ChangeNotifier {
       if (response.statusCode == 200) {
         if (decodedData['status'] == true) {
           await fetchAnnouncements();
-          return {"success": true, "message": decodedData['message'] ?? "Announcement deleted successfully."};
+          return {
+            "success": true,
+            "message":
+                decodedData['message'] ?? "Announcement deleted successfully.",
+          };
         }
       }
-      return {"success": false, "message": decodedData['message'] ?? "Failed to delete announcement."};
+      return {
+        "success": false,
+        "message": decodedData['message'] ?? "Failed to delete announcement.",
+      };
     } catch (e) {
       return {"success": false, "message": "An error occurred: $e"};
     }

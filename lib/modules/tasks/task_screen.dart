@@ -9,6 +9,7 @@ import 'admin_tasks_controller.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/background_stripes_painter.dart';
 import '../../core/services/auth_service.dart';
+import '../../core/widgets/shimmer_loading.dart';
 
 class TasksScreen extends StatefulWidget {
   const TasksScreen({super.key});
@@ -913,13 +914,8 @@ class _TasksScreenState extends State<TasksScreen> {
                       const SizedBox(height: 24),
 
                       // Task Card List / Loading State
-                      if (_controller.isLoading)
-                        const Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(48.0),
-                            child: CircularProgressIndicator(),
-                          ),
-                        )
+                      if (_controller.isLoading && _controller.tasks.isEmpty)
+                        const ShimmerLoadingList(itemCount: 4, itemHeight: 130)
                       else if (_controller.errorMessage != null)
                         Padding(
                           padding: const EdgeInsets.all(40),

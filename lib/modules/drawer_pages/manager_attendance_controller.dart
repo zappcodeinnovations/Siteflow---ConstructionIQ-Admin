@@ -4,7 +4,6 @@ import '../../core/network/api_client.dart';
 import '../../core/network/api_endpoints.dart';
 import '../dashboard/dashboard_controller.dart';
 import '../../models/manager_attendance_model.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:geolocator/geolocator.dart';
 
 class ManagerAttendanceController extends ChangeNotifier {

@@ -121,7 +121,9 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
   @override
   Widget build(BuildContext context) {
     if (!_roleLoaded) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      // Role/permission lookup is local and near-instant; a spinner here only
+      // flashes between the splash and the dashboard.
+      return const Scaffold();
     }
 
     final width = MediaQuery.of(context).size.width;

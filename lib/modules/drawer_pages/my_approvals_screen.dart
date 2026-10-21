@@ -8,6 +8,7 @@ import '../../core/widgets/custom_drawer.dart';
 import '../../core/widgets/background_stripes_painter.dart';
 import '../../core/theme/app_theme.dart';
 import 'package:iconly/iconly.dart';
+import '../../core/widgets/app_back_button.dart';
 
 class MyApprovalsScreen extends StatefulWidget {
   const MyApprovalsScreen({super.key});
@@ -55,6 +56,8 @@ class _MyApprovalsScreenState extends State<MyApprovalsScreen> {
     return Scaffold(
       backgroundColor: background,
       appBar: AppBar(
+        leading: const AppNavLeading(),
+        leadingWidth: AppNavigation.backAndMenuLeadingWidth,
         title: const Text(
           'My Approvals',
           style: TextStyle(fontWeight: FontWeight.w700),

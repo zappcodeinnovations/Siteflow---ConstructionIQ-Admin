@@ -61,6 +61,7 @@ class LoginController extends ChangeNotifier {
         await AuthService.saveUserRole(
           effectiveRole: _currentUser!.effectiveRole,
           roleLabel: _currentUser!.roleLabel,
+          userId: _currentUser!.id,
         );
         await AuthService.savePermissions(payload['user']['permissions']);
 

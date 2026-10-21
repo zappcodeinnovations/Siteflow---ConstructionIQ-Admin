@@ -14,6 +14,11 @@ class CustomDrawer extends StatefulWidget {
 class _CustomDrawerState extends State<CustomDrawer> {
   Set<String> _allowedMenus = {};
   bool _isSupervisor = false;
+  String _roleKey = '';
+  String _roleName = 'Admin';
+
+  bool get _isOperativeLogViewer =>
+      _roleKey == 'manager' || _roleKey == 'supervisor';
   final ScrollController _menuScrollController = ScrollController();
 
   @override
@@ -58,11 +63,14 @@ class _CustomDrawerState extends State<CustomDrawer> {
     for (var i = 0; i < keys.length; i++) {
       if (values[i]) allowed.add(keys[i]);
     }
-    final isSupervisor = await AuthService.isSupervisorUser();
+    final roleKey = await AuthService.getRoleKey();
+    final roleName = await AuthService.getRoleDisplayName();
     if (mounted) {
       setState(() {
         _allowedMenus = allowed;
-        _isSupervisor = isSupervisor;
+        _isSupervisor = roleKey == 'supervisor';
+        _roleKey = roleKey;
+        _roleName = roleName;
       });
     }
   }
@@ -148,12 +156,12 @@ class _CustomDrawerState extends State<CustomDrawer> {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      "Euroside Admin",
+                      "Euroside $_roleName",
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
@@ -254,7 +262,11 @@ class _CustomDrawerState extends State<CustomDrawer> {
                     _buildDrawerItem(
                       context,
                       IconlyLight.user_1,
-                      _isSupervisor ? "Supervisor Attendance" : "Authority Attendance",
+                      _isSupervisor
+                          ? "Supervisor Attendance"
+                          : _roleKey == 'manager'
+                          ? "Manager Attendance"
+                          : "Authority Attendance",
                       '/managerAttendance',
                       currentRoute,
                     ),
@@ -296,7 +308,15 @@ class _CustomDrawerState extends State<CustomDrawer> {
                       '/settings',
                       currentRoute,
                     ),
-                  if (_allowedMenus.any((key) => key.startsWith('admin_')))
+                  if (_isOperativeLogViewer)
+                    _buildDrawerItem(
+                      context,
+                      IconlyLight.activity,
+                      "Operative Logs",
+                      '/operativeLogs',
+                      currentRoute,
+                    )
+                  else if (_allowedMenus.any((key) => key.startsWith('admin_')))
                     _buildDrawerItem(
                       context,
                       IconlyLight.shield_done,

@@ -11,6 +11,7 @@ import '../../models/admin_team_model.dart';
 import 'admin_team_controller.dart';
 import 'team_detail_screen.dart';
 import 'material_settings_content.dart';
+import '../../core/widgets/app_back_button.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -424,9 +425,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     children: [
                       const SizedBox(height: 48),
                       InkWell(
-                        onTap: () {
-                          Navigator.pop(context);
-                        },
+                        onTap: () => AppNavigation.goBack(context),
                         child: const Padding(
                           padding: EdgeInsets.symmetric(
                             horizontal: 20,
@@ -435,7 +434,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           child: Row(
                             children: [
                               Icon(
-                                IconlyLight.arrow_left,
+                                AppNavigation.backIcon,
                                 color: Colors.white,
                                 size: 20,
                               ),
@@ -485,10 +484,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         iconTheme: IconThemeData(
                           color: isDark ? Colors.white : Colors.black87,
                         ),
-                        leading: IconButton(
-                          icon: const Icon(IconlyLight.arrow_left),
-                          onPressed: () => Navigator.pop(context),
-                        ),
+                        leading: const AppBackButton(),
                         title: Text(
                           _selectedIndex == 0 ? "Teams" : "Materials",
                           style: TextStyle(

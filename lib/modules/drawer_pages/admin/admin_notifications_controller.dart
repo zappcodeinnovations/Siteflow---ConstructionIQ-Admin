@@ -11,15 +11,43 @@ class AdminNotificationsController extends ChangeNotifier {
   String _activeSearch = '';
   String? _activeAudience;
 
+  int _pageSize = 50;
+  int _currentPage = 0;
+  int _totalPages = 0;
+  bool _isLoadingMore = false;
+  int _requestVersion = 0;
+
   List<AdminNotification> get notifications => _notifications;
   bool get isLoading => _isLoading;
+  bool get isLoadingMore => _isLoadingMore;
+  bool get hasMore => _currentPage < _totalPages;
   String? get errorMessage => _errorMessage;
 
+  String _pageUrl(int page) {
+    final query = <String, String>{'page': '$page', 'page_size': '$_pageSize'};
+    if (_activeSearch.isNotEmpty) query['search'] = _activeSearch;
+    if (_activeAudience != null) query['audience'] = _activeAudience!;
+    return Uri.parse(
+      '${ApiEndpoints.baseUrl}/admin/notifications/',
+    ).replace(queryParameters: query).toString();
+  }
+
+  int _asInt(dynamic value, int fallback) =>
+      value is int ? value : int.tryParse('${value ?? ''}') ?? fallback;
+
+  /// Loads the first page. The Notifications screen pages in more with
+  /// [loadMore] as the user scrolls (the API returns at most 100 per page,
+  /// so asking for "everything" silently dropped older notifications); the
+  /// app-bar bell only needs the latest few ([pageSize] 20).
   Future<void> fetchNotifications({
     String search = '',
     String? audience,
+    int pageSize = 50,
   }) async {
+    final requestVersion = ++_requestVersion;
+    _pageSize = pageSize;
     _isLoading = true;
+    _isLoadingMore = false;
     _errorMessage = null;
     _activeSearch = search.trim();
     final normalizedAudience = audience?.trim();
@@ -29,27 +57,58 @@ class AdminNotificationsController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final query = <String, String>{'page_size': '1000'};
-      if (_activeSearch.isNotEmpty) query['search'] = _activeSearch;
-      if (_activeAudience != null) query['audience'] = _activeAudience!;
-      final url = Uri.parse(
-        '${ApiEndpoints.baseUrl}/admin/notifications/',
-      ).replace(queryParameters: query).toString();
-      final response = await ApiClient.get(url);
+      final response = await ApiClient.get(_pageUrl(1));
       final decodedData = jsonDecode(response.body);
+      if (requestVersion != _requestVersion) return;
 
       if (decodedData['status'] == true && decodedData['data'] != null) {
         final res = AdminNotificationResponse.fromJson(decodedData);
         _notifications = res.data;
+        _currentPage = _asInt(decodedData['page'], 1);
+        _totalPages = _asInt(decodedData['total_pages'], 1);
       } else {
         _errorMessage =
             decodedData['message'] ?? "Failed to load notifications.";
       }
     } catch (e) {
-      _errorMessage = "An error occurred: $e";
+      if (requestVersion == _requestVersion) {
+        _errorMessage = "An error occurred: $e";
+      }
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (requestVersion == _requestVersion) {
+        _isLoading = false;
+        notifyListeners();
+      }
+    }
+  }
+
+  /// Appends the next page (same search/audience filters).
+  Future<void> loadMore() async {
+    if (_isLoading || _isLoadingMore || !hasMore) return;
+    final requestVersion = _requestVersion;
+    _isLoadingMore = true;
+    notifyListeners();
+    try {
+      final response = await ApiClient.get(_pageUrl(_currentPage + 1));
+      final decodedData = jsonDecode(response.body);
+      if (requestVersion != _requestVersion) return;
+      if (decodedData['status'] == true && decodedData['data'] != null) {
+        final res = AdminNotificationResponse.fromJson(decodedData);
+        final seen = _notifications.map((n) => n.id).toSet();
+        _notifications = [
+          ..._notifications,
+          ...res.data.where((n) => !seen.contains(n.id)),
+        ];
+        _currentPage = _asInt(decodedData['page'], _currentPage + 1);
+        _totalPages = _asInt(decodedData['total_pages'], _totalPages);
+      }
+    } catch (_) {
+      // Keep what is already shown; scrolling again retries.
+    } finally {
+      if (requestVersion == _requestVersion) {
+        _isLoadingMore = false;
+        notifyListeners();
+      }
     }
   }
 

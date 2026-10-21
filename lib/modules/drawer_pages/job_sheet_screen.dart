@@ -9,6 +9,7 @@ import 'package:iconly/iconly.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/background_stripes_painter.dart';
 import '../projects/create_task_controller.dart';
+import '../../core/widgets/shimmer_loading.dart';
 
 class JobSheetScreen extends StatefulWidget {
   final String title;
@@ -1313,11 +1314,10 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
                     builder: (context, child) {
                       if (_controller.isLoading &&
                           _controller.jobSheets.isEmpty) {
-                        return const Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(48.0),
-                            child: CircularProgressIndicator(),
-                          ),
+                        return const ShimmerLoadingList(
+                          itemCount: 6,
+                          itemHeight: 120,
+                          padding: EdgeInsets.all(16),
                         );
                       }
 

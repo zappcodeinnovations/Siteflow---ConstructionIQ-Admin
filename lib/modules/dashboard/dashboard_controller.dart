@@ -11,6 +11,41 @@ class DashboardController extends ChangeNotifier {
     refreshNotifier.value++;
   }
 
+  // Data loaded while the splash screen is showing, handed to the first
+  // dashboard so it renders immediately instead of showing a spinner.
+  static DashboardData? _prefetched;
+  static int _prefetchGeneration = 0;
+
+  /// Loads the dashboard during the splash screen. A result that arrives
+  /// after the dashboard has already been opened is discarded.
+  static Future<void> prefetch() async {
+    final generation = ++_prefetchGeneration;
+    try {
+      final response = await ApiClient.get(
+        ApiEndpoints.baseUrl + ApiEndpoints.dashboard,
+      );
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200 &&
+          data['status'] == true &&
+          generation == _prefetchGeneration) {
+        _prefetched = DashboardData.fromJson(data['data']);
+      }
+    } catch (_) {
+      // The dashboard falls back to loading on its own.
+    }
+  }
+
+  static DashboardData? _takePrefetched() {
+    final data = _prefetched;
+    _prefetched = null;
+    _prefetchGeneration++; // drop any prefetch still in flight
+    return data;
+  }
+
+  DashboardController() {
+    _dashboardData = _takePrefetched();
+  }
+
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
@@ -28,18 +63,18 @@ class DashboardController extends ChangeNotifier {
     }
 
     try {
-      final response = await ApiClient.get(ApiEndpoints.baseUrl + ApiEndpoints.dashboard);
-      debugPrint("--- Dashboard API Debug ---");
-      debugPrint("Status Code: ${response.statusCode}");
-      debugPrint("Response Body: ${response.body}");
-      debugPrint("---------------------------");
+      final response = await ApiClient.get(
+        ApiEndpoints.baseUrl + ApiEndpoints.dashboard,
+      );
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200 && data['status'] == true) {
         _dashboardData = DashboardData.fromJson(data['data']);
         _errorMessage = null;
       } else if (!silent) {
-        _errorMessage = data['message'] ?? 'Failed to fetch dashboard (Status: ${response.statusCode})\nBody: ${response.body}';
+        _errorMessage =
+            data['message'] ??
+            'Failed to fetch dashboard (Status: ${response.statusCode})\nBody: ${response.body}';
       }
     } catch (e) {
       if (!silent) {

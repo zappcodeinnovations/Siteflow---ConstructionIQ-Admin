@@ -82,6 +82,14 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
     return Scaffold(
       backgroundColor: bgColor,
+      // Transparent navigation bar so iPhone users (no system back button)
+      // can return to the login screen.
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        foregroundColor: isDark ? Colors.white : const Color(0xFF0F2C4A),
+      ),
       body: Stack(
         children: [
           if (isDark)

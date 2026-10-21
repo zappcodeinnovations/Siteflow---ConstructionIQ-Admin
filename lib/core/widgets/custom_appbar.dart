@@ -4,6 +4,7 @@ import '../../models/admin_notification_model.dart';
 import '../../modules/drawer_pages/admin/admin_notifications_controller.dart';
 import '../../modules/drawer_pages/admin_screen.dart';
 import '../services/auth_service.dart';
+import '../services/notification_seen_service.dart';
 import '../utils/date_helper.dart';
 
 class CustomAppBar extends StatefulWidget implements PreferredSizeWidget {
@@ -20,6 +21,10 @@ class CustomAppBar extends StatefulWidget implements PreferredSizeWidget {
 }
 
 class _CustomAppBarState extends State<CustomAppBar> {
+  // The bell shows the latest 5 and an unread badge; it never needs the full
+  // history (the Notifications page loads that).
+  static const int _bellPageSize = 20;
+
   final AdminNotificationsController _controller =
       AdminNotificationsController();
   bool _canViewNotifications = false;
@@ -28,6 +33,7 @@ class _CustomAppBarState extends State<CustomAppBar> {
   void initState() {
     super.initState();
     _controller.addListener(_onChanged);
+    NotificationSeenService.lastSeenId.addListener(_onChanged);
     _loadNotificationAccess();
   }
 
@@ -35,7 +41,10 @@ class _CustomAppBarState extends State<CustomAppBar> {
     final allowed = await AuthService.can('admin_notifications');
     if (!mounted) return;
     setState(() => _canViewNotifications = allowed);
-    if (allowed) await _controller.fetchNotifications();
+    if (allowed) {
+      await NotificationSeenService.load();
+      await _controller.fetchNotifications(pageSize: _bellPageSize);
+    }
   }
 
   void _onChanged() {
@@ -45,6 +54,7 @@ class _CustomAppBarState extends State<CustomAppBar> {
   @override
   void dispose() {
     _controller.removeListener(_onChanged);
+    NotificationSeenService.lastSeenId.removeListener(_onChanged);
     _controller.dispose();
     super.dispose();
   }
@@ -59,6 +69,10 @@ class _CustomAppBarState extends State<CustomAppBar> {
         .where((n) => n.isActive)
         .take(5)
         .toList();
+    // Badge = notifications not seen yet (not just "how many are listed").
+    final unread = NotificationSeenService.unreadCount(
+      _controller.notifications,
+    );
 
     return AppBar(
       backgroundColor: appBarColor,
@@ -108,9 +122,14 @@ class _CustomAppBarState extends State<CustomAppBar> {
         if (_canViewNotifications)
           PopupMenuButton<String>(
             color: isDark ? const Color(0xFF172433) : Colors.white,
+            // Opening the list counts as seeing every notification in it.
+            onOpened: () =>
+                NotificationSeenService.markSeen(_controller.notifications),
             icon: Badge(
-              isLabelVisible: recent.isNotEmpty,
-              label: Text('${recent.length}'),
+              isLabelVisible: unread > 0,
+              label: Text(
+                unread >= _bellPageSize ? '$_bellPageSize+' : '$unread',
+              ),
               child: Icon(Icons.notifications_outlined, color: foregroundColor),
             ),
             offset: const Offset(0, 50),
@@ -207,7 +226,9 @@ class _NotificationRow extends StatelessWidget {
   // converts to the device's own local timezone, matching how the full
   // Notifications screen already formats this same data.
   String get _timestampLabel {
-    final raw = notification.sentAt.isNotEmpty ? notification.sentAt : notification.createdAt;
+    final raw = notification.sentAt.isNotEmpty
+        ? notification.sentAt
+        : notification.createdAt;
     if (raw.trim().isEmpty) return '';
     final formatted = DateHelper.formatToLocal(raw, includeTime: true);
     return (formatted == '-' || formatted.isEmpty) ? '' : formatted;

@@ -8,6 +8,7 @@ import '../../models/announcement_model.dart';
 import '../../models/client_model.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/date_helper.dart';
+import '../../core/services/response_cache.dart';
 
 class ProjectAssignableOperative {
   final int id;
@@ -61,10 +62,37 @@ class ProjectController extends ChangeNotifier {
   List<int> _selectedProjectIds = [];
   List<int> get selectedProjectIds => _selectedProjectIds;
 
-  Future<void> fetchProjects() async {
+  static const String _cacheName = 'projects_page1';
+
+  void _applyFirstPage(dynamic data) {
+    final List<dynamic> projectList = data['data'] ?? [];
+    _projects = projectList.map((json) => Project.fromJson(json)).toList();
+    _filteredProjects = List.from(_projects);
+    _currentPage = data['page'] ?? 1;
+    _totalPages = data['total_pages'] ?? 1;
+    _totalCount = data['count'] ?? _projects.length;
+    _selectedProjectIds.clear();
+  }
+
+  /// [useCache]: show the last saved first page immediately (then refresh).
+  /// Pass false when the list is about to be narrowed (e.g. one client), so
+  /// the unfiltered cached list never flashes.
+  Future<void> fetchProjects({bool useCache = true}) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
+
+    if (useCache && _projects.isEmpty) {
+      final cached = await ResponseCache.read(_cacheName);
+      if (cached != null && _isLoading && _projects.isEmpty) {
+        try {
+          _applyFirstPage(jsonDecode(cached));
+          notifyListeners();
+        } catch (_) {
+          // Ignore a corrupt cache entry; the network result replaces it.
+        }
+      }
+    }
 
     try {
       final tz = await DateHelper.getDeviceTimezone();
@@ -75,13 +103,8 @@ class ProjectController extends ChangeNotifier {
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200 && data['status'] == true) {
-        final List<dynamic> projectList = data['data'] ?? [];
-        _projects = projectList.map((json) => Project.fromJson(json)).toList();
-        _filteredProjects = List.from(_projects);
-        _currentPage = data['page'] ?? 1;
-        _totalPages = data['total_pages'] ?? 1;
-        _totalCount = data['count'] ?? _projects.length;
-        _selectedProjectIds.clear();
+        _applyFirstPage(data);
+        ResponseCache.write(_cacheName, response.body);
       } else {
         _errorMessage = data['message'] ?? 'Failed to fetch projects';
       }

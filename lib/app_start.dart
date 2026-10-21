@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'core/network/api_client.dart';
 import 'core/network/api_endpoints.dart';
 import 'core/services/auth_service.dart';
+import 'modules/dashboard/dashboard_controller.dart';
+import 'core/routes/app_routes.dart';
 import 'modules/splash/splash_screen.dart';
 
 class AppStart extends StatefulWidget {
@@ -21,6 +23,10 @@ class _AppStartState extends State<AppStart> {
   }
 
   Future<void> _checkAuth() async {
+    // Short minimum so the branding is seen; the real wait is the profile +
+    // dashboard loading below, which runs alongside it.
+    final minimumSplash = Future.delayed(const Duration(milliseconds: 1200));
+
     // Determine auth status
     final isLoggedIn = await AuthService.isLoggedIn();
     if (isLoggedIn) {
@@ -35,6 +41,7 @@ class _AppStartState extends State<AppStart> {
             await AuthService.saveUserRole(
               effectiveRole: user['effective_role']?.toString() ?? '',
               roleLabel: user['role_label']?.toString(),
+              userId: user['id'],
             );
             await AuthService.savePermissions(user['permissions']);
           }
@@ -42,18 +49,37 @@ class _AppStartState extends State<AppStart> {
       } catch (_) {
         // Keep the cached session available when the device is temporarily offline.
       }
+
+      // Load the dashboard while the splash is showing so it opens ready
+      // instead of showing a second loading spinner. Capped so a slow
+      // network never holds the splash; the dashboard then loads itself.
+      if (await AuthService.can('dashboard')) {
+        await DashboardController.prefetch().timeout(
+          const Duration(seconds: 10),
+          onTimeout: () {},
+        );
+      }
     }
 
-    // Delay to simulate splash screen
-    await Future.delayed(const Duration(seconds: 3));
+    await minimumSplash;
 
     if (!mounted) return;
 
-    if (isLoggedIn) {
-      Navigator.pushReplacementNamed(context, '/home');
-    } else {
-      Navigator.pushReplacementNamed(context, '/login');
-    }
+    // Fade from the splash into the app. Route names are kept because other
+    // screens navigate back to '/home' by name.
+    final route = isLoggedIn ? '/home' : '/login';
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        settings: RouteSettings(name: route),
+        transitionDuration: const Duration(milliseconds: 500),
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            AppRoutes.routes[route]!(context),
+        transitionsBuilder: (context, animation, _, child) => FadeTransition(
+          opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
+          child: child,
+        ),
+      ),
+    );
   }
 
   @override

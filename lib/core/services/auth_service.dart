@@ -6,6 +6,7 @@ class AuthService {
   static const String _refreshTokenKey = 'refresh_token';
   static const String _userRoleKey = 'user_effective_role';
   static const String _userRoleLabelKey = 'user_role_label';
+  static const String _userIdKey = 'user_id';
   static const String _permissionsKey = 'user_rbac_permissions';
   static const String _forceUkDisplayTimeKey = 'force_uk_display_time';
 
@@ -52,6 +53,7 @@ class AuthService {
     await prefs.remove(_refreshTokenKey);
     await prefs.remove(_userRoleKey);
     await prefs.remove(_userRoleLabelKey);
+    await prefs.remove(_userIdKey);
     await prefs.remove(_permissionsKey);
     await prefs.remove(_forceUkDisplayTimeKey);
   }
@@ -68,10 +70,17 @@ class AuthService {
   static Future<void> saveUserRole({
     required String effectiveRole,
     String? roleLabel,
+    Object? userId,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_userRoleKey, effectiveRole);
     await prefs.setString(_userRoleLabelKey, roleLabel ?? '');
+    if (userId != null) await prefs.setString(_userIdKey, userId.toString());
+  }
+
+  static Future<String?> getUserId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_userIdKey);
   }
 
   static Future<String?> getUserRole() async {
@@ -94,13 +103,64 @@ class AuthService {
   }
 
   static Future<bool> isManagerUser() async {
-    final role = await getUserRole();
-    return role?.toLowerCase() == 'manager';
+    return await getRoleKey() == 'manager';
   }
 
   static Future<bool> isSupervisorUser() async {
-    final role = await getUserRole();
-    return role?.toLowerCase() == 'supervisor';
+    return await getRoleKey() == 'supervisor';
+  }
+
+  /// Normalised role for UI decisions: 'admin', 'manager', 'supervisor',
+  /// 'operative', 'guest' or the raw role. Falls back to the role label so a
+  /// login whose `effective_role` is generic still shows the right wording.
+  static Future<String> getRoleKey() async {
+    final role = (await getUserRole() ?? '').trim().toLowerCase();
+    final label = (await getUserRoleLabel() ?? '').trim().toLowerCase();
+    if (_adminRoles.contains(role)) return 'admin';
+    for (final key in const ['supervisor', 'manager', 'operative', 'guest']) {
+      if (role == key || label.contains(key)) return key;
+    }
+    if (label.contains('admin')) return 'admin';
+    return role;
+  }
+
+  /// Human-readable role name shown in headers/titles ("Admin", "Manager",
+  /// "Supervisor", ...).
+  static Future<String> getRoleDisplayName() async {
+    switch (await getRoleKey()) {
+      case 'admin':
+        return 'Admin';
+      case 'manager':
+        return 'Manager';
+      case 'supervisor':
+        return 'Supervisor';
+      case 'operative':
+        return 'Operative';
+      case 'guest':
+        return 'Guest';
+    }
+    final label = await getUserRoleLabel();
+    return (label != null && label.isNotEmpty) ? label : 'Admin';
+  }
+
+  /// Managers and supervisors get "Operative Logs" (activity of the
+  /// operatives in the teams they lead) in place of Admin Control. The
+  /// backend scopes the activity-log APIs the same way.
+  static Future<bool> canViewOperativeLogs() async {
+    final key = await getRoleKey();
+    return key == 'manager' || key == 'supervisor';
+  }
+
+  /// Creating projects is reserved for admin logins (and custom roles that
+  /// were explicitly granted it); managers, supervisors and operatives never
+  /// get the Create Project action.
+  static Future<bool> canCreateProject() async {
+    final key = await getRoleKey();
+    if (key == 'admin') return true;
+    if (const {'manager', 'supervisor', 'operative', 'guest'}.contains(key)) {
+      return false;
+    }
+    return can('projects', action: 'create');
   }
 
   static Future<void> savePermissions(dynamic permissions) async {

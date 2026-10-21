@@ -9,6 +9,7 @@ import '../../core/widgets/custom_date_picker_dialog.dart';
 import '../../core/widgets/custom_drawer.dart';
 import 'productivity_controller.dart';
 import 'productivity_detail_screen.dart';
+import '../../core/widgets/app_back_button.dart';
 
 class ProductivityScreen extends StatefulWidget {
   const ProductivityScreen({super.key});
@@ -1142,6 +1143,8 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
     return Scaffold(
       backgroundColor: bgColor,
       appBar: AppBar(
+        leading: const AppNavLeading(),
+        leadingWidth: AppNavigation.backAndMenuLeadingWidth,
         elevation: 0,
         iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black87),
         backgroundColor: isDark ? AppTheme.darkSurface : Colors.white,
