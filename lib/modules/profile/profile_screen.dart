@@ -809,7 +809,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         // Loading / error states keep a navigation bar so the user can
         // always go back.
         Widget withNavBar(Widget body) => widget.showBackButton
-            ? Scaffold(appBar: AppBar(title: const Text('Profile')), body: body)
+            ? Scaffold(
+                appBar: AppBar(title: const Text('Profile')),
+                body: body,
+              )
             : body;
 
         if (_controller.isLoading) {
@@ -895,7 +898,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               radius: 40,
                               backgroundColor: Colors.grey.shade200,
                               backgroundImage: user.profileImageUrl != null
-                                  ? CachedNetworkImageProvider(user.profileImageUrl!)
+                                  ? CachedNetworkImageProvider(
+                                      user.profileImageUrl!,
+                                    )
                                   : null,
                               child: user.profileImageUrl == null
                                   ? Text(
@@ -962,10 +967,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ),
                   child: Text(
-                    _roleText(
-                      user.roleLabel,
-                      user.effectiveRole,
-                    ).toUpperCase(),
+                    _roleText(user.roleLabel, user.effectiveRole).toUpperCase(),
                     style: const TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
