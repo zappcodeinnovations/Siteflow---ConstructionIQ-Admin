@@ -10,6 +10,8 @@ const _iphones = <String, (Size, double keyboard, EdgeInsets safeArea)>{
   'iPhone SE': (Size(375, 667), 260, EdgeInsets.only(top: 20)),
   'iPhone 13 mini': (Size(375, 812), 336, EdgeInsets.only(top: 50, bottom: 34)),
   'iPhone 15 Pro Max': (Size(430, 932), 346, EdgeInsets.only(top: 59, bottom: 34)),
+  // Tablet layout from origin/main (side-by-side hero + form).
+  'iPad Air': (Size(820, 1180), 400, EdgeInsets.only(top: 24, bottom: 20)),
 };
 
 void _useIphone(WidgetTester tester, Size size, EdgeInsets safeArea) {
