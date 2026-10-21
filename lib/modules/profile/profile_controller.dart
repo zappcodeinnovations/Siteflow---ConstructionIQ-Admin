@@ -132,6 +132,41 @@ class ProfileController extends ChangeNotifier {
     return updated;
   }
 
+  /// Deletes the signed-in user's account (soft delete on the server:
+  /// sign-in is blocked, the data stays). Requires the current password.
+  Future<Map<String, dynamic>> deleteAccount(String password) async {
+    try {
+      final response = await ApiClient.post(
+        '${ApiEndpoints.baseUrl}/profile/delete-account/',
+        body: {'password': password},
+      );
+      dynamic decoded;
+      try {
+        decoded = jsonDecode(response.body);
+      } catch (_) {
+        decoded = null;
+      }
+      final message = decoded is Map ? decoded['message']?.toString() : null;
+      if (response.statusCode == 200 &&
+          decoded is Map &&
+          decoded['status'] == true) {
+        return {
+          'success': true,
+          'message': message ?? 'Your account has been deleted.',
+        };
+      }
+      return {
+        'success': false,
+        'message': message ?? 'Could not delete your account. Please try again.',
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Could not delete your account. Please check your connection.',
+      };
+    }
+  }
+
   Future<Map<String, dynamic>> changePassword({
     required String currentPassword,
     required String newPassword,

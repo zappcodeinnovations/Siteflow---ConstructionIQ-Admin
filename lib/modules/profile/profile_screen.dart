@@ -6,6 +6,7 @@ import '../../core/services/auth_service.dart';
 import '../../core/widgets/app_back_button.dart';
 import 'profile_controller.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ProfileScreen extends StatefulWidget {
   /// False when embedded inside another screen that already has its own
@@ -593,6 +594,85 @@ class _ProfileScreenState extends State<ProfileScreen> {
           },
         );
       },
+    );
+  }
+
+  void _showDeleteAccountDialog() {
+    // Captured up front: this screen is gone once we navigate to login.
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _DeleteAccountDialog(
+        controller: _controller,
+        messenger: messenger,
+        onDeleted: (message) async {
+          await AuthService.clearTokens();
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.remove('remember_email');
+          await prefs.remove('remember_password');
+          navigator.pushNamedAndRemoveUntil('/login', (route) => false);
+          messenger.showSnackBar(
+            SnackBar(content: Text(message), backgroundColor: Colors.green),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildDeleteAccountCard({required bool isDark}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark
+            ? Colors.redAccent.withValues(alpha: .08)
+            : const Color(0xFFFFF5F5),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.redAccent.withValues(alpha: isDark ? .35 : .25),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Delete account',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Permanently close your account. You will not be able to sign in again.',
+            style: TextStyle(
+              fontSize: 12.5,
+              color: isDark ? Colors.white70 : Colors.grey.shade700,
+            ),
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: _showDeleteAccountDialog,
+            icon: const Icon(IconlyLight.delete, size: 18),
+            label: const Text(
+              'Delete Account',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.redAccent,
+              side: const BorderSide(color: Colors.redAccent),
+              minimumSize: const Size(0, 44),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1451,6 +1531,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ],
                         ),
                       ),
+                      const SizedBox(height: 24),
+                      _buildDeleteAccountCard(isDark: isDark),
                       const SizedBox(height: 40),
                     ],
                   ),
@@ -1460,6 +1542,168 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         );
       },
+    );
+  }
+}
+
+/// Password-confirmed "Delete account" dialog. Owns its text controller so
+/// it is disposed only after the dialog has fully left the screen.
+class _DeleteAccountDialog extends StatefulWidget {
+  final ProfileController controller;
+  final ScaffoldMessengerState messenger;
+  final Future<void> Function(String message) onDeleted;
+
+  const _DeleteAccountDialog({
+    required this.controller,
+    required this.messenger,
+    required this.onDeleted,
+  });
+
+  @override
+  State<_DeleteAccountDialog> createState() => _DeleteAccountDialogState();
+}
+
+class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _passwordController = TextEditingController();
+  bool _isSubmitting = false;
+  bool _obscure = true;
+
+  @override
+  void dispose() {
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (_isSubmitting || !_formKey.currentState!.validate()) return;
+    setState(() => _isSubmitting = true);
+    final result = await widget.controller.deleteAccount(
+      _passwordController.text,
+    );
+    if (result['success'] == true) {
+      await widget.onDeleted(result['message']);
+      return;
+    }
+    if (!mounted) return;
+    setState(() => _isSubmitting = false);
+    widget.messenger.showSnackBar(
+      SnackBar(
+        content: Text(result['message']),
+        backgroundColor: Colors.redAccent,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return AlertDialog(
+      backgroundColor: isDark ? AppTheme.darkSurface : Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Row(
+        children: [
+          const Icon(Icons.warning_amber_rounded, color: Colors.redAccent),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Delete account?',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : Colors.black87,
+              ),
+            ),
+          ),
+        ],
+      ),
+      content: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'You will be signed out and will no longer be able to sign in '
+              'with this account. Contact your admin if you need it restored.',
+              style: TextStyle(
+                fontSize: 13,
+                height: 1.4,
+                color: isDark ? Colors.white70 : Colors.grey.shade700,
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _passwordController,
+              obscureText: _obscure,
+              enabled: !_isSubmitting,
+              style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+              decoration: InputDecoration(
+                labelText: 'Enter your password to confirm',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                suffixIcon: IconButton(
+                  tooltip: _obscure ? 'Show password' : 'Hide password',
+                  icon: Icon(
+                    _obscure
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                  ),
+                  onPressed: () => setState(() => _obscure = !_obscure),
+                ),
+              ),
+              validator: (value) =>
+                  (value ?? '').isEmpty ? 'Please enter your password' : null,
+              onFieldSubmitted: (_) => _submit(),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isSubmitting
+              ? null
+              : () {
+                  // Drop focus first so the keyboard and the field detach
+                  // cleanly before the dialog animates out.
+                  FocusScope.of(context).unfocus();
+                  Navigator.of(context).pop();
+                },
+          child: Text(
+            'Cancel',
+            style: TextStyle(
+              color: isDark ? Colors.white70 : Colors.grey.shade600,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.redAccent,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+          onPressed: _isSubmitting ? null : _submit,
+          child: _isSubmitting
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                )
+              : const Text(
+                  'Delete Account',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+        ),
+      ],
     );
   }
 }
