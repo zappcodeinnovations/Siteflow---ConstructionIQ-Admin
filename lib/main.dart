@@ -8,6 +8,8 @@ import 'core/services/theme_service.dart';
 import 'core/utils/app_logger.dart';
 import 'core/services/download_manager.dart';
 import 'core/widgets/download_progress_overlay.dart';
+import 'core/services/app_update_service.dart';
+import 'core/widgets/app_update_overlay.dart';
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
@@ -81,6 +83,8 @@ void main() async {
     );
   }
 
+  AppUpdateService.start();
+
   runApp(const MyApp());
 }
 
@@ -109,6 +113,7 @@ class MyApp extends StatelessWidget {
                 onViewDownloads: () =>
                     navigatorKey.currentState?.pushNamed('/downloads'),
               ),
+              const AppUpdateOverlay(),
             ],
           ),
         );

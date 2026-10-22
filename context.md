@@ -757,3 +757,11 @@ other work). `flutter analyze` clean on the file (one pre-existing hint).
 ## 2026-10-12 — Session-expired popup on a fresh start
 
 `lib/core/network/api_client.dart`: the 401 handler showed "Your session has expired" even when no session existed (fresh install / logged-out start: first API call 401s with no stored token). Now shown only if a refresh token was stored; reworded to "Your session has ended. Please sign in again." (blue, not red). Also this session: per-drawing View/Delete + recycle bin dialog + pin viewer aspect ratio, Approvals real blocks/Site Manager project, Tasks tab duplicate Filters removed, Add Attendance entry-options. Release APK built and installed on Pixel 11 Pro (uncommitted).
+
+## 2026-10-22 — App update popup
+
+- New `lib/core/services/app_update_service.dart` + `lib/core/widgets/app_update_overlay.dart`, wired in `lib/main.dart` (`AppUpdateService.start()` before `runApp`, `AppUpdateOverlay` in `MaterialApp.builder`). Reads `GET /api/app/version/?app=admin`; popup is optional (Later) or mandatory (no Later, Back/outside-tap ignored); "Update Now" opens the configured store listing (native store app first, https fallback, URL host allow-list). Config is set by Super Admin on the web Organisation page. Admin app store URLs start blank there — popup stays off until they are filled in.
+- Added dependency `package_info_plus` (^9.0.1). Needs a full rebuild, not hot reload.
+- Tests: `test/app_update_test.dart` (20) pass; `flutter analyze` clean on new files. Pre-existing template `widget_test.dart` counter test still fails (unrelated).
+- Admin app has no push-token registration, so the web "send notification" button only targets the operative app; here the popup appears on next open/resume.
+- Committed locally only (not pushed).
