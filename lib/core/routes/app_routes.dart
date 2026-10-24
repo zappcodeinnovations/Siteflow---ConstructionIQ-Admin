@@ -14,6 +14,8 @@ import 'package:euroside_admin/modules/drawer_pages/weekly_diary_screen.dart';
 import 'package:euroside_admin/modules/drawer_pages/manager_diary_list_screen.dart';
 import 'package:euroside_admin/modules/drawer_pages/my_approvals_screen.dart';
 import 'package:euroside_admin/modules/drawer_pages/workforce_planner_screen.dart';
+import 'package:euroside_admin/modules/drawer_pages/compliance_dashboard_screen.dart';
+import 'package:euroside_admin/modules/drawer_pages/construction_reports_screen.dart';
 import 'package:euroside_admin/modules/drawer_pages/downloads_screen.dart';
 import 'package:euroside_admin/modules/home/nav_bar.dart';
 import 'package:euroside_admin/modules/profile/profile_screen.dart';
@@ -82,6 +84,14 @@ class AppRoutes {
     '/workforcePlanner': (context) => const PermissionGate(
       menuKey: 'workforce_planner',
       child: WorkforcePlannerScreen(),
+    ),
+    '/complianceDashboard': (context) => const PermissionGate(
+      menuKey: 'compliance_dashboard',
+      child: ComplianceDashboardScreen(),
+    ),
+    '/constructionReports': (context) => const PermissionGate(
+      menuKey: 'construction_reports',
+      child: ConstructionReportsScreen(),
     ),
     '/timesheet': (context) =>
         const PermissionGate(menuKey: 'timesheets', child: TimesheetScreen()),

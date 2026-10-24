@@ -43,6 +43,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
   bool _canViewJobSheets = false;
   bool _canViewApprovals = false;
   bool _canEditProject = false;
+  bool _canManageGeofence = false;
 
   @override
   void initState() {
@@ -57,6 +58,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
       AuthService.can('job_sheets'),
       AuthService.can('approvals'),
       AuthService.can('projects', action: 'edit'),
+      AuthService.can('project_geofence_toggle', action: 'edit'),
     ]);
     if (!mounted) return;
     setState(() {
@@ -65,6 +67,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
       _canViewJobSheets = access[2];
       _canViewApprovals = access[3];
       _canEditProject = access[4];
+      _canManageGeofence = access[5];
     });
     await _fetchData();
   }
@@ -193,6 +196,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
         projectId: widget.project.id,
         projectSetup: _allInOneData?.projectSetup,
         canEdit: _canEditProject,
+        canManageGeofence: _canManageGeofence,
       ),
     ];
 

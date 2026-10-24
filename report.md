@@ -185,3 +185,13 @@ not yet pushed pending explicit confirmation.
 New backend tests: `test_assigned_and_invited_counters_match_web_definitions`, `test_pending_tab_does_not_crash_when_an_invite_exists`, `test_manager_with_overlapping_access_paths_does_not_double_count`, `AdminMemberInviteDuplicateEmployeeIdAPITests` (4 cases), 2 new cases in `OperativeProjectJobCreateApiTests`. Backend pushed to origin/main across commits `c1f0f91`, `42dec36`. Flutter committed locally across `ee58917`, `cfb78cb`.
 
 Work log (chronological, appended as each item is verified/fixed):
+
+## 2026-10-23 — Phase 2 "Safety & Compliance" plan audit (admin-app slice, read-only)
+
+**Point (as given):** User pasted a "Phase 2 - Safety & Compliance - Replace OneTrace" plan (RAMS, Toolbox Talks, Permit-to-Work, Compliance Dashboard, Enhanced Audit Logs, New Suggestions/Attendance) and asked which points are done vs pending. Full cross-repo writeup lives in `Euroside_Project/report.md` (2026-10-23 entry) — this is just this app's slice.
+
+**Verification (this app only):** No new Compliance/RAMS/ToolboxTalk/Permit folder exists under `lib/modules/drawer_pages/admin/` — still just Members/Guests/Announcements/Notifications/Permissions/Activity Logs/Organisation/Support. The real surface is `lib/modules/projects/tabs/hse_tab.dart` (+ `project_hse_controller.dart`, `hse_document_model.dart`) — one generic document uploader with 8 category tags (rams/toolbox_talk/site_induction/permit_to_work/certificate/training/other), sign-required checkbox, "X/Y signed" progress, revision/"Recycle Bin" history. No Compliance Dashboard screen anywhere (only 2 hits for "compliance" in the whole codebase, both marketing copy). Enhanced Audit Logs export **already exists and works**: `admin_activity_logs_view.dart` has CSV/Excel/PDF export buttons wired to `DownloadManager`. Manager's own clock in/out (`manager_attendance_screen.dart`) is GPS-only via `geolocator` — no QR scan/generate-for-clock-in flow; the app's only QR feature is a per-project identification QR in `projects_screen.dart`, unrelated to attendance, and no QR-scanning package exists in `pubspec.yaml`. `add_attendance_dialog.dart` (manual attendance entry) is single-operator/single-signature only — no multi-labourer co-sign support.
+
+**Work:** None — diagnosis/report only.
+
+**Status:** Reported back to user.

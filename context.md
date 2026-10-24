@@ -765,3 +765,18 @@ other work). `flutter analyze` clean on the file (one pre-existing hint).
 - Tests: `test/app_update_test.dart` (20) pass; `flutter analyze` clean on new files. Pre-existing template `widget_test.dart` counter test still fails (unrelated).
 - Admin app has no push-token registration, so the web "send notification" button only targets the operative app; here the popup appears on next open/resume.
 - Committed locally only (not pushed).
+
+## 2026-10-22 — Release APK Build & Gradle Signing Fallback
+
+- `android/app/build.gradle.kts`: Added `hasReleaseSigning` check so that if `key.properties` does not exist on the machine (or `storeFile` is null), `buildTypes.release` safely falls back to `debug` signing rather than failing with `SigningConfig "release" is missing required property "storeFile"`. When `key.properties` is present, it uses release keystore signing.
+- `android/gradle.properties`: Added `kotlin.incremental=false` to prevent Kotlin daemon crash when Pub cache is on `C:` and workspace is on `P:`.
+- Release APK built successfully: `build\app\outputs\flutter-apk\app-release.apk` (67.7MB).
+
+## 2026-10-23 — Compliance Dashboard screen (Phase 2 item #1, backend+web+app)
+
+- New `lib/modules/drawer_pages/compliance_dashboard_screen.dart` - Safety Compliance Score card (3-component breakdown: document validity / acknowledgment completion / certification validity), expired/expiring-soon HSE document lists, expired/expiring employee certification list, project picker modal (+ "All Projects" org-wide option). Hits `GET /compliance-dashboard/` (new backend endpoint, same aggregation logic as the new web Compliance Dashboard page). Mirrors `workforce_planner_screen.dart`'s structure/styling exactly (raw `Map<String, dynamic>` from JSON, no separate model class, same color tokens and card components), so it looks and behaves consistently with the rest of the app.
+- `lib/core/routes/app_routes.dart`: new `/complianceDashboard` route, wrapped in the existing `PermissionGate(menuKey: 'compliance_dashboard')`.
+- `lib/core/widgets/custom_drawer.dart`: added `'compliance_dashboard'` to the `_loadRole()` keys list and a matching `if (_allowedMenus.contains(...))` drawer item (after Workforce Planner) - no changes needed to `AuthService.can()` itself, since it already reads the backend's permission payload generically by key, and the backend side now includes this key automatically via `SIDEBAR_MENU_ITEMS`.
+- `flutter analyze` clean on all 3 changed/new files (one lint - unnecessary string-interpolation braces - fixed immediately).
+- Backend side (Euroside_Project): see that repo's own `context.md`/`report.md` for the aggregation function, web view, and API endpoint.
+- Not committed in this pass yet.

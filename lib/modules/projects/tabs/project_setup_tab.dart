@@ -15,12 +15,14 @@ import '../../../core/theme/app_theme.dart';
 class ProjectSetupTab extends StatefulWidget {
   final Map<String, dynamic>? projectSetup;
   final bool canEdit;
+  final bool canManageGeofence;
   final int projectId;
 
   const ProjectSetupTab({
     super.key,
     required this.projectId,
     required this.canEdit,
+    this.canManageGeofence = false,
     this.projectSetup,
   });
 
@@ -44,6 +46,7 @@ class _ProjectSetupTabState extends State<ProjectSetupTab> {
   bool _isSaving = false;
   bool _isGettingLocation = false;
   bool _initialized = false;
+  bool _geofenceEnabled = true;
 
   Map<String, dynamic> get _setup => widget.projectSetup ?? const {};
   Map<String, dynamic> get _metadata =>
@@ -87,6 +90,7 @@ class _ProjectSetupTabState extends State<ProjectSetupTab> {
     _selectedWorkerIds
       ..clear()
       ..addAll(selectedWorkers.map((worker) => worker['id'].toString()));
+    _geofenceEnabled = metadata['geofence_enabled'] != false;
     _initialized = true;
   }
 
@@ -359,6 +363,42 @@ class _ProjectSetupTabState extends State<ProjectSetupTab> {
           keyboardType: TextInputType.number,
         ),
         const SizedBox(height: 16),
+        if (widget.canManageGeofence)
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Geofence enabled', style: _labelStyle(context)),
+                    const SizedBox(height: 4),
+                    Text(
+                      'When off, this project\'s geofence is not enforced at all: '
+                      'operatives can clock in/out from anywhere, even if no '
+                      'project location is set above, and nobody is ever '
+                      'auto-clocked-out for leaving the site.',
+                      style: _mutedStyle(context),
+                    ),
+                  ],
+                ),
+              ),
+              Transform.scale(
+                scale: 0.85,
+                child: Switch(
+                  value: _geofenceEnabled,
+                  activeColor: const Color(0xFF0D6EFD),
+                  onChanged: !widget.canEdit
+                      ? null
+                      : (value) => setState(() {
+                          _geofenceEnabled = value;
+                          _changes['geofence_enabled'] = value;
+                        }),
+                ),
+              ),
+            ],
+          ),
+        if (widget.canManageGeofence) const SizedBox(height: 16),
         _responsiveRow(context, [
           _timeField(
             context,

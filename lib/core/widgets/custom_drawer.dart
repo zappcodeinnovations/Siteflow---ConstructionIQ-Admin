@@ -43,6 +43,8 @@ class _CustomDrawerState extends State<CustomDrawer> {
       'approvals',
       'productivity',
       'workforce_planner',
+      'compliance_dashboard',
+      'construction_reports',
       'timesheets',
       'manager_attendance',
       'library',
@@ -248,6 +250,22 @@ class _CustomDrawerState extends State<CustomDrawer> {
                       IconlyLight.calendar,
                       "Workforce Planner",
                       '/workforcePlanner',
+                      currentRoute,
+                    ),
+                  if (_allowedMenus.contains('compliance_dashboard'))
+                    _buildDrawerItem(
+                      context,
+                      IconlyLight.shield_done,
+                      "Compliance Dashboard",
+                      '/complianceDashboard',
+                      currentRoute,
+                    ),
+                  if (_allowedMenus.contains('construction_reports'))
+                    _buildDrawerItem(
+                      context,
+                      IconlyLight.chart,
+                      "Construction Reports",
+                      '/constructionReports',
                       currentRoute,
                     ),
                   if (_allowedMenus.contains('timesheets'))
