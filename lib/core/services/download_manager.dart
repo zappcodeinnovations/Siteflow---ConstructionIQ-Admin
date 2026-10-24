@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -149,7 +150,7 @@ class DownloadManager extends ChangeNotifier {
       _update(pending.id, progress: .8);
       return await _saveBytes(pending, response.bodyBytes);
     } catch (error) {
-      _fail(pending.id, error.toString());
+      _fail(pending.id, _friendlyDownloadError(error));
       return null;
     }
   }
@@ -164,9 +165,22 @@ class DownloadManager extends ChangeNotifier {
       _update(pending.id, progress: .75);
       return await _saveBytes(pending, Uint8List.fromList(bytes));
     } catch (error) {
-      _fail(pending.id, error.toString());
+      _fail(pending.id, _friendlyDownloadError(error));
       return null;
     }
+  }
+
+  /// HttpException is already thrown with a readable message above; any
+  /// other exception (SocketException, TimeoutException, FormatException,
+  /// a raw platform error from file I/O, ...) was previously shown to the
+  /// user verbatim via error.toString() - a raw technical string instead
+  /// of something a user could act on.
+  String _friendlyDownloadError(Object error) {
+    if (error is HttpException) return error.message;
+    if (error is SocketException || error is TimeoutException) {
+      return 'Unable to reach the server. Check your internet connection and try again.';
+    }
+    return 'Download failed. Please try again.';
   }
 
   DownloadEntry _begin(String requestedName, String mimeType) {

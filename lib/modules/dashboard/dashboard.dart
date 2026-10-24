@@ -199,9 +199,47 @@ class _DashboardScreenState extends State<DashboardScreen>
 
                     if (_dashboardController.errorMessage != null) {
                       return Center(
-                        child: Text(
-                          _dashboardController.errorMessage!,
-                          style: const TextStyle(color: Colors.red),
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                IconlyLight.danger,
+                                size: 40,
+                                color: isDark
+                                    ? Colors.white70
+                                    : Colors.black54,
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                _dashboardController.errorMessage!,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: isDark
+                                      ? Colors.white70
+                                      : Colors.black54,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              ElevatedButton.icon(
+                                onPressed: () =>
+                                    _dashboardController.fetchDashboard(),
+                                icon: const Icon(
+                                  IconlyLight.swap,
+                                  size: 18,
+                                  color: Colors.white,
+                                ),
+                                label: const Text(
+                                  "Retry",
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF0D6EFD),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       );
                     }

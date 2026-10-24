@@ -409,13 +409,14 @@ class _AdminNotificationsViewState extends State<AdminNotificationsView> {
                           const SizedBox(width: 8),
                           ElevatedButton.icon(
                             onPressed: _showAddDialog,
+                            iconAlignment: IconAlignment.end,
                             icon: const Icon(
-                              Icons.send_rounded,
+                              Icons.arrow_forward_rounded,
                               size: 14,
                               color: Colors.white,
                             ),
                             label: const Text(
-                              "+ Send Notification",
+                              "Send Notification",
                               style: TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,

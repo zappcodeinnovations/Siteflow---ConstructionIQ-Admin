@@ -40,6 +40,10 @@ class ApiEndpoints {
       '/projects/$projectId/materials/';
   static String projectHseDocuments(int projectId) =>
       '/projects/$projectId/hse-documents/';
+  static String projectRams(int projectId, {int? documentId}) =>
+      documentId == null
+          ? '/projects/$projectId/rams/'
+          : '/projects/$projectId/rams/$documentId/';
   static String myApprovals({int? projectId}) => projectId == null
       ? '/my-approvals/'
       : '/my-approvals/?project_id=$projectId';

@@ -1,8 +1,14 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../core/network/api_client.dart';
 import '../../core/network/api_endpoints.dart';
 import '../../models/dashboard_model.dart';
+
+/// How long the dashboard waits for a response before giving up and showing
+/// a retryable error, instead of sitting on the loading skeleton forever if
+/// the backend hangs (e.g. a slow query or a stalled connection).
+const _dashboardRequestTimeout = Duration(seconds: 20);
 
 class DashboardController extends ChangeNotifier {
   static final ValueNotifier<int> refreshNotifier = ValueNotifier<int>(0);
@@ -65,7 +71,20 @@ class DashboardController extends ChangeNotifier {
     try {
       final response = await ApiClient.get(
         ApiEndpoints.baseUrl + ApiEndpoints.dashboard,
-      );
+      ).timeout(_dashboardRequestTimeout);
+
+      // A gateway timeout/error (502/504) or proxy redirect returns an HTML
+      // error page, not JSON - detect that before parsing instead of letting
+      // jsonDecode throw a raw FormatException the user would otherwise see.
+      final contentType = response.headers['content-type'] ?? '';
+      if (!contentType.contains('json')) {
+        if (!silent) {
+          _errorMessage =
+              'Unable to load dashboard data. Please pull down to refresh or check your connection.';
+        }
+        return;
+      }
+
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200 && data['status'] == true) {
@@ -74,11 +93,17 @@ class DashboardController extends ChangeNotifier {
       } else if (!silent) {
         _errorMessage =
             data['message'] ??
-            'Failed to fetch dashboard (Status: ${response.statusCode})\nBody: ${response.body}';
+            'Unable to load dashboard data. Please pull down to refresh or check your connection.';
+      }
+    } on TimeoutException {
+      if (!silent) {
+        _errorMessage =
+            'Unable to load dashboard data. Please pull down to refresh or check your connection.';
       }
     } catch (e) {
       if (!silent) {
-        _errorMessage = 'An error occurred while parsing dashboard: $e';
+        _errorMessage =
+            'Unable to load dashboard data. Please pull down to refresh or check your connection.';
       }
     } finally {
       if (!silent) {

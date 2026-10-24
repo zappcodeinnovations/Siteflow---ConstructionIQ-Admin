@@ -7,6 +7,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/date_helper.dart';
 import '../../../models/hse_document_model.dart';
 import '../project_hse_controller.dart';
+import 'rams_builder_screen.dart';
 
 class HseTab extends StatefulWidget {
   final int projectId;
@@ -81,6 +82,16 @@ class _HseTabState extends State<HseTab> {
       }
     } catch (_) {}
     return DateHelper.formatDate(raw);
+  }
+
+  Future<void> _openRamsBuilder({int? documentId}) async {
+    final saved = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => RamsBuilderScreen(projectId: widget.projectId, documentId: documentId),
+      ),
+    );
+    if (saved == true) _controller.fetchDocuments();
   }
 
   void _showUploadDialog() {
@@ -185,7 +196,7 @@ class _HseTabState extends State<HseTab> {
                       onTap: () async {
                         final picked = await showDatePicker(
                           context: context,
-                          initialDate: selectedExpiry ?? DateTime.now().add(const Duration(days: 30)),
+                          initialDate: selectedExpiry ?? DateTime.now(),
                           firstDate: DateTime.now(),
                           lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
                         );
@@ -633,17 +644,34 @@ class _HseTabState extends State<HseTab> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0D6EFD),
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
-                      onPressed: _showUploadDialog,
-                      icon: const Icon(IconlyLight.upload, size: 16),
-                      label: const Text("Upload HS&E Document", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF0D6EFD),
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          onPressed: _showUploadDialog,
+                          icon: const Icon(IconlyLight.upload, size: 16),
+                          label: const Text("Upload HS&E Document", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                        ),
+                        OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF0D6EFD),
+                            side: const BorderSide(color: Color(0xFF0D6EFD)),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          onPressed: () => _openRamsBuilder(),
+                          icon: const Icon(IconlyLight.plus, size: 16),
+                          label: const Text("Build RAMS", style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                        ),
+                      ],
                     ),
                     OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(
@@ -902,6 +930,25 @@ class _HseTabState extends State<HseTab> {
             Text(doc.notes, style: TextStyle(fontSize: 13, color: textColor.withValues(alpha: 0.85))),
           ],
 
+          if (doc.hazardCount != null) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(Icons.grid_view_rounded, size: 13, color: textSecondary),
+                const SizedBox(width: 4),
+                Text(
+                  "${doc.hazardCount} hazard${doc.hazardCount == 1 ? '' : 's'} identified",
+                  style: TextStyle(fontSize: 12, color: textSecondary),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  "Highest risk score ${doc.highestRiskScore ?? 0}",
+                  style: TextStyle(fontSize: 12, color: textSecondary),
+                ),
+              ],
+            ),
+          ],
+
           const SizedBox(height: 12),
           const Divider(height: 1),
           const SizedBox(height: 10),
@@ -963,6 +1010,18 @@ class _HseTabState extends State<HseTab> {
                       onPressed: () => launchUrl(Uri.parse(doc.fileUrl), mode: LaunchMode.externalApplication),
                       icon: const Icon(IconlyLight.show, size: 15),
                       label: const Text("Open", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    ),
+                  if (doc.hazardCount != null)
+                    TextButton.icon(
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        minimumSize: const Size(40, 32),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        foregroundColor: const Color(0xFF0D6EFD),
+                      ),
+                      onPressed: () => _openRamsBuilder(documentId: doc.id),
+                      icon: const Icon(IconlyLight.edit, size: 15),
+                      label: const Text("RAMS builder", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                     ),
                   TextButton.icon(
                     style: TextButton.styleFrom(

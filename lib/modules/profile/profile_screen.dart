@@ -33,10 +33,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   /// Role shown on the profile: the backend label first, then the raw role,
-  /// then the role of the current login (never a hard-coded "Super Admin").
+  /// then the role of the current login. The backend's own label for a
+  /// superuser account is "Superuser" (shared with the web admin panel's
+  /// own role terminology) - the mobile app shows the friendlier
+  /// "Superadmin" instead, without changing what the backend/web panel call
+  /// it.
   String _roleText(String? roleLabel, String effectiveRole) {
+    if (effectiveRole.trim().toLowerCase() == 'superuser') return 'Superadmin';
     final label = roleLabel?.trim() ?? '';
-    if (label.isNotEmpty) return label;
+    if (label.isNotEmpty) {
+      return label.toLowerCase() == 'superuser' ? 'Superadmin' : label;
+    }
     final role = effectiveRole.trim();
     if (role.isNotEmpty) {
       return role[0].toUpperCase() + role.substring(1).toLowerCase();
@@ -1382,7 +1389,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                             'Unable to update the time display setting.'),
                                                 ),
                                                 backgroundColor: updated
-                                                    ? const Color(0xFF059669)
+                                                    ? const Color(0xFF0D6EFD)
                                                     : Colors.redAccent,
                                               ),
                                             );

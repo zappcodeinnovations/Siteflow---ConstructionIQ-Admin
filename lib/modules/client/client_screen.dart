@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import '../../core/services/auth_service.dart';
 import '../../core/services/download_manager.dart';
 import 'client_controller.dart';
 import 'package:iconly/iconly.dart';
@@ -19,6 +20,9 @@ class ClientsScreenState extends State<ClientsScreen> {
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _verticalScrollController = ScrollController();
   bool _isSearchVisible = false;
+  bool _canCreateClient = false;
+  bool _canEditClient = false;
+  bool _canDeleteClient = false;
   String _selectedFilter = 'Active Clients';
   final List<String> _filterOptions = const [
     'Active Clients',
@@ -37,6 +41,15 @@ class ClientsScreenState extends State<ClientsScreen> {
   void initState() {
     super.initState();
     _controller.fetchClients();
+    AuthService.can('clients', action: 'create').then((allowed) {
+      if (mounted) setState(() => _canCreateClient = allowed);
+    });
+    AuthService.can('clients', action: 'edit').then((allowed) {
+      if (mounted) setState(() => _canEditClient = allowed);
+    });
+    AuthService.can('clients', action: 'delete').then((allowed) {
+      if (mounted) setState(() => _canDeleteClient = allowed);
+    });
   }
 
   void _showAddEditClientDialog({int? id, String? initialName}) {
@@ -315,32 +328,33 @@ class ClientsScreenState extends State<ClientsScreen> {
                           ),
                           tooltip: "Download Excel Report",
                         ),
-                        ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF0D6EFD),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 14,
+                        if (_canCreateClient)
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF0D6EFD),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 14,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
                             ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          onPressed: _showAddEditClientDialog,
-                          icon: const Icon(
-                            IconlyLight.plus,
-                            color: Colors.white,
-                            size: 18,
-                          ),
-                          label: const Text(
-                            "Add Client",
-                            style: TextStyle(
-                              fontSize: 12,
+                            onPressed: _showAddEditClientDialog,
+                            icon: const Icon(
+                              IconlyLight.plus,
                               color: Colors.white,
-                              fontWeight: FontWeight.w600,
+                              size: 18,
+                            ),
+                            label: const Text(
+                              "Add Client",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
-                        ),
                       ],
                     ),
                     const SizedBox(height: 24),
@@ -753,7 +767,11 @@ class ClientsScreenState extends State<ClientsScreen> {
                                       ),
                                     ),
 
-                                    // Actions (Edit & Delete only)
+                                    // Actions (Edit & Delete only) - hidden
+                                    // entirely for a role with neither
+                                    // permission, and each item hidden
+                                    // individually otherwise.
+                                    if (_canEditClient || _canDeleteClient)
                                     PopupMenuButton<String>(
                                       icon: const Icon(
                                         IconlyLight.more_circle,
@@ -776,6 +794,7 @@ class ClientsScreenState extends State<ClientsScreen> {
                                         }
                                       },
                                       itemBuilder: (context) => [
+                                        if (_canEditClient)
                                         PopupMenuItem(
                                           value: 'edit',
                                           child: Row(
@@ -797,6 +816,7 @@ class ClientsScreenState extends State<ClientsScreen> {
                                             ],
                                           ),
                                         ),
+                                        if (_canDeleteClient)
                                         const PopupMenuItem(
                                           value: 'delete',
                                           child: Row(

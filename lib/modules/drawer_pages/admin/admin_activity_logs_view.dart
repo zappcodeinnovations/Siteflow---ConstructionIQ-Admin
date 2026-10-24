@@ -198,8 +198,11 @@ class _AdminActivityLogsViewState extends State<AdminActivityLogsView> {
       builder: (context, constraints) {
         final isMobile = constraints.maxWidth < 700;
 
-        return SingleChildScrollView(
-          child: Column(
+        return RefreshIndicator(
+          onRefresh: () => _controller.fetchLogs(),
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // Header & Export
@@ -429,8 +432,17 @@ class _AdminActivityLogsViewState extends State<AdminActivityLogsView> {
               ),
               const SizedBox(height: 20),
 
-              // Filter Bar
-              Container(
+              // Filter Bar - wrapped in an AnimatedBuilder tied to
+              // _controller (mirroring the KPI and table sections above/
+              // below) so the manager/operative and module dropdowns pick
+              // up availableManagers/filterOptions as soon as
+              // initializeData() resolves, instead of only on the next
+              // unrelated setState (e.g. toggling the filter section),
+              // which is why the dropdown previously looked empty/unresponsive
+              // on the first tap after opening the screen.
+              AnimatedBuilder(
+                animation: _controller,
+                builder: (context, _) => Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: cardColor,
@@ -801,6 +813,7 @@ class _AdminActivityLogsViewState extends State<AdminActivityLogsView> {
                     ),
                   ],
                 ),
+                ),
               ),
               const SizedBox(height: 20),
 
@@ -1112,6 +1125,7 @@ class _AdminActivityLogsViewState extends State<AdminActivityLogsView> {
                 ),
               ),
             ],
+          ),
           ),
         );
       },

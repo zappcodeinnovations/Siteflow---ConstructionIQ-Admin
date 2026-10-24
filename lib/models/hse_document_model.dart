@@ -15,6 +15,13 @@ class HseDocumentModel {
   final String? acknowledgedAt;
   final int? signedCount;
   final int? totalSigners;
+  // Only present for category == 'rams' - a structured hazard matrix exists
+  // underneath this document. Null means either not a RAMS document, or an
+  // older RAMS upload created before the builder existed (no risk_assessment
+  // row) - the card should offer "Build RAMS" instead of "Open RAMS builder"
+  // for that case, same as the web list does.
+  final int? hazardCount;
+  final int? highestRiskScore;
 
   HseDocumentModel({
     required this.id,
@@ -33,11 +40,16 @@ class HseDocumentModel {
     required this.acknowledgedAt,
     this.signedCount,
     this.totalSigners,
+    this.hazardCount,
+    this.highestRiskScore,
   });
 
   factory HseDocumentModel.fromJson(Map<String, dynamic> json) {
     final signedCount = json['signed_count'] ?? json['signed_users_count'] ?? json['acknowledged_count'] ?? json['signatures_count'];
     final totalSigners = json['total_signers'] ?? json['total_workers'] ?? json['required_count'] ?? json['total_required'];
+    final riskAssessment = json['risk_assessment'] is Map
+        ? (json['risk_assessment'] as Map).cast<String, dynamic>()
+        : null;
 
     return HseDocumentModel(
       id: json['id'] is int ? json['id'] : int.tryParse('${json['id']}') ?? 0,
@@ -65,6 +77,12 @@ class HseDocumentModel {
       acknowledgedAt: json['acknowledged_at']?.toString(),
       signedCount: signedCount is int ? signedCount : int.tryParse('$signedCount'),
       totalSigners: totalSigners is int ? totalSigners : int.tryParse('$totalSigners'),
+      hazardCount: riskAssessment?['hazard_count'] is int
+          ? riskAssessment!['hazard_count'] as int
+          : int.tryParse('${riskAssessment?['hazard_count']}'),
+      highestRiskScore: riskAssessment?['highest_risk_score'] is int
+          ? riskAssessment!['highest_risk_score'] as int
+          : int.tryParse('${riskAssessment?['highest_risk_score']}'),
     );
   }
 }

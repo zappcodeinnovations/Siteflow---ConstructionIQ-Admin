@@ -162,7 +162,7 @@ class AttendanceLogsDialog extends StatelessWidget {
                                 children: [
                                   Text("Start Location", style: TextStyle(fontSize: 10, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600)),
                                   const SizedBox(height: 2),
-                                  Text(startLoc.isNotEmpty ? startLoc : "N/A", style: TextStyle(fontSize: 12, color: textColor)),
+                                  Text(startLoc.isNotEmpty ? startLoc : "-", style: TextStyle(fontSize: 12, color: textColor)),
                                 ],
                               ),
                             ),
@@ -180,7 +180,7 @@ class AttendanceLogsDialog extends StatelessWidget {
                                 children: [
                                   Text("End Location", style: TextStyle(fontSize: 10, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600)),
                                   const SizedBox(height: 2),
-                                  Text(endLoc.isNotEmpty ? endLoc : "N/A", style: TextStyle(fontSize: 12, color: textColor)),
+                                  Text(endLoc.isNotEmpty ? endLoc : "-", style: TextStyle(fontSize: 12, color: textColor)),
                                 ],
                               ),
                             ),

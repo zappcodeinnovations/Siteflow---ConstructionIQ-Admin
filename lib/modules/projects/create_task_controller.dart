@@ -38,10 +38,12 @@ class CreateTaskController extends ChangeNotifier {
   Future<void> init(int? initialProjectId) async {
     selectedProjectId = initialProjectId;
     await fetchProjects();
+    // Leave the Project field empty (placeholder) when opened without a
+    // project already in context, matching the web's own "Start New Task
+    // Online" modal - the user must explicitly choose one, same as the
+    // operatives list above staying empty until that happens. This used to
+    // silently auto-select the first project in the list.
     if (selectedProjectId != null) {
-      await fetchSetupForProject(selectedProjectId!);
-    } else if (projects.isNotEmpty) {
-      selectedProjectId = projects.first.id;
       await fetchSetupForProject(selectedProjectId!);
     }
   }

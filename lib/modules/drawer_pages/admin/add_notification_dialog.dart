@@ -1,5 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
+import '../../../core/network/api_client.dart';
+import '../../../core/network/api_endpoints.dart';
 import 'admin_notifications_controller.dart';
 
 class AddNotificationDialog extends StatefulWidget {
@@ -14,34 +18,68 @@ class _AddNotificationDialogState extends State<AddNotificationDialog> {
   final _formKey = GlobalKey<FormState>();
   final _headlineController = TextEditingController();
   final _textController = TextEditingController();
-  final _operatorIdsController = TextEditingController();
-  
+  final _operatorSearchController = TextEditingController();
+
   String _audience = "all";
   bool _isActive = true;
   bool _sendPush = true;
   bool _isLoading = false;
 
+  // "Selected Operators" audience: a real picker (search + checkbox list)
+  // instead of asking the user to type raw numeric operator IDs by hand -
+  // the search field previously had no list to search at all.
+  List<Map<String, dynamic>> _operators = [];
+  bool _loadingOperators = false;
+  final Set<int> _selectedOperatorIds = {};
+  String _operatorSearch = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadOperators();
+  }
+
+  Future<void> _loadOperators() async {
+    setState(() => _loadingOperators = true);
+    try {
+      final response = await ApiClient.get(
+        '${ApiEndpoints.baseUrl}/admin/notifications/filter-options/',
+      );
+      final decoded = jsonDecode(response.body);
+      if (response.statusCode == 200 && decoded['status'] == true) {
+        final list = (decoded['data'] as List? ?? const [])
+            .whereType<Map>()
+            .map((e) => e.cast<String, dynamic>())
+            .toList();
+        if (mounted) setState(() => _operators = list);
+      }
+    } catch (_) {
+      // The picker shows "No operators found" if the list stays empty.
+    } finally {
+      if (mounted) setState(() => _loadingOperators = false);
+    }
+  }
+
   @override
   void dispose() {
     _headlineController.dispose();
     _textController.dispose();
-    _operatorIdsController.dispose();
+    _operatorSearchController.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_audience == "selected_operators" && _selectedOperatorIds.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Select at least one operator")),
+      );
+      return;
+    }
 
     setState(() => _isLoading = true);
 
-    List<int> operatorIds = [];
-    if (_audience == "selected_operators" && _operatorIdsController.text.isNotEmpty) {
-      operatorIds = _operatorIdsController.text
-          .split(',')
-          .map((e) => int.tryParse(e.trim()))
-          .whereType<int>()
-          .toList();
-    }
+    final operatorIds = _selectedOperatorIds.toList();
 
     final payload = {
       "headline": _headlineController.text.trim(),
@@ -130,10 +168,107 @@ class _AddNotificationDialogState extends State<AddNotificationDialog> {
                 if (_audience == "selected_operators") ...[
                   const SizedBox(height: 16),
                   TextFormField(
-                    controller: _operatorIdsController,
-                    decoration: _buildInputDecoration("Operator IDs (comma separated)", IconlyLight.category, isDark),
-                    validator: (val) => val == null || val.isEmpty ? "Required for selected operators" : null,
+                    controller: _operatorSearchController,
+                    decoration: _buildInputDecoration(
+                      "Search Operator (name or email)",
+                      IconlyLight.search,
+                      isDark,
+                    ),
+                    onChanged: (val) =>
+                        setState(() => _operatorSearch = val.trim().toLowerCase()),
                   ),
+                  const SizedBox(height: 8),
+                  Builder(
+                    builder: (context) {
+                      if (_loadingOperators) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          child: Center(
+                            child: SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          ),
+                        );
+                      }
+                      final filtered = _operatorSearch.isEmpty
+                          ? _operators
+                          : _operators.where((o) {
+                              final name = (o['display_name'] ?? '')
+                                  .toString()
+                                  .toLowerCase();
+                              final email =
+                                  (o['email'] ?? '').toString().toLowerCase();
+                              return name.contains(_operatorSearch) ||
+                                  email.contains(_operatorSearch);
+                            }).toList();
+                      if (filtered.isEmpty) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          child: Text(
+                            "No operators found",
+                            style: TextStyle(
+                              color: isDark ? Colors.white60 : Colors.grey.shade600,
+                            ),
+                          ),
+                        );
+                      }
+                      return Container(
+                        constraints: const BoxConstraints(maxHeight: 220),
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: isDark ? Colors.white24 : Colors.grey.shade300,
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: filtered.length,
+                          itemBuilder: (context, index) {
+                            final operator = filtered[index];
+                            final id = operator['id'] as int;
+                            final name = (operator['display_name'] ?? '')
+                                .toString();
+                            final email = (operator['email'] ?? '').toString();
+                            return CheckboxListTile(
+                              dense: true,
+                              value: _selectedOperatorIds.contains(id),
+                              title: Text(
+                                name.isNotEmpty ? name : email,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: isDark ? Colors.white : Colors.black87,
+                                ),
+                              ),
+                              subtitle: name.isNotEmpty && email.isNotEmpty
+                                  ? Text(email, style: const TextStyle(fontSize: 11))
+                                  : null,
+                              onChanged: (checked) => setState(() {
+                                if (checked == true) {
+                                  _selectedOperatorIds.add(id);
+                                } else {
+                                  _selectedOperatorIds.remove(id);
+                                }
+                              }),
+                            );
+                          },
+                        ),
+                      );
+                    },
+                  ),
+                  if (_selectedOperatorIds.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Text(
+                        "${_selectedOperatorIds.length} selected",
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.white70 : Colors.grey.shade700,
+                        ),
+                      ),
+                    ),
                 ],
                 const SizedBox(height: 16),
                 SwitchListTile(

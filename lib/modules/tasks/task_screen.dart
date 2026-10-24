@@ -18,6 +18,20 @@ class TasksScreen extends StatefulWidget {
   State<TasksScreen> createState() => _TasksScreenState();
 }
 
+/// "scheduled_date" is a bare calendar date (e.g. "2026-10-02"), not a
+/// timestamp, so it is reformatted as plain text, not through a
+/// timezone-aware formatter - running a date-only value through timezone
+/// conversion risks shifting it to the previous/next day for a viewer whose
+/// offset differs from the device that created it.
+String _formatScheduledDate(String? rawDate) {
+  if (rawDate == null || rawDate.trim().isEmpty) return '';
+  final parsed = DateTime.tryParse(rawDate.trim());
+  if (parsed == null) return rawDate.trim();
+  return "${parsed.day.toString().padLeft(2, '0')}/"
+      "${parsed.month.toString().padLeft(2, '0')}/"
+      "${parsed.year}";
+}
+
 class _TasksScreenState extends State<TasksScreen> {
   final AdminTasksController _controller = AdminTasksController();
   final ScrollController _verticalScrollController = ScrollController();
@@ -570,7 +584,7 @@ class _TasksScreenState extends State<TasksScreen> {
                 detailRow('Operative', task.operativeName),
                 detailRow('Status', task.statusLabel),
                 detailRow('Form', task.formName),
-                detailRow('Scheduled', task.scheduledDate ?? ''),
+                detailRow('Scheduled', _formatScheduledDate(task.scheduledDate)),
                 detailRow('Job sheets', '${task.sheetCount}'),
               ],
             ),

@@ -44,6 +44,7 @@ class _InviteMemberDialogState extends State<InviteMemberDialog> {
   Timer? _employeeCodeDebounce;
   bool _checkingEmployeeCode = false;
   bool _employeeCodeTaken = false;
+  bool _employeeCodeChecked = false;
 
   @override
   void initState() {
@@ -102,9 +103,11 @@ class _InviteMemberDialogState extends State<InviteMemberDialog> {
       setState(() {
         _checkingEmployeeCode = false;
         _employeeCodeTaken = false;
+        _employeeCodeChecked = false;
       });
       return;
     }
+    setState(() => _employeeCodeChecked = false);
     _employeeCodeDebounce = Timer(const Duration(milliseconds: 450), () => _checkEmployeeCode(code));
   }
 
@@ -118,7 +121,10 @@ class _InviteMemberDialogState extends State<InviteMemberDialog> {
       if (!mounted) return;
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
-        setState(() => _employeeCodeTaken = decoded['exists'] == true);
+        setState(() {
+          _employeeCodeTaken = decoded['exists'] == true;
+          _employeeCodeChecked = true;
+        });
       }
     } catch (e) {
       debugPrint("Failed to check employee code: $e");
@@ -438,6 +444,10 @@ class _InviteMemberDialogState extends State<InviteMemberDialog> {
                   controller: _employeeCodeController,
                   decoration: _inputDecoration(hintText: "Employee Code", isDark: isDark).copyWith(
                     errorText: _employeeCodeTaken ? 'Employee code already exists' : null,
+                    helperText: (_employeeCodeChecked && !_employeeCodeTaken)
+                        ? 'Employee code is available'
+                        : null,
+                    helperStyle: const TextStyle(color: Color(0xFF16A34A)),
                     suffixIcon: _checkingEmployeeCode
                         ? const Padding(
                             padding: EdgeInsets.all(12),
@@ -445,7 +455,9 @@ class _InviteMemberDialogState extends State<InviteMemberDialog> {
                           )
                         : _employeeCodeTaken
                             ? const Icon(Icons.error_outline, color: Color(0xFFEF4444), size: 20)
-                            : null,
+                            : (_employeeCodeChecked
+                                ? const Icon(Icons.check_circle_outline, color: Color(0xFF16A34A), size: 20)
+                                : null),
                   ),
                   validator: (v) {
                     if (v == null || v.trim().isEmpty) return 'Employee Code is required';

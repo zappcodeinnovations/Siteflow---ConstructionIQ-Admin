@@ -110,24 +110,36 @@ class AuthService {
     return await getRoleKey() == 'supervisor';
   }
 
-  /// Normalised role for UI decisions: 'admin', 'manager', 'supervisor',
-  /// 'operative', 'guest' or the raw role. Falls back to the role label so a
-  /// login whose `effective_role` is generic still shows the right wording.
+  /// Normalised role for UI decisions: 'superadmin', 'admin', 'manager',
+  /// 'supervisor', 'operative', 'guest' or the raw role. Falls back to the
+  /// role label so a login whose `effective_role` is generic still shows
+  /// the right wording. 'superuser' resolves to its own 'superadmin' key
+  /// (distinct from plain 'admin') purely so the mobile app can show a
+  /// friendlier title - every check elsewhere that gates on admin-only
+  /// access still goes through `isAdminUser()`/`can()`, which key on the
+  /// raw role and treat 'superuser' and 'admin' the same, so this never
+  /// changes what a superuser is allowed to do.
   static Future<String> getRoleKey() async {
     final role = (await getUserRole() ?? '').trim().toLowerCase();
     final label = (await getUserRoleLabel() ?? '').trim().toLowerCase();
+    if (role == 'superuser') return 'superadmin';
     if (_adminRoles.contains(role)) return 'admin';
     for (final key in const ['supervisor', 'manager', 'operative', 'guest']) {
       if (role == key || label.contains(key)) return key;
+    }
+    if (label.contains('superuser') || label.contains('superadmin')) {
+      return 'superadmin';
     }
     if (label.contains('admin')) return 'admin';
     return role;
   }
 
-  /// Human-readable role name shown in headers/titles ("Admin", "Manager",
-  /// "Supervisor", ...).
+  /// Human-readable role name shown in headers/titles ("Superadmin",
+  /// "Admin", "Manager", "Supervisor", ...).
   static Future<String> getRoleDisplayName() async {
     switch (await getRoleKey()) {
+      case 'superadmin':
+        return 'Superadmin';
       case 'admin':
         return 'Admin';
       case 'manager':

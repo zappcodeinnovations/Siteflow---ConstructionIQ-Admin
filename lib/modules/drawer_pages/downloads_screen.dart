@@ -194,12 +194,24 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                       const SizedBox(height: 10),
                       if (downloading)
                         LinearProgressIndicator(value: entry.progress)
-                      else if (failed)
+                      else if (failed) ...[
                         Text(
                           entry.error ?? 'Download failed.',
                           style: const TextStyle(color: Colors.red),
-                        )
-                      else ...[
+                        ),
+                        const SizedBox(height: 10),
+                        TextButton.icon(
+                          onPressed: () => _delete(entry),
+                          icon: const Icon(
+                            Icons.delete_outline,
+                            color: Colors.red,
+                          ),
+                          label: const Text(
+                            'Delete',
+                            style: TextStyle(color: Colors.red),
+                          ),
+                        ),
+                      ] else ...[
                         Text(
                           'Saved to',
                           style: Theme.of(context).textTheme.labelSmall,

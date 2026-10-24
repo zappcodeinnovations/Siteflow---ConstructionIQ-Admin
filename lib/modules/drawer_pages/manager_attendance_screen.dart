@@ -7,6 +7,7 @@ import '../../core/widgets/background_stripes_painter.dart';
 import '../../core/widgets/custom_date_picker_dialog.dart';
 import 'package:intl/intl.dart';
 import '../../core/services/auth_service.dart';
+import '../../core/utils/date_helper.dart';
 
 class ManagerAttendanceScreen extends StatefulWidget {
   const ManagerAttendanceScreen({super.key});
@@ -53,7 +54,14 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
     if (raw.trim().isEmpty || raw == 'N/A') return 'Active Now';
     final parsed = DateTime.tryParse(raw);
     if (parsed != null) {
-      return DateFormat('hh:mm a').format(parsed.toLocal());
+      // Honour the account's Force UK time preference, same as every other
+      // timestamp in the app (DateHelper.formatToLocal) - this card was
+      // reading parsed.toLocal() directly, so it stayed on the device's own
+      // timezone (IST) even with Force UK time enabled.
+      final display = DateHelper.isForceUkDisplayTimeEnabled
+          ? DateHelper.toUkDateTime(parsed)
+          : parsed.toLocal();
+      return DateFormat('hh:mm a').format(display);
     }
     return raw;
   }
