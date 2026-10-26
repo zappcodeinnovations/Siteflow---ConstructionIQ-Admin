@@ -14,11 +14,17 @@ import '../../core/widgets/shimmer_loading.dart';
 class JobSheetScreen extends StatefulWidget {
   final String title;
   final bool dailyReportsMode;
+  // Pre-filters the list to this project, e.g. when opened from the
+  // Construction Reports hub's "Project Reports" section after a project
+  // has been picked there. Left null, the screen shows all projects as
+  // before and the user filters manually.
+  final int? initialProjectId;
 
   const JobSheetScreen({
     super.key,
     this.title = "Job Sheets",
     this.dailyReportsMode = false,
+    this.initialProjectId,
   });
 
   @override
@@ -32,7 +38,7 @@ class _JobSheetScreenState extends State<JobSheetScreen> {
   void initState() {
     super.initState();
     _controller.dailyReportsMode = widget.dailyReportsMode;
-    _controller.fetchJobSheets();
+    _controller.fetchJobSheets(projectId: widget.initialProjectId?.toString());
   }
 
   @override

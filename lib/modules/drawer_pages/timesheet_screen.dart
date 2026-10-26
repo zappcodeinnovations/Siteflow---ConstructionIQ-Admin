@@ -13,7 +13,13 @@ import '../../core/widgets/background_stripes_painter.dart';
 import '../../core/widgets/custom_date_picker_dialog.dart';
 
 class TimesheetScreen extends StatefulWidget {
-  const TimesheetScreen({super.key});
+  // Pre-filters the list to this project, e.g. when opened from the
+  // Construction Reports hub's "Project Reports" section after a project
+  // has been picked there. Left null, the screen shows all projects as
+  // before and the user filters manually.
+  final int? initialProjectId;
+
+  const TimesheetScreen({super.key, this.initialProjectId});
 
   @override
   State<TimesheetScreen> createState() => _TimesheetScreenState();
@@ -27,6 +33,9 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
   void initState() {
     super.initState();
     _scrollController.addListener(_loadMoreWhenNeeded);
+    if (widget.initialProjectId != null) {
+      _controller.setAdvancedFilters(project: widget.initialProjectId.toString());
+    }
     _controller.fetchTimesheets();
   }
 

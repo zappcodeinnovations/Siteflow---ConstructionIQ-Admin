@@ -22,6 +22,7 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
   final ScrollController _scrollController = ScrollController();
   bool _isClocking = false;
   bool _isSupervisor = false;
+  bool _showAuthorityFilter = false;
 
   String _formatDateLabel(String? fromDate, String? toDate) {
     if (fromDate == null || fromDate.isEmpty) return 'Select - Date';
@@ -101,12 +102,26 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
   @override
   void initState() {
     super.initState();
-    AuthService.isSupervisorUser().then((val) {
-      if (mounted) setState(() => _isSupervisor = val);
-    });
     _scrollController.addListener(_loadMoreWhenNeeded);
-    _controller.fetchFilterOptions();
+    _loadRoleScopedFilters();
     _controller.fetchManagerAttendance();
+  }
+
+  Future<void> _loadRoleScopedFilters() async {
+    final roleKey = await AuthService.getRoleKey();
+    final canFilterAuthorities = const {
+      'superadmin',
+      'admin',
+      'supervisor',
+    }.contains(roleKey);
+    if (!mounted) return;
+    setState(() {
+      _isSupervisor = roleKey == 'supervisor';
+      _showAuthorityFilter = canFilterAuthorities;
+    });
+    if (canFilterAuthorities) {
+      await _controller.fetchFilterOptions();
+    }
   }
 
   void _loadMoreWhenNeeded() {
@@ -123,10 +138,10 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
   Future<void> _selectDateRange(BuildContext context) async {
     final DateTimeRange? picked =
         await CustomDatePickerDialog.showCustomDateRangePicker(
-      context: context,
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2101),
-    );
+          context: context,
+          firstDate: DateTime(2000),
+          lastDate: DateTime(2101),
+        );
     if (picked != null) {
       final startStr =
           "${picked.start.year}-${picked.start.month.toString().padLeft(2, '0')}-${picked.start.day.toString().padLeft(2, '0')}";
@@ -276,8 +291,8 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
                               log.hours.trim().isNotEmpty
                                   ? formatDurationHuman(log.hours)
                                   : (log.isOpen || log.clockOut.trim().isEmpty)
-                                      ? "In Progress"
-                                      : "-",
+                                  ? "In Progress"
+                                  : "-",
                               1,
                             ),
                             _buildDataCell(
@@ -447,75 +462,83 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // Manager Filter
-                      Row(
-                        children: [
-                          Expanded(
-                            child: DropdownButtonFormField<String>(
-                              dropdownColor: isDark
-                                  ? AppTheme.corporateBlue
-                                  : Colors.white,
-                              decoration: InputDecoration(
-                                labelText: _isSupervisor ? "Filter by Supervisor / Manager" : "Filter by Manager",
-                                labelStyle: TextStyle(
-                                  color: isDark
-                                      ? Colors.white70
-                                      : Colors.grey.shade700,
-                                ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(24),
-                                  borderSide: BorderSide.none,
-                                ),
-                                filled: true,
-                                fillColor: isDark
+                      // A manager/operative login is already scoped to the
+                      // signed-in account, so an authority selector would be
+                      // misleading and cannot broaden the backend result.
+                      if (_showAuthorityFilter) ...[
+                        Row(
+                          children: [
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                dropdownColor: isDark
                                     ? AppTheme.corporateBlue
                                     : Colors.white,
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 10,
-                                ),
-                              ),
-                              value: _controller.selectedManager,
-                              isExpanded: true,
-                              style: TextStyle(
-                                color: isDark ? Colors.white : Colors.black87,
-                              ),
-                              items: [
-                                DropdownMenuItem<String>(
-                                  value: null,
-                                  child: Text(
-                                    _isSupervisor ? "All Authorities" : "All Managers",
-                                    style: TextStyle(
-                                      color: isDark
-                                          ? Colors.white
-                                          : Colors.black87,
-                                    ),
+                                decoration: InputDecoration(
+                                  labelText: _isSupervisor
+                                      ? "Filter by Supervisor / Manager"
+                                      : "Filter by Manager",
+                                  labelStyle: TextStyle(
+                                    color: isDark
+                                        ? Colors.white70
+                                        : Colors.grey.shade700,
+                                  ),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(24),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                  filled: true,
+                                  fillColor: isDark
+                                      ? AppTheme.corporateBlue
+                                      : Colors.white,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 10,
                                   ),
                                 ),
-                                ..._controller.managersList.map((m) {
-                                  return DropdownMenuItem(
-                                    value: m['id'].toString(),
+                                value: _controller.selectedManager,
+                                isExpanded: true,
+                                style: TextStyle(
+                                  color: isDark ? Colors.white : Colors.black87,
+                                ),
+                                items: [
+                                  DropdownMenuItem<String>(
+                                    value: null,
                                     child: Text(
-                                      m['name'].toString(),
+                                      _isSupervisor
+                                          ? "All Authorities"
+                                          : "All Managers",
                                       style: TextStyle(
                                         color: isDark
                                             ? Colors.white
                                             : Colors.black87,
                                       ),
-                                      overflow: TextOverflow.ellipsis,
                                     ),
-                                  );
-                                }),
-                              ],
-                              onChanged: (val) {
-                                _controller.setManager(val);
-                                _controller.fetchManagerAttendance();
-                              },
+                                  ),
+                                  ..._controller.managersList.map((m) {
+                                    return DropdownMenuItem(
+                                      value: m['id'].toString(),
+                                      child: Text(
+                                        m['name'].toString(),
+                                        style: TextStyle(
+                                          color: isDark
+                                              ? Colors.white
+                                              : Colors.black87,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    );
+                                  }),
+                                ],
+                                onChanged: (val) {
+                                  _controller.setManager(val);
+                                  _controller.fetchManagerAttendance();
+                                },
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                      ],
 
                       // Top Row: Date Selector, Refresh, Clock Action
                       Wrap(
@@ -715,23 +738,35 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
                           ),
                         )
                       else if (_controller.data != null)
-                        Column(children: [
-                          ListView.separated(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: _controller.data!.data.length,
-                            separatorBuilder: (context, index) => const SizedBox(height: 16),
-                            itemBuilder: (context, index) => _ManagerAttendanceCard(
-                              record: _controller.data!.data[index],
-                              index: index,
-                              onViewLogs: () => _showLogsDialog(_controller.data!.data[index]),
+                        Column(
+                          children: [
+                            ListView.separated(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              itemCount: _controller.data!.data.length,
+                              separatorBuilder: (context, index) =>
+                                  const SizedBox(height: 16),
+                              itemBuilder: (context, index) =>
+                                  _ManagerAttendanceCard(
+                                    record: _controller.data!.data[index],
+                                    index: index,
+                                    onViewLogs: () => _showLogsDialog(
+                                      _controller.data!.data[index],
+                                    ),
+                                  ),
                             ),
-                          ),
-                          if (_controller.isLoadingMore)
-                            const Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator())
-                          else if (_controller.hasMore)
-                            const Padding(padding: EdgeInsets.all(16), child: Text('Scroll to load more records')),
-                        ]),
+                            if (_controller.isLoadingMore)
+                              const Padding(
+                                padding: EdgeInsets.all(20),
+                                child: CircularProgressIndicator(),
+                              )
+                            else if (_controller.hasMore)
+                              const Padding(
+                                padding: EdgeInsets.all(16),
+                                child: Text('Scroll to load more records'),
+                              ),
+                          ],
+                        ),
                     ],
                   ),
                 ),
@@ -945,18 +980,26 @@ class _ManagerAttendanceCardState extends State<_ManagerAttendanceCard> {
                       children: [
                         Text(
                           widget.record.hours.trim().isNotEmpty
-                              ? _ManagerAttendanceScreenState.formatDurationHuman(widget.record.hours)
-                              : (widget.record.isOpenSession || widget.record.clockOut.trim().isEmpty)
-                                  ? "In Progress"
-                                  : "-",
+                              ? _ManagerAttendanceScreenState.formatDurationHuman(
+                                  widget.record.hours,
+                                )
+                              : (widget.record.isOpenSession ||
+                                    widget.record.clockOut.trim().isEmpty)
+                              ? "In Progress"
+                              : "-",
                           style: TextStyle(
-                            fontSize: widget.record.hours.trim().isNotEmpty ? 16 : 13,
+                            fontSize: widget.record.hours.trim().isNotEmpty
+                                ? 16
+                                : 13,
                             fontWeight: FontWeight.bold,
                             color: widget.record.hours.trim().isNotEmpty
-                                ? (isDark ? Colors.white : const Color(0xFF0D6EFD))
-                                : (widget.record.isOpenSession || widget.record.clockOut.trim().isEmpty)
-                                    ? Colors.green
-                                    : textSecondary,
+                                ? (isDark
+                                      ? Colors.white
+                                      : const Color(0xFF0D6EFD))
+                                : (widget.record.isOpenSession ||
+                                      widget.record.clockOut.trim().isEmpty)
+                                ? Colors.green
+                                : textSecondary,
                           ),
                         ),
                         Text(
@@ -1089,18 +1132,22 @@ class _ManagerAttendanceCardState extends State<_ManagerAttendanceCard> {
                                       ),
                                       child: Text(
                                         log.hours.trim().isNotEmpty
-                                            ? _ManagerAttendanceScreenState.formatDurationHuman(log.hours)
-                                            : (log.isOpen || log.clockOut.trim().isEmpty)
-                                                ? "In Progress"
-                                                : "-",
+                                            ? _ManagerAttendanceScreenState.formatDurationHuman(
+                                                log.hours,
+                                              )
+                                            : (log.isOpen ||
+                                                  log.clockOut.trim().isEmpty)
+                                            ? "In Progress"
+                                            : "-",
                                         style: TextStyle(
                                           fontSize: 10,
                                           fontWeight: FontWeight.w600,
                                           color: log.hours.trim().isNotEmpty
                                               ? textSecondary
-                                              : (log.isOpen || log.clockOut.trim().isEmpty)
-                                                  ? Colors.green
-                                                  : textSecondary,
+                                              : (log.isOpen ||
+                                                    log.clockOut.trim().isEmpty)
+                                              ? Colors.green
+                                              : textSecondary,
                                         ),
                                       ),
                                     ),

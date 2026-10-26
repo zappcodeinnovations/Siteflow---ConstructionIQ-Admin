@@ -132,6 +132,11 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
     // unreachable in landscape. Reserve the rail for actual desktop shells.
     final isDesktop =
         width >= 1200 && defaultTargetPlatform != TargetPlatform.iOS;
+    // Flutter requires BottomNavigationBar/NavigationRail to have at least two
+    // destinations. Permission-scoped accounts can legitimately have only one
+    // primary module, so render that module directly and keep the drawer as the
+    // route to any secondary pages instead of constructing an invalid nav bar.
+    final showPrimaryNavigation = titles.length >= 2;
 
     return Scaffold(
       appBar: CustomAppBar(
@@ -163,7 +168,7 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
       body: Row(
         children: [
           // Show NavigationRail on large screens for true responsiveness
-          if (isDesktop)
+          if (isDesktop && showPrimaryNavigation)
             NavigationRail(
               backgroundColor: Theme.of(context).colorScheme.surface,
               selectedIndex: currentIndex,
@@ -206,13 +211,14 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
                   ),
               ],
             ),
-          if (isDesktop) const VerticalDivider(thickness: 1, width: 1),
+          if (isDesktop && showPrimaryNavigation)
+            const VerticalDivider(thickness: 1, width: 1),
           // Main Content
           Expanded(child: pages[currentIndex]),
         ],
       ),
 
-      bottomNavigationBar: isDesktop
+      bottomNavigationBar: isDesktop || !showPrimaryNavigation
           ? null
           : BottomNavigationBar(
               currentIndex: currentIndex,

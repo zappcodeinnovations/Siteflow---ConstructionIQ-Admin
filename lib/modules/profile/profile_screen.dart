@@ -22,13 +22,26 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   final ProfileController _controller = ProfileController();
   String _sessionRoleName = 'Admin';
+  bool _showTimeDisplaySettings = false;
 
   @override
   void initState() {
     super.initState();
     _controller.fetchProfile();
-    AuthService.getRoleDisplayName().then((name) {
-      if (mounted) setState(() => _sessionRoleName = name);
+    _loadRoleContext();
+  }
+
+  Future<void> _loadRoleContext() async {
+    final values = await Future.wait([
+      AuthService.getRoleDisplayName(),
+      AuthService.getRoleKey(),
+    ]);
+    if (!mounted) return;
+    setState(() {
+      _sessionRoleName = values[0];
+      // This account-wide presentation control is reserved for Superadmin.
+      // Admin, Manager and Operative profiles should not expose it.
+      _showTimeDisplaySettings = values[1] == 'superadmin';
     });
   }
 
@@ -1291,116 +1304,118 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       const SizedBox(height: 16),
 
                       // 2. Time Display Card
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: cardColor,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: isDark
-                                ? Colors.white12
-                                : Colors.grey.shade200,
+                      if (_showTimeDisplaySettings) ...[
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: cardColor,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: isDark
+                                  ? Colors.white12
+                                  : Colors.grey.shade200,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: shadowColor,
+                                blurRadius: 15,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
                           ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: shadowColor,
-                              blurRadius: 15,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.language,
-                                  color: Color(0xFF0D6EFD),
-                                  size: 20,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  "Time Display",
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: isDark
-                                        ? Colors.white
-                                        : const Color(0xFF0F2C4A),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.language,
+                                    color: Color(0xFF0D6EFD),
+                                    size: 20,
                                   ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        "Force UK time",
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.bold,
-                                          color: isDark
-                                              ? Colors.white
-                                              : const Color(0xFF0F2C4A),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        "When on, every page shows UK time (Europe/London) for your account only, no matter where you actually are. Turn it off to go back to time based on your real location.",
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: subtitleColor,
-                                          height: 1.4,
-                                        ),
-                                      ),
-                                    ],
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    "Time Display",
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: isDark
+                                          ? Colors.white
+                                          : const Color(0xFF0F2C4A),
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(width: 12),
-                                Switch(
-                                  value: user.forceUkDisplayTime,
-                                  activeThumbColor: const Color(0xFF10B981),
-                                  onChanged: _controller.isLoading
-                                      ? null
-                                      : (enabled) async {
-                                          final updated = await _controller
-                                              .updateForceUkDisplayTime(
-                                                enabled,
-                                              );
-                                          if (!mounted) return;
-                                          ScaffoldMessenger.of(this.context)
-                                            ..hideCurrentSnackBar()
-                                            ..showSnackBar(
-                                              SnackBar(
-                                                content: Text(
-                                                  updated
-                                                      ? (enabled
-                                                            ? 'UK time enabled.'
-                                                            : 'Local device time enabled.')
-                                                      : (_controller
-                                                                .errorMessage ??
-                                                            'Unable to update the time display setting.'),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          "Force UK time",
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.bold,
+                                            color: isDark
+                                                ? Colors.white
+                                                : const Color(0xFF0F2C4A),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          "When on, every page shows UK time (Europe/London) for your account only, no matter where you actually are. Turn it off to go back to time based on your real location.",
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: subtitleColor,
+                                            height: 1.4,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Switch(
+                                    value: user.forceUkDisplayTime,
+                                    activeThumbColor: const Color(0xFF10B981),
+                                    onChanged: _controller.isLoading
+                                        ? null
+                                        : (enabled) async {
+                                            final updated = await _controller
+                                                .updateForceUkDisplayTime(
+                                                  enabled,
+                                                );
+                                            if (!mounted) return;
+                                            ScaffoldMessenger.of(this.context)
+                                              ..hideCurrentSnackBar()
+                                              ..showSnackBar(
+                                                SnackBar(
+                                                  content: Text(
+                                                    updated
+                                                        ? (enabled
+                                                              ? 'UK time enabled.'
+                                                              : 'Local device time enabled.')
+                                                        : (_controller
+                                                                  .errorMessage ??
+                                                              'Unable to update the time display setting.'),
+                                                  ),
+                                                  backgroundColor: updated
+                                                      ? const Color(0xFF0D6EFD)
+                                                      : Colors.redAccent,
                                                 ),
-                                                backgroundColor: updated
-                                                    ? const Color(0xFF0D6EFD)
-                                                    : Colors.redAccent,
-                                              ),
-                                            );
-                                        },
-                                ),
-                              ],
-                            ),
-                          ],
+                                              );
+                                          },
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 16),
+                        const SizedBox(height: 16),
+                      ],
 
                       // 3. Role & Permissions Card
                       Container(
