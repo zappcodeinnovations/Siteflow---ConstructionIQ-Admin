@@ -333,8 +333,14 @@ class _CustomDrawerState extends State<CustomDrawer> {
                       "Operative Logs",
                       '/operativeLogs',
                       currentRoute,
-                    )
-                  else if (_allowedMenus.any((key) => key.startsWith('admin_')))
+                    ),
+                  // Was an `else if` of the branch above, so a Manager/
+                  // Supervisor (always _isOperativeLogViewer) could never
+                  // reach "Admin Control" no matter what admin_* permission
+                  // they were granted (e.g. Admin / Announcements, Admin /
+                  // Notifications) - the two are independent, not mutually
+                  // exclusive.
+                  if (_allowedMenus.any((key) => key.startsWith('admin_')))
                     _buildDrawerItem(
                       context,
                       IconlyLight.shield_done,
