@@ -780,3 +780,332 @@ other work). `flutter analyze` clean on the file (one pre-existing hint).
 - `flutter analyze` clean on all 3 changed/new files (one lint - unnecessary string-interpolation braces - fixed immediately).
 - Backend side (Euroside_Project): see that repo's own `context.md`/`report.md` for the aggregation function, web view, and API endpoint.
 - Not committed in this pass yet.
+
+## 2026-10-24 — ClickUp bug sweep: yesterday's (2026-10-23) 13 "to do" tickets
+
+User: "sab se pehele kal ke solve karna" (solve yesterday's first) - the 13 tickets in the
+"Euroside admin app" ClickUp list created 2026-10-23 (confirmed via `date_created` on each,
+distinguishing them from the older Oct-16 and Oct-13 batches still sitting in "to do"). Verified
+each against the actual code before fixing, per the user's "verify first whether it's a real
+bug" instruction; also pulled each task's comments (no extra detail beyond the description in
+any of them). 12 of 13 were real; 1 was not. ClickUp tasks moved to `dev done` (fixed) or
+`not a bug`, each with a comment explaining the finding/fix.
+
+1. **14yjutqg4ub - Add Client button visible to Supervisor despite view-only permission.**
+   `lib/modules/client/client_screen.dart` had zero permission checks anywhere - backend
+   correctly rejected the create, but the button/Edit/Delete menu were never gated client-side.
+   Added `AuthService.can('clients', action: ...)` checks (same pattern as "Create Project"),
+   gating Add Client and the per-card Edit/Delete menu individually.
+2. **14yjutqg4tz / 14yjutqg4ty - Dashboard raw FormatException / stuck skeleton (same root
+   cause, fixed together).** `dashboard_controller.dart` had no request timeout and parsed
+   `jsonDecode` unconditionally, so a slow backend or an HTML error page (502/504) either hung
+   the skeleton forever or surfaced the raw exception text. Added a 20s timeout, a
+   content-type check before parsing, and a friendly "Unable to load dashboard data..." message
+   with a Retry button in `dashboard.dart`.
+3. **14yjutqg4tp - "All operatives"/"All modules" dropdown needing 2-3 taps.**
+   `admin_activity_logs_view.dart`'s KPI cards and logs table both rebuild via `AnimatedBuilder`
+   on the controller's data load, but the Filter Bar (holding both dropdowns) was outside that
+   AnimatedBuilder, so it only picked up freshly-loaded manager/module lists on the next
+   unrelated `setState`. Wrapped the Filter Bar in the same AnimatedBuilder pattern.
+4. **14yjutqg4tf / 14yjutqg4te - "Euroside Admin" should say "Euroside Superadmin" /
+   profile role badge says "SUPERUSER" not "Superadmin".** `AuthService.getRoleKey()`
+   collapsed `superuser` and `admin` into the same 'admin' key/display name. Added a distinct
+   'superadmin' key -> "Superadmin" display name (verified this doesn't change what a superuser
+   can do - every permission check keys off the raw role via `isAdminUser()`/`can()`, not this
+   display key). Profile screen's `_roleText()` separately maps the backend's "Superuser" role
+   label to "Superadmin" for display only (backend/web wording intentionally left alone - out of
+   scope for a mobile-app-only report).
+5. **14yjutqg4ta - "Project Team" modal falsely shows "No Team Assigned".** Root cause was in
+   the backend, not this app: `GET /projects/<id>/assignments/` only ever returned bare
+   `selected_team_ids`/`selected_worker_ids` (id lists), never the full `teams`/`workers`
+   objects this modal's `projects_screen.dart` already expected under those exact key names. See
+   Euroside_Project's own context.md for the backend fix.
+6. **14yjutqg4qq - "+Send Notification" button icon/label order.** `admin_notifications_view.dart`
+   now reads "Send Notification" with a trailing forward-arrow icon (`iconAlignment:
+   IconAlignment.end`) instead of a leading "+".
+7. **14yjutqg4qk - Manager Notifications header icon order - marked NOT A BUG.** The
+   back-arrow-then-hamburger order is `AppNavLeading` (`core/widgets/app_back_button.dart`), a
+   single shared widget used identically across 10+ screens app-wide, already documented as a
+   deliberate choice ("back chevron first... so neither navigation path is lost"). Not an
+   inconsistency specific to this screen - reordering it would be an app-wide layout change for
+   one person's screen-specific preference, so left as-is and flagged in ClickUp instead.
+8. **14yjutqg4q6 - "Selected Operators" picker has a search field but no list.**
+   `add_notification_dialog.dart` required typing raw numeric operator IDs into a text field by
+   hand. Wired up the existing `/admin/notifications/filter-options/` endpoint (already used by
+   the web panel) into a real search + checkbox multi-select list.
+9. **14yjutqg4p7 - Scheduled date shows yyyy-mm-dd instead of dd/mm/yyyy.**
+   `task_screen.dart`'s Task Details bottom sheet displayed the raw API string unformatted.
+   Added `_formatScheduledDate()` - a plain reformat, not run through the app's timezone-aware
+   `DateHelper.formatToLocal` (a bare calendar date has no time-of-day to convert, and doing so
+   risked an off-by-one-day shift for viewers in a different offset).
+10. **14yjutqg4p6 - "UK time enabled" toast is green, should be brand blue.**
+    `profile_screen.dart`'s success snackbar color changed from `#059669` (green) to `#0D6EFD`
+    (same blue as "Edit Profile").
+11. **14yjutqg4mq - "ACTIVE SINCE" tile shows IST instead of UK time with Force UK time on.**
+    `manager_attendance_screen.dart`'s `_formatActiveSince()` called `.toLocal()` directly
+    instead of going through `DateHelper.isForceUkDisplayTimeEnabled`/`toUkDateTime()` like every
+    other timestamp in the app. Fixed to respect the same setting.
+
+Verification: `flutter analyze` clean across every changed file (144 pre-existing info-level
+lints app-wide, zero new errors or warnings introduced). Not committed/pushed in this pass yet.
+
+## 2026-10-24 — RAMS Builder screen + Compliance Dashboard permission (backend-fixed)
+
+Follow-up to the ClickUp sweep above: user asked to add `/compliance-dashboard/`, RAMS Builder,
+and Construction Reports into this app, visible to Manager/Supervisor only if they have the
+permission. Construction Reports was already fully done. Compliance Dashboard's screen/route/
+drawer item already existed (this app, no changes needed) - the gap was a backend permission
+registration issue, fixed in `Euroside_Project/admin_app/rbac.py` (see that repo's own
+context.md). RAMS Builder needed a real new screen - user chose "Full builder" (hazard matrix
+editor mirroring the web, not a simplified form or a web-view shortcut).
+
+- New `lib/models/hse_document_model.dart` fields: `hazardCount`/`highestRiskScore`, parsed from
+  the API's `risk_assessment: {hazard_count, highest_risk_score}` (already sent by the backend;
+  this app's model just never read it before). Null means "not a RAMS document, or an older
+  RAMS upload with no structured data yet" - used to decide whether a document card gets an
+  "Open RAMS builder" action.
+- New `lib/core/network/api_endpoints.dart`: `projectRams(projectId, {documentId})`.
+- New `lib/modules/projects/project_rams_controller.dart` - `ChangeNotifier` mirroring
+  `project_hse_controller.dart`'s conventions: `fetchBuilderData()` (GET) and `save()` (POST,
+  plain JSON via `ApiClient.post` - no file involved, matching the web builder which creates a
+  RAMS document without an uploaded file).
+- New `lib/modules/projects/tabs/rams_builder_screen.dart` - full pushed screen (not a dialog,
+  given the form's size): title/expiry/sign-off switch, activity description, assessment/review
+  dates, Method Statement Template dropdown (selecting one copies its `sequence_of_work` into
+  the method-statement text field, same as the web JS), and a hazard matrix editor. The matrix
+  editor reuses the exact pattern from `material_detail_screen.dart`'s `_editTiers` (rate-card
+  tier rows) - a `List<Map<String,dynamic>>`, `ListView.builder`/`List.generate`, add/remove row
+  buttons, `DropdownButtonFormField<int>` for the 1-5 likelihood/severity ratings - no new UI
+  pattern invented.
+- `lib/modules/projects/tabs/hse_tab.dart`: added a "Build RAMS" button next to "Upload HS&E
+  Document", and an "Open RAMS builder" action on any document card where `hazardCount != null`
+  (plus a hazard-count/highest-risk-score line on the card itself) - mirrors
+  `health_safety.html`'s layout exactly.
+
+No RBAC/drawer changes needed for RAMS Builder itself - it's reached from inside a project's
+HS&E tab, which Manager/Supervisor already reach via their existing project access, same as web.
+
+Verification: `flutter analyze` clean (0 new issues, 0 new errors app-wide). Backend:
+`ProjectRamsBuilderApiTests` (6 cases) + all 14 existing web RAMS tests pass, `manage.py check`
+clean - see `Euroside_Project/context.md`'s matching 2026-10-24 entry for the backend side. Not
+committed/pushed yet.
+
+## 2026-10-24 — ClickUp bug sweep: remaining older (2026-10-13/16) "to do" tickets
+
+Continuation of the earlier ClickUp sweep (user: "ab jo bug bache hai pehele assign kiye wale,
+unhe verify kar ke solve karna hai" - solve the remaining, already-assigned bugs, verify first).
+Partway through, user added: don't force-fix stale/low-value ones, it's fine to skip. 16 tickets
+total (5 from 2026-10-16, 11 from 2026-10-13).
+
+**Fixed:**
+- **Timezone skew cluster** (3 tickets: blank "Total Worked", Contractor Dashboard impossible
+  future check-in, shift-duration confusion) - root cause traced to the *operative app*
+  (`P:\Siteflow---ConstructionIQ\lib\network\api_client.dart`): clock-in/out timestamps were
+  sent as a bare local wall-clock string with a separate `timezone` field that silently fell
+  back to `'UTC'` on a platform-channel failure - a naive local time mislabelled as UTC then
+  displayed hours in the future for an IST-based viewer. Fixed by always sending
+  `.toUtc().toIso8601String()` instead, making the value self-contained and correct regardless
+  of the timezone lookup. New backend regression test
+  (`API.tests.GeofenceClockInAccessControlTests.test_utc_suffixed_client_submitted_at_is_not_skewed_by_a_wrong_timezone_field`)
+  proves a UTC-suffixed value is honoured even when `timezone` says the old bad fallback value.
+- `core/services/download_manager.dart` + `modules/drawer_pages/downloads_screen.dart`: raw
+  exception text (`error.toString()`) was shown verbatim on a failed download. Added a
+  friendly-message mapping and a visible Delete action for failed items (previously only
+  reachable via the overflow menu).
+- `modules/projects/create_task_controller.dart`: "Start New Task Online" silently
+  auto-selected the first project in the list when opened without one in context, contradicting
+  the file's own neighbouring comment about matching web's empty-until-chosen behaviour. Removed
+  the auto-select.
+- `modules/drawer_pages/admin/invite_member_dialog.dart`: employee code check only ever showed
+  a "taken" error, never a positive "available" confirmation. Added one.
+- `modules/drawer_pages/attendance_logs_dialog.dart`: Start/End Location now show `-` instead of
+  `N/A` when unrecorded - scoped to this screen only (the ~28 other `N/A` usages elsewhere in the
+  app weren't part of this report).
+- `modules/drawer_pages/admin/admin_activity_logs_view.dart`: added pull-to-refresh
+  (`RefreshIndicator` calling `fetchLogs()`) - there was none at all.
+- `modules/projects/tabs/hse_tab.dart`: the Expiry Date picker in "Upload HS&E Document"
+  defaulted its initial month to `DateTime.now().add(30 days)` instead of today - changed to
+  default to today, matching the reported expectation.
+
+**Already fixed by existing code** (verified, no change needed): operative dashboard's shift
+duration correctly restores from the backend's authoritative elapsed time on every open/resume,
+not a 0-reset; the Daywork webview form's injected CSS already restores scrolling and sizes the
+signature pad responsively (comments in that file reference this exact scenario); Guests
+Directory already refetches and live-updates via the same `ChangeNotifier`/`AnimatedBuilder`
+pair the moment an invite succeeds.
+
+**Not a bug:** QA Pass/Fail/Approve/Reject buttons are visible to every Manager/Supervisor/
+Custom-role login regardless of a separate "edit permission" - checked the backend
+(`user_can_manage_job_sheets_api`) and confirmed it authorizes by role only, with no finer-grained
+permission to gate on, and the web app shows the same buttons unconditionally for the same
+reason. Started a client-side permission-gating fix, then reverted it on confirming it would
+have incorrectly hidden a working action from managers the backend already allows.
+
+**Could not pin down / left open:** clock-out location showing "N/A" on mobile despite being
+present on web (data path reads correctly in current code on all three layers checked - likely
+a stale artifact, not reproducible without a fresh clock-out to test against); Daily Diary PDF
+header date format (searched all three repos extensively, no matching code found - flagged in
+ClickUp for a human pointer to the actual file). Also left the "Create Notification lacks
+enhanced options vs web" ticket alone - it's a vague feature-parity ask needing its own scoping,
+not a specific defect (the one concrete, fixable piece of it - the missing operator picker -
+was already handled in the earlier ClickUp sweep today).
+
+All ClickUp tasks updated with status + a comment explaining the finding, same as the earlier
+sweep. `flutter analyze` clean (0 errors) across the whole Admin app; operative app's changed
+file also clean; `manage.py check` clean. Not committed/pushed yet.
+
+## 2026-10-24 — ClickUp sweep: checked non-"to do" statuses too (not a bug / qa reopn / under discussion / in progress)
+
+User asked to also check tickets sitting in other statuses, not just "to do". Found 7: 4 were
+already mine from today's two sweeps above; 3 were untouched:
+- **14yjutqfmg7 ("Force UK time" toggle stuck, status was `in progress`)** - checked the full
+  round trip (backend `UserProfileUpdateSerializer`/`UserSummarySerializer` both correctly
+  read/write `force_uk_display_time`; Flutter's `updateProfile`/`updateForceUkDisplayTime`
+  correctly update state and reset the loading flag on every path) and found no defect. Moved
+  to `under discussion` rather than guess - asked for a fresh repro.
+- **14yjutqfm5n (New Inspection modal missing fields, status was `qa reopn`)** - re-checked
+  `inspections_tab.dart` and found all the previously-missing fields (Linked Drawing Pin,
+  Inspector, Scheduled Date, header close icon) are already implemented - this had clearly
+  already been fixed after the QA reopen, just never moved back to done. Moved to `dev done`,
+  noted one cosmetic placeholder-text gap left alone.
+- **14yjutqf6xb (Job Sheets extraneous fields, already `not a bug` since Oct 2)** - left
+  untouched, already correctly dispositioned before this session.
+
+## 2026-10-26 — Construction Reports crash fix, dark mode, and Manager/Supervisor can now assign any operative
+
+**Construction Reports screen** (`construction_reports_screen.dart`): user reported a dark-mode
+styling issue and a crash. Root causes:
+- `_ReportCard` hardcoded `Colors.white`/fixed text colors - never adapted to dark mode at all.
+  Now uses `isDark`-aware colors matching the rest of the app (`AppTheme.darkSurface`/
+  `darkBorder`, etc.).
+- The "Activity Logs" card pushed `AdminActivityLogsView` directly via `MaterialPageRoute` with
+  no `Scaffold` wrapper - that view is a reusable body widget meant to be embedded inside a
+  parent screen's own Scaffold (as `admin_screen.dart` and `operative_logs_screen.dart` both do),
+  so a `DropdownButton` deep inside crashed with "No Material widget found" the moment this
+  screen was the first to push it bare. Fixed by routing through `AdminScreen(initialMenuKey:
+  'admin_activity_logs')` for Admin/Superuser or `/operativeLogs` for Manager/Supervisor (via
+  `AuthService.canViewOperativeLogs()`), matching exactly how the app's own drawer already
+  chooses between those two destinations.
+
+**Manager/Supervisor can now assign any operative to a project, not just their own team**
+(user: "manager or supervisor ko all oprative aane ka option ana chahiye jese admin ko dikhta
+hai"). The Admin app's Project Setup tab's "Project Assignments" panel and the Create Task
+operative picker both used to scope the operative/team list to only ones the signed-in
+Manager/Supervisor already leads - backend-side fix (4 separate occurrences of the same
+scoping pattern, all removed) is logged in `Euroside_Project/context.md`'s matching entry. No
+Flutter code changes needed - `project_setup_tab.dart` has zero client-side role filtering of
+its own, it just renders whatever the (now-widened) API response contains.
+
+**`projects_screen.dart`** (pre-existing uncommitted change, confirmed as this session's own
+work and folded into today's log): the Projects list's quick "Assign Operatives" dialog
+hardcoded `teamIds: const []` on every save, silently dropping a project's existing team
+assignments whenever an operative was added/removed through this dialog. Also merged in
+already-assigned operatives (from the assignment data) with the assignable-operatives list so a
+worker already on the project always appears in the picker, even if outside the normal
+assignable scope, and sorts currently-selected operatives to the top.
+
+**Tests:** backend tests for the widened operative directory (`Euroside_Project`'s own log).
+`flutter analyze` clean (0 errors) across the whole Admin app.
+
+**Construction Reports hub restructured to match the web layout** (user: "web em construction
+report asi hai or mobile aap me difrent hai to ese bhi fix karna hai"). `construction_reports_screen.dart`
+was a flat list of 5 report links; the web version (`templates/dashboard/construction_reports.html`)
+splits into two sections - "Organisation-wide Reports" (Activity Logs, Productivity Report, Weekly
+Diary, no project needed) and "Project Reports" (a project picker + Job Sheets/Daily Reports,
+Attendance/Timesheets, Project Productivity, Specifications - all four disabled/greyed until a
+project is picked). Rebuilt the screen as a `StatefulWidget` holding the fetched project list
+(same `GET /projects/` + `Project.fromJson` pattern `create_task_controller.dart` already uses)
+and the currently-selected project id; `_ReportLink`/`_ReportCard` gained an `enabled` flag that
+greys the card, shows a lock icon instead of the chevron, and disables the tap.
+- **Job Sheets/Daily Reports** -> `JobSheetScreen` gained an optional `initialProjectId`, passed
+  straight into its existing `_controller.fetchJobSheets(projectId: ...)` (that controller already
+  accepted a raw project-id override independent of its name-based dropdown filter - no controller
+  change needed).
+- **Attendance/Timesheets** -> `TimesheetScreen` gained an optional `initialProjectId`, applied via
+  its existing `_controller.setAdvancedFilters(project: ...)` (`selectedProject` there is already the
+  numeric id, confirmed from the filter dropdown's `e['id']` source, not a display name).
+- **Project Productivity** -> reuses `ProductivityDetailScreen(id, title, isMember: false)` as-is,
+  the exact per-project drill-down screen the main Productivity screen's own "By Project" rows
+  already push to - no changes needed there at all.
+- **Specifications** -> new card; no such report existed anywhere in the hub before. Reuses
+  `SpecificationsTab(projectId)` (normally a tab embedded in Project Details, already wired to the
+  same CSV export the web version downloads), pushed wrapped in a plain `Scaffold` + `AppBar` since
+  it's a bare body widget with no Scaffold of its own.
+
+`flutter analyze` clean (no new errors/warnings; only pre-existing info-level lints elsewhere).
+
+**Three pre-existing uncommitted fixes** (confirmed with the user as earlier work, folded into
+today's commit): `manager_attendance_screen.dart` scopes the "Filter by Manager/Supervisor"
+authority dropdown to Superadmin/Admin/Supervisor only (a Manager or Operative login is already
+scoped to their own account server-side, so the selector was misleading there and couldn't
+broaden the result anyway). `profile_screen.dart` makes the "Time Display" (force UK time) card
+Superadmin-only. `nav_bar.dart` guards `BottomNavigationBar`/`NavigationRail` construction behind
+`titles.length >= 2`, since Flutter requires at least two destinations and a permission-scoped
+account can legitimately have only one primary module - falls back to rendering that module
+directly with the drawer as the route to secondary pages instead of crashing.
+
+**Status:** Committed (`89e24a4`) and pushed to `origin/main`.
+
+**Construction Reports format badges now actually export, matching the web dialog** (user:
+"button work nhi kar rahi hai abhi bhi aap side me construction reports me jese web me click
+karne pr filter pop up ata hai phir me use select kar ke report direct downlode kar leta hu").
+The redesigned hub's CSV/EXCEL/PDF badges were purely decorative - no tap handler at all. Added
+`_ReportLink.onFormatTap` so each badge is independently tappable and opens a new
+`_ReportExportDialog` (period dropdown: Month/Year/Custom/All, mirroring the web's
+`#reportExportDialog`), which downloads directly via `DownloadManager` on confirm - no
+navigation anywhere, matching the web's exact click -> dialog -> download flow. Specifications
+skips the dialog entirely and downloads immediately (matches web - confirmed no date picker
+exists for it there either). Backend: `JobSheetListAPIView` (`Euroside_Project/API/views.py`)
+never parsed `from`/`to` at all, unlike the web's own job sheets view - added it, logged in that
+repo's own context.md. Project Productivity's export URL uses the project's *name*, not its id,
+since `/productivity/`'s `project` filter text-matches the name server-side (confirmed in
+`apply_productivity_project_filters`) - using the id there would have silently returned
+unfiltered (all-projects) data instead of erroring.
+
+**Follow-up (same point, user: "DATE RANGE KE LIYE DO ALAG ALAG COLANDER CHAHIYE"):** the
+dialog's "Custom" period originally reused `CustomDatePickerDialog`'s single combined
+range-picker (one dialog, drag a start and end date). Replaced with two independent
+`showDatePicker` calls side-by-side ("From date" / "To date"), each its own calendar - matches
+what the user actually wanted instead of one combined range picker.
+
+**Tests:** `flutter analyze` clean (0 issues).
+
+**Status:** Committed (`c160a6c`) and pushed to `origin/main`.
+
+**"Admin Control" drawer entry was unreachable for every Manager/Supervisor, no matter what
+admin_* permission they'd been granted** (user: "mujhe bo panel hi nhi mil rahe hai access karne
+ke liye koi option nhi hai kisi bhi sidebar me nhi hai" + screenshots of the web sidebar and the
+app drawer, neither showing any Admin/Announcements/Notifications entry at all). Root cause in
+`custom_drawer.dart`: the "Operative Logs" and "Admin Control" drawer items were written as an
+`if ... else if ...` pair - `_isOperativeLogViewer` (true for every manager/supervisor,
+unconditionally) always won, so the `else if (_allowedMenus.any((key) =>
+key.startsWith('admin_')))` branch for "Admin Control" could never fire for a manager/supervisor
+at all, regardless of which admin_* permissions they held. The two conditions are independent,
+not mutually exclusive - a manager can legitimately need both Operative Logs AND Admin Control
+(e.g. once granted Announcements/Notifications). Split into two separate `if` blocks so both can
+show together. Once "Admin Control" is reachable, `admin_screen.dart`'s own tab list was already
+correctly permission-filtered (`AuthService.can(key)` per tab, no equivalent bug there) - this
+was purely a missing entry point, not a downstream filtering issue.
+
+Companion web-side fix already committed locally in `Euroside_Project` (`b13a2a8`, own context.md
+entry) for the equivalent bug in `sidebar_items_for_user()` - not yet pushed/deployed, so the
+web sidebar screenshot in this same report still shows the old broken (no "Administration"
+section) behaviour until that's deployed.
+
+**Tests:** `flutter analyze` clean (0 issues).
+
+**Status:** Committed (`75db5db`) and pushed to `origin/main`.
+
+**Announcements API 403 fixed (backend, `Euroside_Project` context.md), drawer label changed for
+Manager/Supervisor.** Once the drawer fix above made "Admin Control" reachable, the Announcements
+tab itself errored with "You do not have permission to manage announcements from mobile API." -
+the mobile API endpoint behind it was hardcoded to Admin/Superuser only, never checking the RBAC
+`admin_announcements` permission at all (fixed on the backend side). App-side change here:
+`custom_drawer.dart`'s "Admin Control" label now reads **"Advance Access"** specifically for
+Manager/Supervisor (`_isOperativeLogViewer ? "Advance Access" : "Admin Control"`), per "admin
+control ke place pr advance access kar manager or superviser ke liye" - kept as "Admin Control"
+for Admin/Custom roles reaching the same `/admin` route.
+
+**Tests:** `flutter analyze` clean (0 issues).
+
+**Status:** Verified locally. Not committed/pushed yet.

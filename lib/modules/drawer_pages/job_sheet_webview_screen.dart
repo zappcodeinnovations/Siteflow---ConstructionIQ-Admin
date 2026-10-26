@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import '../../core/network/api_client.dart';
 import '../../core/theme/app_theme.dart';
@@ -22,6 +23,7 @@ class JobSheetWebviewScreen extends StatefulWidget {
 
 class _JobSheetWebviewScreenState extends State<JobSheetWebviewScreen> {
   late final WebViewController _controller;
+  final ImagePicker _imagePicker = ImagePicker();
   bool _isLoading = true;
 
   @override
@@ -30,6 +32,14 @@ class _JobSheetWebviewScreenState extends State<JobSheetWebviewScreen> {
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(const Color(0x00000000))
+      ..addJavaScriptChannel(
+        'EurosideCamera',
+        onMessageReceived: (_) => _pickNativeImages(ImageSource.camera),
+      )
+      ..addJavaScriptChannel(
+        'EurosideGallery',
+        onMessageReceived: (_) => _pickNativeImages(ImageSource.gallery),
+      )
       ..setNavigationDelegate(
         NavigationDelegate(
           onPageStarted: (String url) {
@@ -102,11 +112,63 @@ Page resource error:
     _loadUrlWithAuth();
   }
 
+  Future<void> _pickNativeImages(ImageSource source) async {
+    try {
+      final List<XFile> images;
+      if (source == ImageSource.camera) {
+        final image = await _imagePicker.pickImage(
+          source: ImageSource.camera,
+          imageQuality: 85,
+          maxWidth: 2048,
+        );
+        images = image == null ? <XFile>[] : <XFile>[image];
+      } else {
+        images = await _imagePicker.pickMultiImage(
+          imageQuality: 85,
+          maxWidth: 2048,
+        );
+      }
+      for (final image in images) {
+        final bytes = await image.readAsBytes();
+        final extension = image.name.split('.').last.toLowerCase();
+        final mimeType = extension == 'png'
+            ? 'image/png'
+            : extension == 'webp'
+            ? 'image/webp'
+            : 'image/jpeg';
+        final dataUrl = 'data:$mimeType;base64,${base64Encode(bytes)}';
+        await _controller.runJavaScript(
+          'window.__eurosideReceiveNativeImage('
+          '${jsonEncode(dataUrl)}, ${jsonEncode(image.name)});',
+        );
+      }
+    } catch (error) {
+      debugPrint('Native form image picker failed: $error');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(
+              source == ImageSource.camera
+                  ? 'Unable to open the camera. Please check camera permission.'
+                  : 'Unable to open the gallery. Please try again.',
+            ),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+    }
+  }
+
   Future<void> _injectAutoFitScript() async {
     final accessToken = await AuthService.getAccessToken();
+    final isDark = mounted && Theme.of(context).brightness == Brightness.dark;
     final tokenAssignment =
         'window.__eurosideAccessToken = ${jsonEncode(accessToken ?? '')};';
-    final script = '$tokenAssignment\n${r"""
+    final themeAssignment =
+        'window.__siteflowDarkMode = ${isDark ? 'true' : 'false'};';
+    final script =
+        '$tokenAssignment\n$themeAssignment\n${r"""
 (function() {
   function fitFormToScreen() {
     // Keep the WebView on the physical device width. The document itself is
@@ -276,6 +338,41 @@ Page resource error:
       }
     `;
     document.head.appendChild(style);
+
+    var cameraButton = document.getElementById('euroside-live-camera-open');
+    var galleryButton = document.getElementById('euroside-live-gallery-open');
+    if (cameraButton && window.EurosideCamera && window.EurosideCamera.postMessage) {
+      cameraButton.addEventListener('click', function (event) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        window.EurosideCamera.postMessage('open');
+      }, true);
+    }
+    if (galleryButton && window.EurosideGallery && window.EurosideGallery.postMessage) {
+      galleryButton.addEventListener('click', function (event) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        window.EurosideGallery.postMessage('open');
+      }, true);
+    }
+
+    // The post-submit page comes from the backend as HTML. Respect the app's
+    // selected theme even when Android WebView's system color-scheme does not
+    // match the Flutter ThemeMode (for example, an in-app Dark Mode choice).
+    var successCard = document.querySelector('.success-card');
+    if (successCard && window.__siteflowDarkMode) {
+      document.documentElement.style.setProperty('color-scheme', 'dark');
+      document.documentElement.style.setProperty('background-color', '#0a192f', 'important');
+      document.body.style.setProperty('background-color', '#0a192f', 'important');
+      document.body.style.setProperty('color', '#f8fafc', 'important');
+      successCard.style.setProperty('background-color', '#111827', 'important');
+      successCard.style.setProperty('border-color', '#334155', 'important');
+      successCard.style.setProperty('box-shadow', '0 18px 40px rgba(0, 0, 0, 0.35)', 'important');
+      var successHeading = successCard.querySelector('h1');
+      var successCopy = successCard.querySelector('p');
+      if (successHeading) successHeading.style.setProperty('color', '#f8fafc', 'important');
+      if (successCopy) successCopy.style.setProperty('color', '#cbd5e1', 'important');
+    }
 
     var scrollTrack = document.getElementById('siteflow-form-scroll-track');
     if (!scrollTrack) {
@@ -483,7 +580,10 @@ Page resource error:
         baseUrl: sourceUrl,
       );
     } catch (error) {
-      await _controller.loadHtmlString(_formLoadErrorHtml(null), baseUrl: sourceUrl);
+      await _controller.loadHtmlString(
+        _formLoadErrorHtml(null),
+        baseUrl: sourceUrl,
+      );
     }
   }
 
@@ -499,7 +599,9 @@ Page resource error:
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF0A192F) : const Color(0xFFF8FAFC),
+      backgroundColor: isDark
+          ? const Color(0xFF0A192F)
+          : const Color(0xFFF8FAFC),
       appBar: AppBar(
         elevation: 0,
         backgroundColor: isDark ? AppTheme.darkSurface : Colors.white,
@@ -516,10 +618,7 @@ Page resource error:
       body: Stack(
         children: [
           WebViewWidget(controller: _controller),
-          if (_isLoading)
-            const Center(
-              child: CircularProgressIndicator(),
-            ),
+          if (_isLoading) const Center(child: CircularProgressIndicator()),
         ],
       ),
     );

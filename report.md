@@ -195,3 +195,185 @@ Work log (chronological, appended as each item is verified/fixed):
 **Work:** None — diagnosis/report only.
 
 **Status:** Reported back to user.
+
+## 2026-10-24 — ClickUp bug sweep: yesterday's (2026-10-23) 13 "to do" tickets
+
+**Point (as given):** "sab se pehele kal ke solve karna" (solve yesterday's first), referring to
+the 13 tickets in this ClickUp list created 2026-10-23 - confirmed via each task's
+`date_created` that these are a distinct, newer batch than the Oct-16/Oct-13 tickets still
+sitting in "to do". Also asked to check each task's comments for extra context before fixing.
+
+**Verification:** Read every ticket's description and comments, then traced each into the
+actual Flutter (and, for one, Django backend) code before touching anything, per the user's
+"verify first whether it's a real bug" instruction. 12 of 13 were confirmed real; 1
+(the Manager Notifications header icon order) was a deliberate, consistent app-wide design
+choice, not a bug - see `context.md`'s 2026-10-24 entry for the full per-ticket breakdown of
+root causes and fixes.
+
+**Work:** 12 fixes across `client_screen.dart`, `dashboard_controller.dart`/`dashboard.dart`,
+`admin_activity_logs_view.dart`, `auth_service.dart`, `profile_screen.dart`,
+`admin_notifications_view.dart`/`add_notification_dialog.dart`, `task_screen.dart`,
+`manager_attendance_screen.dart`, plus the Project Team modal's backend fix in
+`Euroside_Project/API/views.py`+`serializers.py` (2 new passing tests there).
+
+**Tests:** `flutter analyze` clean across every changed file. Backend: `manage.py check` clean,
+2 new passing tests for the Project Team modal fix.
+
+**Status:** All 13 ClickUp tasks updated - 12 moved to `dev done`, 1 to `not a bug`, each with a
+comment explaining the finding. Code fixed and verified locally; not committed/pushed yet.
+
+## 2026-10-24 — RAMS Builder screen + Compliance Dashboard permission
+
+**Point (as given):** "admin aap me /compliance-dashboard/ or build rams or Construction
+Reports bhi add kar dena manager or superviser ko permission hogi to dikhega barna nhi."
+
+**Verification:** Construction Reports already fully built and working as asked - no gap.
+Compliance Dashboard: this app's screen/route/drawer item already existed, but the backend
+permission it depends on (`AuthService.can('compliance_dashboard')`) was ungrantable - a backend
+fix, not a Flutter one (see `Euroside_Project` repo logs). RAMS Builder: genuinely missing - no
+mobile screen or API existed. Asked the user to pick a scope (full builder / simplified form /
+web-view shortcut) since the three options differ enormously in effort and UX; user chose "Full
+builder."
+
+**Work:** New `rams_builder_screen.dart` + `project_rams_controller.dart`, plus entry points in
+`hse_tab.dart` ("Build RAMS" button, "Open RAMS builder" on existing RAMS document cards) and
+`hazardCount`/`highestRiskScore` fields added to `hse_document_model.dart`. Hazard matrix editor
+reuses `material_detail_screen.dart`'s rate-tier-editor pattern rather than inventing a new one.
+Backend: new `ProjectRamsBuilderAPIView` (token-auth mobile API, reuses the web builder's exact
+save logic via a newly extracted shared function) and the Compliance Dashboard permission
+re-enable - both in `Euroside_Project`, full details in that repo's own report.md.
+
+**Tests:** `flutter analyze` clean, 0 new issues. Backend: 6 new passing API tests + all 14
+existing web RAMS tests still pass, `manage.py check` clean.
+
+**Status:** Built and verified locally across both repos. Not committed/pushed yet.
+
+## 2026-10-24 — ClickUp bug sweep: remaining older (2026-10-13/16) "to do" tickets
+
+**Point (as given):** "ab jo bug bache hai pehele assign kiye wale, unhe verify kar ke solve
+karna hai" - solve the remaining 16 already-assigned bugs, verify first. Mid-task: "kuch bug
+old hai jo ki abhi solve karne ka koi matlbe nhi hai bo bhi dekhna sabhi solve karne ka mat
+sochna" - also flag old/stale ones not worth forcing a fix on, don't assume everything must be
+fixed.
+
+**Verification:** Went through all 16 individually against current code. Traced 3 separately-
+worded tickets (blank Total Worked, Contractor Dashboard future timestamps, shift-duration
+confusion) to one shared root cause in the operative app's clock-in/out timestamp submission.
+Confirmed 3 others were already correctly implemented by prior work (shift-duration restore
+logic, Daywork form scrolling, Guests Directory live refresh) with no code change needed. Found
+1 genuinely not a bug (QA buttons - backend authorizes by role, no granular permission exists to
+gate on; tried a client-side fix, reverted it once that became clear). Could not locate a
+current-code defect for 2 (clock-out location N/A, Daily Diary PDF date format) despite thorough
+checking across all three repos, and left 1 alone (Create Notification "enhanced options" - a
+vague feature-parity ask, not a specific defect).
+
+**Work:** 7 concrete fixes - see `context.md`'s matching entry for the full file-by-file
+breakdown (timezone fix in the operative app's `api_client.dart`; downloads screen friendly
+errors; task-creation project dropdown; employee code confirmation; N/A→hyphen in Attendance
+Logs; Activity Logs pull-to-refresh; HS&E upload date-picker default).
+
+**Tests:** New backend regression test for the timezone fix, passing. `flutter analyze` clean
+(0 errors) on both Flutter apps. `manage.py check` clean.
+
+**Status:** All 16 ClickUp tasks updated with a status + comment explaining the finding - 7
+`dev done` (new fixes), 3 `dev done` (already-correct, verified not changed), 1 `not a bug`, 2
+`under discussion` (asked for more detail/a fresh repro), 1 left as `to do` with a comment
+explaining why it's out of scope for this pass. Code changes not committed/pushed yet.
+
+## 2026-10-26 — Construction Reports crash + dark mode, Manager/Supervisor operative scope
+
+**Point (as given):** Two screenshots - Construction Reports page not dark-mode styled, and a
+red Flutter crash ("No Material widget found") on the Logs screen reached from it. Separately:
+"manager or supervisor ko all oprative aane ka option ana chahiye jese admin ko dikhta hai admin
+aap me bhi fix karna hai" - Manager/Supervisor should see the full operative list like Admin
+does when assigning to a project, fix it in the Admin app too.
+
+**Verification:** Confirmed both screenshot issues directly in code - `_ReportCard` hardcoded
+white/fixed colors (no `isDark` branching at all despite the variable being computed), and the
+Activity Logs card pushed a Scaffold-less body widget directly, which is why the Material
+widget error only appeared from this one entry point. For the operative-scoping ask, traced the
+Admin app's "Project Assignments" panel to `ProjectAllInOneDetailAPIView` (not the
+`ProjectOptionsAPIView` endpoint used by Create Task) and found the same team-lead-only scoping
+pattern repeated in 4 separate backend locations (2 web, 2 API) - all intentional at the time
+they were written, now explicitly reversed on request.
+
+**Work:** Construction Reports dark-mode colors + routing fix (this repo). Operative-directory
+widening across all 4 backend locations (`Euroside_Project`'s own report.md has the full
+breakdown). Also folded in a pre-existing uncommitted fix to `projects_screen.dart`'s Assign
+Operatives dialog (confirmed with the user as this session's own earlier work) - it hardcoded
+`teamIds: const []` on save, dropping a project's existing team assignments.
+
+**Tests:** `flutter analyze` clean (0 errors). Backend: 6 tests across 3 test classes (2 new,
+1 updated to reflect the intentionally-reversed restriction) all pass.
+
+**Point (as given):** "web em construction report asi hai or mobile aap me difrent hai to ese
+bhi fix karna hai" (+ screenshot of the web Construction Reports page) - make the Admin app's
+Construction Reports hub match the web page's layout.
+
+**Verification:** Read the full web template (`templates/dashboard/construction_reports.html`,
+1049 lines) to get the exact structure: two sections (org-wide, no project needed; project-scoped,
+greyed out until a project is picked) and 7 report cards total, including a Specifications report
+that didn't exist anywhere in the Flutter app. Ran a read-only survey agent against the Admin app
+to confirm: a `SpecificationsTab` already exists (buried as a Project Details tab, not reachable
+from the hub, but its CSV export already matches the web one exactly); none of Job Sheets/
+Timesheet/Productivity screens take a project-id constructor argument, but their controllers
+already support filtering to one id-based (`JobSheetController.fetchJobSheets(projectId:)`,
+`TimesheetController.setAdvancedFilters(project:)` - confirmed `selectedProject` there is already
+numeric, not a name); `ProductivityDetailScreen(id, title, isMember: false)` is already the exact
+per-project drill-down the web's "Project Productivity" card maps to.
+
+**Work:** Rebuilt `construction_reports_screen.dart` as a `StatefulWidget` with its own project
+list + picker (same fetch pattern as `create_task_controller.dart`), split into the two sections,
+added an `enabled` flag to the card widgets for the greyed/locked look. Added `initialProjectId`
+to `JobSheetScreen` and `TimesheetScreen` (two one-line wiring changes into already-id-aware
+controller methods). Project Productivity and Specifications needed no new screens at all - wired
+directly to `ProductivityDetailScreen` and `SpecificationsTab` respectively (the latter wrapped in
+a plain `Scaffold`+`AppBar` since it's a bare body widget).
+
+**Tests:** `flutter analyze` clean (no new errors/warnings).
+
+**Status:** Committed (`89e24a4`) and pushed to `origin/main`.
+
+---
+
+## 2026-10-26 — Construction Reports format badges don't export like web; custom range needs two calendars
+
+**Point (as given):** "button work nhi kar rahi hai abhi bhi aap side me construction reports me jese web me click karne pr filter pop up ata hai phir me use select kar ke report direct downlode kar leta hu" (+ screenshots of the web's CSV/EXCEL/PDF buttons and its period-picker dialog). Followed by: "DATE RANGE KE LIYE DO ALAG ALAG COLANDER CHAHIYE" once the dialog existed.
+
+**Verification:** The redesigned hub's format badges were static, no tap handler. Checked each report's export endpoint for `from`/`to`/`project` support: Activity Logs and Timesheets already had it; Productivity had it too but `project` text-matches the name, not an id; Job Sheets had no date-range support at all on the mobile API (web's own view has had it all along) - fixed in `Euroside_Project/API/views.py` (own context.md entry there).
+
+**Work:** `_ReportLink.onFormatTap` makes each format badge independently tappable, opening a new `_ReportExportDialog` (period: Month/Year/Custom/All) that downloads directly via `DownloadManager` - mirrors the web's `#reportExportDialog` click-to-download flow exactly, no navigation. Specifications downloads immediately with no dialog (matches web). Project Productivity's URL uses the project's name, not id. Custom period originally used one combined range-picker dialog; changed to two independent `showDatePicker` calendars side by side ("From date" / "To date") per the follow-up ask.
+
+**Tests:** `flutter analyze` clean (0 issues).
+
+**Status:** Committed (`c160a6c`) and pushed to `origin/main`.
+
+---
+
+## 2026-10-26 — "Admin Control" never reachable in the app drawer for Manager/Supervisor
+
+**Point (as given):** "problem ye hai ki mujhe bo penaal hi nhi mil rahe hai access karne ke liye koi option nhi hai kisi bhi side bar me nhi hai" (+ screenshots: web sidebar with no Admin section at all, and the Admin app's full drawer scrolled top to bottom - no Announcements/Notifications/Admin entry anywhere, just "Operative Logs" under SYSTEM & CONFIG).
+
+**Verification:** `custom_drawer.dart`'s "Operative Logs" / "Admin Control" items were an `if / else if` pair. `_isOperativeLogViewer` is true for every manager and supervisor unconditionally, so it always wins the `else if` and "Admin Control" (`_allowedMenus.any((key) => key.startsWith('admin_'))`) could never render for that role, no matter which admin_* permissions were granted - the two conditions aren't actually mutually exclusive.
+
+**Work:** Split into two independent `if` blocks so Operative Logs and Admin Control can both show. `admin_screen.dart` (the `/admin` destination)'s own per-tab permission filter was already correct - this was purely a missing entry point.
+
+**Note:** the matching web-side bug (`sidebar_items_for_user()`, same root shape - the parent "Admin" nav entry requiring its own ungranted permission key) was already found and fixed earlier today, committed locally in `Euroside_Project` but not yet pushed/deployed - that's why the web screenshot in this same report still shows no Admin section.
+
+**Tests:** `flutter analyze` clean (0 issues).
+
+**Status:** Committed (`75db5db`) and pushed to `origin/main`.
+
+---
+
+## 2026-10-26 — Announcements API 403 + "Admin Control" renamed for Manager/Supervisor
+
+**Point (as given):** screenshot of the now-reachable Announcements tab showing "You do not have permission to manage announcements from mobile API."; plus "admin control ke place pr advance access kar manager or superviser ke liye".
+
+**Verification:** backend-side bug (own repo's report.md has the full breakdown) - the Announcements mobile API endpoint was hardcoded to Admin/Superuser only, never checking the RBAC `admin_announcements` permission, unlike its Notifications sibling.
+
+**Work:** `custom_drawer.dart`'s drawer item label changed from a fixed "Admin Control" to `_isOperativeLogViewer ? "Advance Access" : "Admin Control"` - Manager/Supervisor see "Advance Access", everyone else still sees "Admin Control".
+
+**Tests:** `flutter analyze` clean (0 issues).
+
+**Status:** Verified locally. Not committed/pushed yet.
