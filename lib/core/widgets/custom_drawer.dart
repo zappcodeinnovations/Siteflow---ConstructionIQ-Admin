@@ -326,23 +326,15 @@ class _CustomDrawerState extends State<CustomDrawer> {
                       '/settings',
                       currentRoute,
                     ),
-                  if (_isOperativeLogViewer)
-                    _buildDrawerItem(
-                      context,
-                      IconlyLight.activity,
-                      "Operative Logs",
-                      '/operativeLogs',
-                      currentRoute,
-                    ),
-                  // Was an `else if` of the branch above, so a Manager/
-                  // Supervisor (always _isOperativeLogViewer) could never
-                  // reach this entry no matter what admin_* permission they
-                  // were granted (e.g. Admin / Announcements, Admin /
-                  // Notifications) - the two are independent, not mutually
-                  // exclusive. Labelled "Advance Access" rather than "Admin
-                  // Control" for Manager/Supervisor specifically - they only
-                  // ever reach a few explicitly-granted admin_* screens, not
-                  // real admin control.
+                  // Operative Logs is deliberately not linked from the
+                  // drawer for Manager/Supervisor (product decision) even
+                  // though the underlying permission/route still exists -
+                  // was previously an `else if` of the Admin Control branch
+                  // below, which also meant the two could never show
+                  // together; now independent. Labelled "Advance Access"
+                  // rather than "Admin Control" for Manager/Supervisor
+                  // specifically - they only ever reach a few explicitly-
+                  // granted admin_* screens, not real admin control.
                   if (_allowedMenus.any((key) => key.startsWith('admin_')))
                     _buildDrawerItem(
                       context,
