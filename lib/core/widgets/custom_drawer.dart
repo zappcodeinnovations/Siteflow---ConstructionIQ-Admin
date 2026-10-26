@@ -336,15 +336,18 @@ class _CustomDrawerState extends State<CustomDrawer> {
                     ),
                   // Was an `else if` of the branch above, so a Manager/
                   // Supervisor (always _isOperativeLogViewer) could never
-                  // reach "Admin Control" no matter what admin_* permission
-                  // they were granted (e.g. Admin / Announcements, Admin /
+                  // reach this entry no matter what admin_* permission they
+                  // were granted (e.g. Admin / Announcements, Admin /
                   // Notifications) - the two are independent, not mutually
-                  // exclusive.
+                  // exclusive. Labelled "Advance Access" rather than "Admin
+                  // Control" for Manager/Supervisor specifically - they only
+                  // ever reach a few explicitly-granted admin_* screens, not
+                  // real admin control.
                   if (_allowedMenus.any((key) => key.startsWith('admin_')))
                     _buildDrawerItem(
                       context,
                       IconlyLight.shield_done,
-                      "Admin Control",
+                      _isOperativeLogViewer ? "Advance Access" : "Admin Control",
                       '/admin',
                       currentRoute,
                     ),
