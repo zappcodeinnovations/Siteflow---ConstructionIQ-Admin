@@ -1664,24 +1664,45 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                           ),
                           const SizedBox(height: 8),
                           ...workers.map((workerItem) {
-                            final String name = workerItem is Map
-                                ? (workerItem['display_name'] ??
-                                          '${workerItem['first_name'] ?? ''} ${workerItem['last_name'] ?? ''}'
-                                              .trim()
-                                              .isNotEmpty
-                                      ? '${workerItem['first_name'] ?? ''} ${workerItem['last_name'] ?? ''}'
-                                            .trim()
-                                      : workerItem['name'] ??
-                                            workerItem['email'] ??
-                                            'Member #${workerItem['id'] ?? ''}')
-                                : 'Member #$workerItem';
-                            final String? role = workerItem is Map
-                                ? (workerItem['role_display_name'] ??
+                            String name;
+                            String? role;
+                            String? email;
+
+                            if (workerItem is Map) {
+                              final String? displayName =
+                                  workerItem['display_name']?.toString().trim();
+                              final String fullName =
+                                  '${workerItem['first_name'] ?? ''} ${workerItem['last_name'] ?? ''}'
+                                      .trim();
+                              final String? fallbackName =
+                                  workerItem['name']?.toString().trim();
+                              final String? workerEmail =
+                                  workerItem['email']?.toString().trim();
+                              final String workerId =
+                                  workerItem['id']?.toString() ?? '';
+
+                              if (displayName != null &&
+                                  displayName.isNotEmpty) {
+                                name = displayName;
+                              } else if (fullName.isNotEmpty) {
+                                name = fullName;
+                              } else if (fallbackName != null &&
+                                  fallbackName.isNotEmpty) {
+                                name = fallbackName;
+                              } else if (workerEmail != null &&
+                                  workerEmail.isNotEmpty) {
+                                name = workerEmail;
+                              } else {
+                                name = 'Member #$workerId';
+                              }
+
+                              role = (workerItem['role_display_name'] ??
                                       workerItem['role'])
-                                : null;
-                            final String? email = workerItem is Map
-                                ? workerItem['email']
-                                : null;
+                                  ?.toString();
+                              email = workerEmail;
+                            } else {
+                              name = 'Member #$workerItem';
+                            }
 
                             return Container(
                               margin: const EdgeInsets.only(bottom: 8),
@@ -1893,6 +1914,7 @@ class ProjectsScreenState extends State<ProjectsScreen> {
     String searchWorkerQuery = '';
     final List<int> selectedWorkerIds = [];
     final List<ProjectAssignableOperative> operatives = [];
+    List<int>? existingTeamIds;
 
     showDialog(
       context: context,
@@ -1925,7 +1947,40 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                     final assignmentData = results[0] as Map<String, dynamic>?;
                     final loadedOperatives =
                         results[1] as List<ProjectAssignableOperative>;
+
+                    final Map<int, ProjectAssignableOperative> operativeMap = {};
+
                     if (assignmentData != null) {
+                      // Preserve existing team IDs so saving does not drop teams
+                      final rawTeamIds = assignmentData['selected_team_ids'] ??
+                          assignmentData['team_ids'];
+                      if (rawTeamIds is List) {
+                        existingTeamIds = rawTeamIds
+                            .map((e) => int.tryParse(e.toString()))
+                            .whereType<int>()
+                            .toList();
+                      }
+
+                      // 1. Include all operatives currently assigned to this project
+                      final rawAssignedWorkers =
+                          assignmentData['workers'] ??
+                          assignmentData['assigned_workers'] ??
+                          assignmentData['members'] ??
+                          const [];
+                      if (rawAssignedWorkers is List) {
+                        for (var w in rawAssignedWorkers) {
+                          if (w is Map) {
+                            final op = ProjectAssignableOperative.fromJson(
+                              Map<String, dynamic>.from(w),
+                            );
+                            if (op.id > 0) {
+                              operativeMap[op.id] = op;
+                            }
+                          }
+                        }
+                      }
+
+                      // 2. Populate selectedWorkerIds from assignment data
                       final rawWorkers =
                           assignmentData['selected_worker_ids'] ??
                           assignmentData['worker_ids'] ??
@@ -1951,10 +2006,42 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                         }
                       }
                     }
+
+                    // 3. Add assignable operatives from options
+                    for (var op in loadedOperatives) {
+                      if (op.id > 0) {
+                        operativeMap.putIfAbsent(op.id, () => op);
+                      }
+                    }
+
+                    // 4. Ensure any remaining selected worker ID has an entry
+                    for (var id in selectedWorkerIds) {
+                      operativeMap.putIfAbsent(
+                        id,
+                        () => ProjectAssignableOperative(
+                          id: id,
+                          displayName: 'Operative #$id',
+                          email: '',
+                        ),
+                      );
+                    }
+
+                    final sortedOperatives = operativeMap.values.toList()
+                      ..sort((a, b) {
+                        final aSelected = selectedWorkerIds.contains(a.id);
+                        final bSelected = selectedWorkerIds.contains(b.id);
+                        if (aSelected != bSelected) {
+                          return aSelected ? -1 : 1;
+                        }
+                        return a.displayName
+                            .toLowerCase()
+                            .compareTo(b.displayName.toLowerCase());
+                      });
+
                     setDialogState(() {
                       operatives
                         ..clear()
-                        ..addAll(loadedOperatives);
+                        ..addAll(sortedOperatives);
                       isLoadingData = false;
                     });
                   })
@@ -2364,7 +2451,7 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                                       final success = await _controller
                                           .assignProject(
                                             project.id,
-                                            teamIds: const [],
+                                            teamIds: existingTeamIds ?? const [],
                                             workerIds: selectedWorkerIds,
                                           );
                                       if (dialogContext.mounted) {

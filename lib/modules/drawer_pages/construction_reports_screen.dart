@@ -5,7 +5,8 @@ import '../../core/theme/app_theme.dart';
 import '../../core/widgets/background_stripes_painter.dart';
 import '../../core/widgets/custom_drawer.dart';
 import '../../core/widgets/app_back_button.dart';
-import 'admin/admin_activity_logs_view.dart';
+import '../../core/services/auth_service.dart';
+import 'admin_screen.dart';
 
 /// A consolidated index of reports that already exist elsewhere in the app
 /// (Activity Logs, Productivity, Job Sheets, Weekly Diary, Timesheet) -
@@ -23,10 +24,26 @@ class ConstructionReportsScreen extends StatelessWidget {
         title: 'Activity Logs',
         subtitle: 'Full audit trail of who changed what, across every module.',
         formats: const ['CSV', 'EXCEL', 'PDF'],
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const AdminActivityLogsView()),
-        ),
+        onTap: () async {
+          // AdminActivityLogsView is a reusable body widget with no
+          // Scaffold of its own - it must be reached through a screen that
+          // supplies one (same choice the drawer itself makes between
+          // these two), not pushed directly, or Material-dependent widgets
+          // inside it (e.g. the filter dropdowns) crash with
+          // "No Material widget found".
+          final isOperativeLogViewer = await AuthService.canViewOperativeLogs();
+          if (!context.mounted) return;
+          if (isOperativeLogViewer) {
+            Navigator.pushNamed(context, '/operativeLogs');
+          } else {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const AdminScreen(initialMenuKey: 'admin_activity_logs'),
+              ),
+            );
+          }
+        },
       ),
       _ReportLink(
         icon: IconlyLight.graph,
@@ -77,7 +94,8 @@ class ConstructionReportsScreen extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             itemCount: items.length,
             separatorBuilder: (_, __) => const SizedBox(height: 12),
-            itemBuilder: (context, index) => _ReportCard(item: items[index]),
+            itemBuilder: (context, index) =>
+                _ReportCard(item: items[index], isDark: isDark),
           ),
         ],
       ),
@@ -103,12 +121,21 @@ class _ReportLink {
 
 class _ReportCard extends StatelessWidget {
   final _ReportLink item;
-  const _ReportCard({required this.item});
+  final bool isDark;
+  const _ReportCard({required this.item, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
+    final cardColor = isDark ? AppTheme.darkSurface : Colors.white;
+    final borderColor = isDark ? AppTheme.darkBorder : const Color(0xFFE5E7EB);
+    final titleColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
+    final subtitleColor = isDark ? Colors.white60 : const Color(0xFF6B7280);
+    final formatBg = isDark ? Colors.white.withValues(alpha: 0.08) : const Color(0xFFF3F4F6);
+    final formatColor = isDark ? Colors.white70 : const Color(0xFF6B7280);
+    final chevronColor = isDark ? Colors.white38 : const Color(0xFF9CA3AF);
+
     return Material(
-      color: Colors.white,
+      color: cardColor,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
@@ -117,7 +144,7 @@ class _ReportCard extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFE5E7EB)),
+            border: Border.all(color: borderColor),
           ),
           child: Row(
             children: [
@@ -125,7 +152,7 @@ class _ReportCard extends StatelessWidget {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: AppTheme.corporateBlue.withValues(alpha: 0.08),
+                  color: AppTheme.corporateBlue.withValues(alpha: isDark ? 0.16 : 0.08),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(item.icon, color: AppTheme.corporateBlue, size: 22),
@@ -137,12 +164,12 @@ class _ReportCard extends StatelessWidget {
                   children: [
                     Text(
                       item.title,
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: titleColor),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       item.subtitle,
-                      style: const TextStyle(fontSize: 12.5, color: Color(0xFF6B7280)),
+                      style: TextStyle(fontSize: 12.5, color: subtitleColor),
                     ),
                     const SizedBox(height: 8),
                     Wrap(
@@ -152,12 +179,12 @@ class _ReportCard extends StatelessWidget {
                             (format) => Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFF3F4F6),
+                                color: formatBg,
                                 borderRadius: BorderRadius.circular(999),
                               ),
                               child: Text(
                                 format,
-                                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF6B7280)),
+                                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: formatColor),
                               ),
                             ),
                           )
@@ -166,7 +193,7 @@ class _ReportCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right, color: Color(0xFF9CA3AF)),
+              Icon(Icons.chevron_right, color: chevronColor),
             ],
           ),
         ),
