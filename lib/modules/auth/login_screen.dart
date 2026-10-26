@@ -104,8 +104,10 @@ class _LoginScreenState extends State<LoginScreen> {
         fontSize: isTablet ? 14 : (compact ? 11 : 12),
       ),
       errorStyle: TextStyle(
-        fontSize: isTablet ? 11 : 9,
-        height: .85,
+        color: const Color(0xFFD32F2F),
+        fontWeight: FontWeight.w600,
+        fontSize: isTablet ? 12 : 10.5,
+        height: .95,
       ),
       contentPadding: EdgeInsets.symmetric(
         vertical: isTablet ? 15 : (compact ? 10 : 13),

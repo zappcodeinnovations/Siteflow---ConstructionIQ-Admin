@@ -331,7 +331,9 @@ class _CreateTaskDialogState extends State<CreateTaskDialog> {
                                       : Text(
                                           _controller.setup?.jobNoDisplay.isNotEmpty == true
                                               ? _controller.setup!.jobNoDisplay
-                                              : "Auto-generated",
+                                              : (_controller.selectedProjectId != null
+                                                    ? "Auto-generated"
+                                                    : ""),
                                           style: TextStyle(
                                             fontSize: 14,
                                             fontWeight: FontWeight.w600,
