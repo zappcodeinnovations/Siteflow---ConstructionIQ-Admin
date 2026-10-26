@@ -1,5 +1,8 @@
 class ApiEndpoints {
-  static const String baseUrl = 'https://euroside.zappcode.in/api';
+  // Pointed at the test server (64.227.164.177) for testing purposes -
+  // revert to 'https://euroside.zappcode.in/api' before any production
+  // build/release.
+  static const String baseUrl = 'http://64.227.164.177/api';
 
   // Auth
   static const String login = '/admin/login/';

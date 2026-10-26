@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Allows plain HTTP only for the test server's bare IP - everything else
+  (including production) still requires HTTPS. Remove this domain-config
+  block (and the networkSecurityConfig reference in AndroidManifest.xml)
+  once the app is no longer pointed at the test server's http:// endpoint.
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">64.227.164.177</domain>
+    </domain-config>
+</network-security-config>
