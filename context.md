@@ -1160,3 +1160,11 @@ if unused) or be removed, either is fine.
 **Tests:** `flutter analyze` clean (0 issues).
 
 **Status:** Verified locally. Not committed/pushed yet.
+
+**Second overflow + a real data bug on the HS&E documents list (2026-10-27, screenshot of the "Scaffold Erection RAMS" cards showing "RIGHT OVERFLOWED BY 66/15 PIXELS", plus: "FIX UI ISSUE AN PROBLEM WHAN I CRAETE NORE THAN 1 HAZARD AND DELETE SECOND SO IT DELETE 3RD PLACE OF SECOND IF I DELETE FIRST IR DELETE SECOND").**
+- `hse_tab.dart`'s per-document bottom action row (Acknowledgment badge + Open/RAMS builder/Revise/Delete buttons) was a `Row` with `spaceBetween` - same class of bug as the toolbar above: on a narrow screen with a long badge ("Acknowledgment required") plus 3-4 action buttons, nothing fit and it overflowed. Converted to a `Wrap` (`alignment: WrapAlignment.spaceBetween`), same fix pattern.
+- **Real bug, not cosmetic**: in the RAMS Builder's hazard matrix, deleting hazard 1 or 2 (with 3+ hazards present) visually deleted the WRONG row's data - described as "deletes the 3rd instead". Root cause: `_hazardRow()` (`rams_builder_screen.dart`) built each `Card`/`TextFormField` with no `Key`, and each `TextFormField` used `initialValue` (read once at first build, not reactive). Flutter identifies list children by *position* when there's no `Key` - so after `removeAt(index)` shifted the underlying `_controller.hazards` list up, Flutter reused each remaining row's existing `TextFormField` State (and its already-typed text) at the same screen position instead of rebuilding it from the new data at that position. The data model was always correct; only the on-screen text was stale, making it look like a different row got deleted. Fixed by keying each `Card` with `ValueKey(identityHashCode(hazard))` - stable per hazard-map object across adds/removes, no schema/payload change needed since `identityHashCode` isn't stored in the map itself.
+
+**Tests:** `flutter analyze` clean (0 issues).
+
+**Status:** Verified locally. Not committed/pushed yet.

@@ -87,6 +87,12 @@ class _RamsBuilderScreenState extends State<RamsBuilderScreen> {
   Widget _hazardRow(int index) {
     final hazard = _controller.hazards[index];
     return Card(
+      // Keyed by the hazard map's own object identity (stable across
+      // removeAt(), unlike index) - without this, Flutter reuses each
+      // TextFormField's State by position after a delete, so the fields
+      // keep showing the OLD row's text while the underlying data has
+      // shifted up, making it look like the wrong hazard got deleted.
+      key: ValueKey(identityHashCode(hazard)),
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
         padding: const EdgeInsets.all(12),

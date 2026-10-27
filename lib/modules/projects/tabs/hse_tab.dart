@@ -948,9 +948,14 @@ class _HseTabState extends State<HseTab> {
           const Divider(height: 1),
           const SizedBox(height: 10),
 
-          // Bottom Action Row: Sign status on left, Open/Revise/Delete on right
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          // Bottom Action Row: Sign status on left, Open/Revise/Delete on right -
+          // Wrap (not Row) so the badge + buttons drop to a second line
+          // instead of overflowing when they don't all fit on one.
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
             children: [
               // Signatures / Acknowledgment indicator
               if (signedInfo != null)

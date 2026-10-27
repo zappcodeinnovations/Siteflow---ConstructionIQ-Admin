@@ -447,3 +447,17 @@ a plain `Scaffold`+`AppBar` since it's a bare body widget).
 **Tests:** `flutter analyze` clean (0 issues).
 
 **Status:** Verified locally. Not committed/pushed yet.
+
+---
+
+## 2026-10-27 — Fix HS&E document card overflow + hazard delete data bug
+
+**Point (as given):** Screenshot of overflow banners on the HS&E document cards' action row, plus: "FIX UI ISSUE AN PROBLEM WHAN I CRAETE NORE THAN 1 HAZARD AND DELETE SECOND SO IT DELETE 3RD PLACE OF SECOND IF I DELETE FIRST IR DELETE SECOND."
+
+**Verification:** The overflow was the same `Row`-with-`spaceBetween` class of bug as the earlier toolbar fix. The hazard delete issue was a real bug, not cosmetic: `_hazardRow()` built unkeyed `TextFormField`s with `initialValue` - without a `Key`, Flutter reuses each row's widget State by screen position after a delete, so the displayed text doesn't follow the data when the list shifts. The underlying data was always correct; only the display was stale.
+
+**Work:** Converted the document card's action row to a `Wrap`. Added `key: ValueKey(identityHashCode(hazard))` to each hazard `Card` so Flutter tracks each row by its own stable identity instead of position.
+
+**Tests:** `flutter analyze` clean (0 issues).
+
+**Status:** Verified locally. Not committed/pushed yet.
