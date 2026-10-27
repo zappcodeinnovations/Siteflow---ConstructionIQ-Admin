@@ -376,4 +376,60 @@ a plain `Scaffold`+`AppBar` since it's a bare body widget).
 
 **Tests:** `flutter analyze` clean (0 issues).
 
+**Status:** Committed (`67bf0e0`) and pushed to `origin/main`.
+
+---
+
+## 2026-10-26 — ClickUp "to do" bug sweep (2 app-side points)
+
+**Point (as given):** "click up pr admin aap ke todo me bug hai fix ir" - 5 tickets total in the list; 3 were backend-only (own repo's report.md), these 2 touch this app.
+
+**Verification:** `errorStyle` on the login screen's password field had no color set (9px, no weight) - confirmed low-contrast default. The Task No field's ternary only checked whether `setup.jobNoDisplay` was non-empty, never whether a project had been picked at all, so "Auto-generated" showed from the moment the modal opened.
+
+**Work:** `login_screen.dart` - explicit error text color/weight/size. `create_task_dialog.dart` - Task No stays blank until `selectedProjectId != null`.
+
+**Tests:** `flutter analyze` clean (0 issues).
+
+**Status:** Committed (`b1d4e4d`) and pushed to `origin/main`.
+
+---
+
+## 2026-10-26 — App pointed at the test server
+
+**Point (as given):** "app ko test server ki ip pr trasfer kar de".
+
+**Verification:** test server only serves plain HTTP (confirmed via `curl` on the box), and neither platform had any cleartext exception configured - the app has only ever pointed at HTTPS production, so switching `baseUrl` alone would've been silently blocked by the OS before any request left the device.
+
+**Work:** `ApiEndpoints.baseUrl` → `http://64.227.164.177/api`. Added a cleartext exception scoped to that one IP on both platforms (Android `network_security_config.xml`, iOS `NSAppTransportSecurity`) rather than a blanket "allow all HTTP" toggle.
+
+**Tests:** `flutter analyze` clean (0 issues).
+
+**Status:** Committed (`15ee1d9`) and pushed to `origin/main`.
+
+---
+
+## 2026-10-26 — Hide Operative Logs from the Manager/Supervisor drawer
+
+**Point (as given):** "side bar se logs bala optin hide kar manager or superviser ke liye" - clarified via a question: Operative Logs specifically, not reversing the earlier data-fix.
+
+**Verification:** Confirmed "Operative Logs" has no web equivalent (grepped templates, nothing) - purely an Admin app drawer entry.
+
+**Work:** Removed the drawer link for Manager/Supervisor. Underlying permission/route untouched - this is a visibility change only.
+
+**Tests:** `flutter analyze` clean (0 issues).
+
+**Status:** Verified locally. Not committed/pushed yet.
+
+---
+
+## 2026-10-27 — Add "Manage Templates" to the RAMS Builder
+
+**Point (as given):** "...admin aap me bhi manage teplate missimg hai RAMS Builde me", reconfirmed "abhi bhi app me build RAMS me Manage Templates missing hai" / "ye task complite kar".
+
+**Verification:** RAMS Builder screen already existed with the template dropdown; confirmed via grep no mobile API/screen existed to manage the templates themselves.
+
+**Work:** New `method_statement_templates_controller.dart` + `method_statement_templates_screen.dart` (Active/Archived list, add/edit `AlertDialog`, archive/restore per row). Added "Manage Templates" button next to the dropdown in `rams_builder_screen.dart`, re-fetching builder data on return so new templates appear immediately. New endpoints added to `api_endpoints.dart`.
+
+**Tests:** `flutter analyze` clean (0 issues) on all 4 changed/new files.
+
 **Status:** Verified locally. Not committed/pushed yet.

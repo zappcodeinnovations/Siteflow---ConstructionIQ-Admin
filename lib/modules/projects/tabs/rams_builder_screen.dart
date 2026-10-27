@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
 import '../../../core/widgets/custom_date_picker_dialog.dart';
+import '../method_statement_templates_screen.dart';
 import '../project_rams_controller.dart';
 
 /// Full RAMS builder - mirrors the web's rams_builder.html/.js: a Risk
@@ -179,6 +180,15 @@ class _RamsBuilderScreenState extends State<RamsBuilderScreen> {
     );
   }
 
+  Future<void> _openManageTemplates() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const MethodStatementTemplatesScreen()),
+    );
+    if (!mounted) return;
+    await _controller.fetchBuilderData(documentId: widget.documentId);
+  }
+
   void _applyTemplate(int? templateId) {
     setState(() => _controller.methodStatementTemplateId = templateId);
     if (templateId == null) return;
@@ -292,19 +302,34 @@ class _RamsBuilderScreenState extends State<RamsBuilderScreen> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                DropdownButtonFormField<int>(
-                  initialValue: _controller.methodStatementTemplateId,
-                  decoration: const InputDecoration(labelText: "Start from a Method Statement Template"),
-                  items: [
-                    const DropdownMenuItem<int>(value: null, child: Text("None")),
-                    ..._controller.methodStatementTemplates.map(
-                      (t) => DropdownMenuItem<int>(
-                        value: t['id'] as int,
-                        child: Text(t['title']?.toString() ?? ''),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<int>(
+                        initialValue: _controller.methodStatementTemplateId,
+                        decoration: const InputDecoration(labelText: "Start from a Method Statement Template"),
+                        items: [
+                          const DropdownMenuItem<int>(value: null, child: Text("None")),
+                          ..._controller.methodStatementTemplates.map(
+                            (t) => DropdownMenuItem<int>(
+                              value: t['id'] as int,
+                              child: Text(t['title']?.toString() ?? ''),
+                            ),
+                          ),
+                        ],
+                        onChanged: _applyTemplate,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: TextButton(
+                        onPressed: _openManageTemplates,
+                        child: const Text("Manage Templates"),
                       ),
                     ),
                   ],
-                  onChanged: _applyTemplate,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(

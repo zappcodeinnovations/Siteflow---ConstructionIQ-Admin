@@ -1108,4 +1108,47 @@ for Admin/Custom roles reaching the same `/admin` route.
 
 **Tests:** `flutter analyze` clean (0 issues).
 
+**Status:** Committed (`67bf0e0`) and pushed to `origin/main`.
+
+**ClickUp "to do" bug sweep (2 of 5 points land in this app - backend-side 3 are in `Euroside_Project`'s own context.md):**
+- `login_screen.dart`: the password field's validation error ("Please enter your password") had no explicit `errorStyle` color and a 9px font, inheriting Flutter's faint default - now an explicit dark-red, 10.5-12px, semi-bold.
+- `create_task_dialog.dart`: the "Start New Task Online" modal's Task No field showed "Auto-generated" even before a project was picked (the fallback ternary didn't check whether a project was selected at all) - now stays blank until `_controller.selectedProjectId != null`.
+
+**Tests:** `flutter analyze` clean (0 issues).
+
+**Status:** Committed (`b1d4e4d`) and pushed to `origin/main`.
+
+**App pointed at the test server (2026-10-26, user: "app ko test server ki ip pr transfer kar de"):**
+`ApiEndpoints.baseUrl` changed from `https://euroside.zappcode.in/api` to `http://64.227.164.177/api`
+(test server, plain HTTP - no domain/SSL there, confirmed `curl` hits `/api/app/version/` fine on
+the box itself). Both platforms needed an explicit cleartext exception or every request would've
+been silently blocked at the OS network layer before even reaching this code, since the app has
+only ever talked to HTTPS production:
+- Android: new `android/app/src/main/res/xml/network_security_config.xml` allowing cleartext
+  **only** for `64.227.164.177` (not a blanket `usesCleartextTraffic="true"`), wired in via
+  `android:networkSecurityConfig` on `<application>`.
+- iOS: `NSAppTransportSecurity` / `NSExceptionDomains` entry scoped to the same IP in `Info.plist`.
+
+**To revert before any production build:** change `baseUrl` back to the `euroside.zappcode.in`
+URL - the network-config/ATS exception blocks can stay (they only apply to that one IP, harmless
+if unused) or be removed, either is fine.
+
+**Tests:** `flutter analyze` clean (0 issues).
+
+**Status:** Committed (`15ee1d9`) and pushed to `origin/main`.
+
+**Operative Logs removed from the Manager/Supervisor drawer (2026-10-26, user: "side bar se logs bala optin hide kar manager or superviser ke liye", confirmed via AskUserQuestion it meant Operative Logs specifically - not reversing the earlier undercount/filter fix, just hiding the entry now).** `custom_drawer.dart` no longer links `/operativeLogs` for Manager/Supervisor - the underlying route, permission, and the backend fixes from earlier today stay in place (so it's a nav-visibility change, not a feature removal; reachable again instantly by re-adding the `if (_isOperativeLogViewer)` block if needed later). Confirmed "Operative Logs" has no web equivalent at all (grepped the templates) - this was purely an Admin app drawer concept.
+
+**Tests:** `flutter analyze` clean (0 issues).
+
 **Status:** Verified locally. Not committed/pushed yet.
+
+**"Manage Templates" added to the RAMS Builder (2026-10-27, user: "...admin aap me bhi manage teplate missimg hai RAMS Builde me", "ye task complite kar").** The RAMS Builder screen already existed with a "Start from a Method Statement Template" dropdown but no way to create/edit/archive those templates without leaving the app. Added:
+- `lib/core/network/api_endpoints.dart`: `methodStatementTemplates` / `methodStatementTemplateDetail(id)`.
+- New `lib/modules/projects/method_statement_templates_controller.dart` (`ChangeNotifier`): `fetchTemplates()`, `createTemplate()`, `updateTemplate()`, `setActive(id, bool)` against the new backend API (own context.md in `Euroside_Project`).
+- New `lib/modules/projects/method_statement_templates_screen.dart`: plain `Scaffold` list (Active / Archived sections, matching the web page's two sections), FAB + row tap open an `AlertDialog` add/edit form (title/trade category/PPE required/sequence of work), trailing archive/restore icon button per row.
+- `lib/modules/projects/tabs/rams_builder_screen.dart`: added a "Manage Templates" `TextButton` next to the template dropdown, pushed via `MaterialPageRoute` (same no-named-route pattern as `hse_tab.dart`'s own push of this screen); on return, re-calls `_controller.fetchBuilderData()` so a newly created/edited template shows up in the dropdown immediately.
+
+**Tests:** `flutter analyze` clean (0 issues) on all 4 changed/new files.
+
+**Status:** Verified locally. Not committed/pushed yet (per standing rule: Flutter apps are commit-locally-only).

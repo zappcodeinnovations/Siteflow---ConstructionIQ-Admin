@@ -47,6 +47,9 @@ class ApiEndpoints {
       documentId == null
           ? '/projects/$projectId/rams/'
           : '/projects/$projectId/rams/$documentId/';
+  static const String methodStatementTemplates = '/method-statement-templates/';
+  static String methodStatementTemplateDetail(int templateId) =>
+      '/method-statement-templates/$templateId/';
   static String myApprovals({int? projectId}) => projectId == null
       ? '/my-approvals/'
       : '/my-approvals/?project_id=$projectId';
