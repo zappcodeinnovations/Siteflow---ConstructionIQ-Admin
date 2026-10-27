@@ -641,37 +641,32 @@ class _HseTabState extends State<HseTab> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // Top Toolbar Actions: Upload & Recycle Bin
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
                   children: [
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF0D6EFD),
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          ),
-                          onPressed: _showUploadDialog,
-                          icon: const Icon(IconlyLight.upload, size: 16),
-                          label: const Text("Upload HS&E Document", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                        ),
-                        OutlinedButton.icon(
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFF0D6EFD),
-                            side: const BorderSide(color: Color(0xFF0D6EFD)),
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          ),
-                          onPressed: () => _openRamsBuilder(),
-                          icon: const Icon(IconlyLight.plus, size: 16),
-                          label: const Text("Build RAMS", style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                        ),
-                      ],
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF0D6EFD),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: _showUploadDialog,
+                      icon: const Icon(IconlyLight.upload, size: 16),
+                      label: const Text("Upload HS&E Document", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    ),
+                    OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF0D6EFD),
+                        side: const BorderSide(color: Color(0xFF0D6EFD)),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: () => _openRamsBuilder(),
+                      icon: const Icon(IconlyLight.plus, size: 16),
+                      label: const Text("Build RAMS", style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                     ),
                     OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(

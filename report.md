@@ -433,3 +433,17 @@ a plain `Scaffold`+`AppBar` since it's a bare body widget).
 **Tests:** `flutter analyze` clean (0 issues) on all 4 changed/new files.
 
 **Status:** Verified locally. Not committed/pushed yet.
+
+---
+
+## 2026-10-27 — Fix UI overflow on HS&E / RAMS Builder
+
+**Point (as given):** "JO UI ISSUE HAI UNE BHI FIX KA" + screenshots showing yellow/black "OVERFLOWED BY X PIXELS" banners on the HS&E tab's toolbar and the RAMS Builder's template dropdown row.
+
+**Verification:** Both were real `RenderFlex`-style overflows, not cosmetic. The dropdown lacked `isExpanded: true` (classic Flutter gotcha - item text renders at natural width instead of shrinking); the HS&E toolbar's `Wrap` was a non-flex child of an outer `Row`, so it never actually got to wrap.
+
+**Work:** Added `isExpanded: true` to the template dropdown and moved "Manage Templates" to its own line below it instead of squeezing both into one row. Flattened the HS&E toolbar's nested `Wrap`-inside-`Row` into one flat `Wrap` holding all 3 buttons.
+
+**Tests:** `flutter analyze` clean (0 issues).
+
+**Status:** Verified locally. Not committed/pushed yet.

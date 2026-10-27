@@ -1152,3 +1152,11 @@ if unused) or be removed, either is fine.
 **Tests:** `flutter analyze` clean (0 issues) on all 4 changed/new files.
 
 **Status:** Verified locally. Not committed/pushed yet (per standing rule: Flutter apps are commit-locally-only).
+
+**UI overflow fixes on HS&E / RAMS Builder (2026-10-27, user: "JO UI ISSUE HAI UNE BHI FIX KA", screenshots showing yellow/black "OVERFLOWED BY X PIXELS" banners).** Two real, separate bugs:
+- `rams_builder_screen.dart`'s "Start from a Method Statement Template" `DropdownButtonFormField` was missing `isExpanded: true` - without it, a `DropdownButton`'s selected-item text tries to render at its own natural width instead of shrinking to the available box, a classic Flutter overflow gotcha. Adding the new "Manage Templates" button into the same `Row` (previous change) ate enough width to tip this from marginal into an actual 106px overflow. Fixed by adding `isExpanded: true` (+ ellipsis on long item text) AND moving "Manage Templates" out of that `Row` entirely - it's now a right-aligned button on its own line below the full-width dropdown, so the two can never compete for horizontal space again regardless of device width.
+- `hse_tab.dart`'s toolbar ("Upload HS&E Document" / "Build RAMS" / "Recycle Bin") had its first two buttons in an inner `Wrap` but that `Wrap` was itself a non-flex child of an outer `Row` alongside the "Recycle Bin" button - a `Wrap` given unbounded width by a `Row` lays out as if it had infinite space, so it never actually wraps; the 3 buttons together just didn't fit on a phone-width screen and overflowed by 84px. Flattened to one single `Wrap` holding all 3 buttons, so overflow now naturally flows to a second line on narrow screens instead.
+
+**Tests:** `flutter analyze` clean (0 issues).
+
+**Status:** Verified locally. Not committed/pushed yet.

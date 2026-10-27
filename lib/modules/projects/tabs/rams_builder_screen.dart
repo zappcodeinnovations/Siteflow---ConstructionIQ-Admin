@@ -302,36 +302,29 @@ class _RamsBuilderScreenState extends State<RamsBuilderScreen> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: DropdownButtonFormField<int>(
-                        initialValue: _controller.methodStatementTemplateId,
-                        decoration: const InputDecoration(labelText: "Start from a Method Statement Template"),
-                        items: [
-                          const DropdownMenuItem<int>(value: null, child: Text("None")),
-                          ..._controller.methodStatementTemplates.map(
-                            (t) => DropdownMenuItem<int>(
-                              value: t['id'] as int,
-                              child: Text(t['title']?.toString() ?? ''),
-                            ),
-                          ),
-                        ],
-                        onChanged: _applyTemplate,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: TextButton(
-                        onPressed: _openManageTemplates,
-                        child: const Text("Manage Templates"),
+                DropdownButtonFormField<int>(
+                  initialValue: _controller.methodStatementTemplateId,
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: "Start from a Method Statement Template"),
+                  items: [
+                    const DropdownMenuItem<int>(value: null, child: Text("None")),
+                    ..._controller.methodStatementTemplates.map(
+                      (t) => DropdownMenuItem<int>(
+                        value: t['id'] as int,
+                        child: Text(t['title']?.toString() ?? '', overflow: TextOverflow.ellipsis),
                       ),
                     ),
                   ],
+                  onChanged: _applyTemplate,
                 ),
-                const SizedBox(height: 12),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: _openManageTemplates,
+                    child: const Text("Manage Templates"),
+                  ),
+                ),
+                const SizedBox(height: 4),
                 TextFormField(
                   controller: _methodStatementController,
                   decoration: const InputDecoration(labelText: "Method statement"),
