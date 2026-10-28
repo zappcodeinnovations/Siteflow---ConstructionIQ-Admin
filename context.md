@@ -1181,3 +1181,31 @@ if unused) or be removed, either is fine.
 **Tests:** `flutter analyze` clean (0 issues).
 
 **Status:** Verified locally. Not committed/pushed yet.
+
+
+**Absence Management System added to Admin app & removed from Attendance screen (2026-10-28, user: "admin aap me create to kar Absence Management system jesa web mai hai , or use aap se atority attendence me se hata na hi ."):**
+- **Authority Attendance Cleanup (`lib/modules/drawer_pages/manager_attendance_screen.dart`):**
+  - Removed "Record Absence" button from the header toolbar.
+  - Removed "Recorded Absences" list section from the screen body.
+  - Removed `_showRecordAbsenceDialog` and obsolete absence fetching on load (`_controller.fetchAbsences()`), keeping the attendance screen focused purely on attendance tracking, clocking in/out, and timesheet logs.
+- **Dedicated Absence Management Module Created:**
+  - `lib/models/absence_management_model.dart`: Structured data models (`AbsenceRecord`, `AbsenceSummary`, and `AbsenceFilterOptions`) supporting operative details, employee ID, project, absence type, duration, partial day, rejection reasons, approval/cancellation states, and overview KPI metrics.
+  - `lib/modules/drawer_pages/absence_management_controller.dart`: `ChangeNotifier` state manager supporting server-side filtering (search, status pills, date ranges, project, operative, absence type, sorting), live KPI summaries, and async actions (`approveAbsence`, `rejectAbsence` with mandatory reason, `cancelAbsence`, and `recordAbsence`).
+  - `lib/modules/drawer_pages/absence_management_screen.dart`: Responsive, feature-complete dashboard matching the web version:
+    - 6 KPI summary cards (Total, Pending, Approved, Rejected, Absent Today, Upcoming) with interactive 1-tap filtering.
+    - Search toolbar with real-time query filter.
+    - Horizontal status filter chips (All, Pending, Approved, Rejected, Cancelled).
+    - Date range picker button.
+    - Advanced filter dialog (Project, Operative, Absence Type, Sort).
+    - Interactive absence cards displaying operative avatar, employee ID, team, project, absence type icon, duration badge, partial day tag, status badge, rejection reason alert banner, and inline action buttons.
+    - Detailed bottom sheet for comprehensive request inspection.
+    - Record Absence modal sheet with validation, date range picker, and project scoping.
+    - Action confirmation dialogs for Approval, Rejection (mandatory reason input), and Cancellation.
+- **Navigation & RBAC Integration:**
+  - `lib/core/routes/app_routes.dart`: Registered `/absenceManagement` route wrapped in `PermissionGate(menuKey: 'absence_management')`.
+  - `lib/core/widgets/custom_drawer.dart`: Added "Absence Management" drawer menu item with `IconlyLight.calendar`, checking `_allowedMenus.contains('absence_management')`.
+  - `lib/core/services/auth_service.dart`: Included `'absence_management'` in fallback permission sets for Manager and Supervisor roles.
+
+**Tests:** `flutter analyze` clean (0 errors) across all modified and newly created files.
+
+**Status:** Verified locally. Not committed/pushed yet (per standing rule: Flutter apps are commit-locally-only).

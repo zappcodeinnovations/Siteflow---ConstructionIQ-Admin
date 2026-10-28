@@ -231,6 +231,7 @@ class AuthService {
             'workforce_planner',
             'timesheets',
             'manager_attendance',
+            'absence_management',
           }.contains(menuKey);
     }
     if (role == 'supervisor') {
@@ -245,6 +246,7 @@ class AuthService {
             'manager_diary',
             'timesheets',
             'manager_attendance',
+            'absence_management',
           }.contains(menuKey);
     }
     return false;

@@ -34,22 +34,6 @@
 	<string>Your location is used to save the project GPS coordinates for attendance geofencing.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>This app requires microphone access for video attachments.</string>
-	<!-- Allows plain HTTP only for the test server's bare IP - remove this
-	     block once the app is no longer pointed at the test server's
-	     http:// endpoint (see ApiEndpoints.baseUrl). -->
-	<key>NSAppTransportSecurity</key>
-	<dict>
-		<key>NSExceptionDomains</key>
-		<dict>
-			<key>64.227.164.177</key>
-			<dict>
-				<key>NSExceptionAllowsInsecureHTTPLoads</key>
-				<true/>
-				<key>NSIncludesSubdomains</key>
-				<false/>
-			</dict>
-		</dict>
-	</dict>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>This app requires access to the photo library to upload project photos, documents, and attachments.</string>
 	<key>UIApplicationSceneManifest</key>

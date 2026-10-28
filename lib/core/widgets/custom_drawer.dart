@@ -47,6 +47,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
       'construction_reports',
       'timesheets',
       'manager_attendance',
+      'absence_management',
       'library',
       'settings',
       'settings_teams',
@@ -286,6 +287,14 @@ class _CustomDrawerState extends State<CustomDrawer> {
                           ? "Manager Attendance"
                           : "Authority Attendance",
                       '/managerAttendance',
+                      currentRoute,
+                    ),
+                  if (_allowedMenus.contains('absence_management'))
+                    _buildDrawerItem(
+                      context,
+                      IconlyLight.calendar,
+                      "Absence Management",
+                      '/absenceManagement',
                       currentRoute,
                     ),
 

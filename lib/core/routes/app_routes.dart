@@ -10,6 +10,7 @@ import 'package:euroside_admin/modules/drawer_pages/productivity_screen.dart';
 import 'package:euroside_admin/modules/drawer_pages/settings_screen.dart';
 import 'package:euroside_admin/modules/drawer_pages/timesheet_screen.dart';
 import 'package:euroside_admin/modules/drawer_pages/manager_attendance_screen.dart';
+import 'package:euroside_admin/modules/drawer_pages/absence_management_screen.dart';
 import 'package:euroside_admin/modules/drawer_pages/weekly_diary_screen.dart';
 import 'package:euroside_admin/modules/drawer_pages/manager_diary_list_screen.dart';
 import 'package:euroside_admin/modules/drawer_pages/my_approvals_screen.dart';
@@ -98,6 +99,10 @@ class AppRoutes {
     '/managerAttendance': (context) => const PermissionGate(
       menuKey: 'manager_attendance',
       child: ManagerAttendanceScreen(),
+    ),
+    '/absenceManagement': (context) => const PermissionGate(
+      menuKey: 'absence_management',
+      child: AbsenceManagementScreen(),
     ),
     '/library': (context) =>
         const PermissionGate(menuKey: 'library', child: LibraryScreen()),
