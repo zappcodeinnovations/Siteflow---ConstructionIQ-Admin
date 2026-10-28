@@ -105,6 +105,125 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
     _scrollController.addListener(_loadMoreWhenNeeded);
     _loadRoleScopedFilters();
     _controller.fetchManagerAttendance();
+    _controller.fetchAbsences();
+  }
+
+  Future<void> _showRecordAbsenceDialog() async {
+    if (_controller.absenceOperatives.isEmpty || _controller.absenceProjects.isEmpty) {
+      await _controller.fetchAbsences();
+    }
+    if (!mounted) return;
+    int? operativeId;
+    int? projectId;
+    String type = 'sick';
+    DateTimeRange range = DateTimeRange(start: DateTime.now(), end: DateTime.now());
+    bool partialDay = false;
+    bool submitting = false;
+    final notes = TextEditingController();
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Record Absence'),
+          content: SizedBox(
+            width: 520,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButtonFormField<int>(
+                    decoration: const InputDecoration(labelText: 'Operative'),
+                    initialValue: operativeId,
+                    isExpanded: true,
+                    items: _controller.absenceOperatives.map((item) => DropdownMenuItem<int>(
+                      value: item['id'] as int,
+                      child: Text('${item['name']}', overflow: TextOverflow.ellipsis),
+                    )).toList(),
+                    onChanged: (value) => setDialogState(() => operativeId = value),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<int>(
+                    decoration: const InputDecoration(labelText: 'Project'),
+                    initialValue: projectId,
+                    isExpanded: true,
+                    items: _controller.absenceProjects.map((item) => DropdownMenuItem<int>(
+                      value: item['id'] as int,
+                      child: Text('${item['name']}', overflow: TextOverflow.ellipsis),
+                    )).toList(),
+                    onChanged: (value) => setDialogState(() => projectId = value),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    decoration: const InputDecoration(labelText: 'Absence type'),
+                    initialValue: type,
+                    items: const [
+                      DropdownMenuItem(value: 'sick', child: Text('Sick Leave')),
+                      DropdownMenuItem(value: 'annual_holiday', child: Text('Annual Holiday')),
+                      DropdownMenuItem(value: 'approved_leave', child: Text('Approved Leave')),
+                      DropdownMenuItem(value: 'emergency_leave', child: Text('Emergency Leave')),
+                      DropdownMenuItem(value: 'other', child: Text('Other')),
+                    ],
+                    onChanged: (value) => setDialogState(() => type = value ?? type),
+                  ),
+                  const SizedBox(height: 12),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Absence period'),
+                    subtitle: Text('${DateFormat('dd MMM yyyy').format(range.start)} - ${DateFormat('dd MMM yyyy').format(range.end)}'),
+                    trailing: const Icon(Icons.date_range),
+                    onTap: () async {
+                      final picked = await CustomDatePickerDialog.showCustomDateRangePicker(
+                        context: context,
+                        firstDate: DateTime(2000),
+                        lastDate: DateTime(2101),
+                      );
+                      if (picked != null) setDialogState(() => range = picked);
+                    },
+                  ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Partial day'),
+                    value: partialDay,
+                    onChanged: (value) => setDialogState(() => partialDay = value),
+                  ),
+                  TextField(
+                    controller: notes,
+                    maxLines: 3,
+                    decoration: const InputDecoration(labelText: 'Notes (optional)'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: submitting ? null : () => Navigator.pop(dialogContext), child: const Text('Cancel')),
+            FilledButton(
+              onPressed: submitting ? null : () async {
+                if (operativeId == null || projectId == null) {
+                  ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(content: Text('Select an operative and project.')));
+                  return;
+                }
+                setDialogState(() => submitting = true);
+                final result = await _controller.recordAbsence(
+                  operativeId: operativeId!, projectId: projectId!, absenceType: type,
+                  startDate: DateFormat('yyyy-MM-dd').format(range.start),
+                  endDate: DateFormat('yyyy-MM-dd').format(range.end),
+                  isPartialDay: partialDay, notes: notes.text,
+                );
+                if (!mounted) return;
+                if (result['success'] == true && dialogContext.mounted) Navigator.pop(dialogContext);
+                ScaffoldMessenger.of(this.context).showSnackBar(SnackBar(
+                  content: Text('${result['message']}'),
+                  backgroundColor: result['success'] == true ? Colors.green : Colors.red,
+                ));
+              },
+              child: submitting ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Save Absence'),
+            ),
+          ],
+        ),
+      ),
+    );
+    notes.dispose();
   }
 
   Future<void> _loadRoleScopedFilters() async {
@@ -604,6 +723,12 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
                           Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
+                              ElevatedButton.icon(
+                                onPressed: _showRecordAbsenceDialog,
+                                icon: const Icon(Icons.event_busy, color: Colors.white, size: 18),
+                                label: const Text('Record Absence', style: TextStyle(color: Colors.white)),
+                              ),
+                              const SizedBox(width: 8),
                               IconButton(
                                 icon: const Icon(
                                   Icons.refresh,
@@ -666,6 +791,29 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
                         ],
                       ),
                       const SizedBox(height: 24),
+
+                      if (_controller.absences.isNotEmpty) ...[
+                        Text('Recorded Absences', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
+                        const SizedBox(height: 10),
+                        ..._controller.absences.take(10).map((absence) => Card(
+                          child: ListTile(
+                            leading: const CircleAvatar(child: Icon(Icons.event_busy)),
+                            title: Text('${(absence['operative'] as Map?)?['name'] ?? '-'} - ${absence['absence_type_label'] ?? ''}'),
+                            subtitle: Text('${absence['start_date']} to ${absence['end_date']} - ${(absence['project'] as Map?)?['name'] ?? '-'}'),
+                            trailing: absence['status'] == 'approved'
+                                ? IconButton(
+                                    tooltip: 'Cancel absence',
+                                    icon: const Icon(Icons.cancel_outlined, color: Colors.red),
+                                    onPressed: () async {
+                                      final result = await _controller.cancelAbsence(absence['id'] as int);
+                                      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${result['message']}')));
+                                    },
+                                  )
+                                : Text('${absence['status_label'] ?? absence['status']}'),
+                          ),
+                        )),
+                        const SizedBox(height: 24),
+                      ],
 
                       // KPI Grid
                       if (_controller.data?.kpi != null)

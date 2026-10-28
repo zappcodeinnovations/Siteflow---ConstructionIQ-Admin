@@ -20,10 +20,12 @@ class MethodStatementTemplatesController extends ChangeNotifier {
           ? ApiEndpoints.methodStatementTemplates
           : ApiEndpoints.methodStatementTemplateDetail(templateId));
 
-  Future<void> fetchTemplates() async {
-    isLoading = true;
-    error = null;
-    notifyListeners();
+  Future<void> fetchTemplates({bool showLoading = true}) async {
+    if (showLoading) {
+      isLoading = true;
+      error = null;
+      notifyListeners();
+    }
     try {
       final response = await ApiClient.get(_url());
       final decoded = jsonDecode(response.body);
@@ -43,7 +45,9 @@ class MethodStatementTemplatesController extends ChangeNotifier {
     } catch (e) {
       error = 'An error occurred: $e';
     } finally {
-      isLoading = false;
+      if (showLoading) {
+        isLoading = false;
+      }
       notifyListeners();
     }
   }
@@ -65,7 +69,7 @@ class MethodStatementTemplatesController extends ChangeNotifier {
       });
       final decoded = jsonDecode(response.body);
       if (response.statusCode == 201 && decoded['status'] == true) {
-        await fetchTemplates();
+        await fetchTemplates(showLoading: false);
         return null;
       }
       return decoded['message']?.toString() ?? 'Failed to create template.';
@@ -95,7 +99,7 @@ class MethodStatementTemplatesController extends ChangeNotifier {
       });
       final decoded = jsonDecode(response.body);
       if (response.statusCode == 200 && decoded['status'] == true) {
-        await fetchTemplates();
+        await fetchTemplates(showLoading: false);
         return null;
       }
       return decoded['message']?.toString() ?? 'Failed to update template.';
@@ -117,7 +121,7 @@ class MethodStatementTemplatesController extends ChangeNotifier {
       );
       final decoded = jsonDecode(response.body);
       if (response.statusCode == 200 && decoded['status'] == true) {
-        await fetchTemplates();
+        await fetchTemplates(showLoading: false);
         return null;
       }
       return decoded['message']?.toString() ?? 'Failed to update template.';

@@ -23,6 +23,12 @@ class ManagerAttendanceController extends ChangeNotifier {
 
   List<dynamic> _managersList = [];
   List<dynamic> get managersList => _managersList;
+  List<Map<String, dynamic>> _absences = [];
+  List<Map<String, dynamic>> get absences => _absences;
+  List<Map<String, dynamic>> _absenceOperatives = [];
+  List<Map<String, dynamic>> get absenceOperatives => _absenceOperatives;
+  List<Map<String, dynamic>> _absenceProjects = [];
+  List<Map<String, dynamic>> get absenceProjects => _absenceProjects;
 
   // Filters
   String? _fromDate;
@@ -118,6 +124,76 @@ class ManagerAttendanceController extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint("Error fetching filters: $e");
+    }
+  }
+
+  Future<void> fetchAbsences() async {
+    try {
+      final response = await ApiClient.get(
+        '${ApiEndpoints.baseUrl}/operative-absences/',
+      );
+      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+      if (response.statusCode == 200 && decoded['status'] == true) {
+        _absences = List<Map<String, dynamic>>.from(decoded['data'] ?? const []);
+        final options = decoded['options'] as Map<String, dynamic>? ?? const {};
+        _absenceOperatives = List<Map<String, dynamic>>.from(options['operatives'] ?? const []);
+        _absenceProjects = List<Map<String, dynamic>>.from(options['projects'] ?? const []);
+        notifyListeners();
+      }
+    } catch (error) {
+      debugPrint('Unable to load operative absences: $error');
+    }
+  }
+
+  Future<Map<String, dynamic>> recordAbsence({
+    required int operativeId,
+    required int projectId,
+    required String absenceType,
+    required String startDate,
+    required String endDate,
+    required bool isPartialDay,
+    String notes = '',
+  }) async {
+    try {
+      final response = await ApiClient.post(
+        '${ApiEndpoints.baseUrl}/operative-absences/',
+        body: {
+          'operative_id': operativeId,
+          'project_id': projectId,
+          'absence_type': absenceType,
+          'start_date': startDate,
+          'end_date': endDate,
+          'is_partial_day': isPartialDay,
+          'notes': notes,
+        },
+      );
+      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+      if (response.statusCode == 201 && decoded['status'] == true) {
+        await fetchAbsences();
+        DashboardController.triggerGlobalRefresh();
+        return {'success': true, 'message': decoded['message'] ?? 'Absence recorded.'};
+      }
+      return {'success': false, 'message': decoded['message'] ?? 'Unable to record absence.'};
+    } catch (error) {
+      return {'success': false, 'message': 'Unable to record absence. Please try again.'};
+    }
+  }
+
+  Future<Map<String, dynamic>> cancelAbsence(int absenceId) async {
+    try {
+      final response = await ApiClient.patch(
+        '${ApiEndpoints.baseUrl}/operative-absences/$absenceId/',
+        body: const {'status': 'cancelled'},
+      );
+      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+      if (response.statusCode == 200 && decoded['status'] == true) {
+        await fetchAbsences();
+        DashboardController.triggerGlobalRefresh();
+        return {'success': true, 'message': decoded['message'] ?? 'Absence cancelled.'};
+      }
+      return {'success': false, 'message': decoded['message'] ?? 'Unable to cancel absence.'};
+    } catch (_) {
+      return {'success': false, 'message': 'Unable to cancel absence. Please try again.'};
     }
   }
 

@@ -45,98 +45,38 @@ class _MethodStatementTemplatesScreenState extends State<MethodStatementTemplate
   }
 
   Future<void> _showEditDialog({Map<String, dynamic>? template}) async {
-    final titleController = TextEditingController(text: template?['title']?.toString() ?? '');
-    final tradeController = TextEditingController(text: template?['trade_category']?.toString() ?? '');
-    final ppeController = TextEditingController(text: template?['ppe_required']?.toString() ?? '');
-    final sequenceController = TextEditingController(text: template?['sequence_of_work']?.toString() ?? '');
-    final formKey = GlobalKey<FormState>();
-
-    final saved = await showDialog<bool>(
+    final fields = await showDialog<Map<String, String>>(
       context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: Text(template == null ? "Add Template" : "Edit Template"),
-          content: SingleChildScrollView(
-            child: Form(
-              key: formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  TextFormField(
-                    controller: titleController,
-                    decoration: const InputDecoration(labelText: "Title *"),
-                    validator: (val) => val == null || val.trim().isEmpty ? "Title is required" : null,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: tradeController,
-                    decoration: const InputDecoration(labelText: "Trade category"),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: ppeController,
-                    decoration: const InputDecoration(labelText: "PPE required"),
-                    maxLines: 2,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: sequenceController,
-                    decoration: const InputDecoration(labelText: "Sequence of work"),
-                    maxLines: 4,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text("Cancel"),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                if (!(formKey.currentState?.validate() ?? false)) return;
-                final String? error = template == null
-                    ? await _controller.createTemplate(
-                        title: titleController.text.trim(),
-                        tradeCategory: tradeController.text.trim(),
-                        ppeRequired: ppeController.text.trim(),
-                        sequenceOfWork: sequenceController.text.trim(),
-                      )
-                    : await _controller.updateTemplate(
-                        id: template['id'] as int,
-                        title: titleController.text.trim(),
-                        tradeCategory: tradeController.text.trim(),
-                        ppeRequired: ppeController.text.trim(),
-                        sequenceOfWork: sequenceController.text.trim(),
-                      );
-                if (!dialogContext.mounted) return;
-                if (error != null) {
-                  ScaffoldMessenger.of(dialogContext).showSnackBar(
-                    SnackBar(content: Text(error), backgroundColor: Colors.red),
-                  );
-                  return;
-                }
-                Navigator.pop(dialogContext, true);
-              },
-              child: const Text("Save"),
-            ),
-          ],
-        );
-      },
+      builder: (_) => _TemplateFormDialog(template: template),
     );
 
-    titleController.dispose();
-    tradeController.dispose();
-    ppeController.dispose();
-    sequenceController.dispose();
+    if (fields == null || !mounted) return;
 
-    if (saved == true && mounted) {
+    final String? error = template == null
+        ? await _controller.createTemplate(
+            title: fields['title']!,
+            tradeCategory: fields['trade_category']!,
+            ppeRequired: fields['ppe_required']!,
+            sequenceOfWork: fields['sequence_of_work']!,
+          )
+        : await _controller.updateTemplate(
+            id: template['id'] as int,
+            title: fields['title']!,
+            tradeCategory: fields['trade_category']!,
+            ppeRequired: fields['ppe_required']!,
+            sequenceOfWork: fields['sequence_of_work']!,
+          );
+
+    if (!mounted) return;
+    if (error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Template saved"), backgroundColor: Colors.green),
+        SnackBar(content: Text(error), backgroundColor: Colors.red),
       );
+      return;
     }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Template saved"), backgroundColor: Colors.green),
+    );
   }
 
   Widget _templateCard(Map<String, dynamic> template) {
@@ -215,6 +155,104 @@ class _MethodStatementTemplatesScreenState extends State<MethodStatementTemplate
                 ],
               ),
             ),
+    );
+  }
+}
+
+class _TemplateFormDialog extends StatefulWidget {
+  final Map<String, dynamic>? template;
+  const _TemplateFormDialog({this.template});
+
+  @override
+  State<_TemplateFormDialog> createState() => _TemplateFormDialogState();
+}
+
+class _TemplateFormDialogState extends State<_TemplateFormDialog> {
+  late final TextEditingController _titleController;
+  late final TextEditingController _tradeController;
+  late final TextEditingController _ppeController;
+  late final TextEditingController _sequenceController;
+  final _formKey = GlobalKey<FormState>();
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController(text: widget.template?['title']?.toString() ?? '');
+    _tradeController = TextEditingController(text: widget.template?['trade_category']?.toString() ?? '');
+    _ppeController = TextEditingController(text: widget.template?['ppe_required']?.toString() ?? '');
+    _sequenceController = TextEditingController(text: widget.template?['sequence_of_work']?.toString() ?? '');
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _tradeController.dispose();
+    _ppeController.dispose();
+    _sequenceController.dispose();
+    super.dispose();
+  }
+
+  void _onSave() {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    FocusScope.of(context).unfocus();
+    Navigator.of(context).pop({
+      'title': _titleController.text.trim(),
+      'trade_category': _tradeController.text.trim(),
+      'ppe_required': _ppeController.text.trim(),
+      'sequence_of_work': _sequenceController.text.trim(),
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.template == null ? "Add Template" : "Edit Template"),
+      content: SingleChildScrollView(
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextFormField(
+                controller: _titleController,
+                decoration: const InputDecoration(labelText: "Title *"),
+                validator: (val) => val == null || val.trim().isEmpty ? "Title is required" : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _tradeController,
+                decoration: const InputDecoration(labelText: "Trade category"),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _ppeController,
+                decoration: const InputDecoration(labelText: "PPE required"),
+                maxLines: 2,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _sequenceController,
+                decoration: const InputDecoration(labelText: "Sequence of work"),
+                maxLines: 4,
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () {
+            FocusScope.of(context).unfocus();
+            Navigator.of(context).pop();
+          },
+          child: const Text("Cancel"),
+        ),
+        ElevatedButton(
+          onPressed: _onSave,
+          child: const Text("Save"),
+        ),
+      ],
     );
   }
 }

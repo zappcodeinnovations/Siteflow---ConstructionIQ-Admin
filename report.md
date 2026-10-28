@@ -461,3 +461,21 @@ a plain `Scaffold`+`AppBar` since it's a bare body widget).
 **Tests:** `flutter analyze` clean (0 issues).
 
 **Status:** Verified locally. Not committed/pushed yet.
+
+---
+
+## 2026-10-27 — Fix '_dependents.isEmpty': is not true assertion error
+
+**Point (as given):** Screenshot of red screen showing:
+`'package:flutter/src/widgets/framework.dart': Failed assertion: line 6281 pos 12: '_dependents.isEmpty': is not true.`
+
+**Verification:** Confirmed root cause: `_showEditDialog` in `method_statement_templates_screen.dart` initialized `TextEditingController`s locally and called `.dispose()` immediately after `await showDialog(...)` resolved. `showDialog` returns the instant `Navigator.pop` is invoked, while the dialog route is still animating out (~200–300ms). Disposing active controllers while their `TextFormField`s and focus nodes are still mounted inside the transitioning route caused exceptions during deactivation, aborting element deactivation cleanup and leaving active dependents registered on ancestor `InheritedElement`s. Concurrently, `createTemplate()` / `updateTemplate()` / `setActive()` awaited `fetchTemplates()`, which toggled `isLoading = true`, tearing down the screen's `ListView` while the dialog route was popping. In `rams_builder_screen.dart`, deleting or adding a hazard row without unfocusing first could also orphan focus dependents.
+
+**Work:**
+- In `method_statement_templates_screen.dart`: extracted the dialog into a standalone `StatefulWidget` (`_TemplateFormDialog`). Controllers are created in `initState()` and disposed strictly in `dispose()` after the route is fully unmounted. Added `FocusScope.of(context).unfocus()` before `Navigator.of(context).pop(...)`.
+- In `method_statement_templates_controller.dart`: added `showLoading` parameter to `fetchTemplates()`, defaulting to `false` for mutating actions (`createTemplate`, `updateTemplate`, `setActive`), preserving the screen's widget tree in place.
+- In `rams_builder_screen.dart`: replaced `ValueKey(identityHashCode(hazard))` with standard `ObjectKey(hazard)`; added `FocusScope.of(context).unfocus()` before removing or adding hazard rows, opening Manage Templates, or saving RAMS.
+
+**Tests:** `flutter analyze` clean (0 issues).
+
+**Status:** Verified locally. Not committed/pushed yet.

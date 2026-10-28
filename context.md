@@ -1168,3 +1168,16 @@ if unused) or be removed, either is fine.
 **Tests:** `flutter analyze` clean (0 issues).
 
 **Status:** Verified locally. Not committed/pushed yet.
+
+**Fix `_dependents.isEmpty: is not true` assertion error (2026-10-27, user: "fix this issue" with screenshot showing Flutter red screen `package:flutter/src/widgets/framework.dart: Failed assertion: line 6281 pos 12: '_dependents.isEmpty': is not true`):**
+- Root cause: In `method_statement_templates_screen.dart`, `TextEditingController` instances were instantiated locally in an async method and disposed immediately after `showDialog` returned while the dialog route was still actively in its pop transition animation (~200–300ms). Disposing controllers while their `TextFormField`s and focus nodes were still mounted in the element tree caused exceptions during deactivation, breaking the recursive deactivation walk and leaving active dependents registered on ancestor `InheritedElement`s (`_FocusInheritedScope`, `Theme`, `InputDecorationTheme`).
+- Additionally, `createTemplate()` / `updateTemplate()` / `setActive()` internally awaited `fetchTemplates()`, which toggled `isLoading = true`, tearing down the screen's entire `ListView` while the dialog route was dismissing.
+- In `rams_builder_screen.dart`, deleting or adding a hazard row while an input was focused could leave dangling focus references on `_FocusInheritedScope`. Also replaced `ValueKey(identityHashCode(hazard))` with standard `ObjectKey(hazard)`.
+- Work:
+  1. Extracted the dialog into a standalone `StatefulWidget` (`_TemplateFormDialog`). Controllers are created in `initState()` and disposed in `dispose()` strictly after the dialog element is unmounted.
+  2. Added `FocusScope.of(context).unfocus()` before popping the dialog, deleting/adding hazard rows, saving RAMS, or opening Manage Templates.
+  3. Added `showLoading = false` option to `fetchTemplates()` so updates update in-place without unmounting the list body.
+
+**Tests:** `flutter analyze` clean (0 issues).
+
+**Status:** Verified locally. Not committed/pushed yet.

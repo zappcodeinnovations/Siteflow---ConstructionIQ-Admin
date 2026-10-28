@@ -92,7 +92,7 @@ class _RamsBuilderScreenState extends State<RamsBuilderScreen> {
       // TextFormField's State by position after a delete, so the fields
       // keep showing the OLD row's text while the underlying data has
       // shifted up, making it look like the wrong hazard got deleted.
-      key: ValueKey(identityHashCode(hazard)),
+      key: ObjectKey(hazard),
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -107,7 +107,10 @@ class _RamsBuilderScreenState extends State<RamsBuilderScreen> {
                   icon: const Icon(IconlyLight.delete, size: 18, color: Colors.red),
                   onPressed: _controller.hazards.length <= 1
                       ? null
-                      : () => setState(() => _controller.hazards.removeAt(index)),
+                      : () {
+                          FocusScope.of(context).unfocus();
+                          setState(() => _controller.hazards.removeAt(index));
+                        },
                 ),
               ],
             ),
@@ -170,7 +173,10 @@ class _RamsBuilderScreenState extends State<RamsBuilderScreen> {
       items: const [1, 2, 3, 4, 5]
           .map((v) => DropdownMenuItem(value: v, child: Text('$v')))
           .toList(),
-      onChanged: (val) => setState(() => hazard[key] = val ?? 1),
+      onChanged: (val) {
+        FocusScope.of(context).unfocus();
+        setState(() => hazard[key] = val ?? 1);
+      },
     );
   }
 
@@ -187,6 +193,7 @@ class _RamsBuilderScreenState extends State<RamsBuilderScreen> {
   }
 
   Future<void> _openManageTemplates() async {
+    FocusScope.of(context).unfocus();
     await Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const MethodStatementTemplatesScreen()),
@@ -210,6 +217,7 @@ class _RamsBuilderScreenState extends State<RamsBuilderScreen> {
   }
 
   Future<void> _save() async {
+    FocusScope.of(context).unfocus();
     _controller.title = _titleController.text.trim();
     _controller.activityDescription = _activityController.text.trim();
     _controller.methodStatementText = _methodStatementController.text.trim();
@@ -341,7 +349,10 @@ class _RamsBuilderScreenState extends State<RamsBuilderScreen> {
                 const SizedBox(height: 8),
                 ...List.generate(_controller.hazards.length, _hazardRow),
                 OutlinedButton.icon(
-                  onPressed: () => setState(() => _controller.hazards.add(ProjectRamsController.emptyHazardRow())),
+                  onPressed: () {
+                    FocusScope.of(context).unfocus();
+                    setState(() => _controller.hazards.add(ProjectRamsController.emptyHazardRow()));
+                  },
                   icon: const Icon(IconlyLight.plus, size: 16),
                   label: const Text("Add Hazard"),
                 ),
