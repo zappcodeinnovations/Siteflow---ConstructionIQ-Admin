@@ -1209,3 +1209,12 @@ if unused) or be removed, either is fine.
 **Tests:** `flutter analyze` clean (0 errors) across all modified and newly created files.
 
 **Status:** Verified locally. Not committed/pushed yet (per standing rule: Flutter apps are commit-locally-only).
+
+**Manage Templates "Add Template" crash (2026-10-27, screenshot: `'_dependents.isEmpty': is not true` assertion in `framework.dart`).** Two compounding causes, both fixed:
+1. `_showEditDialog`'s dialog built its `Form`/`TextEditingController`s inline in a functional `showDialog` builder and disposed those controllers synchronously right after `await showDialog(...)` returned - but `showDialog`'s Future resolves the instant `Navigator.pop` is called, while the dialog route is still animating out (~200-300ms). Disposing active controllers while their `TextFormField`s/focus nodes were still mounted inside that exiting route left dangling `InheritedElement` dependents. Fixed by extracting the dialog into its own `_TemplateFormDialog` `StatefulWidget` - controllers are now created in `initState()` and disposed in `dispose()`, which only runs once the route is actually unmounted, not on the caller's synchronous continuation.
+2. `createTemplate()`/`updateTemplate()`/`setActive()` awaited `fetchTemplates()` on success, which flipped `isLoading` on the parent screen and swapped its whole body between `ListView` and `CircularProgressIndicator` - compounding bug 1 if this happened while the dialog was still transitioning out. `fetchTemplates()` now takes a `showLoading` parameter, `false` for these mutating calls, so the screen's widget tree stays in place instead of tearing down.
+Also added `FocusScope.of(context).unfocus()` before every `Navigator.pop` in both this dialog and `rams_builder_screen.dart`'s hazard add/remove/save/Manage-Templates-navigation, and swapped the hazard row's `ValueKey(identityHashCode(hazard))` for the more idiomatic `ObjectKey(hazard)` (same stable-per-object-identity behavior).
+
+**Tests:** `flutter analyze` clean (0 issues).
+
+**Status:** Verified locally. Not committed/pushed yet.
