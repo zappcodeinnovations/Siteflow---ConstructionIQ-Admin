@@ -358,6 +358,17 @@ class _WorkforcePlannerScreenState extends State<WorkforcePlannerScreen> {
         ),
       ),
       drawer: const CustomDrawer(),
+      floatingActionButton: (_data['can_edit'] == true && _selectedProjectId != null)
+          ? FloatingActionButton.extended(
+              onPressed: _showAddPlanSheet,
+              backgroundColor: const Color(0xFF0D6EFD),
+              icon: const Icon(IconlyLight.plus, color: Colors.white),
+              label: const Text(
+                "Add Plan",
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+            )
+          : null,
       body: Stack(
         children: [
           Positioned.fill(
@@ -530,6 +541,248 @@ class _WorkforcePlannerScreenState extends State<WorkforcePlannerScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _submitAllocation({
+    required int workerId,
+    required String date,
+    String? siteBlockId,
+    String? workTypeId,
+    required String notes,
+    required String shift,
+  }) async {
+    final response = await ApiClient.post(
+      '${ApiEndpoints.baseUrl}/workforce-planner/',
+      body: {
+        'action': 'set_allocation',
+        'project_id': _selectedProjectId,
+        'worker_id': workerId,
+        'date': date,
+        if (siteBlockId != null && siteBlockId.isNotEmpty) 'site_block_id': siteBlockId,
+        if (workTypeId != null && workTypeId.isNotEmpty) 'work_type_id': workTypeId,
+        'work_package_notes': notes,
+        'shift_label': shift,
+      },
+    );
+    final body = jsonDecode(response.body);
+    if (response.statusCode != 200 || body['status'] != true) {
+      throw body['message']?.toString() ?? 'Unable to save the plan.';
+    }
+  }
+
+  void _showAddPlanSheet() {
+    final rows = _data['rows'] as List? ?? [];
+    final siteBlockOptions = (_data['site_block_options'] as List? ?? []);
+    final workTypeOptions = (_data['work_type_options'] as List? ?? []);
+    final today = DateTime.now();
+    final availableDates = <Map<String, String>>[];
+    if (rows.isNotEmpty) {
+      final cells = rows.first['cells'] as List? ?? [];
+      for (final cell in cells) {
+        final rawDate = cell['date']?.toString() ?? '';
+        final parsed = DateTime.tryParse(rawDate);
+        if (parsed == null) continue;
+        if (parsed.isBefore(DateTime(today.year, today.month, today.day))) continue;
+        availableDates.add({'value': rawDate, 'label': _formatDate(rawDate)});
+      }
+    }
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surfaceColor = isDark ? AppTheme.darkSurface : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF0F2C4A);
+
+    int? selectedWorkerId;
+    String? selectedDate = availableDates.isNotEmpty ? availableDates.first['value'] : null;
+    String? selectedSiteBlockId;
+    String? selectedWorkTypeId;
+    final notesController = TextEditingController();
+    final shiftController = TextEditingController();
+    bool submitting = false;
+    String? formError;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: surfaceColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                top: 20,
+                left: 20,
+                right: 20,
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          "Add Plan",
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
+                        ),
+                        IconButton(
+                          icon: Icon(IconlyLight.close_square, color: isDark ? Colors.white70 : Colors.grey),
+                          onPressed: () => Navigator.pop(ctx),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    if (availableDates.isEmpty || rows.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 24),
+                        child: Text(
+                          'No workers assigned to this project, or no upcoming weekdays in this week to plan.',
+                          style: TextStyle(color: isDark ? Colors.white60 : Colors.grey.shade600),
+                        ),
+                      )
+                    else ...[
+                      Text('Worker', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: textColor)),
+                      const SizedBox(height: 6),
+                      DropdownButtonFormField<int>(
+                        initialValue: selectedWorkerId,
+                        decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10)),
+                        hint: const Text('Select a worker'),
+                        items: rows.map<DropdownMenuItem<int>>((raw) {
+                          final id = int.tryParse(raw['worker_id']?.toString() ?? '') ?? 0;
+                          return DropdownMenuItem<int>(value: id, child: Text(raw['worker_name']?.toString() ?? '-'));
+                        }).toList(),
+                        onChanged: (value) => setModalState(() => selectedWorkerId = value),
+                      ),
+                      const SizedBox(height: 14),
+                      Text('Date', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: textColor)),
+                      const SizedBox(height: 6),
+                      DropdownButtonFormField<String>(
+                        initialValue: selectedDate,
+                        decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10)),
+                        items: availableDates
+                            .map<DropdownMenuItem<String>>((d) => DropdownMenuItem<String>(value: d['value'], child: Text(d['label']!)))
+                            .toList(),
+                        onChanged: (value) => setModalState(() => selectedDate = value),
+                      ),
+                      const SizedBox(height: 14),
+                      Text('Site (optional)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: textColor)),
+                      const SizedBox(height: 6),
+                      DropdownButtonFormField<String>(
+                        initialValue: selectedSiteBlockId,
+                        decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10)),
+                        hint: const Text('Not specified'),
+                        items: siteBlockOptions
+                            .map<DropdownMenuItem<String>>((b) => DropdownMenuItem<String>(value: b['id'].toString(), child: Text(b['name']?.toString() ?? '-')))
+                            .toList(),
+                        onChanged: (value) => setModalState(() => selectedSiteBlockId = value),
+                      ),
+                      const SizedBox(height: 14),
+                      Text('Work Type (optional)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: textColor)),
+                      const SizedBox(height: 6),
+                      DropdownButtonFormField<String>(
+                        initialValue: selectedWorkTypeId,
+                        decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10)),
+                        hint: const Text('Not specified'),
+                        items: workTypeOptions
+                            .map<DropdownMenuItem<String>>((w) => DropdownMenuItem<String>(value: w['id'].toString(), child: Text(w['name']?.toString() ?? '-')))
+                            .toList(),
+                        onChanged: (value) => setModalState(() => selectedWorkTypeId = value),
+                      ),
+                      const SizedBox(height: 14),
+                      Text('Work Package', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: textColor)),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: notesController,
+                        style: TextStyle(color: textColor),
+                        decoration: const InputDecoration(
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          hintText: 'e.g. Fire Stopping - Level 2 Zone B',
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Text('Shift', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: textColor)),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: shiftController,
+                        style: TextStyle(color: textColor),
+                        decoration: const InputDecoration(
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          hintText: 'e.g. Day, 07:00-15:00',
+                        ),
+                      ),
+                      if (formError != null) ...[
+                        const SizedBox(height: 10),
+                        Text(formError!, style: const TextStyle(color: Colors.red, fontSize: 12.5)),
+                      ],
+                      const SizedBox(height: 20),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF0D6EFD),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          onPressed: submitting
+                              ? null
+                              : () async {
+                                  if (selectedWorkerId == null || selectedDate == null) {
+                                    setModalState(() => formError = 'Select a worker and a date.');
+                                    return;
+                                  }
+                                  setModalState(() {
+                                    submitting = true;
+                                    formError = null;
+                                  });
+                                  try {
+                                    await _submitAllocation(
+                                      workerId: selectedWorkerId!,
+                                      date: selectedDate!,
+                                      siteBlockId: selectedSiteBlockId,
+                                      workTypeId: selectedWorkTypeId,
+                                      notes: notesController.text.trim(),
+                                      shift: shiftController.text.trim(),
+                                    );
+                                    if (ctx.mounted) Navigator.pop(ctx);
+                                    await _load(projectId: _selectedProjectId);
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('Plan saved.'), behavior: SnackBarBehavior.floating),
+                                      );
+                                    }
+                                  } catch (e) {
+                                    setModalState(() {
+                                      submitting = false;
+                                      formError = e.toString();
+                                    });
+                                  }
+                                },
+                          child: submitting
+                              ? const SizedBox(
+                                  height: 18,
+                                  width: 18,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                )
+                              : const Text('Save Plan', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
