@@ -21,9 +21,7 @@ class ApiClient {
 
   static Future<void> _restoreTimeDisplayPreference() async {
     if (_timeDisplayPreferenceLoaded) return;
-    DateHelper.setForceUkDisplayTime(
-      await AuthService.getForceUkDisplayTime(),
-    );
+    DateHelper.setForceUkDisplayTime(await AuthService.getForceUkDisplayTime());
     _timeDisplayPreferenceLoaded = true;
   }
 
@@ -193,6 +191,16 @@ class ApiClient {
         body: response.body,
         durationMs: stopwatch.elapsedMilliseconds,
       );
+      if (response.statusCode == 403) {
+        const message =
+            "You don't have access to this feature. Please contact your administrator if you believe this is a mistake.";
+        return http.Response(
+          jsonEncode({'detail': message, 'message': message}),
+          response.statusCode,
+          headers: response.headers,
+          request: response.request,
+        );
+      }
       return response;
     } catch (e, stack) {
       stopwatch.stop();

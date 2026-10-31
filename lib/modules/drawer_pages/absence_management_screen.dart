@@ -15,7 +15,8 @@ class AbsenceManagementScreen extends StatefulWidget {
   const AbsenceManagementScreen({super.key});
 
   @override
-  State<AbsenceManagementScreen> createState() => _AbsenceManagementScreenState();
+  State<AbsenceManagementScreen> createState() =>
+      _AbsenceManagementScreenState();
 }
 
 class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
@@ -41,7 +42,10 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
 
   Future<void> _loadUserPermissions() async {
     final roleName = await AuthService.getRoleDisplayName();
-    final canCreate = await AuthService.can('absence_management', action: 'create');
+    final canCreate = await AuthService.can(
+      'absence_management',
+      action: 'create',
+    );
     final canEdit = await AuthService.can('absence_management', action: 'edit');
     if (mounted) {
       setState(() {
@@ -101,7 +105,9 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final background = isDark ? AppTheme.darkBackground : const Color(0xFFF4F7FB);
+    final background = isDark
+        ? AppTheme.darkBackground
+        : const Color(0xFFF4F7FB);
 
     return Scaffold(
       backgroundColor: background,
@@ -137,11 +143,19 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
               child: FilledButton.icon(
                 style: FilledButton.styleFrom(
                   backgroundColor: AppTheme.corporateBlue,
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 8,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
                 icon: const Icon(Icons.add, size: 18),
-                label: const Text('Record', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                label: const Text(
+                  'Record',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                ),
                 onPressed: _showRecordAbsenceModal,
               ),
             ),
@@ -151,7 +165,9 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
       body: Stack(
         children: [
           Positioned.fill(
-            child: CustomPaint(painter: BackgroundStripesPainter(isDark: isDark)),
+            child: CustomPaint(
+              painter: BackgroundStripesPainter(isDark: isDark),
+            ),
           ),
           AnimatedBuilder(
             animation: _controller,
@@ -172,7 +188,10 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
                     // Filter Toolbar
                     SliverToBoxAdapter(
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
                         child: _buildFilterBar(isDark),
                       ),
                     ),
@@ -180,7 +199,10 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
                     // Status Tabs Pills
                     SliverToBoxAdapter(
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 4,
+                        ),
                         child: _buildStatusPills(isDark),
                       ),
                     ),
@@ -197,17 +219,25 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
                                 style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
-                                  color: isDark ? Colors.white70 : Colors.black87,
+                                  color: isDark
+                                      ? Colors.white70
+                                      : Colors.black87,
                                 ),
                               ),
                               const Spacer(),
                               TextButton.icon(
                                 style: TextButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 2,
+                                  ),
                                   visualDensity: VisualDensity.compact,
                                 ),
                                 icon: const Icon(Icons.clear_all, size: 16),
-                                label: const Text('Reset All', style: TextStyle(fontSize: 12)),
+                                label: const Text(
+                                  'Reset All',
+                                  style: TextStyle(fontSize: 12),
+                                ),
                                 onPressed: () {
                                   _searchCtrl.clear();
                                   _controller.resetFilters();
@@ -233,7 +263,11 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                                const Icon(
+                                  Icons.error_outline,
+                                  size: 48,
+                                  color: Colors.red,
+                                ),
                                 const SizedBox(height: 12),
                                 Text(
                                   _controller.errorMessage!,
@@ -259,13 +293,13 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
                       SliverPadding(
                         padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
                         sliver: SliverList(
-                          delegate: SliverChildBuilderDelegate(
-                            (context, index) {
-                              final item = _controller.absences[index];
-                              return _buildAbsenceCard(item, isDark);
-                            },
-                            childCount: _controller.absences.length,
-                          ),
+                          delegate: SliverChildBuilderDelegate((
+                            context,
+                            index,
+                          ) {
+                            final item = _controller.absences[index];
+                            return _buildAbsenceCard(item, isDark);
+                          }, childCount: _controller.absences.length),
                         ),
                       ),
                   ],
@@ -364,7 +398,9 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
     VoidCallback? onTap,
   }) {
     final bg = isDark
-        ? (isActive ? color.withValues(alpha: 0.25) : AppTheme.darkSurfaceRaised)
+        ? (isActive
+              ? color.withValues(alpha: 0.25)
+              : AppTheme.darkSurfaceRaised)
         : (isActive ? color.withValues(alpha: 0.12) : Colors.white);
 
     return InkWell(
@@ -377,7 +413,9 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
           color: bg,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: isActive ? color : (isDark ? AppTheme.darkBorder : const Color(0xFFE2E8F0)),
+            color: isActive
+                ? color
+                : (isDark ? AppTheme.darkBorder : const Color(0xFFE2E8F0)),
             width: isActive ? 1.5 : 1,
           ),
         ),
@@ -426,7 +464,9 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
             decoration: BoxDecoration(
               color: isDark ? AppTheme.darkSurfaceRaised : Colors.white,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: isDark ? AppTheme.darkBorder : const Color(0xFFCBD5E1)),
+              border: Border.all(
+                color: isDark ? AppTheme.darkBorder : const Color(0xFFCBD5E1),
+              ),
             ),
             child: TextField(
               controller: _searchCtrl,
@@ -489,7 +529,9 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
                 const SizedBox(width: 6),
                 Text(
                   _controller.fromDate != null
-                      ? DateFormat('dd/MM').format(DateTime.parse(_controller.fromDate!))
+                      ? DateFormat(
+                          'dd/MM',
+                        ).format(DateTime.parse(_controller.fromDate!))
                       : 'Dates',
                   style: TextStyle(
                     fontSize: 12,
@@ -513,12 +555,18 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
             height: 44,
             padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
-              color: (_controller.selectedType != null || _controller.selectedProjectId != null || _controller.selectedOperativeId != null)
+              color:
+                  (_controller.selectedType != null ||
+                      _controller.selectedProjectId != null ||
+                      _controller.selectedOperativeId != null)
                   ? AppTheme.corporateBlue.withValues(alpha: 0.15)
                   : (isDark ? AppTheme.darkSurfaceRaised : Colors.white),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: (_controller.selectedType != null || _controller.selectedProjectId != null || _controller.selectedOperativeId != null)
+                color:
+                    (_controller.selectedType != null ||
+                        _controller.selectedProjectId != null ||
+                        _controller.selectedOperativeId != null)
                     ? AppTheme.corporateBlue
                     : (isDark ? AppTheme.darkBorder : const Color(0xFFCBD5E1)),
               ),
@@ -529,7 +577,10 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
                 Icon(
                   IconlyLight.filter,
                   size: 18,
-                  color: (_controller.selectedType != null || _controller.selectedProjectId != null || _controller.selectedOperativeId != null)
+                  color:
+                      (_controller.selectedType != null ||
+                          _controller.selectedProjectId != null ||
+                          _controller.selectedOperativeId != null)
                       ? AppTheme.corporateBlue
                       : (isDark ? Colors.white70 : Colors.black87),
                 ),
@@ -581,7 +632,9 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
                   ? color
                   : (isDark ? AppTheme.darkBorder : const Color(0xFFCBD5E1)),
             ),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
           );
         },
       ),
@@ -619,9 +672,13 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
               children: [
                 CircleAvatar(
                   radius: 20,
-                  backgroundColor: AppTheme.corporateBlue.withValues(alpha: 0.12),
+                  backgroundColor: AppTheme.corporateBlue.withValues(
+                    alpha: 0.12,
+                  ),
                   child: Text(
-                    record.operativeName.isNotEmpty ? record.operativeName[0].toUpperCase() : 'O',
+                    record.operativeName.isNotEmpty
+                        ? record.operativeName[0].toUpperCase()
+                        : 'O',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       color: AppTheme.corporateBlue,
@@ -646,9 +703,14 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
                         children: [
                           if (record.operativeEmployeeId.isNotEmpty) ...[
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 1,
+                              ),
                               decoration: BoxDecoration(
-                                color: isDark ? Colors.white12 : const Color(0xFFF1F5F9),
+                                color: isDark
+                                    ? Colors.white12
+                                    : const Color(0xFFF1F5F9),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
@@ -656,7 +718,9 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
                                 style: TextStyle(
                                   fontSize: 10,
                                   fontWeight: FontWeight.w600,
-                                  color: isDark ? Colors.white70 : Colors.black54,
+                                  color: isDark
+                                      ? Colors.white70
+                                      : Colors.black54,
                                 ),
                               ),
                             ),
@@ -682,11 +746,16 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
 
                 // Status Badge
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: statusColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: statusColor.withValues(alpha: 0.4)),
+                    border: Border.all(
+                      color: statusColor.withValues(alpha: 0.4),
+                    ),
                   ),
                   child: Text(
                     record.statusLabel,
@@ -706,81 +775,110 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
           // Absence Type & Dates Row
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-            child: Row(
-              children: [
-                // Type chip
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF0D6EFD).withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
+            child: SizedBox(
+              width: double.infinity,
+              child: Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      Icon(typeIcon, size: 14, color: const Color(0xFF0D6EFD)),
-                      const SizedBox(width: 4),
-                      Text(
-                        record.absenceTypeLabel,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF0D6EFD),
+                      // Type chip
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color:
+                              const Color(0xFF0D6EFD).withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              typeIcon,
+                              size: 14,
+                              color: const Color(0xFF0D6EFD),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              record.absenceTypeLabel,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF0D6EFD),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
+
+                      // Duration badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color:
+                              isDark
+                                  ? Colors.white12
+                                  : const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          record.durationLabel,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? Colors.white70 : Colors.black87,
+                          ),
+                        ),
+                      ),
+
+                      if (record.isPartialDay &&
+                          !record.durationLabel
+                              .toLowerCase()
+                              .contains('half'))
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Text(
+                            'Half Day',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.orange,
+                            ),
+                          ),
+                        ),
                     ],
                   ),
-                ),
-                const SizedBox(width: 8),
 
-                // Duration badge
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.white12 : const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    record.durationLabel,
+                  // Dates
+                  Text(
+                    _formatDateRange(record.startDate, record.endDate),
                     style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
                       color: isDark ? Colors.white70 : Colors.black87,
                     ),
                   ),
-                ),
-
-                if (record.isPartialDay) ...[
-                  const SizedBox(width: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.amber.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: const Text(
-                      'Half Day',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.orange,
-                      ),
-                    ),
-                  ),
                 ],
-
-                const Spacer(),
-
-                // Dates
-                Text(
-                  '${_formatDate(record.startDate)} - ${_formatDate(record.endDate)}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: isDark ? Colors.white70 : Colors.black87,
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
 
@@ -794,12 +892,18 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
                 decoration: BoxDecoration(
                   color: const Color(0xFFDC3545).withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFFDC3545).withValues(alpha: 0.3)),
+                  border: Border.all(
+                    color: const Color(0xFFDC3545).withValues(alpha: 0.3),
+                  ),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.info_outline, size: 16, color: Color(0xFFDC3545)),
+                    const Icon(
+                      Icons.info_outline,
+                      size: 16,
+                      color: Color(0xFFDC3545),
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Column(
@@ -853,8 +957,14 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
                 OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(
                     visualDensity: VisualDensity.compact,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    side: BorderSide(color: isDark ? AppTheme.darkBorder : const Color(0xFFCBD5E1)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    side: BorderSide(
+                      color: isDark
+                          ? AppTheme.darkBorder
+                          : const Color(0xFFCBD5E1),
+                    ),
                   ),
                   icon: const Icon(IconlyLight.show, size: 14),
                   label: const Text('Details', style: TextStyle(fontSize: 12)),
@@ -869,10 +979,15 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
                     style: FilledButton.styleFrom(
                       backgroundColor: const Color(0xFF198754),
                       visualDensity: VisualDensity.compact,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                     icon: const Icon(Icons.check, size: 14),
-                    label: const Text('Approve', style: TextStyle(fontSize: 12)),
+                    label: const Text(
+                      'Approve',
+                      style: TextStyle(fontSize: 12),
+                    ),
                     onPressed: () => _confirmApprove(record),
                   ),
                   const SizedBox(width: 8),
@@ -883,20 +998,26 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
                       foregroundColor: const Color(0xFFDC3545),
                       side: const BorderSide(color: Color(0xFFDC3545)),
                       visualDensity: VisualDensity.compact,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                     icon: const Icon(Icons.close, size: 14),
                     label: const Text('Reject', style: TextStyle(fontSize: 12)),
                     onPressed: () => _promptRejectReason(record),
                   ),
-                ] else if (_canEdit && (record.isApproved || record.isPending)) ...[
+                ] else if (_canEdit &&
+                    (record.isApproved || record.isPending)) ...[
                   TextButton.icon(
                     style: TextButton.styleFrom(
                       foregroundColor: const Color(0xFFDC3545),
                       visualDensity: VisualDensity.compact,
                     ),
                     icon: const Icon(Icons.cancel_outlined, size: 14),
-                    label: const Text('Cancel Request', style: TextStyle(fontSize: 12)),
+                    label: const Text(
+                      'Cancel Request',
+                      style: TextStyle(fontSize: 12),
+                    ),
                     onPressed: () => _confirmCancel(record),
                   ),
                 ],
@@ -916,6 +1037,18 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
     } catch (_) {
       return isoDate;
     }
+  }
+
+  String _formatDateRange(String start, String end) {
+    if (start.isEmpty && end.isEmpty) return '-';
+    if (start.isEmpty) return _formatDate(end);
+    if (end.isEmpty) return _formatDate(start);
+    final formattedStart = _formatDate(start);
+    final formattedEnd = _formatDate(end);
+    if (formattedStart == formattedEnd) {
+      return formattedStart;
+    }
+    return '$formattedStart - $formattedEnd';
   }
 
   Widget _buildEmptyState(bool isDark) {
@@ -962,7 +1095,9 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
               FilledButton.icon(
                 style: FilledButton.styleFrom(
                   backgroundColor: AppTheme.corporateBlue,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
                 icon: const Icon(Icons.clear_all, size: 16),
                 label: const Text('Clear Filters'),
@@ -1026,11 +1161,16 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
                   ),
                   const Spacer(),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: statusColor.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: statusColor.withValues(alpha: 0.4)),
+                      border: Border.all(
+                        color: statusColor.withValues(alpha: 0.4),
+                      ),
                     ),
                     child: Text(
                       record.statusLabel,
@@ -1047,18 +1187,35 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
 
               _buildDetailRow('Operative', record.operativeName, isDark),
               if (record.operativeEmployeeId.isNotEmpty)
-                _buildDetailRow('Employee ID', record.operativeEmployeeId, isDark),
+                _buildDetailRow(
+                  'Employee ID',
+                  record.operativeEmployeeId,
+                  isDark,
+                ),
               _buildDetailRow('Project', record.projectName, isDark),
               _buildDetailRow('Absence Type', record.absenceTypeLabel, isDark),
-              _buildDetailRow('Dates', '${_formatDate(record.startDate)} - ${_formatDate(record.endDate)}', isDark),
+              _buildDetailRow(
+                'Dates',
+                _formatDateRange(record.startDate, record.endDate),
+                isDark,
+              ),
               _buildDetailRow('Duration', record.durationLabel, isDark),
-              _buildDetailRow('Partial Day', record.isPartialDay ? 'Yes (Half Day)' : 'No (Full Day)', isDark),
+              _buildDetailRow(
+                'Partial Day',
+                record.isPartialDay ? 'Yes (Half Day)' : 'No (Full Day)',
+                isDark,
+              ),
               if (record.reason.isNotEmpty)
                 _buildDetailRow('Reason', record.reason, isDark),
               if (record.recordedByName.isNotEmpty)
                 _buildDetailRow('Recorded By', record.recordedByName, isDark),
               if (record.rejectionReason != null)
-                _buildDetailRow('Rejection Reason', record.rejectionReason!, isDark, isHighlight: true),
+                _buildDetailRow(
+                  'Rejection Reason',
+                  record.rejectionReason!,
+                  isDark,
+                  isHighlight: true,
+                ),
               if (record.notes.isNotEmpty && record.rejectionReason == null)
                 _buildDetailRow('Notes', record.notes, isDark),
 
@@ -1067,7 +1224,9 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
                 width: double.infinity,
                 child: OutlinedButton(
                   style: OutlinedButton.styleFrom(
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                   onPressed: () => Navigator.pop(sheetCtx),
@@ -1081,7 +1240,12 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
     );
   }
 
-  Widget _buildDetailRow(String label, String value, bool isDark, {bool isHighlight = false}) {
+  Widget _buildDetailRow(
+    String label,
+    String value,
+    bool isDark, {
+    bool isHighlight = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
@@ -1128,7 +1292,10 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
     int? selectedOpId;
     int? selectedProjId;
     String selectedType = 'sick';
-    DateTimeRange range = DateTimeRange(start: DateTime.now(), end: DateTime.now());
+    DateTimeRange range = DateTimeRange(
+      start: DateTime.now(),
+      end: DateTime.now(),
+    );
     bool partialDay = false;
     final reasonCtrl = TextEditingController();
     final notesCtrl = TextEditingController();
@@ -1171,7 +1338,10 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
                     ),
                     const Text(
                       'Record Operative Absence',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 16),
 
@@ -1190,14 +1360,15 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
                           child: Text('${item['name']}'),
                         );
                       }).toList(),
-                      onChanged: (val) => setSheetState(() => selectedOpId = val),
+                      onChanged: (val) =>
+                          setSheetState(() => selectedOpId = val),
                     ),
                     const SizedBox(height: 14),
 
                     // Project Dropdown
                     DropdownButtonFormField<int>(
                       decoration: const InputDecoration(
-                        labelText: 'Project (Optional - Leave blank for Company-wide)',
+                        labelText: 'Project (Optional)',
                         prefixIcon: Icon(IconlyLight.work, size: 20),
                         border: OutlineInputBorder(),
                       ),
@@ -1206,7 +1377,7 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
                       items: [
                         const DropdownMenuItem<int>(
                           value: 0,
-                          child: Text('Company-wide / General (All Projects)'),
+                          child: Text('Project not selected'),
                         ),
                         ...projects.map((item) {
                           return DropdownMenuItem<int>(
@@ -1215,7 +1386,8 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
                           );
                         }),
                       ],
-                      onChanged: (val) => setSheetState(() => selectedProjId = val),
+                      onChanged: (val) =>
+                          setSheetState(() => selectedProjId = val),
                     ),
                     const SizedBox(height: 14),
 
@@ -1228,35 +1400,55 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
                       ),
                       initialValue: selectedType,
                       items: const [
-                        DropdownMenuItem(value: 'sick', child: Text('Sick Leave')),
-                        DropdownMenuItem(value: 'annual_holiday', child: Text('Annual Holiday')),
-                        DropdownMenuItem(value: 'approved_leave', child: Text('Approved Leave')),
-                        DropdownMenuItem(value: 'emergency_leave', child: Text('Emergency Leave')),
+                        DropdownMenuItem(
+                          value: 'sick',
+                          child: Text('Sick Leave'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'annual_holiday',
+                          child: Text('Annual Holiday'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'approved_leave',
+                          child: Text('Approved Leave'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'emergency_leave',
+                          child: Text('Emergency Leave'),
+                        ),
                         DropdownMenuItem(value: 'other', child: Text('Other')),
                       ],
-                      onChanged: (val) => setSheetState(() => selectedType = val ?? selectedType),
+                      onChanged: (val) => setSheetState(
+                        () => selectedType = val ?? selectedType,
+                      ),
                     ),
                     const SizedBox(height: 14),
 
                     // Date Period
                     ListTile(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                         side: const BorderSide(color: Colors.grey),
                       ),
-                      title: const Text('Absence Period *', style: TextStyle(fontSize: 13)),
+                      title: const Text(
+                        'Absence Period *',
+                        style: TextStyle(fontSize: 13),
+                      ),
                       subtitle: Text(
                         '${DateFormat('dd MMM yyyy').format(range.start)} - ${DateFormat('dd MMM yyyy').format(range.end)}',
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                       trailing: const Icon(IconlyLight.calendar),
                       onTap: () async {
-                        final picked = await CustomDatePickerDialog.showCustomDateRangePicker(
-                          context: context,
-                          firstDate: DateTime(2020),
-                          lastDate: DateTime(2035),
-                        );
+                        final picked =
+                            await CustomDatePickerDialog.showCustomDateRangePicker(
+                              context: context,
+                              firstDate: DateTime(2020),
+                              lastDate: DateTime(2035),
+                            );
                         if (picked != null) {
                           setSheetState(() => range = picked);
                         }
@@ -1277,7 +1469,8 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
                     TextField(
                       controller: reasonCtrl,
                       decoration: const InputDecoration(
-                        labelText: 'Reason for Absence (Required if type is Other)',
+                        labelText:
+                            'Reason for Absence (Required if type is Other)',
                         border: OutlineInputBorder(),
                       ),
                     ),
@@ -1301,32 +1494,51 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
                       child: FilledButton(
                         style: FilledButton.styleFrom(
                           backgroundColor: AppTheme.corporateBlue,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                         onPressed: isSubmitting
                             ? null
                             : () async {
                                 if (selectedOpId == null) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Please select an operative.')),
+                                    const SnackBar(
+                                      content: Text(
+                                        'Please select an operative.',
+                                      ),
+                                    ),
                                   );
                                   return;
                                 }
-                                if (selectedType == 'other' && reasonCtrl.text.trim().isEmpty) {
+                                if (selectedType == 'other' &&
+                                    reasonCtrl.text.trim().isEmpty) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Please provide a reason for Other absence.')),
+                                    const SnackBar(
+                                      content: Text(
+                                        'Please provide a reason for Other absence.',
+                                      ),
+                                    ),
                                   );
                                   return;
                                 }
 
                                 setSheetState(() => isSubmitting = true);
 
-                                final startStr = DateFormat('yyyy-MM-dd').format(range.start);
-                                final endStr = DateFormat('yyyy-MM-dd').format(range.end);
+                                final startStr = DateFormat(
+                                  'yyyy-MM-dd',
+                                ).format(range.start);
+                                final endStr = DateFormat(
+                                  'yyyy-MM-dd',
+                                ).format(range.end);
 
                                 final result = await _controller.recordAbsence(
                                   operativeId: selectedOpId!,
-                                  projectId: (selectedProjId != null && selectedProjId! > 0) ? selectedProjId : null,
+                                  projectId:
+                                      (selectedProjId != null &&
+                                          selectedProjId! > 0)
+                                      ? selectedProjId
+                                      : null,
                                   absenceType: selectedType,
                                   startDate: startStr,
                                   endDate: endStr,
@@ -1335,15 +1547,22 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
                                   notes: notesCtrl.text.trim(),
                                 );
 
-                                if (sheetCtx.mounted && result['success'] == true) {
+                                if (sheetCtx.mounted &&
+                                    result['success'] == true) {
                                   Navigator.pop(sheetCtx);
                                 }
 
                                 if (mounted) {
-                                  ScaffoldMessenger.of(this.context).showSnackBar(
+                                  ScaffoldMessenger.of(
+                                    this.context,
+                                  ).showSnackBar(
                                     SnackBar(
-                                      content: Text(result['message']?.toString() ?? ''),
-                                      backgroundColor: result['success'] == true ? Colors.green : Colors.red,
+                                      content: Text(
+                                        result['message']?.toString() ?? '',
+                                      ),
+                                      backgroundColor: result['success'] == true
+                                          ? Colors.green
+                                          : Colors.red,
                                     ),
                                   );
                                 }
@@ -1352,9 +1571,15 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
                             ? const SizedBox(
                                 width: 22,
                                 height: 22,
-                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
                               )
-                            : const Text('Save Absence', style: TextStyle(fontWeight: FontWeight.bold)),
+                            : const Text(
+                                'Save Absence',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
                       ),
                     ),
                   ],
@@ -1380,9 +1605,14 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
           'Are you sure you want to approve the absence request for ${record.operativeName} from ${_formatDate(record.startDate)} to ${_formatDate(record.endDate)}?',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dlgCtx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(dlgCtx, false),
+            child: const Text('Cancel'),
+          ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: const Color(0xFF198754)),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF198754),
+            ),
             onPressed: () => Navigator.pop(dlgCtx, true),
             child: const Text('Confirm Approval'),
           ),
@@ -1443,9 +1673,14 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dlgCtx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(dlgCtx, false),
+            child: const Text('Cancel'),
+          ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFDC3545)),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFDC3545),
+            ),
             onPressed: () {
               if (formKey.currentState?.validate() == true) {
                 Navigator.pop(dlgCtx, true);
@@ -1458,7 +1693,10 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
     );
 
     if (confirmed == true) {
-      final res = await _controller.rejectAbsence(record.id, reasonCtrl.text.trim());
+      final res = await _controller.rejectAbsence(
+        record.id,
+        reasonCtrl.text.trim(),
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1481,9 +1719,14 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
           'Are you sure you want to cancel the absence for ${record.operativeName}?',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dlgCtx, false), child: const Text('No, keep it')),
+          TextButton(
+            onPressed: () => Navigator.pop(dlgCtx, false),
+            child: const Text('No, keep it'),
+          ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFDC3545)),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFDC3545),
+            ),
             onPressed: () => Navigator.pop(dlgCtx, true),
             child: const Text('Yes, Cancel Request'),
           ),
@@ -1526,11 +1769,16 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
                   initialValue: tempProj,
                   isExpanded: true,
                   items: [
-                    const DropdownMenuItem(value: null, child: Text('All Projects')),
-                    ..._controller.options.projects.map((p) => DropdownMenuItem<int?>(
-                      value: p['id'] as int,
-                      child: Text('${p['name']}'),
-                    )),
+                    const DropdownMenuItem(
+                      value: null,
+                      child: Text('All Projects'),
+                    ),
+                    ..._controller.options.projects.map(
+                      (p) => DropdownMenuItem<int?>(
+                        value: p['id'] as int,
+                        child: Text('${p['name']}'),
+                      ),
+                    ),
                   ],
                   onChanged: (val) => setDlgState(() => tempProj = val),
                 ),
@@ -1542,11 +1790,16 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
                   initialValue: tempOp,
                   isExpanded: true,
                   items: [
-                    const DropdownMenuItem(value: null, child: Text('All Operatives')),
-                    ..._controller.options.operatives.map((o) => DropdownMenuItem<int?>(
-                      value: o['id'] as int,
-                      child: Text('${o['name']}'),
-                    )),
+                    const DropdownMenuItem(
+                      value: null,
+                      child: Text('All Operatives'),
+                    ),
+                    ..._controller.options.operatives.map(
+                      (o) => DropdownMenuItem<int?>(
+                        value: o['id'] as int,
+                        child: Text('${o['name']}'),
+                      ),
+                    ),
                   ],
                   onChanged: (val) => setDlgState(() => tempOp = val),
                 ),
@@ -1559,9 +1812,18 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
                   items: const [
                     DropdownMenuItem(value: null, child: Text('All Types')),
                     DropdownMenuItem(value: 'sick', child: Text('Sick Leave')),
-                    DropdownMenuItem(value: 'annual_holiday', child: Text('Annual Holiday')),
-                    DropdownMenuItem(value: 'approved_leave', child: Text('Approved Leave')),
-                    DropdownMenuItem(value: 'emergency_leave', child: Text('Emergency Leave')),
+                    DropdownMenuItem(
+                      value: 'annual_holiday',
+                      child: Text('Annual Holiday'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'approved_leave',
+                      child: Text('Approved Leave'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'emergency_leave',
+                      child: Text('Emergency Leave'),
+                    ),
                     DropdownMenuItem(value: 'other', child: Text('Other')),
                   ],
                   onChanged: (val) => setDlgState(() => tempType = val),
@@ -1573,12 +1835,25 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
                   decoration: const InputDecoration(labelText: 'Sort By'),
                   initialValue: tempSort,
                   items: const [
-                    DropdownMenuItem(value: 'newest', child: Text('Newest First')),
-                    DropdownMenuItem(value: 'oldest', child: Text('Oldest First')),
-                    DropdownMenuItem(value: 'name_asc', child: Text('Operative Name (A-Z)')),
-                    DropdownMenuItem(value: 'duration_desc', child: Text('Duration (Longest First)')),
+                    DropdownMenuItem(
+                      value: 'newest',
+                      child: Text('Newest First'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'oldest',
+                      child: Text('Oldest First'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'name_asc',
+                      child: Text('Operative Name (A-Z)'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'duration_desc',
+                      child: Text('Duration (Longest First)'),
+                    ),
                   ],
-                  onChanged: (val) => setDlgState(() => tempSort = val ?? tempSort),
+                  onChanged: (val) =>
+                      setDlgState(() => tempSort = val ?? tempSort),
                 ),
               ],
             ),

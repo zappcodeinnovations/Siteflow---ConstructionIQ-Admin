@@ -84,14 +84,20 @@ class AbsenceRecord {
     final op = json['operative'] as Map<String, dynamic>?;
     final proj = json['project'] as Map<String, dynamic>?;
 
-    final id = json['id'] is int ? json['id'] as int : int.tryParse('${json['id']}') ?? 0;
+    final id = json['id'] is int
+        ? json['id'] as int
+        : int.tryParse('${json['id']}') ?? 0;
     final opId = json['operative_id'] is int
         ? json['operative_id'] as int
-        : (op?['id'] is int ? op!['id'] as int : int.tryParse('${op?['id'] ?? json['operative_id']}') ?? 0);
+        : (op?['id'] is int
+              ? op!['id'] as int
+              : int.tryParse('${op?['id'] ?? json['operative_id']}') ?? 0);
 
     final pId = json['project_id'] is int
         ? json['project_id'] as int
-        : (proj?['id'] is int ? proj!['id'] as int : int.tryParse('${proj?['id'] ?? json['project_id']}'));
+        : (proj?['id'] is int
+              ? proj!['id'] as int
+              : int.tryParse('${proj?['id'] ?? json['project_id']}'));
 
     final diff = json['duration_days'] is int
         ? json['duration_days'] as int
@@ -100,27 +106,44 @@ class AbsenceRecord {
     return AbsenceRecord(
       id: id,
       operativeId: opId,
-      operativeName: json['operative_name']?.toString() ?? op?['name']?.toString() ?? '-',
+      operativeName:
+          json['operative_name']?.toString() ?? op?['name']?.toString() ?? '-',
       operativeEmployeeId: op?['employee_id']?.toString() ?? '',
       projectId: pId,
-      projectName: json['project_name']?.toString() ?? proj?['name']?.toString() ?? 'General / Company-wide',
+      projectName: pId == null
+          ? 'Project not selected'
+          : json['project_name']?.toString() ??
+                proj?['name']?.toString() ??
+                'Project not selected',
       absenceType: json['absence_type']?.toString() ?? 'other',
-      absenceTypeLabel: json['absence_type_display']?.toString() ??
+      absenceTypeLabel:
+          json['absence_type_display']?.toString() ??
           json['absence_type_label']?.toString() ??
           'Other',
       reason: json['reason']?.toString() ?? '',
       startDate: json['start_date']?.toString() ?? '',
       endDate: json['end_date']?.toString() ?? '',
       durationDays: diff,
-      durationLabel: json['duration_label']?.toString() ?? '$diff Day${diff > 1 ? 's' : ''}',
-      isPartialDay: json['is_partial_day'] == true || '${json['is_partial_day']}'.toLowerCase() == 'true',
+      durationLabel:
+          json['duration_label']?.toString() ??
+          '$diff Day${diff > 1 ? 's' : ''}',
+      isPartialDay:
+          json['is_partial_day'] == true ||
+          '${json['is_partial_day']}'.toLowerCase() == 'true',
       notes: json['notes']?.toString() ?? '',
       status: json['status']?.toString() ?? 'pending',
-      statusLabel: json['status_display']?.toString() ??
+      statusLabel:
+          json['status_display']?.toString() ??
           json['status_label']?.toString() ??
           'Pending',
-      recordedByName: json['recorded_by_name']?.toString() ?? json['recorded_by']?.toString() ?? '',
-      updatedByName: json['updated_by_name']?.toString() ?? json['updated_by']?.toString() ?? '',
+      recordedByName:
+          json['recorded_by_name']?.toString() ??
+          json['recorded_by']?.toString() ??
+          '',
+      updatedByName:
+          json['updated_by_name']?.toString() ??
+          json['updated_by']?.toString() ??
+          '',
       createdAt: json['created_at']?.toString() ?? '',
       updatedAt: json['updated_at']?.toString() ?? '',
     );
@@ -159,9 +182,13 @@ class AbsenceFilterOptions {
   factory AbsenceFilterOptions.fromJson(Map<String, dynamic>? json) {
     if (json == null) return const AbsenceFilterOptions();
     return AbsenceFilterOptions(
-      absenceTypes: List<Map<String, dynamic>>.from(json['absence_types'] ?? const []),
+      absenceTypes: List<Map<String, dynamic>>.from(
+        json['absence_types'] ?? const [],
+      ),
       statuses: List<Map<String, dynamic>>.from(json['statuses'] ?? const []),
-      operatives: List<Map<String, dynamic>>.from(json['operatives'] ?? const []),
+      operatives: List<Map<String, dynamic>>.from(
+        json['operatives'] ?? const [],
+      ),
       projects: List<Map<String, dynamic>>.from(json['projects'] ?? const []),
     );
   }

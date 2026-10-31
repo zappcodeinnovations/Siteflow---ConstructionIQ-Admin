@@ -44,7 +44,6 @@ class _CustomDrawerState extends State<CustomDrawer> {
       'productivity',
       'workforce_planner',
       'compliance_dashboard',
-      'construction_reports',
       'timesheets',
       'manager_attendance',
       'absence_management',
@@ -259,14 +258,6 @@ class _CustomDrawerState extends State<CustomDrawer> {
                       IconlyLight.shield_done,
                       "Compliance Dashboard",
                       '/complianceDashboard',
-                      currentRoute,
-                    ),
-                  if (_allowedMenus.contains('construction_reports'))
-                    _buildDrawerItem(
-                      context,
-                      IconlyLight.chart,
-                      "Construction Reports",
-                      '/constructionReports',
                       currentRoute,
                     ),
                   if (_allowedMenus.contains('timesheets'))
