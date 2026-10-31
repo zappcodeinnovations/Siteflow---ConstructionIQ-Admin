@@ -206,30 +206,37 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
         backgroundColor: appBarBg,
         elevation: 0,
         iconTheme: IconThemeData(color: textPrimary),
-        title: RichText(
-          text: TextSpan(
-            children: [
-              TextSpan(
-                text: projectNameDisplay,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              projectNameDisplay,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: textPrimary,
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                fontFamily: 'Inter',
+                height: 1.2,
+              ),
+            ),
+            if (clientName.isNotEmpty) ...[
+              const SizedBox(height: 2),
+              Text(
+                clientName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  color: textPrimary,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
+                  color: textSecondary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
                   fontFamily: 'Inter',
                 ),
               ),
-              if (clientName.isNotEmpty)
-                TextSpan(
-                  text: '   $clientName',
-                  style: TextStyle(
-                    color: textSecondary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    fontFamily: 'Inter',
-                  ),
-                ),
             ],
-          ),
+          ],
         ),
         actions: _canCreateTasks
             ? [
