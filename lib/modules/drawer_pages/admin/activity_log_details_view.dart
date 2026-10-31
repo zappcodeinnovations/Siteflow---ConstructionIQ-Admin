@@ -33,40 +33,147 @@ class _ActivityLogDetailsViewState extends State<ActivityLogDetailsView> {
     }
   }
 
-  Widget _buildJsonBlock(String title, dynamic data, {bool isDark = false}) {
-    if (data == null || data.toString().isEmpty || data.toString() == '{}') {
-      return const SizedBox.shrink();
+  String _prettifyLabel(String key) {
+    return key
+        .replaceAll('_', ' ')
+        .split(' ')
+        .map((word) => word.isEmpty ? word : '${word[0].toUpperCase()}${word.substring(1)}')
+        .join(' ');
+  }
+
+  dynamic _tryParsePythonLiteral(String text) {
+    try {
+      return jsonDecode(text);
+    } catch (_) {}
+    try {
+      final converted = text
+          .replaceAll('None', 'null')
+          .replaceAll('True', 'true')
+          .replaceAll('False', 'false')
+          .replaceAllMapped(RegExp(r"'([^']*)'"), (m) => '"${m[1]}"');
+      return jsonDecode(converted);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String _formatTimestamp(dynamic raw) {
+    if (raw == null || raw.toString().isEmpty) return 'N/A';
+    try {
+      final dt = DateTime.parse(raw.toString()).toLocal();
+      final hour12 = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
+      final period = dt.hour >= 12 ? 'PM' : 'AM';
+      final day = dt.day.toString().padLeft(2, '0');
+      final month = dt.month.toString().padLeft(2, '0');
+      final minute = dt.minute.toString().padLeft(2, '0');
+      final second = dt.second.toString().padLeft(2, '0');
+      return '$day/$month/${dt.year}, ${hour12.toString().padLeft(2, '0')}:$minute:$second $period';
+    } catch (_) {
+      return raw.toString();
+    }
+  }
+
+  Widget _buildValueDisplay(dynamic value, {bool isDark = false, int depth = 0}) {
+    final mutedStyle = TextStyle(fontSize: 14, color: isDark ? Colors.white60 : Colors.grey);
+    final valueStyle = TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: isDark ? Colors.white : Colors.black87);
+
+    if (value is String) {
+      final trimmed = value.trim();
+      if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+        final parsed = _tryParsePythonLiteral(trimmed);
+        if (parsed != null) return _buildValueDisplay(parsed, isDark: isDark, depth: depth);
+      }
+      return SelectableText(value.isEmpty ? '-' : value, style: valueStyle);
+    }
+    if (value == null) return Text('-', style: mutedStyle);
+    if (value is bool) return Text(value ? 'Yes' : 'No', style: valueStyle);
+    if (value is num) return SelectableText(value.toString(), style: valueStyle);
+
+    if (value is Map) {
+      final entries = value.entries
+          .where((e) => e.value != null && e.value.toString().isNotEmpty && e.value.toString() != '[]' && e.value.toString() != '{}')
+          .toList();
+      if (entries.isEmpty) return Text('-', style: mutedStyle);
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final entry in entries)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: 140,
+                    child: Text(_prettifyLabel(entry.key.toString()), style: mutedStyle.copyWith(fontWeight: FontWeight.w500)),
+                  ),
+                  Expanded(child: _buildValueDisplay(entry.value, isDark: isDark, depth: depth + 1)),
+                ],
+              ),
+            ),
+        ],
+      );
     }
 
-    String formatted = "";
-    if (data is String) {
-      formatted = data;
-    } else {
-      formatted = const JsonEncoder.withIndent('  ').convert(data);
+    if (value is List) {
+      if (value.isEmpty) return Text('-', style: mutedStyle);
+      if (value.every((e) => e is Map)) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (final item in value)
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF162A42) : Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
+                ),
+                child: _buildValueDisplay(item, isDark: isDark, depth: depth + 1),
+              ),
+          ],
+        );
+      }
+      return Wrap(
+        spacing: 6,
+        runSpacing: 6,
+        children: value
+            .map(
+              (item) => Chip(
+                label: Text(item.toString(), style: const TextStyle(fontSize: 12)),
+                backgroundColor: isDark ? const Color(0xFF162A42) : Colors.grey.shade100,
+                side: BorderSide(color: isDark ? Colors.white12 : Colors.grey.shade300),
+              ),
+            )
+            .toList(),
+      );
+    }
+
+    return SelectableText(value.toString(), style: valueStyle);
+  }
+
+  Widget _buildStateCard(String title, dynamic rawValue, {bool isDark = false}) {
+    dynamic normalized = rawValue;
+    if (normalized is String) {
+      final trimmed = normalized.trim();
+      if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+        normalized = _tryParsePythonLiteral(trimmed) ?? normalized;
+      }
+    }
+    final isEmptyMap = normalized is Map && normalized.isEmpty;
+    final isEmptyList = normalized is List && normalized.isEmpty;
+    final isEmptyString = normalized is String && normalized.isEmpty;
+    if (normalized == null || isEmptyMap || isEmptyList || isEmptyString) {
+      return const SizedBox.shrink();
     }
 
     return _buildInfoCard(
       title: title,
       icon: IconlyLight.document,
       isDark: isDark,
-      content: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF162A42) : Colors.grey.shade50,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade300),
-        ),
-        child: SelectableText(
-          formatted,
-          style: TextStyle(
-            fontFamily: 'monospace',
-            fontSize: 13,
-            height: 1.5,
-            color: isDark ? Colors.white70 : Colors.black87,
-          ),
-        ),
-      ),
+      content: _buildValueDisplay(normalized, isDark: isDark),
     );
   }
 
@@ -169,14 +276,14 @@ class _ActivityLogDetailsViewState extends State<ActivityLogDetailsView> {
                                   _buildDetailRow("Record ID", _logDetails!['record_id'].toString(), isDark: isDark),
                                 ],
                                 const SizedBox(height: 12),
-                                _buildDetailRow("Timestamp", _logDetails!['timestamp']?.toString() ?? 'N/A', isDark: isDark),
+                                _buildDetailRow("Timestamp", _formatTimestamp(_logDetails!['timestamp']), isDark: isDark),
                               ],
                             )
                           ),
                           const SizedBox(height: 8),
                           
-                          _buildJsonBlock("Previous State", _logDetails!['change_summary'] != null ? _logDetails!['change_summary']['previous'] : null, isDark: isDark),
-                          _buildJsonBlock("New State / Activity", _logDetails!['change_summary'] != null ? _logDetails!['change_summary']['new'] : null, isDark: isDark),
+                          _buildStateCard("Previous State", _logDetails!['previous_value'], isDark: isDark),
+                          _buildStateCard("New State / Activity", _logDetails!['new_value'], isDark: isDark),
                           
                           if (_logDetails!['ip_address'] != null || _logDetails!['browser_information'] != null) ...[
                             const SizedBox(height: 8),
