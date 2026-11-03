@@ -28,7 +28,7 @@ class _AppStartState extends State<AppStart> {
     final minimumSplash = Future.delayed(const Duration(milliseconds: 1200));
 
     // Determine auth status
-    final isLoggedIn = await AuthService.isLoggedIn();
+    var isLoggedIn = await AuthService.isLoggedIn();
     if (isLoggedIn) {
       try {
         final response = await ApiClient.get(
@@ -50,10 +50,21 @@ class _AppStartState extends State<AppStart> {
         // Keep the cached session available when the device is temporarily offline.
       }
 
+      // ApiClient's own 401 handling can silently clear tokens AND cached
+      // permissions as a side effect of the profile call above (an expired
+      // access token whose refresh token has also expired, e.g. after 24h+
+      // of inactivity) - re-check instead of trusting the snapshot taken
+      // before that call. Otherwise this still routed to '/home' with the
+      // permissions cache just wiped out from under it, which nav_bar.dart
+      // reads as "no modules assigned to this account" - a false "Access
+      // denied" screen instead of being sent back to Login where the user
+      // could actually fix it (2026-11-03 bug).
+      isLoggedIn = await AuthService.isLoggedIn();
+
       // Load the dashboard while the splash is showing so it opens ready
       // instead of showing a second loading spinner. Capped so a slow
       // network never holds the splash; the dashboard then loads itself.
-      if (await AuthService.can('dashboard')) {
+      if (isLoggedIn && await AuthService.can('dashboard')) {
         await DashboardController.prefetch().timeout(
           const Duration(seconds: 10),
           onTimeout: () {},

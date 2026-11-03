@@ -98,6 +98,21 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
       addTab('Tasks', IconlyLight.document, const TasksScreen());
     }
     if (pages.isEmpty) {
+      // An expired session (access token + refresh token both expired,
+      // e.g. after 24h+ of inactivity) can silently clear the cached
+      // permissions this screen just read from - same root cause as the
+      // AppStart race fixed alongside this - so an empty tab list here
+      // doesn't necessarily mean "no modules assigned," it can also mean
+      // "no longer actually logged in." Re-send to Login in that case
+      // instead of showing a misleading "Access denied" screen.
+      if (!await AuthService.isLoggedIn()) {
+        if (mounted) {
+          Navigator.of(
+            context,
+          ).pushNamedAndRemoveUntil('/login', (route) => false);
+        }
+        return;
+      }
       addTab(
         'Access denied',
         IconlyLight.shield_done,
