@@ -28,6 +28,12 @@ class ProjectsScreenState extends State<ProjectsScreen> {
   final ScrollController _horizontalScrollController = ScrollController();
   bool _isSearchVisible = false;
   bool _canCreateProject = false;
+  // The backend gates assigning operatives to a project behind "projects"
+  // edit permission - a Manager only gets "projects" view by default, so
+  // the Assign button was previously always shown and only rejected (with
+  // a raw "manage projects from mobile API" error) after the fact
+  // (2026-11-03 bug).
+  bool _canAssignTeam = false;
 
   void toggleSearch() {
     setState(() {
@@ -44,6 +50,9 @@ class ProjectsScreenState extends State<ProjectsScreen> {
     _selectedClient = widget.filterClient;
     AuthService.canCreateProject().then((allowed) {
       if (mounted) setState(() => _canCreateProject = allowed);
+    });
+    AuthService.can('projects', action: 'edit').then((allowed) {
+      if (mounted) setState(() => _canAssignTeam = allowed);
     });
     _verticalScrollController.addListener(_loadMoreProjectsWhenNeeded);
     _controller.fetchAvailableClients();
@@ -1166,7 +1175,9 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                       ),
                     );
                   },
-                  onAssignTeam: () => _showAssignTeamDialog(context, project),
+                  onAssignTeam: _canAssignTeam
+                      ? () => _showAssignTeamDialog(context, project)
+                      : null,
                   onViewTeam: () => _showViewTeamDialog(context, project),
                   onViewQr: () => _showQrCode(context, project),
                 );
@@ -1869,10 +1880,12 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: ElevatedButton.icon(
-                            onPressed: () {
-                              Navigator.pop(dialogContext);
-                              _showAssignTeamDialog(context, project);
-                            },
+                            onPressed: _canAssignTeam
+                                ? () {
+                                    Navigator.pop(dialogContext);
+                                    _showAssignTeamDialog(context, project);
+                                  }
+                                : null,
                             icon: const Icon(IconlyLight.user_1, size: 16),
                             label: const Text(
                               "Assign Operatives",
