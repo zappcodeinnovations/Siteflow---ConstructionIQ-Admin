@@ -6,6 +6,7 @@ import '../../core/network/api_client.dart';
 import '../../core/network/api_endpoints.dart';
 import 'package:iconly/iconly.dart';
 
+import '../../core/services/auth_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/date_helper.dart';
 import '../../core/widgets/background_stripes_painter.dart';
@@ -24,12 +25,24 @@ class _JobSheetDetailsScreenState extends State<JobSheetDetailsScreen> {
   late JobSheet jobSheet;
   bool _submittingDecision = false;
   Map<int, String> _materialNamesById = const {};
+  // isReviewable is purely status-based (submitted job sheets only) - it
+  // has no awareness of whether the viewer is actually allowed to decide
+  // on it, so Approve/Request Rectification/Reject were shown to anyone
+  // viewing a submitted job sheet and only rejected afterward by the
+  // backend's own permission check (2026-11-03 bug). The backend also
+  // allows a project's specific staged-approval signer even without this
+  // general permission - this is a client-side display check, not the
+  // full authority check, which stays enforced server-side either way.
+  bool _canReview = false;
 
   @override
   void initState() {
     super.initState();
     jobSheet = widget.jobSheet;
     _loadDetailedJobSheet();
+    AuthService.can('approvals', action: 'edit').then((allowed) {
+      if (mounted) setState(() => _canReview = allowed);
+    });
   }
 
   Future<void> _loadDetailedJobSheet() async {
@@ -728,7 +741,7 @@ class _JobSheetDetailsScreenState extends State<JobSheetDetailsScreen> {
                 ),
               ],
             ),
-            if (jobSheet.isReviewable) ...[
+            if (jobSheet.isReviewable && _canReview) ...[
               const SizedBox(height: 8),
               Text(
                 "This submission is awaiting review.",
