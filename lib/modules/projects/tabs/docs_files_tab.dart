@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:iconly/iconly.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -8,6 +9,8 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
 import '../../../core/utils/date_helper.dart';
+import '../../../core/utils/snackbar_helper.dart';
+import '../../../core/services/auth_service.dart';
 
 class DocsFilesTab extends StatefulWidget {
   final int projectId;
@@ -38,6 +41,7 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
   int? _openedFolderId;
   String? _openedFolderName;
   String? _openedFolderType;
+  bool _canEdit = false;
 
   final Set<int> _expandedFolderIds = {};
 
@@ -55,6 +59,9 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
     if (_localFolders.isEmpty && _localFiles.isEmpty) {
       _fetchTabFiles();
     }
+    AuthService.can('projects', action: 'edit').then((value) {
+      if (mounted) setState(() => _canEdit = value);
+    });
   }
 
   void _expandRootFolders() {
@@ -283,7 +290,7 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
           );
         }
       } else {
-        _showError("Failed to create folder.");
+        _showApiError(response, "Failed to create folder.");
       }
     } catch (e) {
       if (mounted) _showError("Failed to create folder: $e");
@@ -334,7 +341,7 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
           );
         }
       } else {
-        _showError("Failed to delete folder.");
+        _showApiError(response, "Failed to delete folder.");
       }
     } catch (e) {
       if (mounted) _showError("Failed to delete folder: $e");
@@ -385,7 +392,7 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
           );
         }
       } else {
-        _showError("Failed to delete file.");
+        _showApiError(response, "Failed to delete file.");
       }
     } catch (e) {
       if (mounted) _showError("Failed to delete file: $e");
@@ -399,6 +406,23 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: Colors.red),
     );
+  }
+
+  /// Surfaces the backend's real failure reason instead of a generic one -
+  /// a 403 permission restriction is shown as the standard informational
+  /// notice rather than being discarded in favour of a plain error.
+  void _showApiError(http.Response response, String fallbackMessage) {
+    if (!mounted) return;
+    String message = fallbackMessage;
+    try {
+      final decoded = jsonDecode(response.body);
+      message = decoded['message']?.toString() ??
+          decoded['detail']?.toString() ??
+          fallbackMessage;
+    } catch (_) {
+      // Non-JSON body - keep the fallback message.
+    }
+    showApiFailureSnackbar(context, statusCode: response.statusCode, message: message);
   }
 
   void _showFilesDialog(
@@ -631,7 +655,7 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
           );
         }
       } else {
-        _showError("Failed to upload '${file.name}'.");
+        _showApiError(response, "Failed to upload '${file.name}'.");
       }
     } catch (e) {
       if (mounted) _showError("Failed to upload file: $e");
@@ -890,34 +914,35 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
                 label: const Text("Back to Root",
                     style: TextStyle(fontWeight: FontWeight.bold)),
               ),
-              Row(
-                children: [
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0D6EFD),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 8),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8)),
+              if (_canEdit)
+                Row(
+                  children: [
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF0D6EFD),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 8),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: () => _uploadFile(
+                          _openedFolderType ?? 'files',
+                          folderId: _openedFolderId),
+                      icon: const Icon(IconlyLight.upload, size: 14),
+                      label: const Text("Upload File",
+                          style: TextStyle(
+                              fontSize: 12, fontWeight: FontWeight.bold)),
                     ),
-                    onPressed: () => _uploadFile(
-                        _openedFolderType ?? 'files',
-                        folderId: _openedFolderId),
-                    icon: const Icon(IconlyLight.upload, size: 14),
-                    label: const Text("Upload File",
-                        style: TextStyle(
-                            fontSize: 12, fontWeight: FontWeight.bold)),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    icon: const Icon(IconlyLight.delete,
-                        size: 18, color: Colors.red),
-                    tooltip: "Delete Folder",
-                    onPressed: () => _deleteFolder(_openedFolderId!),
-                  ),
-                ],
-              ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: const Icon(IconlyLight.delete,
+                          size: 18, color: Colors.red),
+                      tooltip: "Delete Folder",
+                      onPressed: () => _deleteFolder(_openedFolderId!),
+                    ),
+                  ],
+                ),
             ],
           ),
           const SizedBox(height: 8),
@@ -1041,22 +1066,24 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  IconButton(
-                    icon: const Icon(IconlyLight.folder, size: 18),
-                    onPressed: () => _showNewFolderDialog(folderType),
-                    tooltip: "New Folder",
-                    constraints: const BoxConstraints(),
-                    padding: const EdgeInsets.all(4),
-                  ),
-                  const SizedBox(width: 2),
-                  IconButton(
-                    icon: const Icon(IconlyLight.upload, size: 18),
-                    onPressed: () => _uploadFile(folderType),
-                    tooltip: "Upload File",
-                    constraints: const BoxConstraints(),
-                    padding: const EdgeInsets.all(4),
-                  ),
-                  const SizedBox(width: 2),
+                  if (_canEdit) ...[
+                    IconButton(
+                      icon: const Icon(IconlyLight.folder, size: 18),
+                      onPressed: () => _showNewFolderDialog(folderType),
+                      tooltip: "New Folder",
+                      constraints: const BoxConstraints(),
+                      padding: const EdgeInsets.all(4),
+                    ),
+                    const SizedBox(width: 2),
+                    IconButton(
+                      icon: const Icon(IconlyLight.upload, size: 18),
+                      onPressed: () => _uploadFile(folderType),
+                      tooltip: "Upload File",
+                      constraints: const BoxConstraints(),
+                      padding: const EdgeInsets.all(4),
+                    ),
+                    const SizedBox(width: 2),
+                  ],
                   IconButton(
                     icon: const Icon(IconlyLight.show, size: 18),
                     onPressed: () =>
@@ -1085,10 +1112,10 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
           ] else
             _buildEmptyDashedState(
               context,
-              label: title == "SIGNED DOCS"
-                  ? "New Signed Docs Folder"
-                  : "New Folder",
-              onTap: () => _showNewFolderDialog(folderType),
+              label: _canEdit
+                  ? (title == "SIGNED DOCS" ? "New Signed Docs Folder" : "New Folder")
+                  : "No folders yet",
+              onTap: _canEdit ? () => _showNewFolderDialog(folderType) : null,
             ),
 
           // Loose Root Files (if any)
@@ -1133,7 +1160,7 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
   }
 
   Widget _buildEmptyDashedState(BuildContext context,
-      {required String label, required VoidCallback onTap}) {
+      {required String label, VoidCallback? onTap}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final borderColor = isDark ? Colors.white24 : Colors.grey.shade300;
 
@@ -1293,32 +1320,34 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
                       child: Icon(IconlyLight.lock,
                           size: 14, color: Colors.grey),
                     ),
-                  IconButton(
-                    icon: const Icon(IconlyLight.folder, size: 15),
-                    tooltip: "New Subfolder",
-                    constraints: const BoxConstraints(),
-                    padding: const EdgeInsets.all(4),
-                    onPressed: () => _showNewFolderDialog(folderType,
-                        parentId: folderId),
-                  ),
-                  IconButton(
-                    icon: const Icon(IconlyLight.upload, size: 15),
-                    tooltip: "Upload into folder",
-                    constraints: const BoxConstraints(),
-                    padding: const EdgeInsets.all(4),
-                    onPressed: () =>
-                        _uploadFile(folderType, folderId: folderId),
-                  ),
-                  IconButton(
-                    icon: const Icon(IconlyLight.delete,
-                        size: 15, color: Colors.red),
-                    tooltip: "Delete folder",
-                    constraints: const BoxConstraints(),
-                    padding: const EdgeInsets.all(4),
-                    onPressed: () {
-                      if (folderId != null) _deleteFolder(folderId);
-                    },
-                  ),
+                  if (_canEdit) ...[
+                    IconButton(
+                      icon: const Icon(IconlyLight.folder, size: 15),
+                      tooltip: "New Subfolder",
+                      constraints: const BoxConstraints(),
+                      padding: const EdgeInsets.all(4),
+                      onPressed: () => _showNewFolderDialog(folderType,
+                          parentId: folderId),
+                    ),
+                    IconButton(
+                      icon: const Icon(IconlyLight.upload, size: 15),
+                      tooltip: "Upload into folder",
+                      constraints: const BoxConstraints(),
+                      padding: const EdgeInsets.all(4),
+                      onPressed: () =>
+                          _uploadFile(folderType, folderId: folderId),
+                    ),
+                    IconButton(
+                      icon: const Icon(IconlyLight.delete,
+                          size: 15, color: Colors.red),
+                      tooltip: "Delete folder",
+                      constraints: const BoxConstraints(),
+                      padding: const EdgeInsets.all(4),
+                      onPressed: () {
+                        if (folderId != null) _deleteFolder(folderId);
+                      },
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -1436,7 +1465,7 @@ class _DocsFilesTabState extends State<DocsFilesTab> {
                         style: TextStyle(
                             fontWeight: FontWeight.bold, fontSize: 12)),
                   ),
-                if (fileId != null)
+                if (fileId != null && _canEdit)
                   IconButton(
                     icon: const Icon(IconlyLight.delete,
                         size: 16, color: Colors.red),

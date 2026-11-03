@@ -4,6 +4,7 @@ import 'package:iconly/iconly.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/snackbar_helper.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 /// Tap-to-place pin viewer for a single drawing, backed by the real
@@ -195,8 +196,10 @@ class _DrawingPinViewerScreenState extends State<DrawingPinViewerScreen> {
       if (response.statusCode == 200 || response.statusCode == 201) {
         await _load();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(decoded['message']?.toString() ?? 'Failed to add pin.'), backgroundColor: Colors.red),
+        showApiFailureSnackbar(
+          context,
+          statusCode: response.statusCode,
+          message: decoded['message']?.toString() ?? 'Failed to add pin.',
         );
       }
     } catch (e) {
@@ -287,8 +290,10 @@ class _DrawingPinViewerScreenState extends State<DrawingPinViewerScreen> {
       if (response.statusCode == 200) {
         await _load();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(decoded['message']?.toString() ?? 'Failed to update pin.'), backgroundColor: Colors.red),
+        showApiFailureSnackbar(
+          context,
+          statusCode: response.statusCode,
+          message: decoded['message']?.toString() ?? 'Failed to update pin.',
         );
       }
     } catch (e) {
