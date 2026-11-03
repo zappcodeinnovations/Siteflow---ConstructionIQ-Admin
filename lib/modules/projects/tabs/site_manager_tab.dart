@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
+import '../../../core/services/auth_service.dart';
 import '../../../core/services/download_manager.dart';
 import '../../../models/site_structure_models.dart';
 import 'drawing_pin_viewer_screen.dart';
@@ -53,11 +54,23 @@ class _SiteManagerTabState extends State<SiteManagerTab> {
   final ScrollController _scrollController = ScrollController();
   final GlobalKey _importDrawingsSectionKey = GlobalKey();
 
+  // The backend gates drawing upload behind "projects" edit permission -
+  // a Supervisor only gets "projects" view by default, so the Upload
+  // Drawing option was previously always shown and only rejected (with a
+  // raw technical error) after the fact (2026-11-03 bug).
+  bool _canUploadDrawings = false;
+
   @override
   void initState() {
     super.initState();
     _initAllSelections();
     _fetchLiveDrawings();
+    _loadUploadPermission();
+  }
+
+  Future<void> _loadUploadPermission() async {
+    final allowed = await AuthService.can('projects', action: 'edit');
+    if (mounted) setState(() => _canUploadDrawings = allowed);
   }
 
   @override
@@ -2236,16 +2249,17 @@ class _SiteManagerTabState extends State<SiteManagerTab> {
                                         ],
                                       ),
                                     ),
-                                    const PopupMenuItem(
-                                      value: 'upload_drawing',
-                                      child: Row(
-                                        children: [
-                                          Icon(IconlyLight.upload, size: 18),
-                                          SizedBox(width: 8),
-                                          Text("Upload Drawing"),
-                                        ],
+                                    if (_canUploadDrawings)
+                                      const PopupMenuItem(
+                                        value: 'upload_drawing',
+                                        child: Row(
+                                          children: [
+                                            Icon(IconlyLight.upload, size: 18),
+                                            SizedBox(width: 8),
+                                            Text("Upload Drawing"),
+                                          ],
+                                        ),
                                       ),
-                                    ),
                                     const PopupMenuItem(
                                       value: 'view_drawing',
                                       child: Row(
@@ -2318,6 +2332,7 @@ class _SiteManagerTabState extends State<SiteManagerTab> {
                 const SizedBox(height: 20),
 
                 // 2. DEDICATED "IMPORT DRAWINGS" SECTION (Web Parity)
+                if (_canUploadDrawings)
                 Container(
                   key: _importDrawingsSectionKey,
                   decoration: BoxDecoration(
