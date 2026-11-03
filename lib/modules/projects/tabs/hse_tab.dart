@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/services/auth_service.dart';
 import '../../../core/utils/date_helper.dart';
 import '../../../models/hse_document_model.dart';
 import '../project_hse_controller.dart';
@@ -20,6 +21,7 @@ class HseTab extends StatefulWidget {
 class _HseTabState extends State<HseTab> {
   late final ProjectHseController _controller = ProjectHseController(widget.projectId);
   String _categoryFilter = 'All';
+  bool _canEdit = false;
 
   static const _categories = [
     'All',
@@ -47,6 +49,9 @@ class _HseTabState extends State<HseTab> {
   void initState() {
     super.initState();
     _controller.fetchDocuments();
+    AuthService.can('projects', action: 'edit').then((value) {
+      if (mounted) setState(() => _canEdit = value);
+    });
   }
 
   @override
@@ -566,15 +571,17 @@ class _HseTabState extends State<HseTab> {
                               leading: const Icon(IconlyLight.document),
                               title: Text(doc.title, maxLines: 1, overflow: TextOverflow.ellipsis),
                               subtitle: Text(doc.categoryLabel),
-                              trailing: TextButton(
-                                onPressed: () async {
-                                  final restored = await _controller.restoreDocument(doc.id);
-                                  if (restored) {
-                                    setDialogState(() {});
-                                  }
-                                },
-                                child: const Text("Restore"),
-                              ),
+                              trailing: _canEdit
+                                  ? TextButton(
+                                      onPressed: () async {
+                                        final restored = await _controller.restoreDocument(doc.id);
+                                        if (restored) {
+                                          setDialogState(() {});
+                                        }
+                                      },
+                                      child: const Text("Restore"),
+                                    )
+                                  : null,
                             );
                           },
                         ),
@@ -645,29 +652,31 @@ class _HseTabState extends State<HseTab> {
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0D6EFD),
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    if (_canEdit) ...[
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF0D6EFD),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        onPressed: _showUploadDialog,
+                        icon: const Icon(IconlyLight.upload, size: 16),
+                        label: const Text("Upload HS&E Document", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                       ),
-                      onPressed: _showUploadDialog,
-                      icon: const Icon(IconlyLight.upload, size: 16),
-                      label: const Text("Upload HS&E Document", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                    ),
-                    OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF0D6EFD),
-                        side: const BorderSide(color: Color(0xFF0D6EFD)),
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF0D6EFD),
+                          side: const BorderSide(color: Color(0xFF0D6EFD)),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        onPressed: () => _openRamsBuilder(),
+                        icon: const Icon(IconlyLight.plus, size: 16),
+                        label: const Text("Build RAMS", style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                       ),
-                      onPressed: () => _openRamsBuilder(),
-                      icon: const Icon(IconlyLight.plus, size: 16),
-                      label: const Text("Build RAMS", style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                    ),
+                    ],
                     OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(
                         foregroundColor: isDark ? Colors.white70 : Colors.black87,
@@ -1011,7 +1020,7 @@ class _HseTabState extends State<HseTab> {
                       icon: const Icon(IconlyLight.show, size: 15),
                       label: const Text("Open", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                     ),
-                  if (doc.hazardCount != null)
+                  if (doc.hazardCount != null && _canEdit)
                     TextButton.icon(
                       style: TextButton.styleFrom(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -1023,23 +1032,25 @@ class _HseTabState extends State<HseTab> {
                       icon: const Icon(IconlyLight.edit, size: 15),
                       label: const Text("RAMS builder", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                     ),
-                  TextButton.icon(
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      minimumSize: const Size(40, 32),
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  if (_canEdit) ...[
+                    TextButton.icon(
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        minimumSize: const Size(40, 32),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      onPressed: () => _showReviseDialog(doc),
+                      icon: const Icon(IconlyLight.swap, size: 15),
+                      label: const Text("Revise", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                     ),
-                    onPressed: () => _showReviseDialog(doc),
-                    icon: const Icon(IconlyLight.swap, size: 15),
-                    label: const Text("Revise", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                  ),
-                  IconButton(
-                    icon: const Icon(IconlyLight.delete, size: 16, color: Colors.red),
-                    tooltip: "Delete Document",
-                    constraints: const BoxConstraints(),
-                    padding: const EdgeInsets.all(6),
-                    onPressed: () => _confirmAndDeleteDocument(doc),
-                  ),
+                    IconButton(
+                      icon: const Icon(IconlyLight.delete, size: 16, color: Colors.red),
+                      tooltip: "Delete Document",
+                      constraints: const BoxConstraints(),
+                      padding: const EdgeInsets.all(6),
+                      onPressed: () => _confirmAndDeleteDocument(doc),
+                    ),
+                  ],
                 ],
               ),
             ],
