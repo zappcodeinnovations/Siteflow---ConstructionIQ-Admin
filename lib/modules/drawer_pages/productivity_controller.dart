@@ -99,24 +99,30 @@ class ProductivityController extends ChangeNotifier {
     notifyListeners();
 
     try {
+      // Filter values are real client/project/team/member names picked
+      // from a dropdown, not ids - almost always containing a space (and
+      // potentially other URL-significant characters). Appending them raw
+      // produced a malformed query string, so tapping Apply after picking
+      // any multi-word value silently failed to filter anything
+      // (2026-11-02 bug).
       final queryParams = <String>[];
       if (_fromDate != null && _fromDate!.isNotEmpty) {
-        queryParams.add('from=$_fromDate');
+        queryParams.add('from=${Uri.encodeQueryComponent(_fromDate!)}');
       }
       if (_toDate != null && _toDate!.isNotEmpty) {
-        queryParams.add('to=$_toDate');
+        queryParams.add('to=${Uri.encodeQueryComponent(_toDate!)}');
       }
       if (_selectedClient != null && _selectedClient!.isNotEmpty) {
-        queryParams.add('client=$_selectedClient');
+        queryParams.add('client=${Uri.encodeQueryComponent(_selectedClient!)}');
       }
       if (_selectedProject != null && _selectedProject!.isNotEmpty) {
-        queryParams.add('project=$_selectedProject');
+        queryParams.add('project=${Uri.encodeQueryComponent(_selectedProject!)}');
       }
       if (_selectedTeam != null && _selectedTeam!.isNotEmpty) {
-        queryParams.add('team=$_selectedTeam');
+        queryParams.add('team=${Uri.encodeQueryComponent(_selectedTeam!)}');
       }
       if (_selectedMember != null && _selectedMember!.isNotEmpty) {
-        queryParams.add('member=$_selectedMember');
+        queryParams.add('member=${Uri.encodeQueryComponent(_selectedMember!)}');
       }
 
       final query = queryParams.isNotEmpty ? '?${queryParams.join('&')}' : '';

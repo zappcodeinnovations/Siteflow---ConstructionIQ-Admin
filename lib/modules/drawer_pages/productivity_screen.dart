@@ -1325,7 +1325,7 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
                                 color: Color(0xFF0D6EFD),
                               ),
                               label: Text(
-                                "+ Add Filter",
+                                "Add Filter",
                                 style: TextStyle(
                                   color: textColor,
                                   fontWeight: FontWeight.bold,
