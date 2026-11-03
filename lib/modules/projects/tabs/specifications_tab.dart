@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
 import '../../../core/network/api_endpoints.dart';
+import '../../../core/services/auth_service.dart';
 import '../../../core/services/download_manager.dart';
 import '../../../core/theme/app_theme.dart';
 import '../specification_controller.dart';
@@ -23,12 +24,16 @@ class _SpecificationsTabState extends State<SpecificationsTab> {
     widget.projectId,
   );
   final _searchController = TextEditingController();
+  bool _canEdit = false;
 
   @override
   void initState() {
     super.initState();
     _controller.addListener(_onChanged);
     _controller.fetchSpecifications();
+    AuthService.can('projects', action: 'edit').then((value) {
+      if (mounted) setState(() => _canEdit = value);
+    });
   }
 
   void _onChanged() {
@@ -454,22 +459,24 @@ class _SpecificationsTabState extends State<SpecificationsTab> {
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0D6EFD),
-                    foregroundColor: Colors.white,
+                if (_canEdit) ...[
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0D6EFD),
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: _showAddDialog,
+                    icon: const Icon(IconlyLight.plus, size: 16),
+                    label: const Text("Add"),
                   ),
-                  onPressed: _showAddDialog,
-                  icon: const Icon(IconlyLight.plus, size: 16),
-                  label: const Text("Add"),
-                ),
-                const SizedBox(width: 10),
-                OutlinedButton.icon(
-                  onPressed: _showManageAttributesSheet,
-                  icon: const Icon(IconlyLight.setting, size: 16),
-                  label: const Text("Manage Attributes"),
-                ),
-                const SizedBox(width: 10),
+                  const SizedBox(width: 10),
+                  OutlinedButton.icon(
+                    onPressed: _showManageAttributesSheet,
+                    icon: const Icon(IconlyLight.setting, size: 16),
+                    label: const Text("Manage Attributes"),
+                  ),
+                  const SizedBox(width: 10),
+                ],
                 OutlinedButton.icon(
                   onPressed: _downloadReport,
                   icon: const Icon(IconlyLight.download, size: 16),
@@ -560,14 +567,15 @@ class _SpecificationsTabState extends State<SpecificationsTab> {
                               onPressed: () => _openDetail(spec['id'] as int),
                               child: const Text("Open"),
                             ),
-                            IconButton(
-                              icon: const Icon(
-                                IconlyLight.delete,
-                                size: 18,
-                                color: Colors.red,
+                            if (_canEdit)
+                              IconButton(
+                                icon: const Icon(
+                                  IconlyLight.delete,
+                                  size: 18,
+                                  color: Colors.red,
+                                ),
+                                onPressed: () => _confirmDelete(spec),
                               ),
-                              onPressed: () => _confirmDelete(spec),
-                            ),
                           ],
                         ),
                       ),
