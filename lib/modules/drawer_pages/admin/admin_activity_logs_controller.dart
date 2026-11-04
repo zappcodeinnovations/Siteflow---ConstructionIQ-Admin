@@ -37,6 +37,7 @@ class AdminActivityLogsController extends ChangeNotifier {
   int _totalPages = 1;
   bool get hasMore => _currentPage < _totalPages;
   int totalCount = 0;
+  int _logsRequestId = 0;
 
   // Filters
   Map<String, dynamic> _filterOptions = {};
@@ -252,6 +253,8 @@ class AdminActivityLogsController extends ChangeNotifier {
   }
 
   Future<void> fetchLogs({bool isInitial = false}) async {
+    final requestId = ++_logsRequestId;
+    final requestUrl = _buildLogsUrl(1);
     if (!isInitial) {
       _isLoading = true;
       _errorMessage = null;
@@ -261,7 +264,9 @@ class AdminActivityLogsController extends ChangeNotifier {
     _totalPages = 1;
 
     try {
-      final response = await ApiClient.get(_buildLogsUrl(1));
+      final response = await ApiClient.get(requestUrl);
+
+      if (requestId != _logsRequestId || _isDisposed) return;
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
@@ -284,10 +289,13 @@ class AdminActivityLogsController extends ChangeNotifier {
             'Failed to load activity logs (${response.statusCode}).';
       }
     } catch (e) {
+      if (requestId != _logsRequestId || _isDisposed) return;
       _errorMessage = 'An error occurred: $e';
     } finally {
-      _isLoading = false;
-      _notifySafely();
+      if (requestId == _logsRequestId && !_isDisposed) {
+        _isLoading = false;
+        _notifySafely();
+      }
     }
   }
 

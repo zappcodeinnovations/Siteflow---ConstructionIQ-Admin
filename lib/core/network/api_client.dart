@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'api_endpoints.dart';
@@ -7,8 +9,18 @@ import '../utils/app_logger.dart';
 import '../utils/date_helper.dart';
 import '../../main.dart'; // To access the global navigatorKey
 
+class ApiClientException implements Exception {
+  final String message;
+
+  const ApiClientException(this.message);
+
+  @override
+  String toString() => message;
+}
+
 class ApiClient {
   static final http.Client _client = http.Client();
+  static const Duration _requestTimeout = Duration(seconds: 30);
   static String? _deviceTimezone;
   static bool _timeDisplayPreferenceLoaded = false;
 
@@ -182,7 +194,9 @@ class ApiClient {
 
     final stopwatch = Stopwatch()..start();
     try {
-      final response = await _handleRequest(() => requestAction(headers));
+      final response = await _handleRequest(
+        () => requestAction(headers).timeout(_requestTimeout),
+      );
       stopwatch.stop();
       AppLogger.response(
         method,
@@ -201,6 +215,16 @@ class ApiClient {
           request: response.request,
         );
       }
+      if (_isHtmlResponse(response)) {
+        const message =
+            'Unable to load data right now. Check your internet connection and try again.';
+        return http.Response(
+          jsonEncode({'status': false, 'detail': message, 'message': message}),
+          response.statusCode >= 400 ? response.statusCode : 503,
+          headers: {'content-type': 'application/json'},
+          request: response.request,
+        );
+      }
       return response;
     } catch (e, stack) {
       stopwatch.stop();
@@ -211,8 +235,37 @@ class ApiClient {
         stackTrace: stack,
         durationMs: stopwatch.elapsedMilliseconds,
       );
-      rethrow;
+      throw _friendlyNetworkException(e);
     }
+  }
+
+  static bool _isHtmlResponse(http.Response response) {
+    final contentType = response.headers['content-type']?.toLowerCase() ?? '';
+    final body = response.body.trimLeft().toLowerCase();
+    return contentType.contains('text/html') ||
+        body.startsWith('<!doctype html') ||
+        body.startsWith('<html');
+  }
+
+  static ApiClientException _friendlyNetworkException(Object error) {
+    if (error is ApiClientException) return error;
+    if (error is TimeoutException) {
+      return const ApiClientException(
+        'The request timed out. Check your internet connection and try again.',
+      );
+    }
+    if (error is SocketException || error is http.ClientException) {
+      return const ApiClientException(
+        'No internet connection. Please reconnect and try again.',
+      );
+    }
+    return const ApiClientException(
+      'Unable to load data right now. Please try again.',
+    );
+  }
+
+  static String friendlyErrorMessage(Object error) {
+    return _friendlyNetworkException(error).message;
   }
 
   static Future<http.Response> get(String url) async {
@@ -298,7 +351,7 @@ class ApiClient {
           );
         final streamedResponse = await request.send();
         return await http.Response.fromStream(streamedResponse);
-      });
+      }).timeout(_requestTimeout);
 
       stopwatch.stop();
       AppLogger.response(
@@ -308,6 +361,16 @@ class ApiClient {
         body: response.body,
         durationMs: stopwatch.elapsedMilliseconds,
       );
+      if (_isHtmlResponse(response)) {
+        const message =
+            'Unable to upload right now. Check your internet connection and try again.';
+        return http.Response(
+          jsonEncode({'status': false, 'detail': message, 'message': message}),
+          response.statusCode >= 400 ? response.statusCode : 503,
+          headers: {'content-type': 'application/json'},
+          request: response.request,
+        );
+      }
       return response;
     } catch (e, stack) {
       stopwatch.stop();
@@ -318,7 +381,7 @@ class ApiClient {
         stackTrace: stack,
         durationMs: stopwatch.elapsedMilliseconds,
       );
-      rethrow;
+      throw _friendlyNetworkException(e);
     }
   }
 

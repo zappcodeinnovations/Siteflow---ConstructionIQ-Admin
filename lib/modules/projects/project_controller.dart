@@ -109,7 +109,7 @@ class ProjectController extends ChangeNotifier {
         _errorMessage = data['message'] ?? 'Failed to fetch projects';
       }
     } catch (e) {
-      _errorMessage = 'An error occurred: $e';
+      _errorMessage = ApiClient.friendlyErrorMessage(e);
     } finally {
       _isLoading = false;
       notifyListeners();

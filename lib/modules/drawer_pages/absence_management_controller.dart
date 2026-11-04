@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../core/network/api_client.dart';
 import '../../core/network/api_endpoints.dart';
@@ -106,11 +107,16 @@ class AbsenceManagementController extends ChangeNotifier {
             .map((item) => AbsenceRecord.fromJson(item as Map<String, dynamic>))
             .toList();
 
-        _summary = AbsenceSummary.fromJson(decoded['summary'] as Map<String, dynamic>?);
-        _options = AbsenceFilterOptions.fromJson(decoded['options'] as Map<String, dynamic>?);
+        _summary = AbsenceSummary.fromJson(
+          decoded['summary'] as Map<String, dynamic>?,
+        );
+        _options = AbsenceFilterOptions.fromJson(
+          decoded['options'] as Map<String, dynamic>?,
+        );
         _errorMessage = null;
       } else {
-        _errorMessage = decoded['message']?.toString() ?? 'Failed to load absence records.';
+        _errorMessage =
+            decoded['message']?.toString() ?? 'Failed to load absence records.';
       }
     } catch (e) {
       _errorMessage = 'An error occurred: $e';
@@ -178,9 +184,15 @@ class AbsenceManagementController extends ChangeNotifier {
       if (response.statusCode == 200 && decoded['status'] == true) {
         await fetchAbsences(showLoading: false);
         DashboardController.triggerGlobalRefresh();
-        return {'success': true, 'message': decoded['message'] ?? 'Absence approved successfully.'};
+        return {
+          'success': true,
+          'message': decoded['message'] ?? 'Absence approved successfully.',
+        };
       }
-      return {'success': false, 'message': decoded['message'] ?? 'Unable to approve absence.'};
+      return {
+        'success': false,
+        'message': decoded['message'] ?? 'Unable to approve absence.',
+      };
     } catch (e) {
       return {'success': false, 'message': 'Network error: $e'};
     } finally {
@@ -189,7 +201,10 @@ class AbsenceManagementController extends ChangeNotifier {
     }
   }
 
-  Future<Map<String, dynamic>> rejectAbsence(int absenceId, String reason) async {
+  Future<Map<String, dynamic>> rejectAbsence(
+    int absenceId,
+    String reason,
+  ) async {
     final cleanReason = reason.trim();
     if (cleanReason.isEmpty) {
       return {'success': false, 'message': 'Rejection reason is required.'};
@@ -200,18 +215,21 @@ class AbsenceManagementController extends ChangeNotifier {
     try {
       final response = await ApiClient.patch(
         '${ApiEndpoints.baseUrl}/operative-absences/$absenceId/',
-        body: {
-          'status': 'rejected',
-          'rejection_reason': cleanReason,
-        },
+        body: {'status': 'rejected', 'rejection_reason': cleanReason},
       );
       final decoded = jsonDecode(response.body) as Map<String, dynamic>;
       if (response.statusCode == 200 && decoded['status'] == true) {
         await fetchAbsences(showLoading: false);
         DashboardController.triggerGlobalRefresh();
-        return {'success': true, 'message': decoded['message'] ?? 'Absence rejected.'};
+        return {
+          'success': true,
+          'message': decoded['message'] ?? 'Absence rejected.',
+        };
       }
-      return {'success': false, 'message': decoded['message'] ?? 'Unable to reject absence.'};
+      return {
+        'success': false,
+        'message': decoded['message'] ?? 'Unable to reject absence.',
+      };
     } catch (e) {
       return {'success': false, 'message': 'Network error: $e'};
     } finally {
@@ -232,9 +250,15 @@ class AbsenceManagementController extends ChangeNotifier {
       if (response.statusCode == 200 && decoded['status'] == true) {
         await fetchAbsences(showLoading: false);
         DashboardController.triggerGlobalRefresh();
-        return {'success': true, 'message': decoded['message'] ?? 'Absence cancelled.'};
+        return {
+          'success': true,
+          'message': decoded['message'] ?? 'Absence cancelled.',
+        };
       }
-      return {'success': false, 'message': decoded['message'] ?? 'Unable to cancel absence.'};
+      return {
+        'success': false,
+        'message': decoded['message'] ?? 'Unable to cancel absence.',
+      };
     } catch (e) {
       return {'success': false, 'message': 'Network error: $e'};
     } finally {
@@ -275,11 +299,37 @@ class AbsenceManagementController extends ChangeNotifier {
       );
       final decoded = jsonDecode(response.body) as Map<String, dynamic>;
       if (response.statusCode == 201 && decoded['status'] == true) {
-        await fetchAbsences(showLoading: false);
+        final rawRecord = decoded['data'];
+        if (rawRecord is Map<String, dynamic>) {
+          final record = AbsenceRecord.fromJson(rawRecord);
+          _absences = [
+            record,
+            ..._absences.where((item) => item.id != record.id),
+          ];
+          _summary = AbsenceSummary(
+            totalRequests: _summary.totalRequests + 1,
+            pendingRequests:
+                _summary.pendingRequests + (record.status == 'pending' ? 1 : 0),
+            approvedRequests:
+                _summary.approvedRequests +
+                (record.status == 'approved' ? 1 : 0),
+            rejectedRequests: _summary.rejectedRequests,
+            absentToday: _summary.absentToday,
+            upcomingAbsences: _summary.upcomingAbsences,
+          );
+          notifyListeners();
+        }
+        unawaited(fetchAbsences(showLoading: false));
         DashboardController.triggerGlobalRefresh();
-        return {'success': true, 'message': decoded['message'] ?? 'Absence recorded successfully.'};
+        return {
+          'success': true,
+          'message': decoded['message'] ?? 'Absence recorded successfully.',
+        };
       }
-      return {'success': false, 'message': decoded['message'] ?? 'Unable to record absence.'};
+      return {
+        'success': false,
+        'message': decoded['message'] ?? 'Unable to record absence.',
+      };
     } catch (e) {
       return {'success': false, 'message': 'Network error: $e'};
     } finally {

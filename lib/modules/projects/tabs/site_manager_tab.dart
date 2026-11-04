@@ -106,9 +106,12 @@ class _SiteManagerTabState extends State<SiteManagerTab> {
   }
 
   String _extractName(dynamic val) {
-    if (val == null) return '';
-    if (val is Map)
+    if (val == null) {
+      return '';
+    }
+    if (val is Map) {
       return (val['name'] ?? val['title'] ?? val['label'] ?? '').toString();
+    }
     return val.toString();
   }
 
@@ -1505,7 +1508,7 @@ class _SiteManagerTabState extends State<SiteManagerTab> {
   // Action: Download CSV Template
   Future<void> _downloadCsvTemplate() async {
     const csvContent =
-        "Block,Level,Zone,Zone Core\n"
+        "Block Name,Level Name,Zone Name,Zone Core\n"
         "Block 1,l1,Zone A,Core 1\n"
         "Block 1,l2,Zone B,Core 2\n"
         "Block 2,Ground,Reception,\n"
@@ -1537,8 +1540,9 @@ class _SiteManagerTabState extends State<SiteManagerTab> {
     );
 
     final picked = result?.files.first;
-    if (picked == null || picked.path == null || widget.projectId == null)
+    if (picked == null || picked.path == null || widget.projectId == null) {
       return;
+    }
 
     setState(() {
       _isImportingCsv = true;
@@ -1574,6 +1578,11 @@ class _SiteManagerTabState extends State<SiteManagerTab> {
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+        final imported = decoded['data'] as Map<String, dynamic>? ?? const {};
+        final blocks = imported['blocks'] ?? 0;
+        final levels = imported['levels'] ?? 0;
+        final zones = imported['zones'] ?? 0;
         widget.onChanged?.call();
         await _fetchLiveDrawings();
         if (mounted) {
@@ -1581,42 +1590,23 @@ class _SiteManagerTabState extends State<SiteManagerTab> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                "Imported ${lines.length - 1} location rows successfully.",
+                "Import complete: $blocks blocks, $levels levels and $zones zones added.",
               ),
               backgroundColor: Colors.green,
             ),
           );
         }
       } else {
-        int importedCount = 0;
-        for (int i = 1; i < lines.length; i++) {
-          final cols = lines[i].split(',').map((c) => c.trim()).toList();
-          if (cols.isNotEmpty && cols[0].isNotEmpty) {
-            final blockName = cols[0];
-            final levelName = cols.length > 1 ? cols[1] : '';
-            if (blockName.isNotEmpty) {
-              await ApiClient.post(
-                url,
-                body: {
-                  "module": "blocks",
-                  "block_name": blockName,
-                  "level_names": levelName.isNotEmpty ? [levelName] : [],
-                },
-              );
-              importedCount++;
-            }
-          }
-        }
-        widget.onChanged?.call();
-        await _fetchLiveDrawings();
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
         if (mounted) {
           setState(() => _isImportingCsv = false);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                "Imported locations successfully ($importedCount items).",
+                decoded['message']?.toString() ??
+                    'The CSV could not be imported. Please check the template and try again.',
               ),
-              backgroundColor: Colors.green,
+              backgroundColor: Colors.redAccent,
             ),
           );
         }
@@ -1626,7 +1616,7 @@ class _SiteManagerTabState extends State<SiteManagerTab> {
         setState(() => _isImportingCsv = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("CSV Import error: $e"),
+            content: Text(ApiClient.friendlyErrorMessage(e)),
             backgroundColor: Colors.redAccent,
           ),
         );
@@ -2333,273 +2323,279 @@ class _SiteManagerTabState extends State<SiteManagerTab> {
 
                 // 2. DEDICATED "IMPORT DRAWINGS" SECTION (Web Parity)
                 if (_canUploadDrawings)
-                Container(
-                  key: _importDrawingsSectionKey,
-                  decoration: BoxDecoration(
-                    color: cardColor,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: borderColor),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(
-                          alpha: isDark ? 0.2 : 0.04,
-                        ),
-                        blurRadius: 10,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Section Header
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: const Color(
-                                0xFF0D6EFD,
-                              ).withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Icon(
-                              IconlyLight.image,
-                              color: Color(0xFF0D6EFD),
-                              size: 20,
-                            ),
+                  Container(
+                    key: _importDrawingsSectionKey,
+                    decoration: BoxDecoration(
+                      color: cardColor,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: borderColor),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(
+                            alpha: isDark ? 0.2 : 0.04,
                           ),
-                          const SizedBox(width: 10),
-                          Text(
-                            "Import Drawings",
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Section Header
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: const Color(
+                                  0xFF0D6EFD,
+                                ).withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(
+                                IconlyLight.image,
+                                color: Color(0xFF0D6EFD),
+                                size: 20,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Text(
+                              "Import Drawings",
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: textColor,
+                                fontFamily: 'Inter',
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          "Drag and drop one or more drawings from your device, then add them to a selected level. Supports PDFs, CAD files and images.",
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: textSecondary,
+                            height: 1.4,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Select Level Dropdown
+                        DropdownButtonFormField<String>(
+                          initialValue: _selectedImportLevelKey,
+                          hint: Text(
+                            "Select level",
                             style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                              color: textSecondary,
+                              fontSize: 13,
+                            ),
+                          ),
+                          decoration: InputDecoration(
+                            labelText: "Target Level *",
+                            labelStyle: TextStyle(
                               color: textColor,
-                              fontFamily: 'Inter',
+                              fontSize: 13,
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        "Drag and drop one or more drawings from your device, then add them to a selected level. Supports PDFs, CAD files and images.",
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: textSecondary,
-                          height: 1.4,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Select Level Dropdown
-                      DropdownButtonFormField<String>(
-                        initialValue: _selectedImportLevelKey,
-                        hint: Text(
-                          "Select level",
-                          style: TextStyle(color: textSecondary, fontSize: 13),
-                        ),
-                        decoration: InputDecoration(
-                          labelText: "Target Level *",
-                          labelStyle: TextStyle(color: textColor, fontSize: 13),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 12,
-                          ),
-                          isDense: true,
-                        ),
-                        items: [
-                          for (var b in blocks)
-                            for (var l in b.levels)
-                              DropdownMenuItem<String>(
-                                value: l.id > 0
-                                    ? l.id.toString()
-                                    : '${b.name}:${l.name}',
-                                child: Text(
-                                  "${b.name} > ${l.name}",
-                                  style: TextStyle(
-                                    color: textColor,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ),
-                        ],
-                        onChanged: (val) {
-                          setState(() {
-                            _selectedImportLevelKey = val;
-                          });
-                        },
-                      ),
-                      const SizedBox(height: 16),
-
-                      // File Dropzone / Picker Box
-                      InkWell(
-                        onTap: () async {
-                          final result = await FilePicker.platform.pickFiles(
-                            type: FileType.custom,
-                            allowedExtensions: [
-                              'pdf',
-                              'dwg',
-                              'dxf',
-                              'png',
-                              'jpg',
-                              'jpeg',
-                            ],
-                          );
-                          if (result != null && result.files.isNotEmpty) {
-                            setState(() {
-                              _selectedDrawingFile = result.files.first;
-                            });
-                          }
-                        },
-                        borderRadius: BorderRadius.circular(12),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 28,
-                            horizontal: 16,
-                          ),
-                          decoration: BoxDecoration(
-                            color: isDark
-                                ? Colors.white.withValues(alpha: 0.04)
-                                : const Color(0xFFF8FAFC),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: _selectedDrawingFile != null
-                                  ? const Color(0xFF0D6EFD)
-                                  : (isDark
-                                        ? Colors.white24
-                                        : Colors.grey.shade300),
-                              width: 1.5,
-                              style: BorderStyle.solid,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
                             ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 12,
+                            ),
+                            isDense: true,
                           ),
-                          child: Column(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: const Color(
-                                    0xFF0D6EFD,
-                                  ).withValues(alpha: 0.1),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.cloud_upload_outlined,
-                                  size: 32,
-                                  color: Color(0xFF0D6EFD),
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              if (_selectedDrawingFile != null) ...[
-                                Text(
-                                  _selectedDrawingFile!.name,
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                    color: textColor,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  "${(_selectedDrawingFile!.size / 1024).toStringAsFixed(1)} KB",
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: textSecondary,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                TextButton.icon(
-                                  onPressed: () {
-                                    setState(() {
-                                      _selectedDrawingFile = null;
-                                    });
-                                  },
-                                  icon: const Icon(
-                                    Icons.close,
-                                    size: 14,
-                                    color: Colors.redAccent,
-                                  ),
-                                  label: const Text(
-                                    "Remove File",
+                          items: [
+                            for (var b in blocks)
+                              for (var l in b.levels)
+                                DropdownMenuItem<String>(
+                                  value: l.id > 0
+                                      ? l.id.toString()
+                                      : '${b.name}:${l.name}',
+                                  child: Text(
+                                    "${b.name} > ${l.name}",
                                     style: TextStyle(
-                                      color: Colors.redAccent,
-                                      fontSize: 12,
+                                      color: textColor,
+                                      fontSize: 13,
                                     ),
                                   ),
                                 ),
-                              ] else ...[
-                                Text(
-                                  "Drag & drop drawings here",
+                          ],
+                          onChanged: (val) {
+                            setState(() {
+                              _selectedImportLevelKey = val;
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 16),
+
+                        // File Dropzone / Picker Box
+                        InkWell(
+                          onTap: () async {
+                            final result = await FilePicker.platform.pickFiles(
+                              type: FileType.custom,
+                              allowedExtensions: [
+                                'pdf',
+                                'dwg',
+                                'dxf',
+                                'png',
+                                'jpg',
+                                'jpeg',
+                              ],
+                            );
+                            if (result != null && result.files.isNotEmpty) {
+                              setState(() {
+                                _selectedDrawingFile = result.files.first;
+                              });
+                            }
+                          },
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 28,
+                              horizontal: 16,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? Colors.white.withValues(alpha: 0.04)
+                                  : const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: _selectedDrawingFile != null
+                                    ? const Color(0xFF0D6EFD)
+                                    : (isDark
+                                          ? Colors.white24
+                                          : Colors.grey.shade300),
+                                width: 1.5,
+                                style: BorderStyle.solid,
+                              ),
+                            ),
+                            child: Column(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: const Color(
+                                      0xFF0D6EFD,
+                                    ).withValues(alpha: 0.1),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.cloud_upload_outlined,
+                                    size: 32,
+                                    color: Color(0xFF0D6EFD),
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                if (_selectedDrawingFile != null) ...[
+                                  Text(
+                                    _selectedDrawingFile!.name,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                      color: textColor,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    "${(_selectedDrawingFile!.size / 1024).toStringAsFixed(1)} KB",
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: textSecondary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  TextButton.icon(
+                                    onPressed: () {
+                                      setState(() {
+                                        _selectedDrawingFile = null;
+                                      });
+                                    },
+                                    icon: const Icon(
+                                      Icons.close,
+                                      size: 14,
+                                      color: Colors.redAccent,
+                                    ),
+                                    label: const Text(
+                                      "Remove File",
+                                      style: TextStyle(
+                                        color: Colors.redAccent,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                ] else ...[
+                                  Text(
+                                    "Drag & drop drawings here",
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                      color: textColor,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    "or click to browse - PDFs, CAD files and images",
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: textSecondary,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    "No files selected yet.",
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Upload Button
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF0D6EFD),
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          onPressed: _isUploadingDrawing
+                              ? null
+                              : _uploadDrawingForSelectedLevel,
+                          child: _isUploadingDrawing
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Text(
+                                  "Upload",
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 14,
-                                    color: textColor,
+                                    fontFamily: 'Inter',
                                   ),
                                 ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  "or click to browse - PDFs, CAD files and images",
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: textSecondary,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  "No files selected yet.",
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: textSecondary,
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
                         ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Upload Button
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF0D6EFD),
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        onPressed: _isUploadingDrawing
-                            ? null
-                            : _uploadDrawingForSelectedLevel,
-                        child: _isUploadingDrawing
-                            ? const SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Text(
-                                "Upload",
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                  fontFamily: 'Inter',
-                                ),
-                              ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
 
                 const SizedBox(height: 20),
 

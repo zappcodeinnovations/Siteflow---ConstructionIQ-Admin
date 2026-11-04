@@ -1077,9 +1077,53 @@ class ProjectsScreenState extends State<ProjectsScreen> {
           return Center(
             child: Padding(
               padding: const EdgeInsets.all(40.0),
-              child: Text(
-                _controller.errorMessage!,
-                style: const TextStyle(color: Colors.red),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1473E6).withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.cloud_off_rounded,
+                      color: Color(0xFF1473E6),
+                      size: 28,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Projects could not be loaded',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: primaryTextColor,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _controller.errorMessage!,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: secondaryTextColor,
+                      fontSize: 13,
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  OutlinedButton.icon(
+                    onPressed: () => _controller.fetchProjects(),
+                    icon: const Icon(Icons.refresh_rounded, size: 18),
+                    label: const Text('Try again'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF1473E6),
+                      side: const BorderSide(color: Color(0xFF1473E6)),
+                    ),
+                  ),
+                ],
               ),
             ),
           );
@@ -1685,10 +1729,12 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                               final String fullName =
                                   '${workerItem['first_name'] ?? ''} ${workerItem['last_name'] ?? ''}'
                                       .trim();
-                              final String? fallbackName =
-                                  workerItem['name']?.toString().trim();
-                              final String? workerEmail =
-                                  workerItem['email']?.toString().trim();
+                              final String? fallbackName = workerItem['name']
+                                  ?.toString()
+                                  .trim();
+                              final String? workerEmail = workerItem['email']
+                                  ?.toString()
+                                  .trim();
                               final String workerId =
                                   workerItem['id']?.toString() ?? '';
 
@@ -1707,9 +1753,10 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                                 name = 'Member #$workerId';
                               }
 
-                              role = (workerItem['role_display_name'] ??
-                                      workerItem['role'])
-                                  ?.toString();
+                              role =
+                                  (workerItem['role_display_name'] ??
+                                          workerItem['role'])
+                                      ?.toString();
                               email = workerEmail;
                             } else {
                               name = 'Member #$workerItem';
@@ -1961,11 +2008,13 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                     final loadedOperatives =
                         results[1] as List<ProjectAssignableOperative>;
 
-                    final Map<int, ProjectAssignableOperative> operativeMap = {};
+                    final Map<int, ProjectAssignableOperative> operativeMap =
+                        {};
 
                     if (assignmentData != null) {
                       // Preserve existing team IDs so saving does not drop teams
-                      final rawTeamIds = assignmentData['selected_team_ids'] ??
+                      final rawTeamIds =
+                          assignmentData['selected_team_ids'] ??
                           assignmentData['team_ids'];
                       if (rawTeamIds is List) {
                         existingTeamIds = rawTeamIds
@@ -2046,9 +2095,9 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                         if (aSelected != bSelected) {
                           return aSelected ? -1 : 1;
                         }
-                        return a.displayName
-                            .toLowerCase()
-                            .compareTo(b.displayName.toLowerCase());
+                        return a.displayName.toLowerCase().compareTo(
+                          b.displayName.toLowerCase(),
+                        );
                       });
 
                     setDialogState(() {
@@ -2464,7 +2513,8 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                                       final success = await _controller
                                           .assignProject(
                                             project.id,
-                                            teamIds: existingTeamIds ?? const [],
+                                            teamIds:
+                                                existingTeamIds ?? const [],
                                             workerIds: selectedWorkerIds,
                                           );
                                       if (dialogContext.mounted) {
