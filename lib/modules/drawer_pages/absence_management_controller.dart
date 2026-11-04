@@ -274,6 +274,7 @@ class AbsenceManagementController extends ChangeNotifier {
     required String startDate,
     required String endDate,
     bool isPartialDay = false,
+    String halfDaySession = 'first_half',
     String reason = '',
     String notes = '',
   }) async {
@@ -289,6 +290,9 @@ class AbsenceManagementController extends ChangeNotifier {
         'reason': reason,
         'notes': notes,
       };
+      if (isPartialDay) {
+        payload['half_day_session'] = halfDaySession;
+      }
       if (projectId != null && projectId > 0) {
         payload['project_id'] = projectId;
       }

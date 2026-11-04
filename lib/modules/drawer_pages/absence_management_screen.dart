@@ -795,8 +795,9 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
                           vertical: 3,
                         ),
                         decoration: BoxDecoration(
-                          color:
-                              const Color(0xFF0D6EFD).withValues(alpha: 0.08),
+                          color: const Color(
+                            0xFF0D6EFD,
+                          ).withValues(alpha: 0.08),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Row(
@@ -827,10 +828,9 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
                           vertical: 3,
                         ),
                         decoration: BoxDecoration(
-                          color:
-                              isDark
-                                  ? Colors.white12
-                                  : const Color(0xFFF1F5F9),
+                          color: isDark
+                              ? Colors.white12
+                              : const Color(0xFFF1F5F9),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
@@ -844,9 +844,7 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
                       ),
 
                       if (record.isPartialDay &&
-                          !record.durationLabel
-                              .toLowerCase()
-                              .contains('half'))
+                          !record.durationLabel.toLowerCase().contains('half'))
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 6,
@@ -1297,6 +1295,7 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
       end: DateTime.now(),
     );
     bool partialDay = false;
+    String halfDaySession = 'first_half';
     final reasonCtrl = TextEditingController();
     final notesCtrl = TextEditingController();
     bool isSubmitting = false;
@@ -1456,13 +1455,39 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
                     ),
                     const SizedBox(height: 12),
 
-                    // Partial Day Switch
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
                       title: const Text('Partial Day (Half Day)'),
                       value: partialDay,
-                      onChanged: (val) => setSheetState(() => partialDay = val),
+                      onChanged: (val) => setSheetState(() {
+                        partialDay = val;
+                        if (!val) halfDaySession = 'first_half';
+                      }),
                     ),
+                    if (partialDay)
+                      DropdownButtonFormField<String>(
+                        initialValue: halfDaySession,
+                        decoration: const InputDecoration(
+                          labelText: 'Half Day Session *',
+                          prefixIcon: Icon(Icons.schedule_outlined),
+                          border: OutlineInputBorder(),
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'first_half',
+                            child: Text('First Half'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'second_half',
+                            child: Text('Second Half'),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          if (value != null) {
+                            setSheetState(() => halfDaySession = value);
+                          }
+                        },
+                      ),
                     const SizedBox(height: 8),
 
                     // Reason Field
@@ -1543,6 +1568,7 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
                                   startDate: startStr,
                                   endDate: endStr,
                                   isPartialDay: partialDay,
+                                  halfDaySession: halfDaySession,
                                   reason: reasonCtrl.text.trim(),
                                   notes: notesCtrl.text.trim(),
                                 );
