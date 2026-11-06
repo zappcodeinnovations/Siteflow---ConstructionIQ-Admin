@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
+import '../../../core/services/auth_service.dart';
 import 'drawing_pin_viewer_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
@@ -29,6 +30,7 @@ class DrawingsTab extends StatefulWidget {
 
 class _DrawingsTabState extends State<DrawingsTab> {
   List<Map<String, dynamic>> _fetchedDrawings = [];
+  bool _canDeleteDrawings = false;
 
   // Site Filter Hierarchical State
   bool _isAllSelected = true;
@@ -40,6 +42,18 @@ class _DrawingsTabState extends State<DrawingsTab> {
     super.initState();
     _initAllSelections();
     _fetchLiveDrawings();
+    _loadPermissions();
+  }
+
+  Future<void> _loadPermissions() async {
+    try {
+      final isSupervisor = await AuthService.isSupervisorUser();
+      final canDel = !isSupervisor && await AuthService.can('projects', action: 'delete');
+      if (!mounted) return;
+      setState(() {
+        _canDeleteDrawings = canDel;
+      });
+    } catch (_) {}
   }
 
   @override
@@ -534,14 +548,15 @@ class _DrawingsTabState extends State<DrawingsTab> {
                               await _restoreDrawing(item['id']);
                             },
                           ),
-                          IconButton(
-                            icon: const Icon(Icons.delete_forever, color: Colors.redAccent, size: 20),
-                            tooltip: "Delete Permanently",
-                            onPressed: () async {
-                              Navigator.pop(dialogCtx);
-                              await _permanentlyDeleteDrawing(item['id']);
-                            },
-                          ),
+                          if (_canDeleteDrawings)
+                            IconButton(
+                              icon: const Icon(Icons.delete_forever, color: Colors.redAccent, size: 20),
+                              tooltip: "Delete Permanently",
+                              onPressed: () async {
+                                Navigator.pop(dialogCtx);
+                                await _permanentlyDeleteDrawing(item['id']);
+                              },
+                            ),
                         ],
                       ),
                     );
@@ -606,18 +621,29 @@ class _DrawingsTabState extends State<DrawingsTab> {
                 ? null
                 : () => launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
           ),
-          IconButton(
-            tooltip: "Delete",
-            visualDensity: VisualDensity.compact,
-            icon: const Icon(IconlyLight.delete, size: 18, color: Colors.redAccent),
-            onPressed: drawing['id'] == null ? null : () => _confirmDeleteDrawing(drawing['id'], name),
-          ),
+          if (_canDeleteDrawings)
+            IconButton(
+              tooltip: "Delete",
+              visualDensity: VisualDensity.compact,
+              icon: const Icon(IconlyLight.delete, size: 18, color: Colors.redAccent),
+              onPressed: drawing['id'] == null ? null : () => _confirmDeleteDrawing(drawing['id'], name),
+            ),
         ],
       ),
     );
   }
 
   Future<void> _confirmDeleteDrawing(dynamic drawingId, String name) async {
+    if (!_canDeleteDrawings) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("You do not have permission to delete drawings."),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -639,17 +665,37 @@ class _DrawingsTabState extends State<DrawingsTab> {
           '?module=drawings&drawing_id=$drawingId';
       final response = await ApiClient.delete(url);
       if (!mounted) return;
-      final ok = response.statusCode == 200;
-      if (ok) {
+      if (response.statusCode == 200 || response.statusCode == 204) {
         widget.onChanged?.call();
         _fetchLiveDrawings();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Drawing moved to Recycle Bin."),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else if (response.statusCode == 403) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("You do not have permission to delete drawings."),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      } else {
+        String msg = "Failed to delete drawing.";
+        try {
+          final decoded = jsonDecode(response.body);
+          if (decoded is Map && decoded['message'] != null) {
+            msg = decoded['message'].toString();
+          }
+        } catch (_) {}
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(msg),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(ok ? "Drawing moved to Recycle Bin." : "Failed to delete drawing."),
-          backgroundColor: ok ? Colors.green : Colors.redAccent,
-        ),
-      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -703,17 +749,45 @@ class _DrawingsTabState extends State<DrawingsTab> {
 
   Future<void> _permanentlyDeleteDrawing(dynamic drawingId) async {
     if (drawingId == null) return;
+    if (!_canDeleteDrawings) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("You do not have permission to delete drawings."),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+      return;
+    }
     try {
       final url = '${ApiEndpoints.baseUrl}/drawing/locations/$drawingId/permanent-delete/';
       final response = await ApiClient.delete(url);
+      if (!mounted) return;
       if (response.statusCode == 200 || response.statusCode == 204) {
         widget.onChanged?.call();
         _fetchLiveDrawings();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Drawing deleted permanently."), backgroundColor: Colors.green),
-          );
-        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Drawing deleted permanently."), backgroundColor: Colors.green),
+        );
+      } else if (response.statusCode == 403) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("You do not have permission to delete drawings."),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      } else {
+        String msg = "Delete failed.";
+        try {
+          final decoded = jsonDecode(response.body);
+          if (decoded is Map && decoded['message'] != null) {
+            msg = decoded['message'].toString();
+          }
+        } catch (_) {}
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(msg), backgroundColor: Colors.redAccent),
+        );
       }
     } catch (e) {
       if (mounted) {

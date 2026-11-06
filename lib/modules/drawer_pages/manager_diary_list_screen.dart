@@ -48,8 +48,10 @@ class _ManagerDiaryListScreenState extends State<ManagerDiaryListScreen> {
   }
 
   void _openEntry(ManagerDiaryEntry entry) {
-    if (entry.formId == null) return;
-    final url = '${ApiEndpoints.baseUrl}${ApiEndpoints.userFormHtml(entry.formId!)}?manager_diary=1&submission_id=${entry.id}';
+    final formId = entry.formId;
+    final url = formId != null
+        ? '${ApiEndpoints.baseUrl}${ApiEndpoints.userFormHtml(formId)}?manager_diary=1&submission_id=${entry.id}'
+        : '${ApiEndpoints.baseUrl}/job-sheets/user_form/${entry.id}/html/';
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => JobSheetWebviewScreen(url: url, title: entry.formName)),

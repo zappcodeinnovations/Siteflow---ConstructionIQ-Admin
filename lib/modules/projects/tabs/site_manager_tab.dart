@@ -1534,6 +1534,12 @@ class _SiteManagerTabState extends State<SiteManagerTab> {
 
   // Action: Import CSV File
   Future<void> _importCsvFile() async {
+    // CSV import mutates the project site structure, so it follows the same
+    // project edit permission as the other location-management actions.
+    if (!_canUploadDrawings || widget.projectId == null || _isImportingCsv) {
+      return;
+    }
+
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['csv'],
@@ -2693,7 +2699,13 @@ class _SiteManagerTabState extends State<SiteManagerTab> {
                             child: ElevatedButton.icon(
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF10B981),
+                                disabledBackgroundColor: isDark
+                                    ? const Color(0xFF374151)
+                                    : const Color(0xFFD1D5DB),
                                 foregroundColor: Colors.white,
+                                disabledForegroundColor: isDark
+                                    ? const Color(0xFF9CA3AF)
+                                    : const Color(0xFF6B7280),
                                 elevation: 0,
                                 padding: const EdgeInsets.symmetric(
                                   vertical: 12,
@@ -2702,9 +2714,12 @@ class _SiteManagerTabState extends State<SiteManagerTab> {
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                               ),
-                              onPressed: _isImportingCsv
-                                  ? null
-                                  : _importCsvFile,
+                              onPressed:
+                                  (_canUploadDrawings &&
+                                      widget.projectId != null &&
+                                      !_isImportingCsv)
+                                  ? _importCsvFile
+                                  : null,
                               icon: _isImportingCsv
                                   ? const SizedBox(
                                       width: 16,

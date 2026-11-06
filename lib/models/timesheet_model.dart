@@ -151,6 +151,7 @@ class TimesheetRecord {
     final parsedEntries = entriesList.map((i) => ProjectEntry.fromJson(i)).toList();
     final isOpen = json['is_open_session'] == true ||
         json['attendance_state'] == 'clocked_in' ||
+        json['attendance_state'] == 'not_clocked_out' ||
         (json['clock_in'] != null &&
             json['clock_in'].toString().isNotEmpty &&
             (json['clock_out'] == null || json['clock_out'].toString().isEmpty));

@@ -570,7 +570,7 @@ Page resource error:
       // ApiClient guarantees the same authenticated request/refresh flow the
       // rest of the app uses, then keeps the original URL as the document's
       // base so relative assets and form endpoints still resolve correctly.
-      final response = await ApiClient.get(sourceUrl);
+      final response = await ApiClient.getHtml(sourceUrl);
       if (response.statusCode >= 200 && response.statusCode < 300) {
         await _controller.loadHtmlString(response.body, baseUrl: sourceUrl);
         return;

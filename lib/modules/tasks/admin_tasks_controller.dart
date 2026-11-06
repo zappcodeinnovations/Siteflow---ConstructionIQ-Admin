@@ -81,7 +81,7 @@ class AdminTasksController extends ChangeNotifier {
     return options;
   }
 
-  static const String _cacheName = 'tasks_page1';
+  static const String _cacheName = 'tasks_page1_v2';
 
   bool get _isDefaultView =>
       _status == 'all' &&

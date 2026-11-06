@@ -1,9 +1,11 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
+import '../../../core/services/auth_service.dart';
 
 class TasksTab extends StatefulWidget {
   final List<dynamic> tasks;
@@ -17,6 +19,23 @@ class TasksTab extends StatefulWidget {
 
 class _TasksTabState extends State<TasksTab> {
   String _selectedStatus = 'Status: All';
+  bool _canDelete = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPermissions();
+  }
+
+  Future<void> _loadPermissions() async {
+    try {
+      final canDel = await AuthService.can('tasks', action: 'delete');
+      if (!mounted) return;
+      setState(() {
+        _canDelete = canDel;
+      });
+    } catch (_) {}
+  }
 
   static const List<String> _statusOptions = [
     'Status: All',
@@ -518,22 +537,24 @@ class _TasksTabState extends State<TasksTab> {
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              TextButton.icon(
-                onPressed: () => _confirmAndDeleteTask(context, task),
-                icon: const Icon(
-                  IconlyLight.delete,
-                  size: 16,
-                  color: Colors.red,
-                ),
-                label: const Text(
-                  "Delete",
-                  style: TextStyle(
+              if (_canDelete) ...[
+                TextButton.icon(
+                  onPressed: () => _confirmAndDeleteTask(context, task),
+                  icon: const Icon(
+                    IconlyLight.delete,
+                    size: 16,
                     color: Colors.red,
-                    fontWeight: FontWeight.w600,
+                  ),
+                  label: const Text(
+                    "Delete",
+                    style: TextStyle(
+                      color: Colors.red,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
+                const SizedBox(width: 12),
+              ],
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: isDark ? Colors.white10 : Colors.white,
@@ -565,6 +586,16 @@ class _TasksTabState extends State<TasksTab> {
   Future<void> _confirmAndDeleteTask(BuildContext context, dynamic task) async {
     final taskId = task is Map ? task['id'] : null;
     if (taskId == null) return;
+
+    if (!_canDelete) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("You do not have permission to delete this task."),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -603,10 +634,26 @@ class _TasksTabState extends State<TasksTab> {
           ),
         );
         widget.onChanged?.call();
+      } else if (response.statusCode == 403) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("You do not have permission to delete this task."),
+            backgroundColor: Colors.red,
+          ),
+        );
       } else {
+        String errorMsg = "Failed to delete task";
+        try {
+          final decoded = jsonDecode(response.body);
+          if (decoded is Map && decoded['message'] != null) {
+            errorMsg = decoded['message'].toString();
+          } else if (decoded is Map && decoded['detail'] != null) {
+            errorMsg = decoded['detail'].toString();
+          }
+        } catch (_) {}
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Failed to delete task (${response.statusCode})"),
+            content: Text(errorMsg),
             backgroundColor: Colors.red,
           ),
         );

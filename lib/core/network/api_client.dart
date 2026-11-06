@@ -186,6 +186,7 @@ class ApiClient {
     required String method,
     required String url,
     dynamic body,
+    bool allowHtml = false,
     required Future<http.Response> Function(Map<String, String> headers)
     requestAction,
   }) async {
@@ -215,7 +216,7 @@ class ApiClient {
           request: response.request,
         );
       }
-      if (_isHtmlResponse(response)) {
+      if (!allowHtml && _isHtmlResponse(response)) {
         const message =
             'Unable to load data right now. Check your internet connection and try again.';
         return http.Response(
@@ -272,6 +273,18 @@ class ApiClient {
     return _executeWithLogging(
       method: 'GET',
       url: url,
+      requestAction: (headers) => _client.get(Uri.parse(url), headers: headers),
+    );
+  }
+
+  /// Authenticated GET for submitted-form previews. Unlike normal API calls,
+  /// this endpoint intentionally returns HTML and must not be reclassified as
+  /// an invalid server response.
+  static Future<http.Response> getHtml(String url) async {
+    return _executeWithLogging(
+      method: 'GET',
+      url: url,
+      allowHtml: true,
       requestAction: (headers) => _client.get(Uri.parse(url), headers: headers),
     );
   }
