@@ -8,6 +8,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
 import '../../../core/services/auth_service.dart';
+import '../../../core/utils/snackbar_helper.dart';
 import '../../../core/services/download_manager.dart';
 import '../../../models/site_structure_models.dart';
 import 'drawing_pin_viewer_screen.dart';
@@ -723,14 +724,15 @@ class _SiteManagerTabState extends State<SiteManagerTab> {
                       ),
                     );
                   } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
+                    // 403 (no "projects" edit) is an access notice, shown
+                    // in informational blue like other permission
+                    // restrictions (ClickUp 14yjutqgq6k).
+                    showApiFailureSnackbar(
+                      context,
+                      statusCode: response.statusCode,
+                      message:
                           decoded['message']?.toString() ??
-                              'Failed to create block.',
-                        ),
-                        backgroundColor: Colors.redAccent,
-                      ),
+                          'Failed to create block.',
                     );
                   }
                 } catch (e) {

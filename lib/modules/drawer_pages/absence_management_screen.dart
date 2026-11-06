@@ -1607,24 +1607,24 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
                         onPressed: isSubmitting
                             ? null
                             : () async {
+                                // Shown as a popup over the sheet: a
+                                // SnackBar goes to the screen's Scaffold
+                                // underneath and is hidden by this bottom
+                                // sheet (ClickUp 14yjutqgnwz).
                                 if (selectedOpId == null) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'Please select an operative.',
-                                      ),
-                                    ),
+                                  await _showSheetAlert(
+                                    sheetCtx,
+                                    'Operative required',
+                                    'Please select an operative.',
                                   );
                                   return;
                                 }
                                 if (selectedType == 'other' &&
                                     reasonCtrl.text.trim().isEmpty) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'Please provide a reason for Other absence.',
-                                      ),
-                                    ),
+                                  await _showSheetAlert(
+                                    sheetCtx,
+                                    'Reason required',
+                                    'Please provide a reason for Other absence.',
                                   );
                                   return;
                                 }
@@ -1654,8 +1654,25 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
                                   notes: notesCtrl.text.trim(),
                                 );
 
-                                if (sheetCtx.mounted &&
-                                    result['success'] == true) {
+                                if (result['success'] != true) {
+                                  // The sheet stays open on failure, so
+                                  // stop the spinner and show the reason
+                                  // over it; previously isSubmitting was
+                                  // never reset, leaving an endless
+                                  // spinner (ClickUp 14yjutqgq68).
+                                  if (sheetCtx.mounted) {
+                                    setSheetState(() => isSubmitting = false);
+                                    await _showSheetAlert(
+                                      sheetCtx,
+                                      'Unable to record absence',
+                                      result['message']?.toString() ??
+                                          'Unable to record absence.',
+                                    );
+                                  }
+                                  return;
+                                }
+
+                                if (sheetCtx.mounted) {
                                   Navigator.pop(sheetCtx);
                                 }
 
@@ -1700,6 +1717,26 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
 
     reasonCtrl.dispose();
     notesCtrl.dispose();
+  }
+
+  Future<void> _showSheetAlert(
+    BuildContext ctx,
+    String title,
+    String message,
+  ) {
+    return showDialog<void>(
+      context: ctx,
+      builder: (dialogCtx) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   // Approve Confirmation
