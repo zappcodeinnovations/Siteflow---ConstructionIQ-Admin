@@ -20,6 +20,12 @@ class ApiClientException implements Exception {
 
 class ApiClient {
   static final http.Client _client = http.Client();
+
+  /// True while the last request failed to reach the server (timeout or no
+  /// connection); cleared by the next response that arrives. Drives the
+  /// app-wide connection banner so screens don't each show their own raw
+  /// timeout error (ClickUp 14yjutqgnrq).
+  static final ValueNotifier<bool> connectionProblem = ValueNotifier(false);
   static const Duration _requestTimeout = Duration(seconds: 30);
   static String? _deviceTimezone;
   static bool _timeDisplayPreferenceLoaded = false;
@@ -199,6 +205,7 @@ class ApiClient {
         () => requestAction(headers).timeout(_requestTimeout),
       );
       stopwatch.stop();
+      connectionProblem.value = false;
       AppLogger.response(
         method,
         url,
@@ -236,6 +243,7 @@ class ApiClient {
         stackTrace: stack,
         durationMs: stopwatch.elapsedMilliseconds,
       );
+      if (_isConnectionFailure(e)) connectionProblem.value = true;
       throw _friendlyNetworkException(e);
     }
   }
@@ -264,6 +272,11 @@ class ApiClient {
       'Unable to load data right now. Please try again.',
     );
   }
+
+  static bool _isConnectionFailure(Object error) =>
+      error is TimeoutException ||
+      error is SocketException ||
+      error is http.ClientException;
 
   static String friendlyErrorMessage(Object error) {
     return _friendlyNetworkException(error).message;
@@ -367,6 +380,7 @@ class ApiClient {
       }).timeout(_requestTimeout);
 
       stopwatch.stop();
+      connectionProblem.value = false;
       AppLogger.response(
         'POST (MULTIPART)',
         url,
@@ -394,6 +408,7 @@ class ApiClient {
         stackTrace: stack,
         durationMs: stopwatch.elapsedMilliseconds,
       );
+      if (_isConnectionFailure(e)) connectionProblem.value = true;
       throw _friendlyNetworkException(e);
     }
   }

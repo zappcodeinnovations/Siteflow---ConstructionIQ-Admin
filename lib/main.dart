@@ -11,6 +11,7 @@ import 'core/widgets/download_progress_overlay.dart';
 import 'core/services/app_update_service.dart';
 import 'core/widgets/app_update_overlay.dart';
 import 'core/widgets/global_keyboard_dismiss.dart';
+import 'core/widgets/connection_banner.dart';
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
@@ -116,6 +117,7 @@ class MyApp extends StatelessWidget {
                       navigatorKey.currentState?.pushNamed('/downloads'),
                 ),
                 const AppUpdateOverlay(),
+                const ConnectionBanner(),
               ],
             ),
           ),
