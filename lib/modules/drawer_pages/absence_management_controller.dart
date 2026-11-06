@@ -119,7 +119,7 @@ class AbsenceManagementController extends ChangeNotifier {
             decoded['message']?.toString() ?? 'Failed to load absence records.';
       }
     } catch (e) {
-      _errorMessage = 'An error occurred: $e';
+      _errorMessage = ApiClient.friendlyErrorMessage(e);
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -194,7 +194,7 @@ class AbsenceManagementController extends ChangeNotifier {
         'message': decoded['message'] ?? 'Unable to approve absence.',
       };
     } catch (e) {
-      return {'success': false, 'message': 'Network error: $e'};
+      return {'success': false, 'message': ApiClient.friendlyErrorMessage(e)};
     } finally {
       _isActionLoading = false;
       notifyListeners();
@@ -231,7 +231,7 @@ class AbsenceManagementController extends ChangeNotifier {
         'message': decoded['message'] ?? 'Unable to reject absence.',
       };
     } catch (e) {
-      return {'success': false, 'message': 'Network error: $e'};
+      return {'success': false, 'message': ApiClient.friendlyErrorMessage(e)};
     } finally {
       _isActionLoading = false;
       notifyListeners();
@@ -260,7 +260,7 @@ class AbsenceManagementController extends ChangeNotifier {
         'message': decoded['message'] ?? 'Unable to cancel absence.',
       };
     } catch (e) {
-      return {'success': false, 'message': 'Network error: $e'};
+      return {'success': false, 'message': ApiClient.friendlyErrorMessage(e)};
     } finally {
       _isActionLoading = false;
       notifyListeners();
@@ -335,7 +335,7 @@ class AbsenceManagementController extends ChangeNotifier {
         'message': decoded['message'] ?? 'Unable to record absence.',
       };
     } catch (e) {
-      return {'success': false, 'message': 'Network error: $e'};
+      return {'success': false, 'message': ApiClient.friendlyErrorMessage(e)};
     } finally {
       _isActionLoading = false;
       notifyListeners();

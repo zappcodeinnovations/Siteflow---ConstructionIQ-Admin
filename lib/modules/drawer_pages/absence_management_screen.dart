@@ -257,32 +257,7 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
                     else if (_controller.errorMessage != null)
                       SliverFillRemaining(
                         hasScrollBody: false,
-                        child: Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(24.0),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(
-                                  Icons.error_outline,
-                                  size: 48,
-                                  color: Colors.red,
-                                ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  _controller.errorMessage!,
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(fontSize: 14),
-                                ),
-                                const SizedBox(height: 16),
-                                FilledButton(
-                                  onPressed: () => _controller.fetchAbsences(),
-                                  child: const Text('Try Again'),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
+                        child: _buildErrorState(isDark),
                       )
                     else if (_controller.absences.isEmpty)
                       SliverFillRemaining(
@@ -1049,6 +1024,112 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
     return '$formattedStart - $formattedEnd';
   }
 
+  Widget _buildErrorState(bool isDark) {
+    final rawMsg = _controller.errorMessage ?? 'Unable to load absence records.';
+    final cleanMsg = rawMsg
+        .replaceFirst(
+          RegExp(
+            r'^(An error occurred|Exception|Error|Network error):\s*',
+            caseSensitive: false,
+          ),
+          '',
+        )
+        .trim();
+    final isOffline = cleanMsg.toLowerCase().contains('internet') ||
+        cleanMsg.toLowerCase().contains('connection') ||
+        cleanMsg.toLowerCase().contains('network') ||
+        cleanMsg.toLowerCase().contains('offline');
+
+    final title = isOffline ? 'No Internet Connection' : 'Unable to Load Absences';
+    final description = isOffline
+        ? 'Please check your connection and tap Try Again to reload absence records.'
+        : cleanMsg;
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 28.0, vertical: 32.0),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 380),
+          padding: const EdgeInsets.all(28.0),
+          decoration: BoxDecoration(
+            color: isDark ? AppTheme.darkSurfaceRaised : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isDark ? AppTheme.darkBorder : Colors.grey.shade200,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.05),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: (isOffline ? const Color(0xFFF59E0B) : const Color(0xFFEF4444))
+                      .withValues(alpha: 0.14),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  isOffline ? Icons.wifi_off_rounded : Icons.error_outline_rounded,
+                  size: 32,
+                  color: isOffline ? const Color(0xFFF59E0B) : const Color(0xFFEF4444),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                description,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13,
+                  height: 1.45,
+                  color: isDark ? AppTheme.darkMuted : Colors.black54,
+                ),
+              ),
+              const SizedBox(height: 22),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppTheme.corporateBlue,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 0,
+                  ),
+                  icon: const Icon(Icons.refresh_rounded, size: 18),
+                  label: const Text(
+                    'Try Again',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
+                  onPressed: () => _controller.fetchAbsences(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildEmptyState(bool isDark) {
     return Center(
       child: Padding(
@@ -1623,24 +1704,121 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
 
   // Approve Confirmation
   Future<void> _confirmApprove(AbsenceRecord record) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dlgCtx) => AlertDialog(
-        title: const Text('Approve Absence Request'),
-        content: Text(
-          'Are you sure you want to approve the absence request for ${record.operativeName} from ${_formatDate(record.startDate)} to ${_formatDate(record.endDate)}?',
+        backgroundColor: isDark ? AppTheme.darkSurfaceRaised : Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: isDark
+              ? const BorderSide(color: AppTheme.darkBorder)
+              : BorderSide.none,
+        ),
+        titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+        actionsPadding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF198754).withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.check_circle_outline_rounded,
+                color: Color(0xFF198754),
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Approve Request',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Are you sure you want to approve this absence request?',
+              style: TextStyle(
+                fontSize: 14,
+                color: isDark ? AppTheme.darkMuted : Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 14),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: isDark ? AppTheme.darkBackground : const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isDark ? AppTheme.darkBorder : Colors.grey.shade200,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.person_outline, size: 16, color: AppTheme.corporateBlue),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          record.operativeName,
+                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Icon(Icons.calendar_today_outlined, size: 15, color: Colors.grey),
+                      const SizedBox(width: 6),
+                      Text(
+                        '${_formatDate(record.startDate)} - ${_formatDate(record.endDate)}',
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                    ],
+                  ),
+                  if (record.isPartialDay) ...[
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Session: Half Day',
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dlgCtx, false),
-            child: const Text('Cancel'),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: isDark ? Colors.white70 : Colors.black54),
+            ),
           ),
-          FilledButton(
+          FilledButton.icon(
             style: FilledButton.styleFrom(
               backgroundColor: const Color(0xFF198754),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
             ),
+            icon: const Icon(Icons.check, size: 18),
+            label: const Text('Confirm Approval'),
             onPressed: () => Navigator.pop(dlgCtx, true),
-            child: const Text('Confirm Approval'),
           ),
         ],
       ),
@@ -1649,12 +1827,7 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
     if (confirmed == true) {
       final res = await _controller.approveAbsence(record.id);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(res['message']?.toString() ?? ''),
-            backgroundColor: res['success'] == true ? Colors.green : Colors.red,
-          ),
-        );
+        _showActionFeedback(res);
       }
     }
   }
@@ -1663,11 +1836,44 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
   Future<void> _promptRejectReason(AbsenceRecord record) async {
     final reasonCtrl = TextEditingController();
     final formKey = GlobalKey<FormState>();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dlgCtx) => AlertDialog(
-        title: const Text('Reject Absence Request'),
+        backgroundColor: isDark ? AppTheme.darkSurfaceRaised : Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: isDark
+              ? const BorderSide(color: AppTheme.darkBorder)
+              : BorderSide.none,
+        ),
+        titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+        actionsPadding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFDC3545).withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.cancel_outlined,
+                color: Color(0xFFDC3545),
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Reject Request',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
         content: Form(
           key: formKey,
           child: Column(
@@ -1676,17 +1882,27 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
             children: [
               Text(
                 'Rejecting absence for ${record.operativeName}. A rejection reason is mandatory.',
-                style: const TextStyle(fontSize: 13),
+                style: TextStyle(
+                  fontSize: 13,
+                  color: isDark ? AppTheme.darkMuted : Colors.black87,
+                ),
               ),
               const SizedBox(height: 14),
               TextFormField(
                 controller: reasonCtrl,
                 maxLines: 3,
                 autofocus: true,
-                decoration: const InputDecoration(
+                style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                decoration: InputDecoration(
                   labelText: 'Rejection Reason *',
                   hintText: 'Enter why this request is being rejected...',
-                  border: OutlineInputBorder(),
+                  filled: true,
+                  fillColor: isDark ? AppTheme.darkBackground : const Color(0xFFF8FAFC),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: isDark ? AppTheme.darkBorder : Colors.grey.shade300),
+                  ),
                 ),
                 validator: (val) {
                   if (val == null || val.trim().isEmpty) {
@@ -1701,18 +1917,25 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dlgCtx, false),
-            child: const Text('Cancel'),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: isDark ? Colors.white70 : Colors.black54),
+            ),
           ),
-          FilledButton(
+          FilledButton.icon(
             style: FilledButton.styleFrom(
               backgroundColor: const Color(0xFFDC3545),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
             ),
+            icon: const Icon(Icons.close, size: 18),
+            label: const Text('Confirm Rejection'),
             onPressed: () {
               if (formKey.currentState?.validate() == true) {
                 Navigator.pop(dlgCtx, true);
               }
             },
-            child: const Text('Confirm Rejection'),
           ),
         ],
       ),
@@ -1724,12 +1947,7 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
         reasonCtrl.text.trim(),
       );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(res['message']?.toString() ?? ''),
-            backgroundColor: res['success'] == true ? Colors.green : Colors.red,
-          ),
-        );
+        _showActionFeedback(res);
       }
     }
     reasonCtrl.dispose();
@@ -1737,21 +1955,64 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
 
   // Cancel Confirmation
   Future<void> _confirmCancel(AbsenceRecord record) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dlgCtx) => AlertDialog(
-        title: const Text('Cancel Absence Request'),
+        backgroundColor: isDark ? AppTheme.darkSurfaceRaised : Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: isDark
+              ? const BorderSide(color: AppTheme.darkBorder)
+              : BorderSide.none,
+        ),
+        titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+        actionsPadding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFDC3545).withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.warning_amber_rounded,
+                color: Color(0xFFDC3545),
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Cancel Request',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
         content: Text(
           'Are you sure you want to cancel the absence for ${record.operativeName}?',
+          style: TextStyle(
+            fontSize: 14,
+            color: isDark ? AppTheme.darkMuted : Colors.black87,
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dlgCtx, false),
-            child: const Text('No, keep it'),
+            child: Text(
+              'No, keep it',
+              style: TextStyle(color: isDark ? Colors.white70 : Colors.black54),
+            ),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
               backgroundColor: const Color(0xFFDC3545),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
             ),
             onPressed: () => Navigator.pop(dlgCtx, true),
             child: const Text('Yes, Cancel Request'),
@@ -1763,35 +2024,107 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
     if (confirmed == true) {
       final res = await _controller.cancelAbsence(record.id);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(res['message']?.toString() ?? ''),
-            backgroundColor: res['success'] == true ? Colors.green : Colors.red,
-          ),
-        );
+        _showActionFeedback(res);
       }
     }
   }
 
+  void _showActionFeedback(Map<String, dynamic> res) {
+    final success = res['success'] == true;
+    final message = res['message']?.toString() ?? '';
+    if (message.isEmpty) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        content: Row(
+          children: [
+            Icon(
+              success ? Icons.check_circle_outline_rounded : Icons.error_outline_rounded,
+              color: Colors.white,
+              size: 20,
+            ),
+            const SizedBox(width: 10),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: success ? const Color(0xFF198754) : const Color(0xFFDC3545),
+      ),
+    );
+  }
+
   // Advanced Filter Dialog
   Future<void> _showAdvancedFilterDialog() async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     String? tempType = _controller.selectedType;
     int? tempProj = _controller.selectedProjectId;
     int? tempOp = _controller.selectedOperativeId;
     String tempSort = _controller.sort;
 
+    InputDecoration filterInputDeco(String label) => InputDecoration(
+      labelText: label,
+      filled: true,
+      fillColor: isDark ? AppTheme.darkBackground : const Color(0xFFF8FAFC),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(
+          color: isDark ? AppTheme.darkBorder : Colors.grey.shade300,
+        ),
+      ),
+    );
+
     await showDialog(
       context: context,
       builder: (dlgCtx) => StatefulBuilder(
         builder: (context, setDlgState) => AlertDialog(
-          title: const Text('Filter Absences'),
+          backgroundColor: isDark ? AppTheme.darkSurfaceRaised : Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: isDark
+                ? const BorderSide(color: AppTheme.darkBorder)
+                : BorderSide.none,
+          ),
+          titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+          actionsPadding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppTheme.corporateBlue.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.tune_rounded,
+                  color: AppTheme.corporateBlue,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Filter Absences',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 // Project dropdown
                 DropdownButtonFormField<int?>(
-                  decoration: const InputDecoration(labelText: 'Project'),
+                  decoration: filterInputDeco('Project'),
+                  dropdownColor: isDark ? AppTheme.darkSurfaceRaised : Colors.white,
+                  style: TextStyle(
+                    color: isDark ? Colors.white : Colors.black87,
+                    fontSize: 14,
+                  ),
                   initialValue: tempProj,
                   isExpanded: true,
                   items: [
@@ -1812,7 +2145,12 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
 
                 // Operative dropdown
                 DropdownButtonFormField<int?>(
-                  decoration: const InputDecoration(labelText: 'Operative'),
+                  decoration: filterInputDeco('Operative'),
+                  dropdownColor: isDark ? AppTheme.darkSurfaceRaised : Colors.white,
+                  style: TextStyle(
+                    color: isDark ? Colors.white : Colors.black87,
+                    fontSize: 14,
+                  ),
                   initialValue: tempOp,
                   isExpanded: true,
                   items: [
@@ -1833,7 +2171,12 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
 
                 // Type dropdown
                 DropdownButtonFormField<String?>(
-                  decoration: const InputDecoration(labelText: 'Absence Type'),
+                  decoration: filterInputDeco('Absence Type'),
+                  dropdownColor: isDark ? AppTheme.darkSurfaceRaised : Colors.white,
+                  style: TextStyle(
+                    color: isDark ? Colors.white : Colors.black87,
+                    fontSize: 14,
+                  ),
                   initialValue: tempType,
                   items: const [
                     DropdownMenuItem(value: null, child: Text('All Types')),
@@ -1858,7 +2201,12 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
 
                 // Sorting
                 DropdownButtonFormField<String>(
-                  decoration: const InputDecoration(labelText: 'Sort By'),
+                  decoration: filterInputDeco('Sort By'),
+                  dropdownColor: isDark ? AppTheme.darkSurfaceRaised : Colors.white,
+                  style: TextStyle(
+                    color: isDark ? Colors.white : Colors.black87,
+                    fontSize: 14,
+                  ),
                   initialValue: tempSort,
                   items: const [
                     DropdownMenuItem(
@@ -1890,9 +2238,20 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
                 _controller.resetFilters();
                 Navigator.pop(dlgCtx);
               },
-              child: const Text('Reset'),
+              child: Text(
+                'Reset',
+                style: TextStyle(color: isDark ? Colors.white70 : Colors.black54),
+              ),
             ),
-            FilledButton(
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: AppTheme.corporateBlue,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+              ),
+              icon: const Icon(Icons.check_rounded, size: 18),
+              label: const Text('Apply Filters'),
               onPressed: () {
                 _controller.setAdvancedFilters(
                   absenceType: tempType,
@@ -1902,7 +2261,6 @@ class _AbsenceManagementScreenState extends State<AbsenceManagementScreen> {
                 );
                 Navigator.pop(dlgCtx);
               },
-              child: const Text('Apply Filters'),
             ),
           ],
         ),
