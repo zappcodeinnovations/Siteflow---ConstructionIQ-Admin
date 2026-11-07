@@ -1,8 +1,11 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../core/network/api_client.dart';
 import '../../core/network/api_endpoints.dart';
 import '../../core/services/auth_service.dart';
+import '../../core/services/fcm_service.dart';
+import '../../core/utils/app_logger.dart';
 import '../../core/utils/date_helper.dart';
 import '../../models/user_model.dart';
 
@@ -22,9 +25,34 @@ class LoginController extends ChangeNotifier {
     notifyListeners();
 
     try {
+      String? fcmToken;
+      try {
+        fcmToken = await FcmService.getDeviceToken().timeout(
+          const Duration(seconds: 4),
+          onTimeout: () => null,
+        );
+      } catch (e) {
+        AppLogger.w("Could not retrieve FCM token before login: $e", tag: "LOGIN");
+      }
+
+      final Map<String, dynamic> requestBody = {
+        'email': email,
+        'password': password,
+      };
+
+      if (fcmToken != null && fcmToken.isNotEmpty) {
+        requestBody['fcm_token'] = fcmToken;
+        requestBody['device_type'] = Platform.isIOS ? 'ios' : 'android';
+      }
+
+      AppLogger.i(
+        "Submitting login request (FCM Token: ${fcmToken != null ? 'Included' : 'None'})",
+        tag: "LOGIN",
+      );
+
       final response = await ApiClient.post(
         ApiEndpoints.baseUrl + ApiEndpoints.login,
-        body: {'email': email, 'password': password},
+        body: requestBody,
       );
 
       dynamic data;

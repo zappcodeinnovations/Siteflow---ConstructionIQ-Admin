@@ -10,6 +10,7 @@ import 'core/services/download_manager.dart';
 import 'core/widgets/download_progress_overlay.dart';
 import 'core/services/app_update_service.dart';
 import 'core/widgets/app_update_overlay.dart';
+import 'core/services/fcm_service.dart';
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
@@ -63,17 +64,7 @@ void main() async {
   try {
     await Firebase.initializeApp();
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-
-    FirebaseMessaging messaging = FirebaseMessaging.instance;
-    final settings = await messaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
-    AppLogger.i(
-      "FCM Authorization Status: ${settings.authorizationStatus}",
-      tag: "FCM",
-    );
+    await FcmService.initialize();
   } catch (e, stack) {
     AppLogger.e(
       "Failed to initialize Firebase",
