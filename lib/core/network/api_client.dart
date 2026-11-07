@@ -20,6 +20,12 @@ class ApiClientException implements Exception {
 
 class ApiClient {
   static final http.Client _client = http.Client();
+
+  /// True while the last request failed to reach the server (timeout or no
+  /// connection); cleared by the next response that arrives. Drives the
+  /// app-wide connection banner so screens don't each show their own raw
+  /// timeout error (ClickUp 14yjutqgnrq).
+  static final ValueNotifier<bool> connectionProblem = ValueNotifier(false);
   static const Duration _requestTimeout = Duration(seconds: 30);
   static String? _deviceTimezone;
   static bool _timeDisplayPreferenceLoaded = false;
@@ -186,6 +192,7 @@ class ApiClient {
     required String method,
     required String url,
     dynamic body,
+    bool allowHtml = false,
     required Future<http.Response> Function(Map<String, String> headers)
     requestAction,
   }) async {
@@ -198,6 +205,7 @@ class ApiClient {
         () => requestAction(headers).timeout(_requestTimeout),
       );
       stopwatch.stop();
+      connectionProblem.value = false;
       AppLogger.response(
         method,
         url,
@@ -215,7 +223,7 @@ class ApiClient {
           request: response.request,
         );
       }
-      if (_isHtmlResponse(response)) {
+      if (!allowHtml && _isHtmlResponse(response)) {
         const message =
             'Unable to load data right now. Check your internet connection and try again.';
         return http.Response(
@@ -235,6 +243,7 @@ class ApiClient {
         stackTrace: stack,
         durationMs: stopwatch.elapsedMilliseconds,
       );
+      if (_isConnectionFailure(e)) connectionProblem.value = true;
       throw _friendlyNetworkException(e);
     }
   }
@@ -264,6 +273,11 @@ class ApiClient {
     );
   }
 
+  static bool _isConnectionFailure(Object error) =>
+      error is TimeoutException ||
+      error is SocketException ||
+      error is http.ClientException;
+
   static String friendlyErrorMessage(Object error) {
     return _friendlyNetworkException(error).message;
   }
@@ -272,6 +286,18 @@ class ApiClient {
     return _executeWithLogging(
       method: 'GET',
       url: url,
+      requestAction: (headers) => _client.get(Uri.parse(url), headers: headers),
+    );
+  }
+
+  /// Authenticated GET for submitted-form previews. Unlike normal API calls,
+  /// this endpoint intentionally returns HTML and must not be reclassified as
+  /// an invalid server response.
+  static Future<http.Response> getHtml(String url) async {
+    return _executeWithLogging(
+      method: 'GET',
+      url: url,
+      allowHtml: true,
       requestAction: (headers) => _client.get(Uri.parse(url), headers: headers),
     );
   }
@@ -354,6 +380,7 @@ class ApiClient {
       }).timeout(_requestTimeout);
 
       stopwatch.stop();
+      connectionProblem.value = false;
       AppLogger.response(
         'POST (MULTIPART)',
         url,
@@ -381,6 +408,7 @@ class ApiClient {
         stackTrace: stack,
         durationMs: stopwatch.elapsedMilliseconds,
       );
+      if (_isConnectionFailure(e)) connectionProblem.value = true;
       throw _friendlyNetworkException(e);
     }
   }

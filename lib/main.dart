@@ -11,6 +11,8 @@ import 'core/widgets/download_progress_overlay.dart';
 import 'core/services/app_update_service.dart';
 import 'core/widgets/app_update_overlay.dart';
 import 'core/services/fcm_service.dart';
+import 'core/widgets/global_keyboard_dismiss.dart';
+import 'core/widgets/connection_banner.dart';
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
@@ -97,15 +99,18 @@ class MyApp extends StatelessWidget {
           themeMode: currentMode,
           initialRoute: '/',
           routes: AppRoutes.routes,
-          builder: (context, child) => Stack(
-            children: [
-              if (child != null) child,
-              DownloadProgressOverlay(
-                onViewDownloads: () =>
-                    navigatorKey.currentState?.pushNamed('/downloads'),
-              ),
-              const AppUpdateOverlay(),
-            ],
+          builder: (context, child) => GlobalKeyboardDismiss(
+            child: Stack(
+              children: [
+                if (child != null) child,
+                DownloadProgressOverlay(
+                  onViewDownloads: () =>
+                      navigatorKey.currentState?.pushNamed('/downloads'),
+                ),
+                const AppUpdateOverlay(),
+                const ConnectionBanner(),
+              ],
+            ),
           ),
         );
       },

@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
 import '../../models/admin_task_model.dart';
 import '../projects/widgets/create_task_dialog.dart';
-import '../projects/create_task_controller.dart';
 import 'admin_tasks_controller.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/background_stripes_painter.dart';
@@ -137,16 +136,7 @@ class _TasksScreenState extends State<TasksScreen> {
     if (options != null) {
       for (final o in options) {
         final str = o.toString().trim();
-        if (str.isNotEmpty &&
-            CreateTaskController.isEligibleOperativeName(str)) {
-          set.add(str);
-        }
-      }
-    }
-    for (final t in _controller.tasks) {
-      final op = t.operativeName.trim();
-      if (op.isNotEmpty && CreateTaskController.isEligibleOperativeName(op)) {
-        set.add(op);
+        if (str.isNotEmpty) set.add(str);
       }
     }
     return set.toList();
@@ -584,7 +574,10 @@ class _TasksScreenState extends State<TasksScreen> {
                 detailRow('Operative', task.operativeName),
                 detailRow('Status', task.statusLabel),
                 detailRow('Form', task.formName),
-                detailRow('Scheduled', _formatScheduledDate(task.scheduledDate)),
+                detailRow(
+                  'Scheduled',
+                  _formatScheduledDate(task.scheduledDate),
+                ),
                 detailRow('Job sheets', '${task.sheetCount}'),
               ],
             ),

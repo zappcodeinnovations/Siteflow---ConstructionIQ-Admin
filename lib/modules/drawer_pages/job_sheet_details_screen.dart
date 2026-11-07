@@ -225,10 +225,12 @@ class _JobSheetDetailsScreenState extends State<JobSheetDetailsScreen> {
       'work_started_at',
       'work_finished_at',
       'labour_hours',
-      'break_time',
+      'total_break_taken',
       'materials_used',
     ];
     final values = <String, dynamic>{...jobSheet.rawFields};
+    values['total_break_taken'] ??=
+        values['break_time'] ?? values['break_duration'];
     final materialEntries = _materialEntries();
     if (materialEntries.isNotEmpty) {
       values['materials_used'] = materialEntries;

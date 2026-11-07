@@ -1218,3 +1218,17 @@ Also added `FocusScope.of(context).unfocus()` before every `Navigator.pop` in bo
 **Tests:** `flutter analyze` clean (0 issues).
 
 **Status:** Verified locally. Not committed/pushed yet.
+
+## 2026-11-06 — Slow login/dashboard + ClickUp points from 05-06 Nov
+
+- **Dashboard double fetch after login** (`lib/modules/dashboard/dashboard.dart`): the login screen already prefetches the dashboard, then `initState` fetched it again immediately, sending two full dashboard requests back to back on every login to a 3-worker server. It now only fetches when nothing was prefetched; the 30s auto-refresh keeps it current.
+- **ClickUp 14yjutqgq69 / 14yjutqgq6k** (`drawings_tab.dart`, `site_manager_tab.dart`): the Drawings tab's per-level "Upload" and "Add Block & Levels" buttons were active for users without `projects` edit (the backend needs it for both), giving a red "You do not have permission to manage projects from mobile API." They are now greyed out without that permission (same pattern as Import CSV). Any 403 from block creation or drawing upload in either tab now goes through `showApiFailureSnackbar` (informational blue). Block creation in the Drawings tab also shows a success message like the Locations tab does.
+- **ClickUp 14yjutqgntv** (`add_attendance_dialog.dart`): Add Attendance failures (including the new backend check for clocking in an operative who already clocked out of that project today) are shown in a popup over the dialog instead of a SnackBar behind it.
+- **ClickUp 14yjutqgnwz / 14yjutqgq68** (`absence_management_screen.dart`): Record Operative Absence validation ("select an operative", "reason required for Other") used a SnackBar on the screen underneath the bottom sheet, so it was hidden; now shown as a popup over the sheet. On a failed save `isSubmitting` was never reset, which left the endless spinner from q68 (the backend create itself measured at 8 queries / ~82ms). It is now reset and the failure reason shown in a popup.
+- Already fixed by earlier commits (verified, no change): nw1 task Delete hidden without `tasks` delete; nw3 drawing delete hidden for supervisors; nw8 Import CSV disabled without edit; nq8 Operative filter from server-side operative-only options; nwt/nrr forms open via `ApiClient.getHtml`, Traceability shows `total_break_taken`; ntr clock-out banner formats the ISO time.
+
+**Tests:** `flutter analyze` on all changed files: no errors.
+
+**Status:** Committed locally, not pushed.
+- **ClickUp 14yjutqgnrq - raw "An error occurred: The request timed out..." inside the project view when offline**: `ApiClient` now exposes `connectionProblem` (a `ValueNotifier<bool>`), set when a request fails with a timeout/socket/client exception and cleared by the next response (both the normal and multipart paths). New `lib/core/widgets/connection_banner.dart` is mounted once in `MaterialApp.builder` (`main.dart`) and shows an app-wide "Can't reach the server" banner (dismissible, clears itself on reconnect). The project details screen no longer prints the raw exception in red: `fetchAllInOneProjectDetails` uses `ApiClient.friendlyErrorMessage`, and the screen shows "Couldn't load this project" with a Retry button. `flutter analyze` on the changed files: no errors (one pre-existing info in api_client.dart).
+- **ClickUp 14yjutqgnwq**: fixed on the backend (HS&E list now readable with "projects" view); no app change needed since HS&E write controls were already hidden without edit.

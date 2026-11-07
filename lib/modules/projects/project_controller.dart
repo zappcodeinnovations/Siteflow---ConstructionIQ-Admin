@@ -203,7 +203,9 @@ class ProjectController extends ChangeNotifier {
           data['message'] ?? 'Failed to fetch all-in-one project details';
       return null;
     } catch (e) {
-      _errorMessage = 'An error occurred: $e';
+      // ApiClient already reports a lost connection app-wide; keep the
+      // in-screen message short and free of the raw exception prefix.
+      _errorMessage = ApiClient.friendlyErrorMessage(e);
       return null;
     } finally {
       _isLoading = false;

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:intl/intl.dart';
 import '../../core/services/download_manager.dart';
 import '../../core/network/api_endpoints.dart';
 import 'timesheet_controller.dart';
@@ -34,7 +35,9 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
     super.initState();
     _scrollController.addListener(_loadMoreWhenNeeded);
     if (widget.initialProjectId != null) {
-      _controller.setAdvancedFilters(project: widget.initialProjectId.toString());
+      _controller.setAdvancedFilters(
+        project: widget.initialProjectId.toString(),
+      );
     }
     _controller.fetchTimesheets();
   }
@@ -743,7 +746,8 @@ class _TimesheetScreenState extends State<TimesheetScreen> {
             onPressed: () {
               showDialog(
                 context: context,
-                builder: (context) => AddAttendanceDialog(controller: _controller),
+                builder: (context) =>
+                    AddAttendanceDialog(controller: _controller),
               );
             },
             child: const Icon(IconlyLight.plus, color: Colors.white),
@@ -896,7 +900,9 @@ class _TimesheetCardState extends State<_TimesheetCard> {
   Widget build(BuildContext context) {
     String statusLabel = "Completed";
     Color statusColor = Colors.grey;
-    if (widget.record.attendanceState == 'clocked_in') {
+    if (widget.record.isOpenSession ||
+        widget.record.attendanceState == 'clocked_in' ||
+        widget.record.attendanceState == 'not_clocked_out') {
       statusLabel = "Clocked In";
       statusColor = Colors.green;
     } else if (widget.record.attendanceState == 'clocked_out') {
@@ -947,7 +953,10 @@ class _TimesheetCardState extends State<_TimesheetCard> {
         children: [
           // Header
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 12.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 14.0,
+              vertical: 12.0,
+            ),
             child: Row(
               children: [
                 CircleAvatar(
@@ -1056,8 +1065,11 @@ class _TimesheetCardState extends State<_TimesheetCard> {
                         Text(
                           widget.record.shiftHours.trim().isNotEmpty
                               ? "${widget.record.shiftHours.trim()} hrs"
-                              : (widget.record.attendanceState ==
+                              : (widget.record.isOpenSession ||
+                                    widget.record.attendanceState ==
                                         'clocked_in' ||
+                                    widget.record.attendanceState ==
+                                        'not_clocked_out' ||
                                     widget.record.clockOut.trim().isEmpty)
                               ? "In Progress"
                               : "-",
@@ -1070,8 +1082,11 @@ class _TimesheetCardState extends State<_TimesheetCard> {
                                 ? (isDark
                                       ? Colors.white
                                       : const Color(0xFF0D6EFD))
-                                : (widget.record.attendanceState ==
+                                : (widget.record.isOpenSession ||
+                                      widget.record.attendanceState ==
                                           'clocked_in' ||
+                                      widget.record.attendanceState ==
+                                          'not_clocked_out' ||
                                       widget.record.clockOut.trim().isEmpty)
                                 ? Colors.green
                                 : textSecondary,
@@ -1116,12 +1131,17 @@ class _TimesheetCardState extends State<_TimesheetCard> {
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        widget.record.clockOut.trim().isNotEmpty
-                            ? "${widget.record.clockIn} - ${widget.record.clockOut}"
-                            : "${widget.record.clockIn} - Active",
+                        (widget.record.isOpenSession ||
+                                widget.record.clockOut.trim().isEmpty)
+                            ? "${widget.record.clockIn} - Active"
+                            : "${widget.record.clockIn} - ${widget.record.clockOut}",
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 13, color: textColor, fontWeight: FontWeight.w500),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: textColor,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
                   ],
@@ -1191,7 +1211,11 @@ class _TimesheetCardState extends State<_TimesheetCard> {
                                   ),
                                 ),
                                 Text(
-                                  _endAddress.isNotEmpty ? _endAddress : (widget.record.isOpenSession ? "Active Session" : "N/A"),
+                                  _endAddress.isNotEmpty
+                                      ? _endAddress
+                                      : (widget.record.isOpenSession
+                                            ? "Active Session"
+                                            : "N/A"),
                                   style: TextStyle(
                                     fontSize: 11,
                                     color: textColor,
@@ -1211,13 +1235,17 @@ class _TimesheetCardState extends State<_TimesheetCard> {
             ),
           ),
 
-          if (widget.record.isOpenSession || widget.record.projectEntries.isNotEmpty) ...[
+          if (widget.record.isOpenSession ||
+              widget.record.projectEntries.isNotEmpty) ...[
             Divider(
               height: 1,
               color: isDark ? Colors.white12 : Colors.grey.shade100,
             ),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 10.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 14.0,
+                vertical: 10.0,
+              ),
               child: Row(
                 children: [
                   if (widget.record.projectEntries.isNotEmpty)
@@ -1254,11 +1282,14 @@ class _TimesheetCardState extends State<_TimesheetCard> {
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 13,
-                          color: isDark ? Colors.white : const Color(0xFF0D6EFD),
+                          color: isDark
+                              ? Colors.white
+                              : const Color(0xFF0D6EFD),
                         ),
                       ),
                     ),
-                  if (widget.record.isOpenSession && widget.record.projectEntries.isNotEmpty)
+                  if (widget.record.isOpenSession &&
+                      widget.record.projectEntries.isNotEmpty)
                     const SizedBox(width: 10),
                   if (widget.record.isOpenSession)
                     Expanded(
@@ -1273,12 +1304,20 @@ class _TimesheetCardState extends State<_TimesheetCard> {
                           ),
                         ),
                         onPressed: () => _showClockOutDialog(context),
-                        icon: const Icon(IconlyLight.time_circle, size: 16, color: Colors.white),
+                        icon: const Icon(
+                          IconlyLight.time_circle,
+                          size: 16,
+                          color: Colors.white,
+                        ),
                         label: const Text(
                           "Clock Out Operative",
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.white),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ),
@@ -1305,11 +1344,13 @@ class SupervisorClockOutDialog extends StatefulWidget {
   });
 
   @override
-  State<SupervisorClockOutDialog> createState() => _SupervisorClockOutDialogState();
+  State<SupervisorClockOutDialog> createState() =>
+      _SupervisorClockOutDialogState();
 }
 
 class _SupervisorClockOutDialogState extends State<SupervisorClockOutDialog> {
-  final TextEditingController _workPerformedController = TextEditingController();
+  final TextEditingController _workPerformedController =
+      TextEditingController();
   final TextEditingController _workLocationController = TextEditingController();
   final TextEditingController _commentsController = TextEditingController();
   final TextEditingController _signatureController = TextEditingController();
@@ -1319,6 +1360,17 @@ class _SupervisorClockOutDialogState extends State<SupervisorClockOutDialog> {
   bool _isAcquiringLocation = false;
   bool _isSubmitting = false;
   String? _errorMessage;
+
+  String _formatClockOutMessage(String message) {
+    final isoTimestamp = RegExp(
+      r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})',
+    );
+    return message.replaceAllMapped(isoTimestamp, (match) {
+      final parsed = DateTime.tryParse(match.group(0)!);
+      if (parsed == null) return match.group(0)!;
+      return DateFormat('dd MMM yyyy, hh:mm a').format(parsed.toLocal());
+    });
+  }
 
   @override
   void dispose() {
@@ -1336,7 +1388,9 @@ class _SupervisorClockOutDialogState extends State<SupervisorClockOutDialog> {
       if (!enabled) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Location services are disabled on your device.")),
+            const SnackBar(
+              content: Text("Location services are disabled on your device."),
+            ),
           );
         }
         return;
@@ -1345,10 +1399,15 @@ class _SupervisorClockOutDialogState extends State<SupervisorClockOutDialog> {
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
       }
-      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Location permission is required to acquire current location.")),
+            const SnackBar(
+              content: Text(
+                "Location permission is required to acquire current location.",
+              ),
+            ),
           );
         }
         return;
@@ -1366,15 +1425,17 @@ class _SupervisorClockOutDialogState extends State<SupervisorClockOutDialog> {
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Location acquired: ${pos.latitude.toStringAsFixed(5)}, ${pos.longitude.toStringAsFixed(5)}"),
+          content: Text(
+            "Location acquired: ${pos.latitude.toStringAsFixed(5)}, ${pos.longitude.toStringAsFixed(5)}",
+          ),
           backgroundColor: Colors.green,
         ),
       );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error acquiring location: $e")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Error acquiring location: $e")));
       }
     } finally {
       if (mounted) setState(() => _isAcquiringLocation = false);
@@ -1416,13 +1477,17 @@ class _SupervisorClockOutDialogState extends State<SupervisorClockOutDialog> {
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(res['message'] ?? 'Operative clocked out successfully.'),
+          content: Text(
+            res['message'] ?? 'Operative clocked out successfully.',
+          ),
           backgroundColor: Colors.green,
         ),
       );
     } else {
       setState(() {
-        _errorMessage = res['message'] ?? 'Failed to clock out operative.';
+        _errorMessage = _formatClockOutMessage(
+          res['message'] ?? 'Failed to clock out operative.',
+        );
       });
     }
   }
@@ -1476,7 +1541,10 @@ class _SupervisorClockOutDialogState extends State<SupervisorClockOutDialog> {
             hintStyle: TextStyle(color: hintColor, fontSize: 13),
             filled: true,
             fillColor: boxBgColor,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: borderColor),
@@ -1525,7 +1593,7 @@ class _SupervisorClockOutDialogState extends State<SupervisorClockOutDialog> {
                   color: Colors.black.withValues(alpha: 0.1),
                   blurRadius: 20,
                   offset: const Offset(0, 10),
-                )
+                ),
               ],
             ),
             child: Column(
@@ -1538,7 +1606,11 @@ class _SupervisorClockOutDialogState extends State<SupervisorClockOutDialog> {
                     Expanded(
                       child: Row(
                         children: [
-                          Icon(IconlyLight.time_circle, color: Colors.orange.shade700, size: 22),
+                          Icon(
+                            IconlyLight.time_circle,
+                            color: Colors.orange.shade700,
+                            size: 22,
+                          ),
                           const SizedBox(width: 8),
                           Flexible(
                             child: Text(
@@ -1576,15 +1648,26 @@ class _SupervisorClockOutDialogState extends State<SupervisorClockOutDialog> {
 
                 // Info banner for Operative & Project
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF1F2E40) : Colors.orange.shade50.withValues(alpha: 0.5),
+                    color: isDark
+                        ? const Color(0xFF1F2E40)
+                        : Colors.orange.shade50.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: isDark ? Colors.white12 : Colors.orange.shade200),
+                    border: Border.all(
+                      color: isDark ? Colors.white12 : Colors.orange.shade200,
+                    ),
                   ),
                   child: Row(
                     children: [
-                      Icon(IconlyLight.profile, color: Colors.orange.shade800, size: 18),
+                      Icon(
+                        IconlyLight.profile,
+                        color: Colors.orange.shade800,
+                        size: 18,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -1592,7 +1675,9 @@ class _SupervisorClockOutDialogState extends State<SupervisorClockOutDialog> {
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
-                            color: isDark ? Colors.white : Colors.orange.shade900,
+                            color: isDark
+                                ? Colors.white
+                                : Colors.orange.shade900,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -1603,26 +1688,80 @@ class _SupervisorClockOutDialogState extends State<SupervisorClockOutDialog> {
                 const SizedBox(height: 14),
 
                 if (_errorMessage != null) ...[
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    margin: const EdgeInsets.only(bottom: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.red.shade50,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.red.shade200),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(IconlyLight.danger, color: Colors.red.shade700, size: 18),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            _errorMessage!,
-                            style: TextStyle(color: Colors.red.shade900, fontSize: 13),
+                  Builder(
+                    builder: (context) {
+                      final isAlreadyClockedOut = _errorMessage!
+                          .toLowerCase()
+                          .contains('already clocked out');
+                      final accent = isAlreadyClockedOut
+                          ? const Color(0xFFF59E0B)
+                          : const Color(0xFFEF4444);
+                      final bannerBackground = isDark
+                          ? accent.withValues(alpha: 0.12)
+                          : accent.withValues(alpha: 0.08);
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 13,
+                        ),
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                          color: bannerBackground,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: accent.withValues(
+                              alpha: isDark ? 0.5 : 0.35,
+                            ),
                           ),
                         ),
-                      ],
-                    ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(7),
+                              decoration: BoxDecoration(
+                                color: accent.withValues(alpha: 0.14),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                IconlyLight.danger,
+                                color: accent,
+                                size: 18,
+                              ),
+                            ),
+                            const SizedBox(width: 11),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    isAlreadyClockedOut
+                                        ? 'Already clocked out'
+                                        : 'Unable to clock out',
+                                    style: TextStyle(
+                                      color: isDark ? Colors.white : textColor,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    _errorMessage!,
+                                    style: TextStyle(
+                                      color: isDark
+                                          ? Colors.white70
+                                          : const Color(0xFF475569),
+                                      fontSize: 12.5,
+                                      height: 1.35,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
                   ),
                 ],
 
@@ -1635,7 +1774,8 @@ class _SupervisorClockOutDialogState extends State<SupervisorClockOutDialog> {
                           "Work Performed",
                           _workPerformedController,
                           maxLines: 4,
-                          hintText: "Describe the work completed during this shift",
+                          hintText:
+                              "Describe the work completed during this shift",
                           isRequired: true,
                         ),
                         const SizedBox(height: 16),
@@ -1669,26 +1809,37 @@ class _SupervisorClockOutDialogState extends State<SupervisorClockOutDialog> {
                                 side: BorderSide(
                                   color: _acquiredLat != null
                                       ? Colors.green
-                                      : (isDark ? Colors.white24 : Colors.grey.shade300),
+                                      : (isDark
+                                            ? Colors.white24
+                                            : Colors.grey.shade300),
                                 ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 12,
+                                ),
                               ),
-                              onPressed: _isAcquiringLocation ? null : _getCurrentLocation,
+                              onPressed: _isAcquiringLocation
+                                  ? null
+                                  : _getCurrentLocation,
                               icon: _isAcquiringLocation
                                   ? const SizedBox(
                                       width: 16,
                                       height: 16,
-                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
                                     )
                                   : Icon(
                                       IconlyLight.location,
                                       size: 16,
                                       color: _acquiredLat != null
                                           ? Colors.green
-                                          : (isDark ? Colors.white : Colors.black87),
+                                          : (isDark
+                                                ? Colors.white
+                                                : Colors.black87),
                                     ),
                               label: Text(
                                 _acquiredLat != null
@@ -1699,7 +1850,9 @@ class _SupervisorClockOutDialogState extends State<SupervisorClockOutDialog> {
                                 style: TextStyle(
                                   color: _acquiredLat != null
                                       ? Colors.green
-                                      : (isDark ? Colors.white : Colors.black87),
+                                      : (isDark
+                                            ? Colors.white
+                                            : Colors.black87),
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -1713,7 +1866,9 @@ class _SupervisorClockOutDialogState extends State<SupervisorClockOutDialog> {
                                 fontSize: 12,
                                 color: _acquiredLat != null
                                     ? Colors.green.shade700
-                                    : (isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                                    : (isDark
+                                          ? Colors.grey.shade400
+                                          : Colors.grey.shade600),
                               ),
                             ),
                           ],
@@ -1737,10 +1892,14 @@ class _SupervisorClockOutDialogState extends State<SupervisorClockOutDialog> {
                               borderRadius: BorderRadius.circular(12),
                             ),
                             side: BorderSide(
-                              color: isDark ? Colors.white24 : Colors.grey.shade300,
+                              color: isDark
+                                  ? Colors.white24
+                                  : Colors.grey.shade300,
                             ),
                           ),
-                          onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(),
+                          onPressed: _isSubmitting
+                              ? null
+                              : () => Navigator.of(context).pop(),
                           child: Text(
                             "Cancel",
                             style: TextStyle(
@@ -1768,11 +1927,17 @@ class _SupervisorClockOutDialogState extends State<SupervisorClockOutDialog> {
                               ? const SizedBox(
                                   width: 20,
                                   height: 20,
-                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
                                 )
                               : const Text(
                                   "Save Diary & Clock Out",
-                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                  ),
                                 ),
                         ),
                       ),

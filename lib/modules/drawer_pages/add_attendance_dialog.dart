@@ -501,10 +501,22 @@ class _AddAttendanceDialogState extends State<AddAttendanceDialog> {
         ),
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['message']),
-          backgroundColor: Colors.red,
+      // Validation failures (e.g. operative already clocked out of this
+      // project today) are shown as a popup over the dialog rather than a
+      // snackbar hidden behind it (ClickUp 14yjutqgntv).
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text("Unable to add attendance"),
+          content: Text(
+            result['message']?.toString() ?? "Failed to record attendance.",
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text("OK"),
+            ),
+          ],
         ),
       );
     }

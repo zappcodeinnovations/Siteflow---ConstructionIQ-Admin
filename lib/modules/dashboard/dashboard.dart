@@ -57,11 +57,14 @@ class _DashboardScreenState extends State<DashboardScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    // Data prefetched during the splash screen is shown straight away and
-    // refreshed quietly; otherwise load with the usual spinner.
-    _dashboardController.fetchDashboard(
-      silent: _dashboardController.dashboardData != null,
-    );
+    // Data prefetched during the splash/login screen is only seconds old, so
+    // show it as-is and let the 30s auto-refresh below update it. Fetching
+    // again here sent a second full dashboard request right behind the
+    // prefetch on every login, doubling load on the server at the slowest
+    // moment (2026-11-06: slow login/dashboard).
+    if (_dashboardController.dashboardData == null) {
+      _dashboardController.fetchDashboard();
+    }
     DashboardController.refreshNotifier.addListener(_onGlobalRefresh);
 
     // Periodic silent background refresh. 30s keeps the numbers current

@@ -327,9 +327,47 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                 )
               : _errorMessage != null
               ? Center(
-                  child: Text(
-                    _errorMessage!,
-                    style: const TextStyle(color: Colors.red),
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.cloud_off_rounded,
+                          size: 40,
+                          color: isDark ? Colors.white54 : Colors.grey,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          "Couldn't load this project",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          _errorMessage!,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: isDark ? Colors.white70 : Colors.black54,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        OutlinedButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              _isLoading = true;
+                              _errorMessage = null;
+                            });
+                            _fetchData();
+                          },
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Retry'),
+                        ),
+                      ],
+                    ),
                   ),
                 )
               : _allInOneData == null

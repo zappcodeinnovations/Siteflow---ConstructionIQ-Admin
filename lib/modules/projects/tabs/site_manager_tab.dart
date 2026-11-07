@@ -8,6 +8,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
 import '../../../core/services/auth_service.dart';
+import '../../../core/utils/snackbar_helper.dart';
 import '../../../core/services/download_manager.dart';
 import '../../../models/site_structure_models.dart';
 import 'drawing_pin_viewer_screen.dart';
@@ -723,14 +724,15 @@ class _SiteManagerTabState extends State<SiteManagerTab> {
                       ),
                     );
                   } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
+                    // 403 (no "projects" edit) is an access notice, shown
+                    // in informational blue like other permission
+                    // restrictions (ClickUp 14yjutqgq6k).
+                    showApiFailureSnackbar(
+                      context,
+                      statusCode: response.statusCode,
+                      message:
                           decoded['message']?.toString() ??
-                              'Failed to create block.',
-                        ),
-                        backgroundColor: Colors.redAccent,
-                      ),
+                          'Failed to create block.',
                     );
                   }
                 } catch (e) {
@@ -1534,6 +1536,12 @@ class _SiteManagerTabState extends State<SiteManagerTab> {
 
   // Action: Import CSV File
   Future<void> _importCsvFile() async {
+    // CSV import mutates the project site structure, so it follows the same
+    // project edit permission as the other location-management actions.
+    if (!_canUploadDrawings || widget.projectId == null || _isImportingCsv) {
+      return;
+    }
+
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['csv'],
@@ -2693,7 +2701,13 @@ class _SiteManagerTabState extends State<SiteManagerTab> {
                             child: ElevatedButton.icon(
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF10B981),
+                                disabledBackgroundColor: isDark
+                                    ? const Color(0xFF374151)
+                                    : const Color(0xFFD1D5DB),
                                 foregroundColor: Colors.white,
+                                disabledForegroundColor: isDark
+                                    ? const Color(0xFF9CA3AF)
+                                    : const Color(0xFF6B7280),
                                 elevation: 0,
                                 padding: const EdgeInsets.symmetric(
                                   vertical: 12,
@@ -2702,9 +2716,12 @@ class _SiteManagerTabState extends State<SiteManagerTab> {
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                               ),
-                              onPressed: _isImportingCsv
-                                  ? null
-                                  : _importCsvFile,
+                              onPressed:
+                                  (_canUploadDrawings &&
+                                      widget.projectId != null &&
+                                      !_isImportingCsv)
+                                  ? _importCsvFile
+                                  : null,
                               icon: _isImportingCsv
                                   ? const SizedBox(
                                       width: 16,
